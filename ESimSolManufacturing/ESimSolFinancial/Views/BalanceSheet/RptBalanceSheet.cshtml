@@ -1,0 +1,211 @@
+﻿@model ESimSol.BusinessObjects.BalanceSheet
+@{
+    ViewBag.Title = "Statement of Financial Position";
+}
+
+
+<div class="easyui-layout" style="margin-left: 0px; height:100%; width:100%" fit="true">
+<div data-options="region:'north'" style="overflow:hidden;">
+    Select Business Unit :<select id="cboBUs" style="width:210px;"></select>
+<input id="idEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+<select id="cboAccountType" style="width:86px;"></select>
+<a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+<a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Print</a>
+<a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+<a id="btnFinancialPosition" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Financial Position </a>
+<a id="btnNotesOfStatement" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Notes of Statement</a>
+@*<a id="btnExcelTest" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export to Excel </a>*@
+@*<a id="btnExcelTest2" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export to Excel2 </a>*@
+</div>
+    <div data-options="region:'west',split:true" style="width:50%;">
+        <table id="tblLiability" title="Statement of Financial Position (Liability & Owner Equity)" class="easyui-treegrid" fit="true" fitcolumns="true" rownumbers="false" pagination="false" singleselect="true" autorowheight="false" , data-options="idField:'id',treeField:'text'">
+            <thead>
+                <tr>
+                    <th field="text" width="195" align="left">Particulars</th>
+                    <th field="LadgerBalanceInString" width="100" align="right"></th>
+                    <th field="CGSGBalanceInString" width="100" align="right"></th>
+                </tr>
+            </thead>
+        </table>
+    </div> 
+    <div data-options="region:'center',split:true" style="width:50%;">
+        
+        <table id="tblAssets" title="Statement of Financial Position (Assets)" class="easyui-treegrid" fit="true" fitcolumns="true" rownumbers="false" pagination="false" singleselect="true" autorowheight="false" , data-options="idField:'id',treeField:'text'">
+            <thead>
+                <tr>
+                    <th field="text" width="195" align="left">Particulars</th>
+                    <th field="LadgerBalanceInString" width="100" align="right"></th>
+                    <th field="CGSGBalanceInString" width="100" align="right"></th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div data-options="region:'south'" style="height:25px;">
+        <table border="0" style="background-color:#DEDEDE; width:100%;">
+            <tr>
+                <td style="width:50%; text-align:right; font-weight:bold; font-size:small">
+                    <label id="lblLiabilityTotal" style="margin-right:20px">Total : 0.00</label>                    
+                </td>
+                <td style="width:50%; text-align:right; font-weight:bold; font-size:small">
+                    <label id="lblAssetTotal" style="margin-right:20px">Total : 0.00</label>
+                </td>
+            </tr>
+        </table>
+    </div>           
+</div>
+
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oBalanceSheet=null;
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBalanceSheet =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({
+            List: oBUs,
+            OptionValue: "BusinessUnitID",
+            DisplayText: "Name"});
+
+        RefreshList(_oBalanceSheet.TLiablityAndOwnersEquitys, _oBalanceSheet.TAsset.children);
+
+            var listAccountTypeObjs = _oBalanceSheet.AccountTypeObjs;
+            LoadAccountTypes(listAccountTypeObjs);
+            $('#idEndDate').datebox('setValue', icsdateformat(new Date()));
+            
+            $('#Mainlayout').layout('collapse', 'west');
+        });
+        function LoadAccountTypes(Items)
+        {
+            var listItems="";
+            for (i = 0; i < Items.length; i++)
+            {
+                if(Items[i].id!= 0 && Items[i].id!= 1)
+                {
+                    listItems += "<option value='" + Items[i].Id+"'>" + Items[i].Value+"</option>";
+                }
+            }
+            $("#cboAccountType").html(listItems);
+            $("#cboAccountType").val(5);
+        }
+
+        
+        $("#btnRefresh").click(function(){
+
+           
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= nBUID+"~"+cboAccountTypeVal+"~"+dEndDate+"~";
+            var tsv=((new Date()).getTime())/1000;
+            
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+ "/BalanceSheet/RefreshBalanceSheet",
+                data: {sParameter:sParam, ts:tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oBalanceSheet = jQuery.parseJSON(data);
+                    $('#progressbar').progressbar('setValue', 100);
+                    
+                    if (oBalanceSheet.LiabilitysOwnerEquitys.length>0)
+                    {
+                        _oBalanceSheet =oBalanceSheet;
+                        RefreshList(_oBalanceSheet.TLiablityAndOwnersEquitys, _oBalanceSheet.TAsset.children);
+                    }
+                    else
+                    {
+                        alert("data not found");
+                        RefreshList([],[]);
+                    }
+                    setTimeout(hideShow, 1000);
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                    setTimeout(hideShow, 1000);
+                }
+            });
+        });
+
+        function RefreshList(oTLiabilityAndOwnerEquity, oTAsset)
+        {
+            var data =oTLiabilityAndOwnerEquity;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblLiability').treegrid('loadData',data);
+
+            data =oTAsset;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblAssets').treegrid('loadData',data);
+            var TotalAsst = _oBalanceSheet.TotalAssets.toFixed(2);
+            var TotalAsset = addComma(TotalAsst);
+            var TotalLOE = _oBalanceSheet.TotalLiabilitysOwnerEquitys.toFixed(2);
+            var TotalLOEs = addComma(TotalLOE);
+
+            document.getElementById('lblAssetTotal').innerHTML ="Total : "+ TotalAsset;
+            document.getElementById('lblLiabilityTotal').innerHTML ="Total : "+ TotalLOEs;
+        }
+
+
+        $("#btnPrint").click(function(){
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= nBUID+"~"+cboAccountTypeVal+"~"+dEndDate+"~";
+            window.open(_sBaseAddress+'/BalanceSheet/PrepareBalanceSheet?sParameter=' + sParam, "_blank");
+        });
+        $("#btnFinancialPosition").click(function(){
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= nBUID+"~"+cboAccountTypeVal+"~"+dEndDate+"~";
+            window.open(_sBaseAddress+'/BalanceSheet/PrintFinancialPosition?sParameter=' + sParam, "_blank");
+        });
+        $("#btnNotesOfStatement").click(function(){
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= nBUID+"~"+cboAccountTypeVal+"~"+dEndDate+"~";
+            window.open(_sBaseAddress+'/BalanceSheet/PrintNotesOfStatement?sParameter=' + sParam, "_blank");
+        });
+
+        $("#btnPrintXL").click(function(){
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= nBUID+"~"+cboAccountTypeVal+"~"+dEndDate+"~";
+            window.open(_sBaseAddress+'/BalanceSheet/PrepareBalanceSheetInXL?sParameter=' + sParam, "_blank");
+        });
+
+        $("#btnExcelTest").click(function(){
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= cboAccountTypeVal+"~"+dEndDate;
+            window.open(_sBaseAddress+'/BalanceSheet/ExportToExcel', "_blank");
+        });
+
+        $("#btnExcelTest2").click(function(){
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var dEndDate = $('#idEndDate').datebox('getValue');
+            var sParam= cboAccountTypeVal+"~"+dEndDate;
+            window.open(_sBaseAddress+'/BalanceSheet/ExportToExcel2', "_blank");
+        });
+
+
+
+
+</script>

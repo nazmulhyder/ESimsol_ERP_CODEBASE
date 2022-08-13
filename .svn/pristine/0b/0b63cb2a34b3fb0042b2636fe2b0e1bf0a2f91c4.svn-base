@@ -1,0 +1,380 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.DUDeliverySummaryRPT>
+
+    @{
+        ViewBag.Title = "Delivery Summary Report";
+    }
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable" id="regionHardWindingReport">
+        <table id="tblDUDeliverySummaryRPTs" title="Delivery Summary Report" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" showfooter="true" singleselect="true" autorowheight="false" toolbar="#toolbar"></table>
+        <div id="toolbar">
+            <input id="cboOrderType" class="easyui-combobox" data-options=" valueField: 'id',textField: 'text',multiple:true" style="width:150px;" />
+            <select id="cboLayout" style=" width:120px;height:22px;">
+                <option value="0">--Select Layout--</option>
+                <option value="1">Month</option>
+                <option value="2">Day</option>
+                <option value="3">Product</option>
+                <option value="4">Contractor</option>
+                <option value="5">MKT Person</option>
+            </select>
+            <select id="cboDate" style=" width:86px;height:22px;"></select>
+            <input id="txtDateStart" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="txtDateEnd" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+            <a id="btnPreviewRPT" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview Detail</a>
+            <a id="btnOrderWisePreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Order Wise Preview</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    var _sBaseAddress="";
+    var oCompareOperators=[];
+    var oOrderTypes=[];
+    var oRSShifts=[];
+    var oDyeingTypes=[];
+    var oRSStates=[];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oDUDeliverySummaryRPTs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+        var oOrderTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+        $("#cboDate").icsLoadCombo({List:oCompareOperators,OptionValue: "id",DisplayText: "Value",});
+        sessionStorage.setItem('BUID',nBUID);
+        $("#cboLayout").val(2);
+        MakeTable();
+        RefreshList(oDUDeliverySummaryRPTs);
+        LoadFooter();
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $('#txtDateStart').datebox({ disabled : true });
+        $('#txtDateEnd').datebox({ disabled : true });
+        $('#txtDateStart').datebox('setValue',icsdateformat(new Date()));
+        $('#txtDateEnd').datebox('setValue',icsdateformat(new Date()));
+        var oFinalOrderTypes = LoadOrderTypes(oOrderTypes);
+        $('#cboOrderType').combobox('loadData',oFinalOrderTypes);
+    });
+
+    function LoadOrderTypes(oOrderTypes)
+    {
+        var oStyleTypes = [];
+        for(var i = 0;i<oOrderTypes.length;i++)
+        {
+            var oStyleType = {id:''+oOrderTypes[i].OrderType, text:''+oOrderTypes[i].OrderName};
+            oStyleTypes.push(oStyleType);
+        }
+        return oStyleTypes;
+    }
+
+    function MakeTable(){
+            debugger;
+            if(parseInt($("#cboLayout").val()) == 1){   //month wise
+                var tblColums=[];
+                var oColumn=null;
+                oColumn= { field :"RefName", title:"Month Name", width:"150"}; tblColums.push(oColumn);
+                oColumn= { field :"OrderTypeSt", title:"Order Type", width:"100",  align: "center"};tblColums.push(oColumn);;
+                oColumn= { field :"QtyOut", title:"Out Side", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgQtyOut", title:"Avg Out", width:"60",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"QtyIn", title:"In House", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgQtyIn", title:"Avg In", width:"60",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"TotalQty", title:"Total Sales", width:"80",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgTotalQty", title:"Avg Total", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+                oColumn= { field :"AmountOut", title:"Out Side", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgAmountOut", title:"Avg Out", width:"60",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AmountIn", title:"In House", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgAmountIn", title:"Avg In", width:"60",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"TotalAmount", title:"Total Sales", width:"80",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+                oColumn= { field :"AvgTotalAmount", title:"Avg Total", width:"70",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+                $('#tblDUDeliverySummaryRPTs').datagrid({ columns:[tblColums]});                
+            }
+        else if(parseInt($("#cboLayout").val()) == 2){   //day wise
+            var tblColums=[];
+            var oColumn=null;
+            oColumn= { field :"RefName", title:"Date", width:"200"}; tblColums.push(oColumn);
+            oColumn= { field :"OrderTypeSt", title:"Order Type", width:"100",  align: "center"};tblColums.push(oColumn);
+            oColumn= { field :"QtyOut", title:"Qty Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"QtyIn", title:"Qty In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalQty", title:"Qty Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            oColumn= { field :"AmountOut", title:"Amount Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"AmountIn", title:"Amount In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalAmount", title:"Amount Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            $('#tblDUDeliverySummaryRPTs').datagrid({ columns:[tblColums]});
+        }
+        else if(parseInt($("#cboLayout").val()) == 3){   //Product wise
+            var tblColums=[];
+            var oColumn=null;
+            oColumn= { field :"RefName", title:"Product Name", width:"200"}; tblColums.push(oColumn);
+            oColumn= { field :"OrderTypeSt", title:"Order Type", width:"100",  align: "center"};tblColums.push(oColumn);
+            oColumn= { field :"QtyOut", title:"Qty Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"QtyIn", title:"Qty In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalQty", title:"Qty Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            oColumn= { field :"AmountOut", title:"Amount Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"AmountIn", title:"vIn House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalAmount", title:"Amount Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            $('#tblDUDeliverySummaryRPTs').datagrid({ columns:[tblColums]});
+        }
+        else if(parseInt($("#cboLayout").val()) == 4){   //customer wise
+            var tblColums=[];
+            var oColumn=null;
+            oColumn= { field :"RefName", title:"Customer Name", width:"200"}; tblColums.push(oColumn);
+            oColumn= { field :"OrderTypeSt", title:"Order Type", width:"100",  align: "center"};tblColums.push(oColumn);
+            oColumn= { field :"QtyOut", title:"Qty Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"QtyIn", title:"Qty In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalQty", title:"Qty Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            oColumn= { field :"AmountOut", title:"Amount Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"AmountIn", title:"Amount In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalAmount", title:"Amount Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            $('#tblDUDeliverySummaryRPTs').datagrid({ columns:[tblColums]});
+        }
+        else if(parseInt($("#cboLayout").val()) == 5){   //MKT wise
+            var tblColums=[];
+            var oColumn=null;
+            oColumn= { field :"RefName", title:"MKT Person", width:"200"}; tblColums.push(oColumn);
+            oColumn= { field :"OrderTypeSt", title:"Order Type", width:"100",  align: "center"};tblColums.push(oColumn);
+            oColumn= { field :"QtyOut", title:"Qty Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"QtyIn", title:"Qty In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalQty", title:"Qty Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            oColumn= { field :"AmountOut", title:"Amount Out Side", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"AmountIn", title:"Amount In House", width:"100",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+            oColumn= { field :"TotalAmount", title:"Amount Total Sales", width:"120",  align: "right", formatter:formatPriceFor3digit};tblColums.push(oColumn);
+
+            $('#tblDUDeliverySummaryRPTs').datagrid({ columns:[tblColums]});
+        }
+
+    }
+
+    function LoadFooter(){
+        debugger;
+        if(parseInt($("#cboLayout").val()) == 1){   //month wise
+            $.icsMakeFooterColumn('tblDUDeliverySummaryRPTs',['RefName','QtyOut','AvgQtyOut','QtyIn','AvgQtyIn','TotalQty','AvgTotalQty','AmountOut','AvgAmountOut','AmountIn','AvgAmountIn','TotalAmount','AvgTotalAmount']);
+        }
+        else{   //day,Product,customer,MKT wise
+            $.icsMakeFooterColumn('tblDUDeliverySummaryRPTs',['RefName','QtyOut','QtyIn','TotalQty','AmountOut','AmountIn','TotalAmount']);
+        }
+        //else if(parseInt($("#cboLayout").val()) == 2 || parseInt($("#cboLayout").val()) == 3 || parseInt($("#cboLayout").val()) == 4 || parseInt($("#cboLayout").val()) == 5){   //day,Product,customer,MKT wise
+        //    $.icsMakeFooterColumn('tblDUDeliverySummaryRPTs',['RefName','QtyOut','QtyIn','TotalQty','AmountOut','AmountIn','TotalAmount']);
+        //}
+    }
+
+    $('#cboDate').change(function(e){
+        //EqualTo = 1, NotEqualTo = 2, GreaterThen = 3, SmallerThen = 4, Between = 5, NotBetween = 6
+        var nCompareOperator =   parseInt($('#cboDate').val());
+        if(nCompareOperator===0)
+        {
+            $('#txtDateStart').datebox({ disabled : true });
+            $('#txtDateEnd').datebox({ disabled : true });
+        }
+        else if (nCompareOperator===1 || nCompareOperator===2 || nCompareOperator===3 || nCompareOperator===4)
+        {
+            $('#txtDateStart').datebox({ disabled : false });
+            $('#txtDateEnd').datebox({ disabled : true });
+        }
+        else
+        {
+            $('#txtDateStart').datebox({ disabled : false });
+            $('#txtDateEnd').datebox({ disabled : false });
+        }
+        $('#txtDateStart').datebox('setValue', icsdateformat(new Date()));
+        $('#txtDateEnd').datebox('setValue', icsdateformat(new Date()));
+    });
+
+    function RefreshList(oProductionReports)
+    {
+        debugger;
+        var data=oProductionReports;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDUDeliverySummaryRPTs').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblDUDeliverySummaryRPTs').datagrid('selectRow',nIndex);
+    }
+
+
+//Start  search
+
+    $('#btnRefresh').click(function(){
+        //debugger;
+        var sOTs = "";
+        var oOrderTypes = $('#cboOrderType').combobox('getValues');
+        if(oOrderTypes.length > 0){
+            for(var i= 0;i<oOrderTypes.length;i++){
+                if(oOrderTypes[i] != "" && oOrderTypes[i] != null){
+                    sOTs += oOrderTypes[i] + ",";
+                }
+            }
+            if(sOTs.length > 0)
+                sOTs = sOTs.substring(0,sOTs.length-1);
+        }
+
+
+        var nDate = parseInt($("#cboDate").val());
+        var dDateStart = $('#txtDateStart').datebox('getValue');
+        var dDateEnd = $('#txtDateEnd').datebox('getValue');
+
+        if(parseInt($("#cboLayout").val()) == 0){
+            alert("Please enter Layout!!!");
+            return false;
+        }
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportLayout: parseInt($("#cboLayout").val()),
+            StartDate: dDateStart,
+            EndDate: dDateEnd,
+            OrderTypeSt: sOTs
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUDeliverySummaryRPT/GetsData",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oDUPSs = jQuery.parseJSON(data);
+                if (oDUPSs != null) {
+                    if(oDUPSs.length>0)
+                    {
+                        MakeTable();
+                        DynamicRefreshList(oDUPSs, "tblDUDeliverySummaryRPTs");
+                        LoadFooter();
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+//end  search
+
+
+    $('#btnPrintList').click(function(){
+        if(parseInt($("#cboLayout").val()) == 0){
+            alert("Please enter Layout!!!");
+            return false;
+        }
+        var nDate = parseInt($("#cboDate").val());
+        var dDateStart = $('#txtDateStart').datebox('getValue');
+        var dDateEnd = $('#txtDateEnd').datebox('getValue');
+
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportLayout: parseInt($("#cboLayout").val()),
+            StartDate: dDateStart,
+            EndDate: dDateEnd,
+            DateFormat: nDate
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUDeliverySummaryRPT/SetDUDeliverySummaryRPT",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUDeliverySummaryRPT/PrintDUDeliverySummaryRPTs");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $('#btnPreviewRPT').click(function(){
+
+        var oDUDeliverySummaryRPT=$('#tblDUDeliverySummaryRPTs').datagrid('getSelected');
+        if(oDUDeliverySummaryRPT==null)
+        {
+            alert("Please select Item!!");
+            return;
+        }
+        if(parseInt($("#cboLayout").val()) == 0){
+            alert("Please select Layout!!!");
+            return false;
+        }
+        oDUDeliverySummaryRPT.ReportLayout = parseInt($("#cboLayout").val());
+        oDUDeliverySummaryRPT.StartDate = new Date(oDUDeliverySummaryRPT.StartDateInString);
+        oDUDeliverySummaryRPT.EndDate = new Date(oDUDeliverySummaryRPT.EndDateInString);
+        oDUDeliverySummaryRPT.BUID = sessionStorage.getItem('BUID');
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUDeliverySummaryRPT/SetDUDeliverySummaryRPT",
+            traditional: true,
+            data:  JSON.stringify(oDUDeliverySummaryRPT),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUDeliverySummaryRPT/PrintDeliveryChallanRegister");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $("#btnOrderWisePreview").click(function(){
+        debugger;
+        var nDate = parseInt($("#cboDate").val());
+        var dDateStart = $('#txtDateStart').datebox('getValue');
+        var dDateEnd = $('#txtDateEnd').datebox('getValue');
+
+        if(parseInt($("#cboLayout").val()) == 0){
+            alert("Please enter Layout!!!");
+            return false;
+        }
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        var BUID =  sessionStorage.getItem('BUID');
+        var nReportLayout = parseInt($("#cboLayout").val());
+        var StartDate =  dDateStart;
+        var EndDate =  dDateEnd;
+        var sTempString =  BUID+'~'+nReportLayout+'~'+StartDate+'~'+EndDate;
+        window.open(_sBaseAddress + '/DUDeliverySummaryRPT/PrintOrderTypeWisePreview?sTempString='+sTempString, "_blank");
+
+    });
+    </script>

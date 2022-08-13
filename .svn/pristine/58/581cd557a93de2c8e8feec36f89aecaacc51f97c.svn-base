@@ -1,0 +1,338 @@
+﻿@{
+    ViewBag.Title = "Banks List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Bank>
+
+       <body>
+           <div style="margin-left: 0px; height: 100%; width:100%">
+               <table id="tblBanks" title="Bank List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbarBank">
+                   <thead>
+                       <tr>
+                           <th field="Code" width="60">Code</th>
+                           <th field="Name" width="200">Bank Name</th>
+                           <th field="FaxNo" width="120">Fax No</th>
+                           <th field="ChequeSetupName" width="120">Cheque Setup</th>
+                       </tr>
+                   </thead>
+               </table>
+               <div id="toolbarBank">
+                   <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>
+                   <input type="text" id="txtSearchbyCode" placeholder="Search by Code" />
+                   <input type="text" id="txtSearchByName" placeholder="Search by Name" />
+                   <input type="text" id="txtSearchByNameDB" placeholder="Search by Name from DB" />
+
+                   <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                   <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                   <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                   <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                   <a id="btnAddBranch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddBankBranchs()" >Add Branch</a>
+                   <a id="btnPrintListBank" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>
+                   <a id="btnPrintInXLBank" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+                   <a id="btnPI" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">IP</a>
+               </div>
+           </div>
+       </body>
+                      
+
+      
+        <script type="text/javascript">
+        
+            var _oBanks = [];
+            var _sBaseAddress = "";
+            var _oAuthorizationRolesMapping = [];
+            var _oBankBranch = null;
+            $(document).ready(function() {
+                _oBanks = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+                
+                _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+                debugger;
+                var oBanks =sessionStorage.getItem("Banks");
+                var nIndex =sessionStorage.getItem("SelectedRowIndexBank");
+              
+                if(oBanks!=null)
+                {
+                    oBanks = jQuery.parseJSON(oBanks);            
+                }
+                else
+                {
+                    oBanks=_oBanks;
+                }
+                RefreshList(oBanks);
+                //RefreshControlLayout();
+                if(nIndex!=null)
+                {
+                    $('#tblBanks').datagrid('selectRow', nIndex);
+                }
+               
+                $('#txtSearchByName').autocomplete({
+                    lookup :  GetAutoCompleteData(oBanks), 
+                    minChars : 1,
+                });
+          
+            });
+
+            function GetAutoCompleteData(oBanks)
+            {
+                var oBankList = [];
+                for(var i=0; i<oBanks.length; i++)
+                {
+                    var oObj = {
+                        value : oBanks[i].Name,
+                        data : oBanks[i].BankID
+                    };
+                    oBankList.push(oObj);
+                }
+                return oBankList;
+            }
+
+
+            @*function RefreshControlLayout() {
+                //Bank
+                $("#btnAdd").hide();
+                $("#btnEdit").hide();
+                $("#btnView").hide();
+                $("#btnDelete").hide();
+                $("#btnAddBranch").hide();
+                $("#btnPrintListBank").hide();
+                $("#btnPrintInXLBank").hide();
+
+                if (HavePermission('Add', 'Bank')) {
+                    $("#btnAdd").show();
+                }
+                if (HavePermission('Edit', 'Bank')) {
+                    $("#btnEdit").show();
+                }
+                if (HavePermission('View', 'Bank')) {
+                    $("#btnView").show();
+                }
+                if (HavePermission('Delete', 'Bank')) {
+                    $("#btnDelete").show();
+                }
+                if (HavePermission('Add', 'BankBranch')) {
+                    $("#btnAddBranch").show();
+                }
+                if (HavePermission('PrintList', 'Bank')) {
+                    $("#btnPrintListBank").show();
+                }
+                if (HavePermission('XLPrint', 'Bank')) {
+                    $("#btnPrintInXLBank").show();
+                }
+
+                //Bank Branch
+                $("#btnAddBranch").hide();
+                $("#btnEditBranch").hide();
+                $("#btnViewBranch").hide();
+                $("#btnDeleteBranch").hide();
+                if (HavePermission('Add', 'BankBrance')) {
+                    $("#btnAddBranch").show();
+                }
+                if (HavePermission('Edit', 'BankBrance')) {
+                    $("#btnEditBranch").show();
+                }
+                if (HavePermission('View', 'BankBrance')) {
+                    $("#btnViewBranch").show();
+                }
+                if (HavePermission('Delete', 'BankBrance')) {
+                    $("#btnDeleteBranch").show();
+                }
+            }
+
+            function HavePermission(sOperationType,sDbObject) {
+                var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+                if(nUserId === -9) //check SuperUser
+                {
+                    return true;
+                }
+                else
+                {
+                    for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+                    {
+                        if(_oAuthorizationRolesMapping[i].OperationTypeInString === sOperationType && _oAuthorizationRolesMapping[i].DBObjectName === sDbObject)
+                            return  true;
+                    }
+                    return false;
+                }
+            }*@
+
+            function RefreshList(oBanks)
+            {
+                var data = oBanks;
+                data = { "total": "" + data.length + "", "rows": data };
+                $("#tblBanks").datagrid("loadData", data);
+            }
+
+
+            $("#txtSearchbyCode").keyup(function (e) {
+                $("#txtSearchbyCode").icsSearchListItems({
+                    Event: e,
+                    SearchProperty : "Code",
+                    GlobalObjectList: _oBanks,
+                    TableId: "tblBanks"
+                });
+            });
+
+            //$("#txtSearchByName").keyup(function (e) {
+            //    $("#txtSearchByName").icsSearchListItems({
+            //        Event: e,
+            //        SearchProperty: "Name",
+            //        GlobalObjectList: _oBanks,
+            //        TableId: "tblBanks"
+            //    });
+            //});
+
+            $("#txtSearchByNameDB").keyup(function (e) {
+                var oBank = {
+                    Name: $("#txtSearchByNameDB").val()
+                };
+                $("#txtSearchByNameDB").icsSearchListFromDatabase({
+                    BaseAddress: _sBaseAddress,
+                    Object: oBank,
+                    ControllerName: "Bank",
+                    ActionName: "Gets",
+                    TableId: "tblBanks"
+                });
+            });
+
+            $("#btnRefresh").click(function () {
+                debugger;
+                var oBanks = $("#tblBanks").datagrid("getRows");
+                var data = oBanks;
+                data = { "total": "" + data.length + "", "rows": data };
+                $("#tblBanks").datagrid("loadData", data);
+            });
+
+            $("#btnPrintListBank").click(function () {
+                window.open(_sBaseAddress + "/Bank/PrintBanks", "_blank");
+            });
+
+            $("#btnPrintInXLBank").click(function () {
+                window.open(_sBaseAddress + "/Bank/PrintBanksInXL", "_blank");
+            });
+
+
+            
+            $("#btnAdd").click(function(){
+                var oBanks= $('#tblBanks').datagrid('getRows');
+                sessionStorage.setItem("Banks", JSON.stringify(oBanks)); 
+                sessionStorage.setItem("SelectedRowIndexBank", -1);   
+                sessionStorage.setItem("BankHeader", "Add Bank");
+                var tsv=((new Date()).getTime())/1000;
+                window.location.href = _sBaseAddress+ "/Bank/ViewBank?id=0&ts="+tsv;
+            });
+
+            $("#btnEdit").click(function(){
+                var oBank= $('#tblBanks').datagrid('getSelected'); 
+                if(oBank==null || oBank.BankID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+                var tsv=((new Date()).getTime())/1000;
+                var SelectedRowIndex=$('#tblBanks').datagrid('getRowIndex',oBank);
+                var oBanks= $('#tblBanks').datagrid('getRows');
+                sessionStorage.setItem("Banks", JSON.stringify(oBanks));        
+                sessionStorage.setItem("SelectedRowIndexBank", SelectedRowIndex);   
+                sessionStorage.setItem("BankHeader", "Edit Bank");
+                window.location.href = _sBaseAddress+  "/Bank/ViewBank?id="+oBank.BankID+"&ts="+tsv;    
+            });
+
+            $("#btnView").click(function(){
+                var oBank= $('#tblBanks').datagrid('getSelected'); 
+                if(oBank==null || oBank.BankID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+                var tsv=((new Date()).getTime())/1000;
+                var SelectedRowIndex=$('#tblBanks').datagrid('getRowIndex',oBank);
+                var oBanks= $('#tblBanks').datagrid('getRows');
+                sessionStorage.setItem("Banks", JSON.stringify(oBanks));        
+                sessionStorage.setItem("SelectedRowIndexBank", SelectedRowIndex);   
+                sessionStorage.setItem("BankHeader", "View Bank");    
+                window.location.href = _sBaseAddress+  "/Bank/ViewBank?id="+oBank.BankID+"&ts="+tsv;
+            });
+                        
+            $("#btnDelete").click(function(){
+                var oBank= $('#tblBanks').datagrid('getSelected');
+                if(oBank==null || oBank.BankID<=0)
+                {
+                    alert("Invalid Field!!! please select a valid Field!");                  
+                    return false;
+                }
+                if (!confirm("Confirm to Delete?")) return ;
+                var SelectedRowIndex=$('#tblBanks').datagrid('getRowIndex',oBank);
+                if (oBank.BankID > 0) 
+                {
+                    $.ajax
+                    ({
+                        type: "GET",
+                        dataType: "json",                
+                        url : _sBaseAddress+  "/Bank/Delete",
+                        data: { id: oBank.BankID},
+                        contentType: "application/json; charset=utf-8",
+                        success: function (data) {
+                            var feedbackmessage = jQuery.parseJSON(data);
+                            if (feedbackmessage == "Deleted") 
+                            {
+                                alert("Delete sucessfully");                        
+                                $('#tblBanks').datagrid('deleteRow',SelectedRowIndex);
+                                var oBanks= $('#tblBanks').datagrid('getRows');
+                                sessionStorage.setItem("Banks", JSON.stringify(oBanks));   
+                            }
+                            else
+                            {
+                                alert(feedbackmessage);
+                            }
+                        },
+                        error: function (xhr, status, error) 
+                        {
+                            alert(error);
+                        }
+                    });
+                }
+            });
+
+            $("#btnPI").click(function(){
+                var oBank = { BankID : 0 };
+                $.ajax
+                    ({
+                        type: "POST",
+                        dataType: "json",                
+                        url : _sBaseAddress+  "/Bank/GetPIAddress",
+                        data: JSON.stringify(oBank),
+                        contentType: "application/json; charset=utf-8",
+                        success: function (data) {
+                            var ipAddress = jQuery.parseJSON(data);
+                            alert("Your IP :"+ ipAddress);                            
+                        },
+                        error: function (xhr, status, error) 
+                        {
+                            alert(error);
+                        }
+                    });
+            });
+
+
+            function AddBankBranchs()
+            {          
+                debugger;
+                var oBank= $('#tblBanks').datagrid('getSelected'); 
+                if(oBank==null || oBank.BankID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+
+                var tsv=((new Date()).getTime())/1000;
+                var SelectedRowIndex=$('#tblBanks').datagrid('getRowIndex',oBank);
+                var oBanks= $('#tblBanks').datagrid('getRows');
+                sessionStorage.setItem("Banks", JSON.stringify(oBanks));        
+                sessionStorage.setItem("SelectedRowIndexBank", SelectedRowIndex);   
+                sessionStorage.setItem("BankHeader", "Add Bank Branch");
+                window.location.href = _sBaseAddress+  "/Bank/ViewBankBranchs?id="+oBank.BankID+"&ts="+tsv;  
+
+
+            }
+
+
+        </script>

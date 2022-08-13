@@ -1,0 +1,197 @@
+﻿@{
+    ViewBag.Title = "Sales Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ReportingObject.RptFEOSalesStatement>
+
+    <div ng-app="FEOSalesModule" style="width:50%">
+        <div ng-controller="FEOSalesCtrl" style="width:100%">
+
+            <fieldset style="width:100%">
+                <legend>Sales Statement</legend>
+                <div class="container">
+                    <div class="form-inline">
+                        <select ng-model="ExeType" class="form-control" style="width:160px;">
+                            <option value="">--Exe Categoty--</option>
+                            <option value="0">All</option>
+                            <option value="1">Exe</option>
+                            <option value="2">SCW</option>
+                        </select>
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" style="width:120px" ng-model="dtFrom"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+                        <span>to</span>
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" style="width:120px" ng-model="dtTo"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="search()" ng-hide="true"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="exportExcel()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Sales Statement</span></button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="exportExcelSalesSummary()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Sales Summary</span></button>
+
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Buyer/ PI/ Fabric Type </legend>
+                <div class="container">
+                    <div class="form-inline">
+                        <select ng-model="ReportType" class="form-control" style="width:160px;">
+                            <option value="">--Default Format--</option>
+                            <option value="1">Buyer Wise</option>
+                            <option value="2">Buyer & Month Wise</option>
+                            <option value="3">With PI Value</option>
+                            <option value="4">Fabric Type Wise</option>
+                        </select>
+                        <select ng-model="TypeOfExe" class="form-control" style="width:160px;">
+                            <option value="">--Exe Categoty--</option>
+                            <option value="0">All</option>
+                            <option value="1">Exe</option>
+                            <option value="2">SCW</option>
+                        </select>
+                        <select ng-model="OrderType" ng-options="obj.Value as obj.Text for obj in OrderTypes" class="form-control" style="width:120px;"></select>
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" style="width:120px" ng-model="dtFromSales"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+                        <span>to</span>
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" style="width:120px" ng-model="dtToSales"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="exportExcelCustomType()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Excel</span></button>
+                    </div>
+                </div>
+            </fieldset>
+            <div>
+
+            </div>
+
+            @*<div class="row ui-grid-top-panel">
+            </div>
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-cellnav class="grid"></div>*@
+        </div>
+    </div>
+
+    <style type="text/css">
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 530px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oRptFEOSalesStatements =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oOrderTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+
+        var  FEOSalesModule = angular.module('FEOSalesModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+
+        FEOSalesModule.controller('FEOSalesCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+            debugger;
+            $('.date-container').datepicker({
+                format: "dd M yyyy",
+                calendarWeeks: true,
+                autoclose: true,
+                todayHighlight: true
+            });
+
+            angular.forEach(oOrderTypes,function(item,index){
+                oOrderTypes[index].Value=parseInt(item.Value)
+            });
+
+            $scope.OrderTypes=oOrderTypes;
+
+            $scope.gridOptions ={
+                enableSorting: true,
+                enableRowSelection: true,
+                //enableRowHeaderSelection: false,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                //enableVerticalScrollbar : false,
+                columnDefs: [
+                    { field: 'OrderDateStr', name: 'Month', width: '10%', enableCellEdit: false, headerCellClass: 'blue' },
+                    { field: 'InHouseSalesQty', name: 'In-House Sales Qty', cellClass: 'text-right', width: '10%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'OutsideSalesQty', name: 'Outside Sales Qty', cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'InHouseSalesValue', name: 'In-House Sales Value', cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'OutsideSalesValue', name: 'Outside Sales Value', cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'InHouseExeQty', name: 'In-House Exe Qty',cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                    { field: 'OutsideExeQty', name: 'Outside Exe Qty', cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                    { field: 'TotalProduction', name: 'Total Production', cellClass: 'text-right', width: '13%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' }
+                ],
+                data:oRptFEOSalesStatements,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                }
+            };
+            $scope.dtFrom=$scope.dtTo=icsdateformat(new Date());
+
+            $scope.search=function(){
+                var obj={
+                    Params:(($scope.ExeType==undefined || $scope.ExeType=="")?0:$scope.ExeType)+'~'+$scope.dtFrom+'~'+$scope.dtTo
+                }
+                $http.post(_sBaseAddress+'/FabricExecutionOrder/GetsFEOSalesStatement', JSON.stringify(obj)).then(
+                           function (response) {   
+                               var result=jQuery.parseJSON(response.data);
+                               if(result.length>0)
+                               {
+                                   $scope.gridOptions.data=result;
+                                    
+                               }
+                               else{
+                                   msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                               }
+                           },
+                           function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                     );
+            }
+            
+
+            $scope.exportExcel = function () {
+                $scope.Params = (($scope.ExeType==undefined || $scope.ExeType=="")?0:$scope.ExeType)+'~'+$scope.dtFrom+'~'+$scope.dtTo;
+                window.open(_sBaseAddress+ "/FabricExecutionOrder/ExportExcelFEOSalesStatement?sParam="+$scope.Params, "_blank");
+            };
+
+            $scope.exportExcelSalesSummary = function () {
+                $scope.Params = (($scope.ExeType==undefined || $scope.ExeType=="")?0:$scope.ExeType)+'~'+$scope.dtFrom+'~'+$scope.dtTo;
+                window.open(_sBaseAddress+ "/FabricExecutionOrder/ExportExcelFEOSalesStatus?sParam="+$scope.Params, "_blank");
+            };
+
+
+            $scope.OrderType = 0;
+            $scope.dtFromSales=$scope.dtToSales=icsdateformat(new Date());
+            $scope.exportExcelCustomType = function () {
+                $scope.Params = $scope.OrderType+'~'+ $scope.dtFromSales+'~'+$scope.dtToSales+'~'+(($scope.ReportType==undefined || $scope.ReportType=="")?0:$scope.ReportType)+'~'+(($scope.TypeOfExe==undefined || $scope.TypeOfExe=="")?0:$scope.TypeOfExe);
+                if($scope.ReportType!=undefined && $scope.ReportType!="" && $scope.ReportType==2){
+                    window.open(_sBaseAddress+ "/FabricExecutionOrder/ExportExcelFEOSalesBuyerMonthWise?sParam="+$scope.Params, "_blank");
+                }
+                else{
+                    window.open(_sBaseAddress+ "/FabricExecutionOrder/ExportExcelFEOSalesSummary?sParam="+$scope.Params, "_blank");
+                }
+                
+            };
+
+        });
+
+
+    </script>
+

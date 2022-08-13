@@ -1,0 +1,380 @@
+﻿@{
+    ViewBag.Title = "Product Specification With Heads";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ProductSpecHead>
+
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+            <div class="col-md-12">
+                <div class="form-inline">
+                    <label>Product Name: </label>
+                    <input class="form-control" type="text" ng-model="ProductSpecHead.ProductName" required ng-style="myStyle={width:'200px'}" placeholder="Enter Product Name and Press Enter" ng-keydown="SearchProduct($event)" />
+                    <label>Head Name: </label>
+                    <input class="form-control" type="text" placeholder="Enter Head name and press enter" ng-keydown="SearchSpecHead($event)" ng-model="ProductSpecHead.SpecName" />
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="up()"> <span class="glyphicon glyphicon-arrow-up" aria-hidden="true"></span>Up</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="down()"> <span class="glyphicon glyphicon-arrow-down" aria-hidden="true"></span>Down</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Remove</button>
+
+
+                </div>
+                <div ui-grid="gridOptions1" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 485px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oApprovalHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oModule =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Module));
+
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+        $scope.ProductSpecHead = {
+            ProductID :0,
+            ProductName :"",
+            SpecHeadID :0,
+            SpecName :""
+        }
+       $scope.gridOptions1 ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                 { field: 'SpecName', name: 'Specification Head', width:'40%' },
+                  { field: 'Sequence', name: 'Sequence', width:'35%' }
+
+            ],
+            data:oApprovalHeads,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+
+            }
+        };
+        $scope.SearchProduct = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+               
+                var ProductName = $.trim($scope.ProductSpecHead.ProductName);
+                if (ProductName == "" || ProductName == null) {
+                    msModal.Message({ headerTitle: '', bodyText: 'Type Product Name and Press Enter', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                    return;
+                }
+                $scope.PickProduct();
+            } 
+            else if (code == 8) //backspace=8
+            {
+                $scope.ProductSpecHead.ProductName ="";
+                $scope.ProductSpecHead.ProductID =0;
+
+            }
+        };
+
+        $scope.PickProduct = function () {
+            var oProduct ={
+                ProductName : $scope.ProductSpecHead.ProductName
+            }
+           
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };+
+            $http.post(_sBaseAddress + '/ProductSpecHead/ProductSearchByName', $.param(oProduct), config).then(
+                                function (response) {
+                                    debugger;
+                                    var oColumns = [];
+                                    oColumn = { field: 'ProductName', name: 'Product Name', width: '50%', enableSorting: false }; oColumns.push(oColumn);
+                                    oColumn = { field: 'ProductCode', name: 'ProductCode', width: '30%', enableSorting: false }; oColumns.push(oColumn);
+                                    var modalObj = {
+                                        size: 'md',
+                                        modalcontroller: 'ModalInstanceCtrl',
+                                        appcontroller: 'mainController',
+                                        objs: response.data,
+                                        multiSelect: false,
+                                        pickertitle: 'Product List',
+                                        searchingbyfieldName: 'ProductName',
+                                        columns: oColumns
+                                    }
+                                    var modalInstance = msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result) {
+                                        debugger;
+                                        $scope.ProductSpecHead.ProductName = result.ProductName;
+                                        $scope.ProductSpecHead.ProductID =result.ProductID;
+                                        var oProductSpecHead={
+                                            ProductID:  $scope.ProductSpecHead.ProductID
+                                        }
+                                        $scope.gridOptions1.data=[];    
+                                        $http.post(_sBaseAddress + '/ProductSpecHead/ProductSpecHeadByProduct',JSON.stringify(oProductSpecHead)).then(
+                                            function (response) {
+                                                $scope.gridOptions1.data=response.data;
+                                               
+                                            },
+                                                function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                                         );
+
+
+
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(response.data[0].ErrorMessage); }
+                            );
+        };
+
+        $scope.SearchSpecHead = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if($scope.ProductSpecHead.ProductID<=0)
+            {
+                $scope.ProductSpecHead.SpecName ="";
+                $scope.ProductSpecHead.SpecHeadID =0;
+                msModal.Message({ headerTitle: '', bodyText: 'Select Product ', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                return;
+            }
+            if (code == 13) {
+               
+                var ProductName = $.trim($scope.ProductSpecHead.SpecName);
+                if (ProductName == "" || ProductName == null) {
+                    msModal.Message({ headerTitle: '', bodyText: 'Type Product Name and Press Enter', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                    return;
+                }
+                $scope.PickSpecHead();
+            } 
+            else if (code == 8) //backspace=8
+            {
+                $scope.ProductSpecHead.SpecName ="";
+                $scope.ProductSpecHead.SpecHeadID =0;
+            }
+        };
+
+        $scope.PickSpecHead = function () {
+          
+            var getSpecHeads ="";
+            if($scope.gridOptions1.data.length>0){
+                var gridData =$scope.gridOptions1.data;
+                for(var i=0; i<gridData.length; i++){
+                   
+                    getSpecHeads += gridData[i].SpecHeadID +" , ";
+                 
+                }
+            }
+         
+            var oSpecHead ={
+                SpecName : $scope.ProductSpecHead.SpecName,
+                Params:getSpecHeads
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/ProductSpecHead/SpecHeadSearchByName', $.param(oSpecHead), config).then(
+                                function (response) {
+                                    debugger;
+                                    var oColumns = [];
+                                    oColumn = { field: 'SpecName', name: 'Head Name', width: '50%', enableSorting: false }; oColumns.push(oColumn);
+                                 
+                                    var modalObj = {
+                                        size: 'sm',
+                                        modalcontroller: 'ModalCommonListCtrl',
+                                        appcontroller: 'mainController',
+                                        objs: response.data,
+                                        multiSelect: true,
+                                        pickertitle: 'Head List',
+                                        searchingbyfieldName: 'SpecName',
+                                        columns: oColumns
+                                    }
+                                    var modalInstance = msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result) {
+                                        debugger;
+
+                                        if(result.length>0){
+                                            
+                                            var ProductSpecHeads =[];
+                                            var indexSeq=  $scope.gridOptions1.data.length;
+                                            
+                                            angular.forEach(result,function(item ,index){
+                                                //var seq= indexSeq+1;
+                                                ++indexSeq;
+                                                ProductSpecHeads.push({ProductSpecHeadID : 0 , ProductID:$scope.ProductSpecHead.ProductID,SpecHeadID:item.SpecHeadID ,Sequence:indexSeq});
+                                            
+                                            });
+                                         
+                                            var oSpecHead={
+                                                ProductSpecHeads:ProductSpecHeads
+                                            }
+                                            
+                                            $http.post(_sBaseAddress + '/ProductSpecHead/Save',JSON.stringify(oSpecHead)).then(
+                                                function (response) {
+                                                    var results= jQuery.parseJSON(response.data);
+                                                    if(results.length >0){
+                                                        for(var i =0; i< results.length;i++){
+                                                            $scope.gridOptions1.data.push(results[i]);
+                                                        }
+                                                        
+                                                    }
+                                                },
+                                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                                             );
+
+                                        }
+                                     }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+        };
+
+
+        $scope.up = function() {
+          
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            $scope.index = $scope.gridOptions1.data.indexOf(data[0]);
+            if(data[0].Sequence <= 1) {
+                return;
+            }
+
+            var obj = {
+                ProductID:data[0].ProductID,
+                ProductSpecHeadID : data[0].ProductSpecHeadID,
+                IsUp : true
+            };
+
+            sessionStorage.setItem("upIndex", ($scope.index - 1));
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ProductSpecHead/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions1.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions1.data=(results);
+                var n=parseInt(sessionStorage.getItem("upIndex"));
+
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function (response) { alert(jQuery.parseJSON(response.data).Message); });
+        }
+
+        $scope.down = function() {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            $scope.len = $scope.gridOptions1.data.length;
+            $scope.index = $scope.gridOptions1.data.indexOf(data[0]);
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+
+            if($scope.index + 1 ==  $scope.len) {
+                return;
+            }
+            var obj = {
+                ProductID:data[0].ProductID,
+                ProductSpecHeadID : data[0].ProductSpecHeadID,
+                IsUp : false
+            };
+
+            sessionStorage.setItem("downIndex", ($scope.index + 1));
+
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ProductSpecHead/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions1.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions1.data=(results);
+
+                var n=parseInt(sessionStorage.getItem("downIndex"));
+
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function (response) { alert(jQuery.parseJSON(response.data).Message); });
+        }
+
+   
+        $scope.remove = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post(_sBaseAddress+ '/ProductSpecHead/Delete',{id:data[0].ProductSpecHeadID ,ProductID :data[0].ProductID}).then(
+                            function (response) {
+                                debugger;
+                                var result=jQuery.parseJSON(response.data);
+                                if(result[0].ErrorMessage=="")
+                                {
+                                    alert("Deleted Successfully");
+                                    $scope.gridOptions1.data=result;
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+       
+
+    });
+
+
+ </script>
+
+
+
+
+

@@ -1,0 +1,370 @@
+﻿@{
+    ViewBag.Title = "FA Schedule Rule";
+}
+
+
+    @model IEnumerable<ESimSol.BusinessObjects.FARule>
+
+    <div id="winRemoveFA_Rule" class="easyui-window" title="Remove FA Rule" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="font-family:Tahoma">
+            <fieldset style="margin-top:3px">
+                <table border="0" style="font-size:12px">
+                    <tr>
+                        <td style="width:100%; text-align:right"><input type="checkbox" id="chckbxFARule" checked /> Clear all FA Rule of Selected Item Product Category.</td>
+                    </tr>
+                    <tr>
+                        <td style="width:100%; text-align:right"><input type="checkbox" id="chckbxFACode" checked /> Clear all FA Code of Selected Item Product Category.</td>
+                    </tr>
+                </table>
+            </fieldset>
+            <fieldset style="margin-bottom:3px">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; width:400px">
+                    <tr>
+                        <td style="width:300px; text-align:right"></td>
+                        <td style="width:50px">
+                            <a id="btnClearFARule" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Clear</a>
+                        </td>
+                        <td style="width:50px">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable" id="regionFARule">
+        <table id="tblFARules" title="Depreciation Rule Apply" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ProductCode" width="9%">Product Code</th>
+                    <th field="ProductCategoryName" width="9%">Category Name</th>
+                    <th field="ProductName" width="8%">Product Name</th>
+                    <th field="FACodeFull" width="20%">FA Code</th>
+                    <th field="FAMethodSt" width="20%">Dept.Method</th>
+                    <th field="DefaultCostPrice"  align="right" width="20%">Default Cost Price</th>
+                    <th field="DefaultSalvage" align="right" width="20%">Default Salvage</th>
+                    <th field="CurrencyName" width="10%">Currency Name</th>
+                    <th field="UseFullLife" align="right" width="10%">UseFullLife</th>
+                    <th field="DEPCalculateOnSt" width="10%">Dept.ApplyOn</th>
+                    <th field="DepEffectFormOnSt" width="10%">Dept.EffectStart</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <select id="cboBU" style="width:120px;"></select>
+            <select id="cboProductCategory" class="easyui-combotree" style="width:180px;"></select><input type="button" id="btnCleanPC" value="C" />
+            <input id="txtProductName" style="width:130px;" type="text" placeholder="Type Product & Press Enter" />
+            <input id="txtFACodeFull" style="width:100px;" type="text" placeholder="Type FACode & Press Enter" />
+            <select id="cboFAMethodInt" style="width:120px;"></select>
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnCodingPolicy" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Coding Policy</a>
+            <a id="btnRemove_FACode" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Clear(Code)</a>
+            <a id="btnApplyFARule" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Apply Dep. Method</a>
+            <a id="btnRemove_FARule" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Clear(Method & Code)</a>
+            <a id="btnPrintPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        </div>
+    </div>
+
+
+
+    <script type="text/javascript">
+
+        var pager =[];
+        var _nBUID=0;
+        var _oFARules =[];
+        $(document).ready(function () {
+            var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oFARules =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            var oFAMethods =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FAMethods));
+            var oProductCategorys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductCategorys));
+            var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+            debugger;
+            var oFARules =sessionStorage.getItem("FARules");
+            if(oFARules!=null)
+            {
+                oFARules = jQuery.parseJSON(oFARules);
+            }
+            else
+            {
+                oFARules=_oFARules;
+            }
+            RefreshList(oFARules);
+            $("#cboBU").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue:"--Select Business Unit--"});
+            $("#cboFAMethodInt").icsLoadCombo({List: oFAMethods, OptionValue: "id",DisplayText: "Value", InitialValue:"--Select Method--"});
+            RefreshProductCategory(0);
+        });
+
+        function RefreshList(oFARules)
+        {
+            debugger;
+            var data=oFARules;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblFARules').datagrid('loadData',data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            $('#tblFARules').datagrid('selectRow',nIndex);
+        }
+        $("#btnCleanPC").click(function(){
+            debugger;
+            $('#cboProductCategory').combotree('loadData', []);
+            RefreshProductCategory(0);
+        })
+        function RefreshProductCategory(nPCID)
+        {
+            var oProductCategory ={  ProductCategoryID: 0 };
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/ProductCategory/GetsProductCategoryForCombo",
+                data:  JSON.stringify(oProductCategory),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oProductCategorys = jQuery.parseJSON(data);
+                    if(oProductCategorys!=null)
+                    {
+                        $('#cboProductCategory').combotree('loadData', oProductCategorys);
+                        $('#cboProductCategory').combotree('setValue', nPCID);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+        $("#btnSearch").click(function(){
+            SearchFARule();
+
+        });
+
+        function SearchFARule()
+        {
+            if(parseInt($('#cboBU').val())<=0)
+            {
+                alert("Please select Business unit & try again!"); return;
+            }
+            var oFARule = {BUID:parseInt($('#cboBU').val()), ProductCategoryID:$('#cboProductCategory').combotree('getValue')}
+            $.ajax
+         ({
+             type: "POST",
+             dataType: "json",
+             url : sessionStorage.getItem("BaseAddress")+  "/FARule/AdvSearch",
+             data:  JSON.stringify(oFARule),
+             contentType: "application/json; charset=utf-8",
+             success: function (data) {
+                 debugger;
+                 var oFARules= data;
+                 if(oFARules!=null && oFARules.length>0)
+                 {
+                     RefreshList(oFARules);
+                 }else{
+                     alert("Data Not found.");
+                     RefreshList([]);
+                 }
+             },
+             error: function (xhr, status, error)
+             {
+                 alert(error);
+             }
+         });
+        }
+
+        $("#btnApplyFARule").click(function(){
+            var oFARule= $('#tblFARules').datagrid('getSelected');
+            if(oFARule==null || oFARule.ProductID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFARule.FACodeFull==null || oFARule.FACodeFull=='')
+            {
+                alert("Sorry, there is no FA Code, Please Apply Coding Policy.");
+                return;
+            }
+            var SelectedRowIndex=$('#tblFARules').datagrid('getRowIndex',oFARule);
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FARuleHeader", "Add FA Code");
+            var oFARules= $('#tblFARules').datagrid('getRows');
+            sessionStorage.setItem("FARules", JSON.stringify(oFARules));
+            sessionStorage.setItem("BackLink_FARule", window.location.href);
+            sessionStorage.setItem('Action','Edit')
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FARule/ViewFARule?id="+oFARule.ProductID+"&buid="+_nBUID+"&ts="+tsv;
+        });
+
+        $("#btnCodingPolicy").click(function(){
+            var oFARule= $('#tblFARules').datagrid('getSelected');
+            if(oFARule==null || oFARule.ProductID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblFARules').datagrid('getRowIndex',oFARule);
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FARuleHeader", "Add FA Code");
+            var oFARules= $('#tblFARules').datagrid('getRows');
+            sessionStorage.setItem("FARules", JSON.stringify(oFARules));
+            sessionStorage.setItem("BackLink_FARule", window.location.href);
+            sessionStorage.setItem('Action','Edit')
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FACode/ViewFACode?id="+oFARule.ProductID+"&buid="+_nBUID+"&ts="+tsv;
+
+        });
+
+        $("#btnPrintPreview").click(function(){
+            if(parseInt($('#cboBU').val())<=0)
+            {
+                alert("Please select Business unit & try again!"); return;
+            }
+
+            var sParam=parseInt($('#cboBU').val())
+                           +'~'+($('#cboProductCategory').combotree('getValue')==undefined? 0 : $('#cboProductCategory').combotree('getValue'))
+                           +'~'+($('#txtProductName').val()==undefined? "" : $('#txtProductName').val())
+                           +'~'+($('#txtFACodeFull').val()==undefined? "" : $('#txtFACodeFull').val())
+                           +'~'+(parseInt($('#cboFAMethodInt').val())==undefined? 0 : parseInt($('#cboFAMethodInt').val()));
+
+            window.open(_sBaseAddress + '/FARule/PrintFARules?sParam='+sParam);
+        });
+
+        $("#txtProductName").keydown(function (e) {
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+
+            if (code == 13)
+            {
+                var txtProductName = $.trim($scope.Search.ProductName);
+                if(txtProductName=="" || txtProductName==null)
+                {
+                    alert("Type Product Name/Code and Press Enter");
+                    return;
+                }
+                SearchFARule();
+            }else if (code == 8) //backspace=8
+            {
+
+            }
+        });
+
+
+
+        $("#btnRemove_FACode").click(function(){
+            debugger;
+            var oFARule=$('#tblFARules').datagrid('getSelected');
+            if(oFARule==null || oFARule.ProductID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Clear Coding Policy?")) return ;
+
+            var SelectedRowIndex=$('#tblFARules').datagrid('getRowIndex',oFARule);
+            $.ajax
+     ({
+         type: "POST",
+         dataType: "json",
+         url : sessionStorage.getItem("BaseAddress")+  "/FARule/Remove_FACode",
+         data:  JSON.stringify(oFARule),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             var result=jQuery.parseJSON(data);
+             if(result.ErrorMessage=="" || result.ErrorMessage==null)
+             {
+                 $('#tblFARules').datagrid('updateRow',{index: SelectedRowIndex,row: result});
+                 alert("FA Code Cleared Successfully.");
+             }
+             else{
+                 alert(result.ErrorMessage);
+             }
+         },
+         error: function (xhr, status, error)
+         {
+             alert(error);
+         }
+     });
+
+        });
+
+        $("#btnRemove_FARule").click(function() {
+            debugger;
+            var oFARule=$('#tblFARules').datagrid('getSelected');
+            if(oFARule==null || oFARule.ProductID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            $("#winRemoveFA_Rule").icsWindow('open', "Remove FA Rule");
+
+
+           
+
+
+        });
+
+        $('#btnClearFARule').click(function()
+        {
+            var oFARule=$('#tblFARules').datagrid('getSelected');
+            if (!confirm("Confirm to Clear FA Rule?")) return ;
+            var SelectedRowIndex=$('#tblFARules').datagrid('getRowIndex',oFARule);
+            oFARule.IsApplyForProductBase = document.getElementById("chckbxFARule").checked ==true?true:false;
+            oFARule.IsApplyForFACode = document.getElementById("chckbxFACode").checked ==true?true:false;
+            $.ajax
+     ({
+         type: "POST",
+         dataType: "json",
+         url : sessionStorage.getItem("BaseAddress")+  "/FARule/Remove_FARule",
+         data:  JSON.stringify(oFARule),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             var result=jQuery.parseJSON(data);
+             if(result.ProductID>0)
+             {
+                 $("#winRemoveFA_Rule").icsWindow('close');
+                 $('#tblFARules').datagrid('updateRow',{index: SelectedRowIndex,row: result});
+                 alert("FA Rule Cleared Successfully.");
+
+             }
+             else{
+                 alert(result.ErrorMessage);
+             }
+         },
+         error: function (xhr, status, error)
+         {
+             alert(error);
+         }
+     });
+});
+
+
+        $('#btnClose').click(function()
+        {
+            $("#winRemoveFA_Rule").icsWindow('close');
+        });
+        //    $scope.view = function () {
+        //        debugger;
+        //        var data=$scope.gridApi.selection.getSelectedRows();
+        //        if(data==null || data.length<=0){
+        //            msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+        //            return false;
+        //        }
+        //        angular.forEach($scope.gridOptions.data,function(value,index){
+        //            if(value.FARuleID==data[0].FARuleID){
+        //                sessionStorage.setItem("Operation", "View");
+        //                sessionStorage.setItem("SelectedRowIndex", index);
+        //                sessionStorage.setItem("FARuleHeader", "View FARule");
+        //                sessionStorage.setItem("FARules", JSON.stringify($scope.gridOptions.data));
+        //                sessionStorage.setItem("BackLink", window.location.href);
+        //                var tsv=((new Date()).getTime())/1000;
+        //                window.location.href = _sBaseAddress+ "/FARule/ViewFARule?id="+value.FARuleID+"&buid="+_nBUID+"&ts="+tsv;
+        //            }
+        //        },$scope.gridOptions.data);
+        //    };
+
+
+    </script>
+
+
+
+

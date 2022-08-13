@@ -1,0 +1,275 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.OrderRecap>
+    @{
+        ViewBag.Title = "Order Recap List";
+    }
+    <div style="margin-left: 0px; height: 550px">
+        <table id="tblOrderRecap" title="Order Recap List" class="easyui-datagrid" style="width: 1035px;
+        height: 548px;" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true"
+               autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="SLNo" width="140" align="left">
+                        Recap No
+                    </th>
+                    <th field="OrderRecapNo" width="140" align="left">
+                        Order No
+                    </th>
+                    <th field="StyleNo" width="140" align="left">
+                        Style No
+                    </th>
+                    <th field="OrderRecapStatusInString" width="140" align="left">
+                        Status
+                    </th>
+                    <th field="BuyerName" width="140" align="left">
+                        Buyer Name
+                    </th>
+                    <th field="OrderDateForViewInString" width="140" align="right">
+                        Order Date
+                    </th>
+                </tr>
+            </thead>
+        </table>
+
+        <div id="toolbar" style=" height:25px;">
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+            <input type="text" id="txtSearchbyCode" placeholder="Search by OrderNo" style="width: 150px" onclick="Clearfield()" />
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Adv. Search</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+            @*<a id="btnIssueForIroning" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Issue For Ironing</a>
+                <a id="btnIroningList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" >Ironing List</a>*@
+            <a id="btnIroning" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Ironing</a>
+
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oOrderRecaps=[];
+        var _sBaseAddress="";
+        var _sMenuManagement ="";
+        $(document).ready(function ()
+        {
+
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oOrderRecaps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+            RefreshList(_oOrderRecaps);
+
+        });
+
+        function formatPrice(val,row)
+        {
+            if(val==null)
+            {
+                val=0.00;
+            }
+            val=parseFloat(val);
+            var test = val.toFixed(2);
+            var tests = addComma(test);
+            return tests;
+        }
+        function addComma(nStr)
+        {
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1)) {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+        function Refresh()
+        {
+            RefreshList(_oOrderRecaps);
+        }
+
+        function RefreshList(oOrderRecaps)
+        {
+            data=oOrderRecaps;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblOrderRecap').datagrid('loadData',data);
+            $('#tblOrderRecap').datagrid({selectOnCheck:false, checkOnSelect:false})
+
+            ////debugger;
+            var rows = $('#tblOrderRecap').datagrid('getRows');
+            for(i=0;i<rows.length;++i){
+                if(rows[i]['IsActive']==true)
+                {
+                    $('#tblOrderRecap').datagrid('checkRow',i);
+                }
+            }
+
+        }
+
+        $('#txtSearchbyCode').keypress(function (e) {
+
+            var keyCode = e.keyCode || e.which;
+            if (keyCode == 13) {
+                var txtSearchbyCode = document.getElementById('txtSearchbyCode').value;
+                txtSearchbyCode = txtSearchbyCode ;
+                var bFlag=true;
+                var sTempName="";
+                var oSearchedData = [];
+                var rows = $('#tblOrderRecap').datagrid('getRows');
+                for(i=0;i<rows.length;++i)
+                {
+                    sTempName=rows[i]['OrderRecapNo'];
+                    if(txtSearchbyCode.toUpperCase()==sTempName.toUpperCase())
+                    {
+                        oSearchedData.push(rows[i]);
+                        bFlag=false;
+                    }
+                }
+
+                if (bFlag==true)
+                {
+                    var tsv=((new Date()).getTime())/1000;
+                    $.ajax({
+                        type: "POST",
+                        dataType: "json",
+                        url : _sBaseAddress+  "/OrderRecap/GetByOrderRecapNo",
+                        traditional: true,
+                        data:  JSON.stringify({sOrderRecapNo:txtSearchbyCode,nts:tsv}),
+                        contentType: "application/json; charset=utf-8",
+                        success: function (data) {
+                            var oORs = jQuery.parseJSON(data);
+                            if (oORs.length>0) {
+                                RefreshOrderRecaps(oORs);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert(error);
+                        }
+
+                    });
+                }
+                else
+                {
+                    RefreshOrderRecaps(oSearchedData);
+                }
+            }
+
+        });
+
+        function RefreshOrderRecaps(data)
+        {
+            data={"total":""+data.length+"","rows":data};
+            $('#tblOrderRecap').datagrid('loadData',data);
+        }
+
+
+        function Search()
+        {
+
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = true;
+            oParameter.name = "Order Recap Advance Search";
+            var url =_sBaseAddress+ "/OrderRecap/OrderRecapSearch";
+            var nLeft=(window.screen.width/2)-(910/2);
+            var nHeight=(window.screen.height/2)-(540/2);
+            var oSelectedOrderRecaps = window.showModalDialog(url, oParameter, 'dialogHeight:540px;dialogWidth:910px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oSelectedOrderRecaps = window.showModalDialog(url, oParameter, 'dialogHeight:540px;dialogWidth:910px;dialogLeft:280;dialogTop:80;center:yes;resizable:no;status:no;scroll:no');
+            var oNSelectedOrderRecaps=[];
+            if(oSelectedOrderRecaps!=null)
+            {
+                if(oSelectedOrderRecaps.length>0)
+                {
+                    var j=0;
+                    for(var i=0; i<oSelectedOrderRecaps.length; i++)
+                    {
+                        if(oSelectedOrderRecaps[i].ApproveBy>0)
+                        {
+
+                            oNSelectedOrderRecaps[j++]=oSelectedOrderRecaps[i];
+
+                        }
+
+                    }
+                    data =oNSelectedOrderRecaps;
+                    data={"total":""+data.length+"","rows":data};
+                    $('#tblOrderRecap').datagrid('loadData',data);
+                    $('#tblOrderRecap').datagrid({selectOnCheck:false, checkOnSelect:false})
+
+                    var rows = $('#tblOrderRecap').datagrid('getRows');
+                    for(i=0;i<rows.length;++i){
+                        if(rows[i]['IsActive']==true)
+                        {
+                            $('#tblOrderRecap').datagrid('checkRow',i);
+                        }
+                    }
+
+                }
+            }
+
+        }
+
+        $('#btnIssueForIroning').click(function (e)
+        {
+            var oOrderRecape = $('#tblOrderRecap').datagrid('getSelected');
+            if (oOrderRecape == null || oOrderRecape.OrderRecapID <= 0)
+            {
+                alert("Please select an item from the list!");
+                return ;
+            }
+            var oParameter = new Object();
+            oParameter.oOrderRecape=oOrderRecape;
+            var tsv = ((new Date()).getTime()) / 1000;
+            var url = _sBaseAddress + "/EmployeeProduction/View_IssueIroning?nId="+oOrderRecape.OrderRecapID+"&ts=" + tsv;
+            var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:225px;dialogWidth:700px;dialogLeft:250;dialogRight:100;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+
+        });
+
+        function View()
+        {
+            //debugger;
+            var oOrderRecap= $('#tblOrderRecap').datagrid('getSelected');
+            if(oOrderRecap==null || oOrderRecap.OrderRecapID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var oParameter = new Object();
+            oParameter.Name = "View Order Recap";
+            var tsv=((new Date()).getTime())/1000;
+            var url =_sBaseAddress+ "/OrderRecap/ViewOrderRecap?id="+oOrderRecap.OrderRecapID+"&TSID=0&ts="+tsv;
+            var nLeft=(window.screen.width/2)-(1015/2);
+            var nHeight=(window.screen.height/2)-(615/2);
+            var oOrderRecap = window.showModalDialog(url, oParameter, 'dialogHeight:615px;dialogWidth:1015px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oOrderRecap = window.showModalDialog(url, oParameter, 'dialogHeight:615px;dialogWidth:1015px;dialogLeft:180;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+        }
+
+        $('#btnIroningList').click(function (e)
+        {
+            var oOrderRecape = $('#tblOrderRecap').datagrid('getSelected');
+            if (oOrderRecape == null || oOrderRecape.OrderRecapID <= 0)
+            {
+                alert("Please select an item from the list!");
+                return ;
+            }
+            var oParameter = new Object();
+            oParameter.oOrderRecape=oOrderRecape;
+            var tsv = ((new Date()).getTime()) / 1000;
+            var url = _sBaseAddress + "/EmployeeProduction/View_IroningList?nId="+oOrderRecape.OrderRecapID+"&ts=" + tsv;
+            var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:800px;dialogLeft:200;dialogRight:100;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+        });
+
+        function Clearfield()
+        {
+            $("#txtSearchbyCode")[0].value='';
+        }
+
+        $('#btnIroning').click(function (e)
+        {
+            var oParameter = new Object();
+            var tsv = ((new Date()).getTime()) / 1000;
+            var url = _sBaseAddress + "/EmployeeProduction/View_Ironing?nId=0&ts=" + tsv;
+            var nLeft=(window.screen.width/2)-(1165/2);
+            var nHeight=(window.screen.height/2)-(540/2);
+            var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:540px;dialogWidth:1185px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:540px;dialogWidth:1165px;dialogLeft:50;dialogRight:5;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+        });
+
+    </script>

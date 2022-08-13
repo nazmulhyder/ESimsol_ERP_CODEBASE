@@ -1,0 +1,560 @@
+﻿@{
+    ViewBag.Title = "Drawing";
+}
+<html>
+<body>
+@model ESimSol.BusinessObjects.FabricBatchProduction
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Fabric Batch Drawing In Process" style="font-family:Tahoma;text-align:center; width:100%;height:100%;">
+
+            <div id="divFBInfo">
+                <fieldset>
+                    <legend>Fabric Batch Info </legend>
+                    <table style="width:100%;" border="0" cellpadding="1" cellspacing="1">
+                        <tr>
+                            <td style="width:20%; text-align:right;">Program No:</td>
+                            <td style="width:60%;text-align:left;">
+                                <input type="text" style="width:39%;" id="txtBatchNo" />
+                                <a id="btnSearchBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>  
+                                <input type="text" style="width:39%;" id="txtFEONo" placeholder="Type Dispo No" />
+                                <a id="btnSearchFEONo" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%; text-align:right;">Order No :</td>
+                            <td style="width:60%;text-align:left;">
+                                <input type="text" style="width:40%; text-align:left;" id="txtOrderNo" disabled />
+                                Status:
+                                <input type="text" style="width:40%;" id="txtStatus" disabled />
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%; text-align:right;">Construction :</td>
+                            <td style="width:60%;text-align:left;">
+                                <input type="text" style="width:89%;" id="txtConstruction" disabled />
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%; text-align:right;">Buyer :</td>
+                            <td style="width:60%;text-align:left;">
+                                <input type="text" style="width:89%;" id="txtBuyer" disabled />
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%; text-align:right;">Duration:</td>
+                            <td style="width:60%;text-align:left;">
+                                <input type="text" style="width:89%;" id="txtDrawingInDuration" disabled />
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%; text-align:right;">Start Time :</td>
+                            <td style="width:60%;text-align:left;">
+                                <table border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width:50%;">
+                                            <input id="txtStartDate" style="width:100px" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                            <input id="tpStartTime" class="easyui-timespinner" style="width:60px;" required="required" />
+                                            <a id="btnRun" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Run()">Run</a>
+                                        </td>
+                                        <td style="width:10%; text-align:right;">End Time:</td>
+                                        <td style="width:30%;text-align:left;">
+                                            <input id="txtEndDate" style="width:100px" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                            <input id="tpEndTime" class="easyui-timespinner" style="width:60px;" required="required" />
+                                            <a id="btnRunOut" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="RunOut()">Run Out</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td style="width:20%"></td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oFabricBatchProduction=null;
+    var _sBaseAddress="";
+    var _objName = "";
+    var _oStores = [];
+    var _lBackLink = "";
+    var _oProduct = "";
+   
+    var _oHRMShifts = [];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricBatchProduction =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Stores));
+        $('#tpStartTime,#tpEndTime').timespinner('setValue', "00:00");
+        $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date));
+        $('#btnRun').hide();
+        $('#btnRunOut').hide();
+    });
+
+    $("#btnSearchFEONo").click(function(){
+        EFOPicker();
+    });
+
+    function EFOPicker()
+    {
+        var oFabricBatch={
+            FEONo : $.trim($("#txtFEONo").val()),
+            IsNotWarpDone:false,
+            WeavingProcessType : 2
+        };
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricBatch,
+            ControllerName: "FabricBatch",
+            ActionName: "Search",
+            IsWinClose: false
+        };
+        $.icsMaxDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FBID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "OrderNo", title: "FEO No", width: "30%", align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BatchNo", title: "Program No", width: "20%", align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "QtySt", title: "Qty (Y)", width: "15%", align: "right" }; tblColums.push(oColumn);
+                    oColumn = { field: "QtyInMeterSt", title: "Qty (M)", width: "15%", align: "right" }; tblColums.push(oColumn);
+                    oColumn = { field: "StatusSt", title: "Status", width: "30%", align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winFabricBatchs',
+                        winclass: 'clsFabricBatch',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblFabricBatchs',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'BatchNo',
+                        windowTittle: 'Fabric Batch List',
+                        placeholder : "Search By Program No"
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else
+            {
+                alert("Sorry, No Dispo Found.");
+            }
+        });
+    }
+
+    $("#txtFEONo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            EFOPicker();
+        }
+    });
+
+    $("#btnSearchBatch").click(function () {
+        var oFabricBatch={
+            BatchNo:$("#txtBatchNo").val(),
+            WeavingProcessType : 2 // Drawing_IN = 2
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricBatch,
+            ControllerName: "FabricBatch",
+            ActionName: "GetsByBatchNo",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FBID > 0) {
+                    var tblColums = []; 
+                    var oColumn = { field: "OrderNo", title: "FEO No", width: "30%", align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BatchNo", title: "Program No", width: "20%", align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "QtySt", title: "Qty", width: "15%", align: "right" }; tblColums.push(oColumn);
+                    oColumn = { field: "QtyInMeterSt", title: "Qty (M)", width: "15%", align: "right" }; tblColums.push(oColumn);
+                    oColumn = { field: "StatusSt", title: "Status", width: "30%", align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winBatchs',
+                        winclass: 'clsBatch',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblBatchs',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'BatchNo',
+                        windowTittle: 'Batch List',
+                        placeholder : "Search By Program No"
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else
+            {
+                alert("Sorry, No Batch Found.");
+            }
+        });
+    });
+
+    function IntializePickerbutton(oPickerobj)
+    {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            ButtonEvents(oPickerobj);
+        });
+        $(document).find('.' +oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                ButtonEvents(oPickerobj);
+            }
+        });
+    }
+
+    function ButtonEvents(oPickerobj)
+    {
+        var oreturnobj = "";var oreturnobjs = [];
+        if(oPickerobj.multiplereturn){
+            oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }else{
+            oreturnobj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if(oPickerobj.winid == 'winBatchs')
+        {
+            if (oreturnobj != null && oreturnobj.FBID> 0)
+            {
+                $("#txtWarpingBeamNo").val(oreturnobj.WarpingBeamNo);
+                PickFabricBatch(oreturnobj.BatchNo);
+            }
+            else{
+                alert("Please select a batch.");
+                return false;
+            }
+        }
+        else if(oPickerobj.winid == 'winFabricBatchs')
+        {
+            if (oreturnobj != null && oreturnobj.FBID>0)
+            {
+                $("#txtFEONo").val(oreturnobj.FEONo);
+                PickFabricBatch(oreturnobj.BatchNo);
+            }
+            else
+            {
+                alert("Please select an item from list.");
+                return false;
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function SelectBatch()
+    {
+        if($("#txtBatchNo").val()==null || $("#txtBatchNo").val()=="")
+        {
+            alert("Please type Program No");
+            return;
+        }
+        var oFabricBatch={
+            BatchNo:$("#txtBatchNo").val(),
+            WeavingProcessTypeTemp : 2
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricBatch,
+            ControllerName: "FabricBatch",
+            ActionName: "SearchByBatchNo",
+            IsWinClose: false
+        };
+        $.icsDataGet(obj, function (response) {
+            if (response.status && response.obj!=null) {
+                if (parseInt(response.obj.FBID) > 0) {
+                    SetFabricBatchInfo(response.obj);
+                }
+                else {  alert("Data Not Found"); }
+            }
+        });
+    }
+
+    $("#txtBatchNo").keydown(function (e){
+        if (e.keyCode === 13) // Enter Press
+        {
+            if($("#txtBatchNo").val()==null || $("#txtBatchNo").val()=="")
+            {
+                alert("Please type Program No");
+                return;
+            }
+            PickFabricBatch($("#txtBatchNo").val());
+        }
+        else if (e.keyCode === 8 || e.keyCode==27) // Back space
+        {
+            $("#txtBatchNo").removeClass("fontColorOfPickItem");
+            _oFabricBatch = "";
+            $('#divFBInfo').find('input').not("#txtBatchNo").val('');//all field will be empty
+            $( "#txtBeamNo,#txtTotalFinishLengthY,#txtTotalFinishLengthM" ).prop( "disabled", false );
+            $('#btnRun').hide();
+            $('#btnRunOut').hide();
+            $('#tpStartTime,#tpEndTime').timespinner({disabled:false});
+            $('#txtStartDate,#txtEndDate').datebox({disabled:false});
+            $('#tpStartTime,#tpEndTime').timespinner('setValue', "00:00");
+            $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date));
+            $('#txtBatchNo').focus();
+        }
+    });
+
+    function PickFabricBatch(sBatchNo)
+    {
+        var oFabricBatch={
+            BatchNo:$.trim(sBatchNo)
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricBatch,
+            ControllerName: "FabricBatch",
+            ActionName: "SearchByBatchNo",
+            IsWinClose: false
+        };
+        $.icsDataGet(obj, function (response) {
+            if (response.status && response.obj!=null) {
+                if (parseInt(response.obj.FBID) > 0) {
+                    SetFabricBatchInfo(response.obj);
+                }
+                else { alert("Data Not Found"); }
+            }
+        });
+    }
+
+    function SetFabricBatchInfo(oFabricBatch)
+    {
+        $("#txtBatchNo").val(oFabricBatch.BatchNo);
+        $("#txtBatchNo").addClass("fontColorOfPickItem");
+        $("#txtOrderNo").val(oFabricBatch.OrderNo);
+        $("#txtStatus").val(oFabricBatch.StatusSt);
+        $("#txtConstruction").val(oFabricBatch.Construction);
+        $("#txtBuyer").val(oFabricBatch.BuyerName);
+        _oFabricBatchProduction.FEOID = oFabricBatch.FEOID;
+        _oFabricBatchProduction.FBID = oFabricBatch.FBID;
+        _oFabricBatchProduction.FabricBatchStatusInInt = oFabricBatch.StatusInInt;
+         GetDrawingInInformation(oFabricBatch.FBID);
+        if(parseInt(oFabricBatch.StatusInInt)==5)//Sizing finish
+        {
+            $('#btnRun').show();
+        }
+        if(parseInt(oFabricBatch.StatusInInt)==6)//DrawingIn
+        {
+            $('#btnRunOut').show();
+        }
+        if(parseInt(oFabricBatch.StatusInInt)>6)//Drwaing finsish:7
+        {
+            $('#tpStartTime,#tpEndTime').timespinner({disabled:true});
+            $('#txtStartDate,#txtEndDate').datebox({disabled:true});
+        }
+        $('#txtBatchNo').focus();
+    }
+   
+   
+    function GetDrawingInInformation(nFBID)
+    {
+        if (parseInt(nFBID) > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/FabricBatchProduction/GetFabricBatchProductionForDrawingIn",
+                data: { nFBID:nFBID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oFabricBatchProduction = jQuery.parseJSON(data);
+                    if (parseInt(oFabricBatchProduction.FBPID)>0)
+                    {
+                        _oFabricBatchProduction = oFabricBatchProduction;
+                        RefreshControl(oFabricBatchProduction);
+                    }
+                    else{
+                        $("#txtStartDate").datebox("setValue", oFabricBatchProduction.StartDateSt);
+                        $('#tpStartTime').timespinner('setValue', oFabricBatchProduction.StartDateStForTimeSpan);
+                        $("#txtEndDate").datebox("setValue", oFabricBatchProduction.EndDateSt);
+                        $('#tpEndTime').timespinner('setValue', oFabricBatchProduction.EndDateStForTimeSpan);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+    function RefreshControl(oFabricBatchProduction)
+    {
+        
+        if(parseInt(oFabricBatchProduction.FabricBatchStatusInInt)==6)
+        {
+            $('#btnRunOut').show();
+            $('#tpStartTime').timespinner({disabled:true});
+            $('#txtStartDate').datebox({disabled:true});
+        }
+        $('#tpStartTime').timespinner('setValue', oFabricBatchProduction.StartDateStForTimeSpan);
+        $('#tpEndTime').timespinner('setValue', oFabricBatchProduction.EndDateStForTimeSpan);
+        $('#txtStartDate').datebox('setValue', oFabricBatchProduction.StartDateSt);
+        $('#txtEndDate').datebox('setValue',oFabricBatchProduction.EndDateSt);
+        $('#txtDrawingInDuration').val(oFabricBatchProduction.BatchDuration);
+    }
+
+    //Run Start
+    function ValidateInput()
+    {
+        if(parseInt(_oFabricBatchProduction.FBID)<=0)
+        {
+            alert("Sorry, there is no Fabric Batch!");
+            return false;
+        }
+        return true;
+    }
+    
+    function RefreshObject()
+    {
+        
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var startTime= $('#tpStartTime').timespinner('getValue');
+        var sTime=startTime.split(':');
+        var hStartTime= parseFloat(sTime[0]);
+        var mStartTime= parseFloat(sTime[1]);
+        dStartDate = new Date(dStartDate);
+        dStartDate.setHours(hStartTime);
+        dStartDate.setMinutes(mStartTime);
+        
+        var oFabricBatchProduction= {
+                    FBPID:0,
+                    FBID:_oFabricBatchProduction.FBID,
+                    WeavingProcess:2,
+                    FMID:$('#cboMachineName').val(),
+                    BeamNo:$('#txtBeamNo').val(),
+                    StartTime: dStartDate,
+                    FabricBatchStatus:6,//DrawingIn
+                    FBPriviousStatus:5,//sizing-finsh
+                    Qty:_oFabricBatchProduction.FabricBatchQty
+        };
+    return oFabricBatchProduction;
+    }
+  
+    function Run()
+    {
+        if(!ValidateInput()) return;
+        var oFabricBatchProduction = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricBatchProduction/Save",
+            traditional: true,
+            data:  JSON.stringify(oFabricBatchProduction),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //
+               var oFabricBatchProduction = jQuery.parseJSON(data);
+                if (oFabricBatchProduction.FBPID>0)
+                {
+                    alert("Succefully Run");
+                    $('#txtStatus').val(oFabricBatchProduction.FabricBatchStatusInString);
+                    $('#tpStartTime').datebox({disabled:true});
+                    $('#txtStartDate').datebox({disabled:true});
+                    $('#tpStartTime').timespinner('setValue', oFabricBatchProduction.StartDateStForTimeSpan);
+                    $('#txtStartDate').datebox('setValue', oFabricBatchProduction.StartDateSt);
+                    $('#btnRunOut').show();
+                    $('#btnRun').hide();
+                    _oFabricBatchProduction=oFabricBatchProduction;
+                    return;
+
+                }
+                else {
+                    alert(oFabricBatchProduction.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+    //Run end
+
+    //RunOut Start
+    function RunOut()
+    {
+        if(parseInt(_oFabricBatchProduction.FBPID)<=0)
+        {
+            alert("Sorry, there is no Fabric Batch Production!");
+            return false;
+        }
+        if(parseInt(_oFabricBatchProduction.FabricBatchStatusInInt)!=6)
+        {
+            alert("Please Run First Then Run Out!");
+            return false;
+        }
+        var dEndDate =$('#txtEndDate').datebox('getValue');
+        var EndTime= $('#tpEndTime').timespinner('getValue');
+        var sTime=EndTime.split(':');
+        var hEndTime= parseFloat(sTime[0]);
+        var mEndTime= parseFloat(sTime[1]);
+        dEndDate = new Date(dEndDate);
+        dEndDate.setHours(hEndTime);
+        dEndDate.setMinutes(mEndTime);
+        
+        var oFabricBatchProduction = {
+                                        FBPID:_oFabricBatchProduction.FBPID,
+                                        FBID:_oFabricBatchProduction.FBID,
+                                        FMID:$('#cboMachineName').val(),
+                                        FabricBatchStatus:7,//DrawingIn finish
+                                        FBPriviousStatus:_oFabricBatchProduction.FabricBatchStatusInInt,
+                                        EndTime:dEndDate,
+                                        Qty:_oFabricBatchProduction.FabricBatchQty
+                                    };
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricBatchProduction/Save",
+            traditional: true,
+            data:  JSON.stringify(oFabricBatchProduction),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //
+               var  oFabricBatchProduction = jQuery.parseJSON(data);
+                if (oFabricBatchProduction.FBPID>0)
+                {
+                    alert("Succefully Run Out");
+                    $('#txtStatus').val(oFabricBatchProduction.FabricBatchStatusInString);
+                    $('#btnRunOut').hide();
+                    $('#txtDrawingInDuration').val(oFabricBatchProduction.BatchDuration);
+                    return;
+
+                }
+                else {
+                    alert(oFabricBatchProduction.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+    //RunOut End
+
+     
+
+</script>

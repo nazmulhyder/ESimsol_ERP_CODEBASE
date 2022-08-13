@@ -1,0 +1,218 @@
+﻿<html>
+@{
+    ViewBag.title = "FabricSCReport";
+}
+<body>
+    @model ESimSol.BusinessObjects.FabricSCReport
+    <div class="menuMainCollectionTable panel-group" ng-app="CCategoryapp" ng-controller="CCategoryController" id="divCC" style="height:530px">
+        <div class="regionFabricSCReport" style="height:92%; overflow:scroll">
+            <fieldset style="height:auto; text-align:center;">
+                <legend style="font-weight:bold;">Mail : </legend>
+                <table style="font-size:11px; text-align:left; width:100%; height:auto%">
+                    <tr>
+                        <td style="width:10%; text-align:right">
+                           <label> Mail To : </label>
+                        </td>
+                        <td style="width:90%">
+                            <textarea id="txtMailTo" ng-model="FabricSCReport.MailTo" class="form-control" style="width:100%; height:50px" ></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+
+                        <td style="width:10%; text-align:right">
+                            <label>  CC :</label>
+                        </td>
+                        <td style="width:90%">
+                            <textarea id="txtMailCC" ng-model="FabricSCReport.MailCC" class="form-control" style="width:100%; height:30px"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:10%; text-align:right">
+                          <label>  Subject : </label>
+                        </td>
+                        <td style="width:90%">
+                            <input type="text" ng-model="FabricSCReport.Subject" class="form-control" style="width:100%" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:85%;" colspan="4">
+                            <div id="divBody" style="width:100%;"> </div>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <div style="height:8%">
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                    <tr>
+                        <td style="width:100%;text-align:right">
+                            <button type="button" id="btnSave" class="btn btn-default btn-sm btn-success" aria-label="right Align" ng-click="Send()"><span class="glyphicon glyphicon-send" aria-hidden="true"> Send</span></button>
+                            <button type="button" id="btnClose" class="btn btn-default btn-sm btn-danger" aria-label="right Align" ng-click="Close()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span></button>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    .regionFabricSCReport .form-horizontal .control-label {
+        padding-top: 1px;
+    }
+
+    .regionFabricSCReport .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+        width:100%;
+    }
+</style>
+
+
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    //debugger;
+    var oFabricSCReport =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oMailCollections = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MailCollections));
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    console.log(oMailCollections);
+
+    var CCategoryApp = angular.module('CCategoryapp', []);
+        CCategoryApp.controller('CCategoryController', function ($scope, $http) {
+            $scope.FabricSCReport = oFabricSCReport;
+
+            $scope.FabricSCReport.MailTo= oMailCollections[0];
+            $scope.FabricSCReport.CCTo=oMailCollections[1];
+            $scope.FabricSCReport.MailCC=oMailCollections[1];
+
+            $scope.FabricSCReport.Subject=oMailCollections[2];
+            $scope.FabricSCReport.Body=oMailCollections[3];
+            $scope.FabricSCReport.FSCDIDs=oMailCollections[4];
+            $scope.FabricSCReport.PrvMails=oMailCollections[5];
+
+            $("#divBody").html($scope.FabricSCReport.Body);
+
+            $scope.Send=function()
+            {
+                debugger;
+                if(!$scope.ValidateInput()) return;
+
+                var sMsg = "Confirm to Send Mail ?";
+                if($scope.FabricSCReport.PrvMails.length>0) sMsg = $scope.FabricSCReport.PrvMails + sMsg;
+
+                if (!confirm(sMsg)) return ;
+
+
+                var oMail=$scope.FabricSCReport.MailTo+"~"+$scope.FabricSCReport.MailCC+"~"+$scope.FabricSCReport.Subject +"~"+$scope.FabricSCReport.Body+"~"+$scope.FabricSCReport.FSCDIDs;
+                var oFabricSCReport={
+                    ErrorMessage:oMail
+                }
+                var oMailSetUp={
+                    ReportName:$scope.FabricSCReport.MailTo,
+                    FunctionName:$scope.FabricSCReport.MailCC,
+                    Subject:$scope.FabricSCReport.Subject,
+                ControllerName:$scope.FabricSCReport.Body,
+                Params:$scope.FabricSCReport.FSCDIDs
+                }
+                $http.post(_sBaseAddress+'/FabricSCReport/SendMailToMarketingPO',oMailSetUp).then(
+               
+                      function (response)
+                      {
+                          debugger;
+                          var oFabricSCReports= response.data;
+
+                          if(oFabricSCReports.length==0){ alert("Invalid Data List!"); }
+
+                          if (oFabricSCReports[0].ErrorMessage=="" || oFabricSCReports[0].ErrorMessage==null)
+                          {
+                              alert("Mail Sent Successfully!!");
+                              $scope.Close();
+                          }
+                          else
+                          {
+                              alert(oFabricSCReports[0].ErrorMessage);
+                          }
+
+                      },
+                          function (response) { alert(response.statusText);}
+                  );
+               
+             
+            }
+            $scope.ValidateInput = function()
+            {
+                debugger;
+                if($scope.FabricSCReport.MailTo==null || $scope.FabricSCReport.MailTo=="")
+                {
+                    alert("Please enter mail address & try again!");
+                    return false;
+                }
+                if($scope.FabricSCReport.Subject==null || $scope.FabricSCReport.Subject=="")
+                {
+                    alert("Please enter mail subject & try again!");
+                    return false;
+                }
+
+                var sMailTo = $scope.FabricSCReport.MailTo.split(",");
+                if(!validate(sMailTo,'txtMailTo')) return false;
+
+                if($scope.FabricSCReport.MailCC!=null && $scope.FabricSCReport.MailCC!="" && $scope.FabricSCReport.MailCC!=undefined)
+                {
+                    var sMailCC = $scope.FabricSCReport.MailCC.split(",");
+
+                    if(!validate(sMailCC,'txtMailCC'))
+                    {
+                        //alert("Please enter valid CC address & try again!");
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function validateEmail(email)
+            {
+                email = $.trim(email," ");
+
+                var re = /^(([^<>()[\]\\.,;:\s@@\"]+(\.[^<>()[\]\\.,;:\s@@\"]+)*)|(\".+\"))@@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+                return re.test(email);
+            }
+
+            function validate(mails, id)
+            {
+                var filed = $("#"+id);
+                filed.css("color", "green");
+
+                for(var i=0; i<mails.length; i++)
+                {
+                    var email = mails[i];
+
+                    if (!validateEmail(email))
+                    {
+
+                        alert(email+" Is Invalid.  Please enter valid mail address & try again!");
+                        filed.css("color", "red");
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            $scope.Close = function()
+            {
+                //window.location.href = sessionStorage.getItem("BackLink");
+                window.close();
+            }
+            $scope.keydown = function(e)
+            {
+                if(e.which == 27)//escape=27
+                {
+                    //debugger;
+                    window.close();
+                }
+            }
+        });
+
+</script>

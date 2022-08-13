@@ -1,0 +1,401 @@
+﻿@{
+    ViewBag.Title = "Transfer Shift";
+}
+@model ESimSol.BusinessObjects.Employee
+<div style="margin-left: 0px; width:100%; height:100%">
+    <table id="tblEmployees" title=" Transfer Shift" class="easyui-datagrid" style=" width:100%; height:100%" fitcolumns="true" rownumbers="true" pagination="false" singleselect="false"
+           autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th data-options="field:'Selected',checkbox:true">
+                </th>
+                <th field="Code" width="60">
+                    Code
+                </th>
+                <th field="Name" width="200">
+                    Name
+                </th>
+                <th field="ContactNo" width="150">
+                    ContactNo
+                </th>
+                <th field="DepartmentName" width="190">
+                    Department
+                </th>
+                <th field="DesignationName" width="100">
+                    Designation
+                </th>
+                <th field="RosterPlan" width="120">
+                    Roster Plan
+                </th>
+                <th field="CurrentShift" width="120">
+                    Current Shift
+                </th>
+            </tr>
+        </thead>
+    </table>
+    ​
+    <div id="winSwap" class="easyui-window winstyle" title="Swap Shift" style="width:480px; height:350px" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div id="focuSwapShift" tabindex="-1">
+            <table style="width:100%">
+                <tr style="width:100%">
+                    <td style="width:17%">
+                        Roater Plan : 
+                    </td>
+                    <td style="width:83%">
+                        <select id="cboRosterPlan" style="width:100%"></select>
+                    </td>
+                </tr>
+            </table>
+            <table id="tblRosterShift" class="easyui-datagrid" style="width: 465px; height: 250px"
+                   fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+                   autorowheight="false">
+                <thead>
+                    <tr>
+                        <th field="Shift" width="160">
+                            Shift
+                        </th>
+                        <th field="NextShift" width="160">
+                            Next Shift
+                        </th>
+                        <th field="ToleranceTimeInString" width="115">
+                            Tolerance Time
+                        </th>
+                    </tr>
+                </thead>
+            </table>
+            <table style="width:100%;">
+                <tr style="width:80%;">
+                    <td style=" text-align: right">
+                        <a id="btnSwapSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Swap</a>
+                        <a id="SwapPickClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+
+    <div id="toolbar">
+        <input type="text" id="txtSearchbyCode" placeholder="Search by Code" style="width: 105px" />
+        <input type="text" id="txtSearchByName" placeholder="Search by name" style="width: 105px" />
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="" plain="true"
+            onclick="AdvancedSearch()">Pick Employee</a>
+        <select id="cboCurrentShift" style="width: 180px; margin-left: 10px;">
+        </select>
+        @*<input type="button" onclick="LoadCurrentShift()" value="L" />*@
+        <input id="dtDate" name="dtStartDate" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <input type="button" onclick="TransferShift()" value="Transfer" />
+        <a id="btnSwap" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Swap</a>
+    </div>
+</div>
+<script type="text/javascript">
+var _oEmployee=null;
+var _sBaseAddress="";
+var _oShifts=[];
+$(document).ready(function () {
+    _oEmployee =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    _oShifts= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Shifts));
+    $('#dtDate').datebox('setValue',icsdateformat(new Date()));
+    LoadCurrentShift();
+});
+
+function AdvancedSearch() 
+{
+    var oParameter = new Object();
+                oParameter.Name = "Employee Advance Search";
+                oParameter.MultipleItemReturn=true;
+                var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+                var nLeft=(window.screen.width/2)-(1000/2);
+                var nHeight=(window.screen.height/2)-(530/2);
+                var oEmployees =window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+                //var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:1000px;dialogLeft:150;dialogRight:150;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no'); 
+            data=oEmployees;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblEmployees').datagrid('loadData',data);              
+}
+
+function ValidateInput(oEmployees) {
+    if (oEmployees.length > 0) {
+        var currentShift = oEmployees[0].CurrentShift;
+        var rosterPlanID = oEmployees[0].RosterPlanID;
+
+        for (var i = 0; i < oEmployees.length; i++) {
+            if (oEmployees[i].RosterPlanID != 0) {
+                if (oEmployees[i].CurrentShift != currentShift || oEmployees[i].RosterPlanID != rosterPlanID) {
+                    alert("All selected Employees Currnet Shift and Roster Plans are not same!");
+                    return false;
+                }
+            } else {
+                alert("There is no official information for" + oEmployees[i].Name);
+                return false;
+            }
+        }
+    } else if(oEmployees.length <= 0) {
+        alert("Please Pick Atleast one Employee");
+        return false;
+    }
+    return true;
+}
+
+function LoadCurrentShift() {
+    //var selectedEmployees= $('#tblEmployees').datagrid('getChecked');
+    //if (selectedEmployees.length > 0) {
+    //    if (!ValidateInput(selectedEmployees)) return;
+
+        //$.ajax({
+        //    type: "POST",
+        //    dataType: "json",            
+        //    url : _sBaseAddress+  "/RosterPlan/GetRosterPlanDetail",
+        //    traditional: true,
+        //    //data:  JSON.stringify({nID: selectedEmployees[0].RosterPlanID}),
+        //    data:  JSON.stringify({nID: 0}),
+        //    contentType: "application/json; charset=utf-8",
+        //    success: function (data) {
+        //        debugger;
+        //        var oRosterPlanDetails = jQuery.parseJSON(data);
+        //        var listRosterPlanDetails="<option value='"+0+"'>" +"--Select Current Shift--" + "</option>";
+        //        if(oRosterPlanDetails.length>0)
+        //            {
+        //                for (var i = 0; i < oRosterPlanDetails.length; i++) 
+        //                     {
+        //                       listRosterPlanDetails += "<option value='" + oRosterPlanDetails[i].ShiftID+"'>" + oRosterPlanDetails[i].Shift+"</option>";
+        //                     }
+        //            }
+        //        $("#cboCurrentShift").html(listRosterPlanDetails);
+        //    },
+        //    error: function (xhr, status, error) {
+        //        alert(error);
+        //    }
+
+        //});
+    //} else {
+    //    alert("Select Atleast one Employee");
+    //}
+    $("#cboCurrentShift").icsLoadCombo({
+        List: _oShifts,
+        OptionValue: "ShiftID",
+        DisplayText: "ShiftWithDuration",
+        InitialValue:'---Select Shift---'
+    });
+}
+
+function TransferShift() {
+    debugger;
+    nIndexes = [];
+    var dDate= $('#dtDate').datebox('getValue');
+    var selectedEmployees= $('#tblEmployees').datagrid('getChecked');
+    if (!ValidateInput(selectedEmployees)) return;
+    var cboCurrentShift= document.getElementById("cboCurrentShift");
+    var currentShiftID=cboCurrentShift.options[cboCurrentShift.selectedIndex].value;
+    var currentShift=cboCurrentShift.options[cboCurrentShift.selectedIndex].text;
+    var existingShift = selectedEmployees[0].CurrentShift;
+    if (currentShiftID <= 0 || currentShiftID==null) {
+        alert("Please Select a current Shift");
+        return;
+    }
+    for(var i =0; i<selectedEmployees.length; i++)
+    {
+        var SelectedRowIndex = $('#tblEmployees').datagrid('getRowIndex', selectedEmployees[i]);
+        nIndexes.push(SelectedRowIndex);
+    }
+    if (currentShift == existingShift) {
+        alert("Current Shift && Existing Shifts are Same. Please Select another shift!!");
+    } else {
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/Employee/TransferShift",
+            traditional: true,
+            data:  JSON.stringify({ oEmployeeOfficials: selectedEmployees, nCurrentShiftID: currentShiftID,dDate:dDate}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oEmps = jQuery.parseJSON(data);
+                if(oEmps.length>0 && oEmps[0].ErrorMessage=="")
+                {
+                    alert("Shift Transfered Successfully !");
+                    for(var i=0; i<oEmps.length; i++)
+                    {
+                        $('#tblEmployees').datagrid('updateRow', { index: nIndexes[i], row: oEmps[i] });
+                    }
+                }
+                else
+                {
+                    alert(oEmps[0].ErrorMessage);
+                }
+
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+        
+    }
+}
+    
+$('#btnSwap').click(function (e) {
+    DynamicRefreshList([], "tblRosterShift");
+    $("#cboRosterPlan").icsLoadCombo({
+        List:_oEmployee.RosterPlans,
+        OptionValue: "RosterPlanID",
+        DisplayText: "Description",
+        InitialValue:"--Select Roster Plan--"
+    });
+    $("#winSwap").icsWindow("open", "Swap Shift");
+});
+
+$('#cboRosterPlan').change(function (e) {
+    debugger
+    var nRosterPlanID=0;
+    nRosterPlanID= $("#cboRosterPlan").val();
+    var oRDs=[];
+    for(var i=0;i<_oEmployee.RosterPlanDetails.length;i++)
+    {
+        if(_oEmployee.RosterPlanDetails[i].RosterPlanID==nRosterPlanID)
+        {
+            oRDs.push(_oEmployee.RosterPlanDetails[i]);
+        }
+    }
+    DynamicRefreshList(oRDs, "tblRosterShift");
+});
+
+$("#SwapPickClose").click(function () {
+    $("#winSwap").icsWindow('close');
+});
+
+$('#btnSwapSave').click(function (e) {
+    debugger;
+    if (!confirm("Confirm to Swap?")) return;
+    var nRosterPlanID=0;
+    nRosterPlanID= $("#cboRosterPlan").val();
+    var dDate= $('#dtDate').datebox('getValue');
+    if (nRosterPlanID<=0) {
+        alert("Please select a roster plan!");
+    } else {
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/Employee/SwapShift",
+            traditional: true,
+            data:  JSON.stringify({ nRosterPlanID: nRosterPlanID,dDate:dDate}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var msg = jQuery.parseJSON(data);
+                if(msg!="")
+                {
+                    alert(msg);
+                    $("#winSwap").icsWindow('close');
+                }
+                else
+                {
+                    alert("Unable to swap!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+});
+
+$('#txtSearchbyCode').keyup(function (e) {
+    var nCode = (e.keyCode ? e.keyCode : e.which);
+    var c = String.fromCharCode(e.which);
+    var txtSearchbyCode = $("#txtSearchbyCode").val();
+    var sTempCode = "";
+    var rows = $('#tblEmployees').datagrid('getRows');
+    for (i = 0; i < rows.length; ++i) {
+        sTempCode = rows[i]['Code'].substring(0, txtSearchbyCode.length);
+        if (txtSearchbyCode.toUpperCase() == sTempCode.toUpperCase()) {
+            $('#tblEmployees').datagrid('selectRow', i);
+            break;
+        }
+        else{
+            $('#tblEmployees').datagrid('unselectAll');
+        }
+    }
+    if (nCode != 13) return;
+    GetEmployeeByNameCode(txtSearchbyCode, true);
+    $("#txtSearchbyCode").val('');
+    $("#txtSearchbyCode").focus();
+});
+
+$('#txtSearchByName').keyup(function (e) {
+    var nCode = (e.keyCode ? e.keyCode : e.which);
+    var txtSearchByName = $("#txtSearchByName").val();
+    var sTempName = "";
+    var rows = $('#tblEmployees').datagrid('getRows');
+    for (i = 0; i < rows.length; ++i) {
+        sTempName = rows[i]['Name'].substring(0, txtSearchByName.length);
+        if (txtSearchByName.toUpperCase() == sTempName.toUpperCase()) {
+            $('#tblEmployees').datagrid('selectRow', i);
+            break;
+        }
+        else{
+            $('#tblEmployees').datagrid('unselectAll');
+        }
+    }
+    if (nCode != 13) return;
+    GetEmployeeByNameCode(txtSearchByName, false);
+    $("#txtSearchByName").val('');
+    $("#txtSearchByName").focus();
+});
+
+function GetEmployeeByNameCode(sNameCode,bIsCode)
+{
+    var nts = ((new Date()).getTime()) / 1000;        
+    $.ajax
+    ({
+        type: "GET",
+        dataType: "json",
+        url : _sBaseAddress+  "/Employee/GetByEmployeeNameCode",
+        data: {sNameCode:sNameCode,bIsCode:bIsCode,nts:nts},
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oEmployees = jQuery.parseJSON(data);
+            if(oEmployees.length>0)
+            {
+                var bAppend=false;
+                var oTEmps=$('#tblEmployees').datagrid('getRows');   
+                    
+                if(oTEmps.length>0)
+                {
+                    for (var i = 0; i < oEmployees.length; i++) 
+                    {
+                        var IsAppend=true;
+                        for (var j = 0; j < oTEmps.length; j++) 
+                        {
+                            if(oEmployees[i].EmployeeID==oTEmps[j].EmployeeID)
+                            {
+                                IsAppend=false;
+                                break;
+                            }
+                        }
+                        if(IsAppend)
+                        {
+                            bAppend=true;
+                            $('#tblEmployees').datagrid('appendRow', oEmployees[i]);
+                        }
+                    }
+                }
+                else
+                {
+                    DynamicRefreshList(oEmployees, "tblEmployees");
+                }    
+            }
+            else
+            {
+                alert('Data not found.!!!');
+            }
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+}
+</script>

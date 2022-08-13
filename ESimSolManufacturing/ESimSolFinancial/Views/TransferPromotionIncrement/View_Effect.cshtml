@@ -1,0 +1,546 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Effect Of Transfer Promotion Increment</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+
+</head>
+<body>
+    @model ESimSol.BusinessObjects.TransferPromotionIncrement
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 400px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                        Effect oF Transfer Promotion Increment
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Effect Of Transfer Promotion Increment </legend>
+            @* table1 start*@
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold;">
+                <tr>
+                    <td style="width: 150px; text-align: right;">
+                        Actual Effected Date :
+                    </td>
+                    <td>
+                        <input id="dtActualEffectedDate" type="text" style="width: 200px;" class="easyui-datebox"
+                               data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 150px"></td>
+                    <td style="width: 200px; text-align: right;">
+                        <a id="btnEffect" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                           plain="true">Effect</a> <a id="btnCancel" href="javascript:void(0)" class="easyui-linkbutton"
+                                                      iconcls="icon-cancel" plain="true">Cencel</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oTPI=null;
+    var _sBaseAddress="";
+    var _oSalaryScheme = null;
+    var _oBasicSalarySchemeDetails=[];
+    var _oAllowanceSalarySchemeDetails=[];
+    var _nGrossAmount = 0;
+    var _oESSDetails = [];
+
+    $(document).ready(function ()
+    {
+        _oTPI = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var obj = window.dialogArguments;
+        document.getElementById("lblHeaderName").innerHTML= obj.Name;
+        $('#dtActualEffectedDate').datebox('setValue',_oTPI.ActualEffectedDateInString);
+        _nGrossAmount = obj.TPIGrossSalary;
+
+        if(obj.IsIncrement == true)
+        {
+
+            GetsalarySchemeByID(obj.SalarySchemeID);
+
+            CalcutionAllowance();
+        }
+
+    });
+
+    function icsdateformat(date)
+    {
+        var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var y = date.getFullYear();
+        var m = date.getMonth();
+        var d = date.getDate();
+        var result = d + ' ' + mthNames[m] + ' ' + y;
+        return result;
+    }
+
+    $('#btnEffect').click(function (e)
+    {
+        //debugger;
+        var EffectedDate=$('#dtActualEffectedDate').datebox('getValue');
+        //var EffectedDateTime=new Date(EffectedDate);
+        //var ND= new Date();
+        //ND.setHours(0,0,0,0);
+        //if(EffectedDateTime<ND)
+        //{
+        //    alert("Actual EffectedDate Must Not be Less Than Current Date !");
+        //    $("#dtActualEffectedDate").focus();
+        //    return false;
+        //}
+
+        var oTPI =
+        {
+            TPIID:_oTPI.TPIID,
+            EffectedDate : EffectedDate,
+
+        };
+
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/TransferPromotionIncrement/TransferPromotionIncrement_Effect",
+            traditional: true,
+            data: JSON.stringify({oTPI:oTPI,oEmployeeSalaryStructureDetails : _oESSDetails}),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                //debugger
+                oTPI = jQuery.parseJSON(data);
+                if (oTPI.ErrorMessage == "")
+                {
+                    alert("Effected sucessfully");
+                    window.returnValue = oTPI;
+                    window.close();
+                }
+                else
+                {
+                    alert(oTPI.ErrorMessage);
+                }
+            },
+
+        });
+    });
+
+    /*===============  Salary Structure Detail Calculation  =============*/
+    var bBracketStart=false;
+    var bBracketEnd=false;
+
+    function CalcutionBasicTypeSalaryHead()
+    {
+        var oSalarySchemeDetailCalculations= [];
+        var oSalarySchemeDetails=[];
+        var nGross=0;
+        var nTotal = 0;
+        var nIndex = 0;
+        oSalarySchemeDetailCalculations =_oSalaryScheme.SalarySchemeDetailCalculations;
+        oSalarySchemeDetails = NewSSDetail();
+        nGross = _nGrossAmount;
+
+        for(var i=0 ; i< oSalarySchemeDetails.length ; i++)
+        {
+
+            var nTotalPerSHead=0;
+            var nOperator=0;
+            bBracketStart=false;
+            bBracketEnd=false;
+            var nOperator = 3;
+            var nPercentvalue = 0;
+            var bFlag = false;
+
+            if(oSalarySchemeDetails[i].SalaryHeadTypeInt == 1 )
+            {
+
+                if(oSalarySchemeDetails[i].Calculation>0)
+                {
+                    nTotalPerSHead = parseFloat(oSalarySchemeDetails[i].Calculation);
+                }
+                else
+                {
+
+                    for(var j=0 ; j< oSalarySchemeDetailCalculations.length ; j++)
+                    {
+
+                        if(oSalarySchemeDetails[i].SalarySchemeDetailID == oSalarySchemeDetailCalculations[j].SalarySchemeDetailID)
+                        {
+                            if(oSalarySchemeDetailCalculations[j].ValueOperator == 1)
+                            {
+
+                                if(oSalarySchemeDetailCalculations[j].CalculationOn == 1)
+                                {
+
+                                    if(!bFlag && nOperator == 7)
+                                    {
+                                        nTotalPerSHead = 0;
+                                        oSalarySchemeDetailCalculations[j].PercentValue = nPercentvalue;
+                                        nIndex = j;
+                                        nTotalPerSHead = GetSSDcalculation(nTotalPerSHead,nOperator,oSalarySchemeDetails,oSalarySchemeDetailCalculations,nIndex);
+
+                                    }
+                                    else
+                                    {
+                                        nIndex = j;
+                                        nTotalPerSHead = nGross;
+                                        oSalarySchemeDetailCalculations[j].PercentValue = nPercentvalue;
+                                        nTotalPerSHead = GetSSDcalculation(nTotalPerSHead,nOperator,oSalarySchemeDetails,oSalarySchemeDetailCalculations,nIndex);
+
+
+                                    }
+
+                                }
+
+                                else if(oSalarySchemeDetailCalculations[j].CalculationOn == 2)
+                                {
+                                    oSalarySchemeDetailCalculations[j].PercentValue = nPercentvalue;
+                                    nIndex = j;
+                                    nTotalPerSHead = GetSSDcalculation(nTotalPerSHead,nOperator,oSalarySchemeDetails,oSalarySchemeDetailCalculations, nIndex);
+
+                                }
+
+                                else if(oSalarySchemeDetailCalculations[j].CalculationOn == 3)
+                                {
+
+
+                                    nIndex = j;
+                                    nTotalPerSHead = GetSSDcalculation(nTotalPerSHead,nOperator,oSalarySchemeDetails,oSalarySchemeDetailCalculations,nIndex);
+
+
+                                }
+
+                            }
+
+                            else if(oSalarySchemeDetailCalculations[j].ValueOperator == 2)
+                            {
+                                if(oSalarySchemeDetailCalculations[j].Operator==1)
+                                {
+
+                                    bBracketStart=true;
+                                }
+
+                                else if(oSalarySchemeDetailCalculations[j].Operator==2)
+                                {
+
+                                    bBracketEnd=true;
+                                }
+                                else if(oSalarySchemeDetailCalculations[j].Operator==3)
+                                {
+                                    nOperator=3;
+
+                                }
+                                else if(oSalarySchemeDetailCalculations[j].Operator==4)
+                                {
+                                    nOperator= 4;
+
+                                }
+                                else if(oSalarySchemeDetailCalculations[j].Operator==5)
+                                {
+
+                                    nOperator=5;
+                                }
+
+                                else if(oSalarySchemeDetailCalculations[j].Operator==6)
+                                {
+                                    nOperator = 6;
+
+                                }
+
+                                else if(oSalarySchemeDetailCalculations[j].Operator==7)
+                                {
+                                    nOperator = 7;
+                                    nPercentvalue= oSalarySchemeDetailCalculations[j].PercentVelue;
+
+
+                                }
+
+
+                            }
+
+                        }
+
+
+                    }
+                }
+                if(oSalarySchemeDetails[i].Amount <=0 || oSalarySchemeDetails[i].Amount == undefined)
+                {
+                    oSalarySchemeDetails[i].Amount = nTotalPerSHead;
+                }
+
+
+                bFlag = true;
+            }
+
+
+        }
+
+        return oSalarySchemeDetails;
+
+    }
+
+    function CalcutionAllowance()
+    {
+
+        var oSalarySchemes=_oBasicSalarySchemeDetails;
+        var oAllowances=_oAllowanceSalarySchemeDetails;
+        var nGross=_nGrossAmount;
+        var nTotalVal=0;
+
+        for(var i=0;i<oAllowances.length;i++)
+        {
+            if (oAllowances[i].AllowanceCalculationOn==1)
+            {
+                oAllowances[i].Amount=nGross*oAllowances[i].AllowanceValue/100;
+            }
+            else if(oAllowances[i].AllowanceCalculationOn==2)
+            {
+                for(var k=0;k<oSalarySchemes.length;k++)
+                {
+                    if(oSalarySchemes[k].SalaryHeadID==oAllowances[i].CalculateOnSalaryHeadID)
+                    {
+
+                        oAllowances[i].Amount=oAllowances[i].AllowanceValue/100*oSalarySchemes[k].Amount;
+                    }
+                }
+            }
+            else
+            {
+                oAllowances[i].Amount=oAllowances[i].AllowanceValue;
+            }
+            nTotalVal=nTotalVal+oAllowances[i].Amount;
+        }
+
+    }
+
+    function NewSSDetail()
+    {
+
+        var oSalarySchemeDetailCalculations =[];
+        var oSalarySchemeDetails = [];
+        oSalarySchemeDetailCalculations =_oSalaryScheme.SalarySchemeDetailCalculations;
+        //oSalarySchemeDetails = _oSalaryScheme.SalarySchemeDetails;
+        oSalarySchemeDetails = _oBasicSalarySchemeDetails;
+
+        var oNewSalarySchemeDetails = [];
+        var k=0 ;
+
+        for(var i=0 ; i< oSalarySchemeDetails.length ; i++)
+        {
+            //        if(oSalarySchemeDetails[i].Calculation > 0)
+            //        {
+            //           oSalarySchemeDetails[i].Amount =  oSalarySchemeDetails[i].Amount;
+            //        }
+            //        else
+            //        {
+            //
+            //            oSalarySchemeDetails[i].Amount = 0;
+            //        }
+
+            //        var nCount = 0;
+            //        for(var j=0 ; j< oSalarySchemeDetailCalculations.length ; j++)
+            //        {
+            //
+            //            if(oSalarySchemeDetails[i].SalarySchemeDetailID == oSalarySchemeDetailCalculations[j].SalarySchemeDetailID)
+            //            {
+            //                k=j;
+            //                nCount++;
+            //            }
+            //
+            //
+            //        }
+            //        if(nCount == 1)
+            //        {
+            //            oSalarySchemeDetails[i].Amount=oSalarySchemeDetailCalculations[k].FixedValue;
+            //        }
+
+
+            //=======================
+
+            if(oSalarySchemeDetails[i].Calculation > 0)
+            {
+                oSalarySchemeDetails[i].Amount =  oSalarySchemeDetails[i].Calculation;
+            }
+            else
+            {
+
+                oSalarySchemeDetails[i].Amount = 0;
+            }
+
+            //=======================
+
+            oNewSalarySchemeDetails.push(oSalarySchemeDetails[i]);
+
+        }
+
+        return oNewSalarySchemeDetails;
+    }
+
+    function GetSSDcalculation(nTotalPerSHead,nOperator,oSalarySchemeDetails,oSalarySchemeDetailCalculations,nIndex)
+    {
+
+        var nSSDCalculation = 0;
+        for(var i=0 ; i<oSalarySchemeDetails.length ; i++)
+        {
+            if(oSalarySchemeDetails[i].SalaryHeadID == oSalarySchemeDetailCalculations[nIndex].SalaryHeadID)
+            {
+                nSSDCalculation = parseFloat(oSalarySchemeDetails[i].Amount);
+                break;
+
+            }
+            else if(oSalarySchemeDetailCalculations[nIndex].SalaryHeadID== 0 && oSalarySchemeDetailCalculations[nIndex].FixedValue>0)
+            {
+
+                nSSDCalculation = parseFloat(oSalarySchemeDetailCalculations[nIndex].FixedValue);
+
+                break;
+            }
+
+            else if(oSalarySchemeDetailCalculations[nIndex].CalculationOn == 1 && oSalarySchemeDetailCalculations[nIndex].SalaryHeadID== 0 && oSalarySchemeDetailCalculations[nIndex].FixedValue == 0 && nOperator == 7)
+            {
+
+                nSSDCalculation = parseFloat(_nGrossAmount);
+                break;
+
+            }
+
+        }
+
+        if(nOperator == 3)
+        {
+            nTotalPerSHead = parseFloat(nTotalPerSHead)+ parseFloat(nSSDCalculation);
+
+        }
+
+        if(nOperator == 4)
+        {
+            nTotalPerSHead = parseFloat(nTotalPerSHead) - parseFloat(nSSDCalculation);
+
+        }
+
+        if(nOperator == 5)
+        {
+
+            nTotalPerSHead = parseFloat(nTotalPerSHead) * parseFloat(nSSDCalculation);
+
+        }
+
+        if(nOperator == 6)
+        {
+
+            nTotalPerSHead = parseFloat(nTotalPerSHead / nSSDCalculation);
+
+
+        }
+
+        if(nOperator == 7)
+        {
+            var nPercentVelue = parseFloat(oSalarySchemeDetailCalculations[nIndex].PercentValue);
+
+            nTotalPerSHead = parseFloat(nTotalPerSHead) + parseFloat(parseFloat(nPercentVelue)/100* parseFloat(nSSDCalculation));
+
+        }
+
+
+        return nTotalPerSHead;
+
+    }
+
+    function GetsalarySchemeByID(nSId)
+    {
+
+        if (nSId > 0)
+        {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/SalaryScheme/CopyFromOtherGrade",
+                data: { nId: nSId},
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+
+                    _oSalaryScheme = jQuery.parseJSON(data);
+                    if (_oSalaryScheme != null)
+                    {
+
+                        BasicAndAllowance(_oSalaryScheme);
+                        MakeEmployeeSalaryStructureDetails();
+
+                    }
+
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+    }
+
+    function MakeEmployeeSalaryStructureDetails()
+    {
+        var  oEmployeeSalaryStructureDetails = CalcutionBasicTypeSalaryHead();
+        for(var i =0; i<oEmployeeSalaryStructureDetails.length;i++)
+        {
+            var oESSDetail = null;
+            oESSDetail =
+                {
+                    SalaryHeadID : oEmployeeSalaryStructureDetails[i].SalaryHeadID,
+                    Amount : oEmployeeSalaryStructureDetails[i].Amount
+                }
+
+            _oESSDetails.push(oESSDetail);
+        }
+    }
+
+    function BasicAndAllowance(oSalaryScheme)
+    {
+
+        _oBasicSalarySchemeDetails=[];
+        _oAllowanceSalarySchemeDetails=[];
+
+        for(var i=0;i<oSalaryScheme.SalarySchemeDetails.length;i++)
+        {
+
+            if(oSalaryScheme.SalarySchemeDetails[i].SalaryHeadType==1 )
+            {
+                _oBasicSalarySchemeDetails.push(oSalaryScheme.SalarySchemeDetails[i]);
+            }
+            else if(oSalaryScheme.SalarySchemeDetails[i].SalaryHeadType!=1)
+            {
+                _oAllowanceSalarySchemeDetails.push(oSalaryScheme.SalarySchemeDetails[i]);
+            }
+
+        }
+
+
+    }
+    /*===============  Salary Structure Detail Calculation  =============*/
+
+    $('#btnCancel').click(function (e)
+    {
+        window.close();
+    });
+    $(document).keydown(function (e)
+    {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 27)
+        {
+            window.close();
+        }
+    });
+</script>

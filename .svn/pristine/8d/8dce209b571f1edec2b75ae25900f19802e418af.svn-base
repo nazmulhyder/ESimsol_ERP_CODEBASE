@@ -1,0 +1,632 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeProduction>
+    @{
+        ViewBag.Title = "Order Recap List";
+    }
+    <div style="margin-left: 0px; height: 550px">
+        <table id="tblEmployeeProduction" title="Employee Production List" class="easyui-datagrid" style="width: 1030px;
+        height: 500px;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+               autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+
+                    <th field="EPSNO" width="140" align="left" rowspan="2">
+                        Job No
+                    </th>
+                    <th field="StyleNo" width="60" align="left" rowspan="2">
+                        Style
+                    </th>
+                    @*<th field="SizeCategoryName" width="60" align="left" rowspan="2">
+                            Size
+                        </th>*@
+                    <th field="Color_Size_BodyPart" width="120" align="left" rowspan="2">
+                        Color
+                    </th>
+                    <th field="LotNo" width="60" align="left" rowspan="2">
+                        Lot
+                    </th>
+                    <th width="150" align="center" colspan="2">
+                        ISSUED QTY. IN LBS
+                    </th>
+
+                    <th field="IssueQty" width="80" align="right" rowspan="2">
+                        Issue Pcs.
+                    </th>
+                    <th field="IssueDateInString" width="80" align="left" rowspan="2">
+                        Issue Date
+                    </th>
+
+
+                    <th width="130" align="right" colspan="3">
+                        RECEIEVED QUANTITY
+                    </th>
+
+                    <th field="RcvByDateInString" width="80" align="left" rowspan="2">
+                        Rcv. Date
+                    </th>
+
+                </tr>
+
+                <tr>
+
+                    <th field="SizeCategorye" width="70" align="left">
+                        Needed Qty
+                    </th>
+                    <th field="SizeCateyName" width="80" align="left">
+                        Extended Qty
+                    </th>
+                    <th field="RcvQty" width="40" align="right">
+                        Pics.
+                    </th>
+                    <th field="ColorNe" width="40" align="right">
+                        Weight
+                    </th>
+                    <th field="LNo" width="50" align="right">
+                        Bal Yrn
+                    </th>
+
+                </tr>
+            </thead>
+        </table>
+
+        ​<table>
+            <tr>
+                <td>
+                    Load <input id="txtLoadRecords" type="text" style="width:70px" />  &nbsp; Records &nbsp; &nbsp;
+                    <label id="lblcount"></label>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Next()">Next</a>
+                </td>
+
+            </tr>
+        </table>
+
+        <div id="toolbar" style=" height:50px;">
+
+            <input type="text" id="txtEmployee" placeholder="Press Code and Enter" style="width: 150px" />
+            <input id="btnEmployee" type="button" value="P" />
+            <select id="cboDateType" style="width: 97px">
+                <option value='0'>None</option>
+                <option value='1'>Equal</option>
+                <option value='2'>Between</option>
+            </select>
+            <span id="regionDateFrom" style="padding-left: 8px;">
+                <span>
+                    <select id="cboYear"></select>
+                </span><span>
+                    <select id="cboMonth"></select>
+                </span><span>
+                    <select id="cboDay"></select>
+                </span>
+            </span><span id="regionDateTo" style="padding-left: 8px;">
+                <span style="padding-right: 8px;">
+                    To
+                </span><span>
+                    <select id="cboEndYear"></select>
+                </span><span>
+                    <select id="cboEndMonth"></select>
+                </span><span>
+                    <select id="cboEndDay"></select>
+                </span>
+            </span><br />
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="SearchWithPasignation()">Search</a>
+            <a id="btnPrintDailyProduction" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Daily Production</a>
+            <a id="btnPrintMonthlyProductionRate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Monthly Production Rate</a>
+            <a id="btnPrintMonthlyProduction" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Monthly Production</a>
+
+
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oOrderRecaps=[];
+        var _sBaseAddress="";
+        var _sMenuManagement ="";
+        var _oEmployee=null;
+        var _nEmployeeID = 0;
+        var _oEmployees=[];
+        var _sEmployeeIDs = "";
+        var _nLoadRecords = 0;
+        var _nRowLength = 0;
+        var _bNext = false;
+        var _nLastEPSID = 0;
+        var _oEmployeeProductions = [];
+        var _bLastRow = false;
+
+        $(document).ready(function ()
+        {
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oOrderRecaps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+            SetDateTime();
+            var oDate=new Date();
+            SetStartTime(oDate);
+            SetEndTime(oDate);
+            var nDateType = $("#cboDateType").val();
+            if (nDateType == 0)
+            {
+                document.getElementById("regionDateTo").style.display = 'none';
+                document.getElementById("regionDateFrom").style.display = 'none';
+            }
+            //User permission
+            var bViewProductionRate =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["ProductionRateView"]));
+            //if(bViewProductionRate==false)
+            //{
+            //    document.getElementById("btnPrintMonthlyProductionRate").style.display='none';
+            //}
+            $('#txtLoadRecords').numberbox({min:0, precision:0 });
+            //document.getElementById('txtLoadRecords').value=100;
+            $('#txtLoadRecords').numberbox('setValue',100);
+
+        });
+
+        function SetDateTime()
+        {
+            var oDate=new Date();
+            oDate.setFullYear(2014);
+            /*---------------------------------------- Start Set Year-------------------------------------------*/
+            var sYear="";
+            sYear +="<option value='0'>"+'Year'+"</option>";
+            for(var i=0; i<=10; i++)
+            {
+                sYear += "<option value='" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"'>" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"</option>";
+            }
+            $('#cboYear').html(sYear);
+            $('#cboEndYear').html(sYear);
+            /*---------------------------------------- End Set Year-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Month-------------------------------------------*/
+            var sMonth="";
+            var oMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            sMonth +="<option value='0'>"+'Month'+"</option>";
+            for(var i=0; i<oMonths.length; i++)
+            {
+                sMonth += "<option value='" +(parseInt(i)+1)+"'>" + oMonths[i] +"</option>";
+            }
+            $('#cboMonth').html(sMonth);
+            $('#cboEndMonth').html(sMonth);
+            /*---------------------------------------- End Set Month-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Date-------------------------------------------*/
+            var sDay ="<option value='0'>"+'Day'+"</option>";
+            $('#cboDay').html(sDay);
+            $('#cboEndDay').html(sDay);
+            /*---------------------------------------- End Set Date-------------------------------------------*/
+        }
+
+
+
+        $('#cboYear').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        $('#cboEndYear').change(function(e)
+        {
+            var nYear=$('#cboEndYear').val();
+            var nMonth=$('#cboEndMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboEndDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        $('#cboMonth').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        $('#cboEndMonth').change(function(e)
+        {
+
+            var nYear=$('#cboEndYear').val();
+            var nMonth=$('#cboEndMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboEndDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        function SetDateEvent(nYear, nMonth)
+        {
+
+            var oDate=new Date();
+            var sDay="";
+            if( parseInt(nMonth)>0)
+            {
+                var nDay= new Date(parseInt(nYear), parseInt(nMonth), 0).getDate();
+                sDay +="<option value='0'>"+'Day'+"</option>";
+                for(var i=1; i<=parseInt(nDay); i++)
+                {
+                    if(i<10)
+                    {
+                        sDay += "<option value='" +i+"'>" + '0'+i +"</option>";
+                    }
+                    else
+                    {
+                        sDay += "<option value='" +i+"'>" + i +"</option>";
+                    }
+
+                }
+            }
+            return sDay;
+        }
+
+
+        function SetStartTime(oDate)
+        {
+
+            var nyear=oDate.getFullYear();
+            var nmonth=oDate.getMonth()+1;
+            var nday=oDate.getDate();
+            $('#cboYear').val(nyear);
+            $('#cboMonth').val(nmonth);
+            $('#cboDay').html(SetDateEvent(nyear,nmonth));
+            $('#cboDay').val(nday);
+        }
+
+        function SetEndTime(oDate)
+        {
+            debugger;
+            var nyear=oDate.getFullYear();
+            var nmonth=oDate.getMonth()+1;
+            var nday=oDate.getDate();
+            $('#cboEndYear').val(nyear);
+            $('#cboEndMonth').val(nmonth);
+            $('#cboEndDay').html(SetDateEvent(nyear,nmonth));
+            $('#cboEndDay').val(nday);
+
+        }
+
+        function GenerateStartTimeInString()
+        {
+            var sDate=  $('#cboMonth').val() +'/'+ $('#cboDay').val() +'/'+ $('#cboYear').val();
+            return sDate;
+        }
+
+        function GenerateEndTimeInString()
+        {
+
+            var sDate=  $('#cboEndMonth').val() +'/'+ $('#cboEndDay').val() +'/'+ $('#cboEndYear').val();
+            return sDate;
+        }
+
+        function ValidationOfStartTime()
+        {
+            if($('#cboYear').val()==0)
+            {
+                alert("Please select a year.");
+                document.getElementById('cboYear').focus();
+                return false;
+            }
+            if($('#cboMonth').val()==0)
+            {
+                alert("Please select a month.");
+                document.getElementById('cboMonth').focus();
+                return false;
+            }
+            if($('#cboDay').val()==0)
+            {
+                alert("Please select a day.");
+                document.getElementById('cboDay').focus();
+                return false;
+            }
+            return true;
+        }
+
+        function ValidationOfEndTime()
+        {
+            if($('#cboEndYear').val()==0)
+            {
+                alert("Please select a year.");
+                document.getElementById('cboEndYear').focus();
+                return false;
+            }
+            if($('#cboEndMonth').val()==0)
+            {
+                alert("Please select a month.");
+                document.getElementById('cboEndMonth').focus();
+                return false;
+            }
+            if($('#cboEndDay').val()==0)
+            {
+                alert("Please select a day.");
+                document.getElementById('cboEndDay').focus();
+                return false;
+            }
+            return true;
+        }
+
+        $('#cboDateType').change(function ()
+        {
+            debugger
+            var nDateType = $("#cboDateType").val();
+            if (nDateType == 0) {
+                document.getElementById("regionDateTo").style.display = 'none';
+                document.getElementById("regionDateFrom").style.display = 'none';
+            }
+            if (nDateType == 1 )
+            {
+                document.getElementById("regionDateFrom").style.display = '';
+                document.getElementById("regionDateTo").style.display = 'none';
+            }
+            if (nDateType == 2 )
+            {
+                document.getElementById("regionDateFrom").style.display = '';
+                document.getElementById("regionDateTo").style.display = '';
+            }
+        });
+
+        function RefreshList(oEPs)
+        {
+            data = oEPs ;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblEmployeeProduction').datagrid('loadData', data);
+        }
+
+        $('#txtEmployee').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sEmpCode=document.getElementById("txtEmployee").value;
+
+            if (code == 13)//Enter key-13
+            {
+                if(sEmpCode=="")
+                {
+                    alert("Please Enter Code !");
+                    return;
+                }
+                var nts=(new Date()).getTime()/1000;
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0"+"&nts="+nts;
+                var nLeft=(window.screen.width/2)-(515/2);
+                var nHeight=(window.screen.height/2)-(415/2);
+                _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+                //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:510px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+                if(_oEmployee!=null)
+                {
+                    if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                    {
+                        alert("This Employee Has No Official Information !");
+                        return;
+                    }
+                    $("#txtEmployee")[0].value=_oEmployee.Name;
+                    _sEmployeeIDs = "";
+                    _sEmployeeIDs = _oEmployee.EmployeeID ;
+                }
+            }
+        });
+
+        $('#btnEmployee').click(function (e)
+        {
+            debugger
+            var oParameter = new Object();
+            oParameter.Name = "Employee Advance Search";
+            oParameter.MultipleItemReturn=true;
+            var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+            var nLeft=(window.screen.width/2)-(1000/2);
+            var nHeight=(window.screen.height/2)-(500/2);
+            _oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+           // _oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:940px;dialogLeft:200;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+            if(_oEmployees!=null)
+            {
+                var sEmployeeName ="";
+                _sEmployeeIDs = "";
+                for(var i =0; i<_oEmployees.length;i++)
+                {
+                    if(_oEmployees[i].DesignationName=="" || _oEmployees[i].DepartmentName=="" || _oEmployees[i].LocationName=="")
+                    {
+                        alert("Some Employee Has No Official Information !");
+                        return;
+                    }
+
+                    if(_oEmployees[i].IsActive == false)
+                    {
+                        alert("Some Employee Is InActive!");
+                        return;
+                    }
+
+                    _sEmployeeIDs += _oEmployees[i].EmployeeID +",";
+                    sEmployeeName += _oEmployees[i].Name +",";
+                    
+                }
+                _sEmployeeIDs = _sEmployeeIDs.substring(0,_sEmployeeIDs.length-1);
+                sEmployeeName = sEmployeeName.substring(0,sEmployeeName.length-1);
+                $("#txtEmployee")[0].value=sEmployeeName;
+
+            }
+        });
+
+        function SearchWithPasignation()
+        {
+
+            if(!_bNext)
+            {
+                _nRowLength = 0;
+                _nLastEPSID = 0;
+                _bLastRow =false;
+            }
+            if(_sEmployeeIDs == "")
+            {
+                alert("Please select at least one employee !");
+                return;
+            }
+
+            if(!ValidationOfStartTime()) return;
+            if(!ValidationOfEndTime()) return;
+
+            var DateFrom = GenerateStartTimeInString();
+            var DateTo = GenerateEndTimeInString();
+            _nLoadRecords = document.getElementById("txtLoadRecords").value;
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeProduction/DailyProductionCardSearch",
+                traditional: true,
+                data: JSON.stringify({DateFrom : DateFrom, DateTo : DateTo, sEmployeeIDs : _sEmployeeIDs,nLoadRecords : _nLoadRecords, nRowLength : _nRowLength}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    var oEmployeeProductions=[];
+                    debugger;
+                    oEmployeeProductions = jQuery.parseJSON(data);
+                    if (oEmployeeProductions.length>0 && oEmployeeProductions[0].ErrorMessage=="")
+                    {
+                        //RefreshList(oEmployeeProductions);
+
+                        if(!_bNext)
+                        {
+                            _oEmployeeProductions=[];
+                            RefreshList(_oEmployeeProductions);
+                        }
+
+                        for (var j = 0; j < oEmployeeProductions.length; j++)
+                        {
+                            $('#tblEmployeeProduction').datagrid('appendRow',oEmployeeProductions[j]);
+
+                        }
+
+                    }
+                    else
+                    {
+                        //alert(oEmployeeProductions[0].ErrorMessage);
+                        //oEmployeeProductions=[];
+                        //RefreshList(oEmployeeProductions);
+                        if(_bNext == false)
+                        {
+                            alert("Data not found !!");
+                            _oEmployeeProductions=[];
+                            RefreshList(_oEmployeeProductions);
+                        }
+                        else
+                        {
+                            alert("No more data found !");
+                            if(!_bLastRow)
+                            {
+                                LastRow();
+                            }
+                        }
+                    }
+                    var oEmployeeProductions=$('#tblEmployeeProduction').datagrid('getRows');
+                    if(_bLastRow)
+                    {
+                        document.getElementById("lblcount").innerHTML = " | Count ="+ (parseFloat(oEmployeeProductions.length)-1);
+                    }
+                    else
+                    {
+                        document.getElementById("lblcount").innerHTML = " | Count ="+ oEmployeeProductions.length;
+                    }
+                    _bNext = false;
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+        function Next()
+        {
+            var oEmployeeProductions =[];
+            oEmployeeProductions=$('#tblEmployeeProduction').datagrid('getRows');
+            _nRowLength = oEmployeeProductions.length;
+            _bNext = true;
+
+            if (oEmployeeProductions.length<=0)
+            {
+                alert('Please Select Criteria and click on "Search" to find information.!!');
+                return;
+            }
+            var oEmployeeProduction = oEmployeeProductions[oEmployeeProductions.length-1];
+
+            if (_nLastEPSID==oEmployeeProduction.EPSID)
+            {
+                alert('No more data found by this date range');
+                return;
+            }
+            _nLastEPSID=oEmployeeProduction.EPSID;
+            SearchWithPasignation()
+        }
+
+        function LastRow()
+        {
+            var nTotalIssue = 0;
+            var nTotalReceive = 0;
+            var oEmployeeProductions=$('#tblEmployeeProduction').datagrid('getRows');
+            for(var i=0;i<oEmployeeProductions.length;i++)
+            {
+                nTotalIssue = nTotalIssue+ oEmployeeProductions[i].IssueQty;
+                nTotalReceive = nTotalReceive+oEmployeeProductions[i].RcvQty;
+            }
+            var oEmployeeProduction =
+                {
+                    EPSNO :  "<b>Total</b>",
+                    IssueQty : "<b>"+ nTotalIssue+"</b>",
+                    RcvQty :"<b>" +nTotalReceive+"</b>"
+                }
+            $('#tblEmployeeProduction').datagrid('appendRow',oEmployeeProduction);
+            _bLastRow =true;
+        }
+
+        $('#btnPrintDailyProduction').click(function (e)
+        {
+            var oEPs = $('#tblEmployeeProduction').datagrid('getRows');
+            if (oEPs.length <=0)
+            {
+                alert("There is nothing to print!");
+                return ;
+            }
+            var DateFrom = GenerateStartTimeInString();
+            var DateTo = GenerateEndTimeInString();
+
+            window.open(_sBaseAddress + '/EmployeeProduction/PrintDailyProductionCard?DateFrom='+DateFrom+"&DateTo="+DateTo+"&sEmployeeIDs="+_sEmployeeIDs, "_blank");
+
+        });
+
+        $('#btnPrintMonthlyProductionRate').click(function (e)
+        {
+            var oEPs = $('#tblEmployeeProduction').datagrid('getRows');
+            if (oEPs.length <=0)
+            {
+                alert("There is nothing to print!");
+                return ;
+            }
+            var DateFrom = GenerateStartTimeInString();
+            var DateTo = GenerateEndTimeInString();
+
+            window.open(_sBaseAddress + '/EmployeeProduction/PrintMonthlyProductionRateCard?DateFrom='+DateFrom+"&DateTo="+DateTo+"&sEmployeeIDs="+_sEmployeeIDs, "_blank");
+
+        });
+
+        $('#btnPrintMonthlyProduction').click(function (e)
+        {
+            var oEPs = $('#tblEmployeeProduction').datagrid('getRows');
+            if (oEPs.length <=0)
+            {
+                alert("There is nothing to print!");
+                return ;
+            }
+            var DateFrom = GenerateStartTimeInString();
+            var DateTo = GenerateEndTimeInString();
+
+            window.open(_sBaseAddress + '/EmployeeProduction/PrintMonthlyProductionCard?DateFrom='+DateFrom+"&DateTo="+DateTo+"&sEmployeeIDs="+_sEmployeeIDs, "_blank");
+
+        });
+
+    </script>

@@ -1,0 +1,411 @@
+﻿@{
+    ViewBag.Title = "ContactPersonnel";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ContactPersonnel>
+
+<div ng-app="ContactPersonnelModule">
+ 
+    <div ng-controller="ContactPersonnelController">
+        <div class="ui-grid-top-panel">
+      
+                <div class="form-inline" style="padding:5px">
+                    <input ng-model="txtName" class="form-control" placeholder="Type Name And Press Enter" ng-keyup="SearchKeyDownNameNew($event)" style="width:220px; height:28px" />
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="mapping()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Mapping</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="OpenModule()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Merge</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="ExportToExcel()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Excel</button>
+                    @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>*@
+                </div>
+          
+        </div>
+        <div style="width:99.8%" ui-grid="gridOptions" ui-grid-selection  class="grid"></div>
+    </div>
+
+    <script type="text/ng-template" id="Merge.html">
+        <div class="modal-header">
+            <h4 class="modal-title" id="modal-title">{{modalTitle}}</h4>
+        </div>
+        <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+            <div class="row">
+                @*<div class="ui-grid-top-panel">
+                    <input type="text" ng-model="SearchText" class="form-control"/>
+                </div>*@
+                <div style="width:99.8%" ui-grid="gridOptions_merge" ui-grid-selection class="grid_merge"></div>
+            </div>
+            @*<div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Note:</label></div>
+                        <div class="col-md-7 text-left">
+                            <input type="text" class="form-control" ng-model="KFStatus.SalesStatusRemarks">
+                        </div>
+                    </div>
+                </div>*@
+
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="MergeCP()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Merge</button>
+            <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+        </div>
+    </script>
+</div>
+
+<style type="text/css">
+    
+     
+    .grid {
+        height: 520px;
+        width: 99.8%;
+    }
+     
+    .grid_merge {
+        height: 480px;
+        width: 99.8%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oContactPersonnels =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+   
+    debugger;
+ 
+    var  ContactPersonnelModule = angular.module('ContactPersonnelModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.cellNav', 'ms.service']);
+
+    ContactPersonnelModule.controller('ContactPersonnelController', function ($scope, $http,$filter, $timeout, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oContactPersonnels= (userSession.getData('ContactPersonnels').length>0)? userSession.getData('ContactPersonnels'):oContactPersonnels;
+      
+        $scope.gridOptions ={
+            enableSorting: true,
+
+            //enableSorting: true,
+            //enableFiltering: true, 
+            //enableHiding: true,
+            //enableInfiniteScroll: true,
+            //infiniteScrollUp: true,
+            //infiniteScrollDown: true,
+            //infiniteScrollRowsFromEnd: 40,
+
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'ContactPersonnelID', name: 'Code', width: '10%' },
+                { field: 'Name', name: 'Name', width: '30%' },
+                { field: 'ContractorName', name: 'Contractor', width: '25%' },
+                { field: 'Email', name: 'Email', width: '20%' },
+                { field: 'Address', name: 'Address', width: '25%' }
+            ],
+            data:oContactPersonnels,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oContactPersonnels.length>0 && userSession.getRowIndex()>=0)
+                {
+                    var index=userSession.getRowIndex();debugger;
+                    $timeout(function () {
+                        gridApi.grid.modifyRows($scope.gridOptions.data).then(gridApi.selection.selectRow($scope.gridOptions.data[index]));
+                        gridApi.selection.selectRow(index);
+                        //gridApi.core.scrollTo($scope.gridOptions.data, $scope.gridOptions.columnDefs[0]);
+                    }, 100);
+
+                    //$timeout(function() {
+                    //    $scope.gridApi.cellNav.scrollToFocus(
+                    //      $scope.gridOptions.data[index],
+                    //      $scope.gridOptions.columnDefs[0]
+                    //   );
+                    //});
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.add = function () {
+            debugger;
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ContactPersonnelHeader", "Add ContactPersonnel");
+            sessionStorage.setItem("ContactPersonnels", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ContractorPersonal/Mapping?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.mapping = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ContactPersonnelID==data[0].ContactPersonnelID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ContactPersonnelHeader", "Edit ContactPersonnel");
+                    sessionStorage.setItem("ContactPersonnels", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ContractorPersonal/Mapping?nId="+value.ContactPersonnelID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+         
+            if (!confirm("Confirm to Delete?")) return ;
+          
+            $http.post('/ContactPersonnel/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.ContactPersonnelID==data[0].ContactPersonnelID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ContactPersonnelID==data[0].ContactPersonnelID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ContactPersonnelHeader", "View ContactPersonnel");
+                    sessionStorage.setItem("ContactPersonnels", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ContactPersonnel/ViewContactPersonnel?nId="+value.ContactPersonnelID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+     
+        $scope.ExportToExcel = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            window.open(_sBaseAddress + '/ContractorPersonal/ExportToExcel?buid='+_nBUID);
+        };
+
+        $scope.OpenModule=function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            sessionStorage.setItem('SelectedRowIndex',$scope.gridOptions.data.indexOf(data[0]));
+
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'md',
+                templateUrl: 'Merge.html',
+                controller: 'KFStatusCtrl',
+                controllerAs: 'CPController',
+                resolve: {
+                    obj: function () {
+                        return { CP:data[0], DataList:$scope.gridOptions.data, Operation: 'Merge'  };
+                    }
+                }
+            });
+
+            modalInstance.result.then(function (result) {
+                debugger;
+                if(result.length>0)
+                {
+                    for(var i=0; i<result.length;i++)
+                    {
+                        var opop = $filter('filter')($scope.gridOptions.data, { ContactPersonnelID: result[i].ContactPersonnelID })[0];
+                        $scope.gridOptions.data.splice($scope.gridOptions.data.indexOf(opop),1);
+                    }
+                    //$scope.gridOptions.data[index]=result;
+                    //$scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    //$scope.gridApi.selection.selectRow($scope.gridOptions.data[index]);
+                }
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        //button hide
+        $scope.SearchKeyDownNameNew = function (e){
+            debugger;
+            var nkeyCode = e.keyCode || e.which;
+            if(nkeyCode==13)
+            {
+                var oCPerson= {
+                    Name:($scope.txtName == undefined ? "" : $scope.txtName),
+                    BUID:_nBUID
+                };
+
+                $http.post(_sBaseAddress+'/ContractorPersonal/GetsByName',oCPerson).then(
+                     function (response)
+                     {
+                         var oCPersons= jQuery.parseJSON(response.data);
+
+                         if(oCPersons.length<=0){ alert("No Data Found!"); return;}
+
+                         if (oCPersons[0].ErrorMessage=="" || oCPersons[0].ErrorMessage==null)
+                         {
+                             $scope.gridOptions.data=oCPersons;
+                          
+                         }
+                         else
+                         {
+                             alert(oCPersons[0].ErrorMessage);
+                         }
+                     },
+                         function (response) { alert(response.statusText);$scope.MeasurementUnits=[];}
+                 );
+                // $scope.gridOptions= {data: oSearchedList};
+            }
+        }
+      
+
+       
+
+    });
+    
+    ContactPersonnelModule.controller('KFStatusCtrl', function ($scope, $filter, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+        
+        debugger;
+        $scope.CP = Object.assign({}, obj.CP);
+        $scope.Operation=obj.Operation;
+
+        $scope.modalTitle="Merge With "+ $scope.CP.Name+" :";
+
+        $scope.DataList=Object.assign([], obj.DataList);
+      
+        var opop = $filter('filter')($scope.DataList, { ContactPersonnelID: $scope.CP.ContactPersonnelID })[0]
+
+        $scope.DataList.splice($scope.DataList.indexOf(opop),1);
+
+        $scope.gridOptions_merge ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            enableSelectAll: false,
+            multiSelect:true,
+            enableFiltering: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'Name', name: 'Name', width: '60%' },
+                { field: 'ContractorName', name: 'Contractor', width: '40%',  enableFiltering:false},
+            ],
+            data: $scope.DataList,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi_merge = gridApi;
+            }
+        };
+
+
+        $scope.Validation=function()
+        {
+            if($scope.gridApi_merge.selection.getSelectedRows().length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Please select other contact person(s) to merge with '+$scope.CP.Name+'.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var sNames="";
+            for(var i=0;i<$scope.gridApi_merge.selection.getSelectedRows().length;i++)
+                sNames+= (i+1)+". "+$scope.gridApi_merge.selection.getSelectedRows()[i].Name+" \n";
+
+            if (!confirm('Your selected contact person(s) : \n'+ sNames)) return ;
+
+            return true;
+        };
+
+        $scope.MergeCP= function ()
+        {
+            if(!$scope.Validation())return;
+            if (!confirm("Confirm to Merge for "+$scope.CP.Name+" ?")) return ;
+            debugger;
+            var oCP= $scope.CP;
+            var oList=$scope.gridApi_merge.selection.getSelectedRows();
+
+            var sIds=oList[0].ContactPersonnelID;
+            for(var i=1; i<oList.length;i++)
+            {
+                sIds+=","+oList[i].ContactPersonnelID;
+            }
+            oCP.ContactPersonnelIDs=sIds;
+
+            $http.post(sessionStorage.getItem('BaseAddress')+'/ContractorPersonal/MergeContactPersonnel', JSON.stringify(oCP)).then(
+                            function (response)
+                            {
+                                debugger;
+                                if (jQuery.parseJSON(response.data)!=null && jQuery.parseJSON(response.data).ContactPersonnelID > 0)
+                                {
+                                    alert("Successfully Merged.");
+                                    $uibModalInstance.close(oList);
+                                }
+                                else
+                                {
+                                    alert(jQuery.parseJSON(response.data).ErrorMessage);
+                                }
+                            },
+                            function (response) { alert(response.statusText); }
+                        );
+        };
+
+        $scope.cancel= function () {
+            $uibModalInstance.close();
+        };
+       
+        
+
+    });
+
+
+</script>
+                       
+
+
+              

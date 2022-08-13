@@ -1,0 +1,194 @@
+﻿@{
+    ViewBag.Title = "Suspend Account Log";
+}
+@model IEnumerable<ESimSol.BusinessObjects.SP_GeneralJournal>
+  <div style="margin-left: 0px; height: 100%; width:100%">
+      <table id="tblGeneralJournal" title="Suspend Account Log" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+          <thead>
+              <tr>
+                  <th field="StringVoucherDate" width="90" align="center"> Voucher Date</th>
+                  <th field="AccountCode" width="100" align="left">Ledger Code</th>
+                  <th field="AccountHeadName" width="150" align="left">Particulars</th>
+                  <th field="Narration" width="150" align="left">Narration</th>
+                  <th field="IsDrSt" width="100" align="left">Dr/CR</th>
+                  <th field="CreditAmount" width="120" align="right" formatter="formatPrice">Amount</th>
+                  <th field="CurrentBalanceSt" width="120" align="right">Balance</th>
+              </tr>
+          </thead>
+      </table>
+    @*<div id="toolbar" style="height: 70px;">
+    </div>*@
+</div>
+<script type="text/javascript">
+    var _oGeneralJournals=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _nAccountHeadID=0;
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                       
+        _oGeneralJournals =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+        RefreshList(_oGeneralJournals);
+    });     
+
+$('#txtAccountHeadName').keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        var txtAccountHead = document.getElementById('txtAccountHeadName').value;
+        if(txtAccountHead!="")
+        {
+            var tsv=((new Date()).getTime())/1000;
+            _oAccountHead=null;
+            var oParameter = new Object();
+            oParameter.EnteredText=txtAccountHead;            
+            var url =_sBaseAddress+ "/ChartsOfAccount/ViewAccountsHead?sTemp="+txtAccountHead+"&ts="+tsv;  
+            _oCreditChartOfAccount = window.showModalDialog(url, oParameter, 'dialogHeight:270px;dialogWidth:383px;dialogLeft:520;dialogTop:310;center:yes;resizable:no;status:no;scroll:no');
+            _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+            if(_oCreditChartOfAccount !=null)
+            {
+                if(parseInt(_oCreditChartOfAccount.AccountHeadID)>0)
+                {
+                    _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+                    document.getElementById("txtAccountHeadName").value=_oCreditChartOfAccount.AccountHeadName;   
+                }
+                else
+                {
+                    _nAccountHeadID=0;
+                }
+            }
+        }
+    }
+    if (code == 8) //backspace=8
+    {
+        var txtAccountHead = document.getElementById('txtAccountHeadName').value;
+        if(txtAccountHead=="")
+        {
+            document.getElementById('txtAccountHeadName').focus();                  
+        }                 
+    } 
+});
+
+function RefreshDateSearch()
+{
+    document.getElementById("tdSearchStartDate").style.display = 'none';
+    document.getElementById("tdSearchEndDate").style.display = 'none';
+    $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+    $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+    var listDates= "<option value='"+0+"'>" +"None" + "</option>";
+        listDates+= "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        listDates+= "<option value='"+6+"'>" + "NotBetween" + "</option>";
+    $("#cboDateSearch").html(listDates);
+    $('#cboContractorType').empty();
+    var listDates= "<option value='"+2+"'>" +"Buyer" + "</option>";
+    listDates+= "<option value='"+1+"'>" + "Suplier" + "</option>";
+    $("#cboContractorType").html(listDates);
+}
+
+ $('._select_changeA').change(function () {
+    var DateTypes = document.getElementById("cboDateSearch");
+    var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+    if (DateType == "EqualTo") {            
+        document.getElementById("txtStartDate").style.display = 'none';
+        document.getElementById("txtEndDate").style.display = 'none';
+        document.getElementById("tdSearchStartDate").style.display = 'none';
+        document.getElementById("tdSearchEndDate").style.display = 'none';
+    }
+    if (DateType == "None" ) 
+    {            
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        document.getElementById("txtStartDate").style.display = 'none';
+        document.getElementById("txtEndDate").style.display = 'none';
+        document.getElementById("tdSearchStartDate").style.display = 'none';
+        document.getElementById("tdSearchEndDate").style.display = 'none';
+    }
+    if (DateType == "Between" ||DateType == "NotBetween"  ) 
+    {
+        document.getElementById("tdSearchStartDate").style.display = '';
+        document.getElementById("tdSearchEndDate").style.display = '';
+    }
+});
+
+function ValidateInput()
+ {
+    if (_oCreditChartOfAccount ==null ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if (_oCreditChartOfAccount.AccountHeadID <=0 ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if ( $('#txtStartDate').datebox('getValue')=="") {
+       alert("please select start date!");
+       $('#txtStartDate').focus();
+       return false;
+    }
+
+    if ( $('#txtEndDate').datebox('getValue')=="") {
+        alert("Please select end date!!");
+         $('#txtEndDate').focus();
+        return false;
+    }   
+    return true;
+ }
+
+   
+function Refresh()
+{ 
+    if(!ValidateInput())return;        
+            var Date = document.getElementById("cboDateSearch");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var oGeneralJournal= {
+        DateType:dDateType,
+        AccountHeadID : _oCreditChartOfAccount.AccountHeadID,
+        StartDate:$('#txtStartDate').datebox('getValue'),
+        EndDate:$('#txtEndDate').datebox('getValue')
+    }
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("RefreshGeneralJournal", "FinancialStatement")',
+        data: JSON.stringify(oGeneralJournal),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            _oGeneralJournals = jQuery.parseJSON(data);
+            if (_oGeneralJournals != null) {                   
+                if(_oGeneralJournals.length>0)
+                {
+                    if(_oGeneralJournals[0].ErrorMessage!="")
+                    {
+                        alert(_oGeneralJournals[0].ErrorMessage);
+                    }
+                    else
+                    {
+                        data =_oGeneralJournals;       
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblGeneralJournal').datagrid('loadData',data);
+                    }
+                }    
+                else
+                {
+                    alert("Data not found!!");
+                }              
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+}    
+
+    function RefreshList(oGeneralJournals)
+    {    
+          data=oGeneralJournals;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblGeneralJournal').datagrid('loadData',data);          
+    }
+</script>

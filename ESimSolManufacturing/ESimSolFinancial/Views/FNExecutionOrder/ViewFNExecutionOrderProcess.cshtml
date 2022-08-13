@@ -1,0 +1,303 @@
+﻿@{
+    ViewBag.Title = "FNExecutionOrder Process";
+}
+@model ESimSol.BusinessObjects.FabricSalesContractDetail
+<div ng-app="mainApp">
+    <div ng-controller="mainController">
+        <div class="col-md-12">
+            <div class="form-inline">
+                <button type="button" class="btn btn-success btn-sm" aria-label="Left Align" ng-click="PickTreatmentProcess()">Get All Treatment Process<span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Remove</button>
+                <button type="button" class="btn btn-sm btn-primary " aria-label="Left Align" ng-click="up()"> <span class="glyphicon glyphicon-arrow-up" aria-hidden="true"></span>Up</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="down()"> <span class="glyphicon glyphicon-arrow-down" aria-hidden="true"></span>Down</button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+        </div>
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="1" cellpadding="0" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <button type="button" id="btnClose" class="btn btn-default btn-md btn-danger" aria-label="right Align" ng-click="Close()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span></button>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+    .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .ui-grid-top-panel .btn-sm, .input-group-addon {
+        padding: 3px 10px;
+    }
+
+    .grid {
+        height: 470px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFNExecutionOrder =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    @*var oFNExecutionOrderProcessList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.FNExecutionOrderProcessList));*@
+    var oFNExecutionOrderProcessList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNExecutionOrderProcessList));
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+        $scope.FNExecutionOrder = oFNExecutionOrder;
+        $scope.FNExecutionOrderProcessList = [];
+
+        $scope.gridOptions ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs:[
+                { field:'FNTreatmentSt', name: 'Treatment', width: '30%',  cellClass: 'text-left',enableCellEdit:false},
+                { field:'FNProcess', name: 'Process', width: '30%',  cellClass: 'text-left',enableCellEdit:false},
+                { field:'Sequence', name: 'Sequence', width: '12%',  cellClass: 'text-left',enableCellEdit:false}
+
+            ],
+            data:oFNExecutionOrderProcessList,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+            }
+        };
+
+        $scope.up = function() 
+        {    
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            $scope.index = $scope.gridOptions.data.indexOf(data[0]);
+            if(data[0].Sequence <= 1) 
+            {
+                return;
+            }
+
+            var oFNExecutionOrderProcess = {
+                FNExOID:data[0].FNExOID,
+                FNExOProcessID: data[0].FNExOProcessID,
+                IsUp : true
+            };
+
+            sessionStorage.setItem("upIndex", ($scope.index - 1));
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNExecutionOrder/UpDown',$.param(oFNExecutionOrderProcess), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions.data=(results);
+                var n=parseInt(sessionStorage.getItem("upIndex"));
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function () {
+                $log.info('FNExecutionOrder Dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.down = function() {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            $scope.len = $scope.gridOptions.data.length;
+            $scope.index = $scope.gridOptions.data.indexOf(data[0]);
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if($scope.index + 1 ==  $scope.len) 
+            {
+                return;
+            }
+            var oFNExecutionOrderProcess = {
+                FNExOID:data[0].FNExOID,
+                FNExOProcessID: data[0].FNExOProcessID,
+                IsUp : false
+            };
+            
+            sessionStorage.setItem("downIndex", ($scope.index + 1));
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNExecutionOrder/UpDown',$.param(oFNExecutionOrderProcess), config).then(
+            function (response)
+            {
+                debugger;
+                $scope.gridOptions.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions.data=(results);
+                var n=parseInt(sessionStorage.getItem("downIndex"));
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function () {
+                $log.info('FNExecutionOrder Dismissed at: ' + new Date());
+            });
+        }
+
+
+
+        $scope.PickTreatmentProcess=   function ()
+        {
+            var oFabricSalesContractDetail = {
+                FabricSalesContractDetailID: $scope.FNExecutionOrder.FabricSalesContractDetailID,
+                ErrorMessage:$scope.txtTreatmentProcess
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNExecutionOrder/GetsTreatmentProcess',$.param(oFabricSalesContractDetail), config).then(
+                        function (response)
+                        {
+                            var oColumns = [];
+                            var oColumn = { field:'FNTreatmentSt', name:'Treatment', width:'25%' };oColumns.push(oColumn);
+                            oColumn = { field:'FNProcess',name:'Process', width:'20%', enableSorting: false };oColumns.push(oColumn);
+                            oColumn = { field:'Description', name:'Description', width:'55%', enableSorting: false };oColumns.push(oColumn);
+                            var results= jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                url:_sBaseAddress+'/Home/Modal',
+                                modalcontroller:'TreatmentCtrl',
+                                appcontroller:'mainController',
+                                objs:results,
+                                multiSelect:true,
+                                pickertitle:'Treatment List',
+                                searchingbyfieldName:'FNTreatmentSt',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                debugger;
+                                if( result.length>1)
+                                {
+                                    $scope.txtTreatmentProcess= result.length+" Item's selected";
+                                }else
+                                {
+                                    $scope.txtTreatmentProcess= result[0].FNTreatmentSt;
+                                }
+                                var nMaxSequence=  $scope.gridOptions.data.length;
+                                for(var i =0;i<result.length;i++)
+                                {
+                                    nMaxSequence++;
+                                    var oFNExOProcess = {FNExOProcessID:0, FNTPID:result[i].FNTPID, Sequence:nMaxSequence, FNExOID:$scope.FNExecutionOrder.FNExOID};
+                                    $scope.FNExecutionOrderProcessList.push(oFNExOProcess);
+                                }
+                                $scope.Save();
+
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+
+        };
+
+     
+        $scope.Save = function () {
+            debugger;
+            if($scope.FNExecutionOrder.FabricSalesContractDetailID<= 0 )
+            {
+                msModal.Message({headerTitle:'', bodyText:'Sorry, There is No FN Machine', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if($scope.FNExecutionOrderProcessList.length<= 0)
+            {
+                msModal.Message({headerTitle:'', bodyText:'Please Select FN Machine Process List', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var FabricSalesContractDetail = {
+                FabricSalesContractDetailID:$scope.FNExecutionOrder.FabricSalesContractDetailID,
+                FNExecutionOrderProcessList:$scope.FNExecutionOrderProcessList
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/FNExecutionOrder/SaveFNEOProcess",
+                traditional: true,
+                data:  JSON.stringify(FabricSalesContractDetail),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oFNExecutionOrder= jQuery.parseJSON(data);
+                    if (oFNExecutionOrder.ErrorMessage=="" || oFNExecutionOrder.ErrorMessage==null)
+                    {
+                        alert("Data Save Successfully!!");
+                        window.location.href =window.location.href;
+                    }else{
+                        alert(oFNExecutionOrder.ErrorMessage);
+                        return;
+                    }
+
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        };
+        $scope.remove = function () {
+            debugger;
+            var oFNMProcess=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oFNMProcess==null || oFNMProcess.FNMProcessID<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var SelectedRowIndex=$scope.gridOptions.data.indexOf(oFNMProcess);
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/FNExecutionOrder/DeleteFNEOProcess',JSON.stringify(oFNMProcess)).then(
+                            function (response)
+                            {
+                                var sMessage= jQuery.parseJSON(response.data).toLowerCase();
+                                if(sMessage=='deleted')
+                                {
+                                    alert("Successfully Deleted.");
+                                    $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+        $scope.Close = function()
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+
+    });
+
+
+</script>

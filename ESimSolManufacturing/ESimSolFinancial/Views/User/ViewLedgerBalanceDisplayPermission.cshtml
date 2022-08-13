@@ -1,0 +1,171 @@
+﻿@{
+    ViewBag.Title = "User List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.User>
+    <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblUsers" title="User List" class="easyui-datagrid" fitcolumns="true" fit="true" singleselect="true" view="scrollview"
+               data-options="rownumbers:true, pagination:true, autorowheight:false, toolbar:usertoolbar">
+            <thead>
+                <tr>
+                    <th field="LogInID" width="120">LogInID</th>
+                    <th field="UserName" width="150">User Name</th>
+                    <th field="EmployeeNameCode" width="200">Employee Name</th>
+                    <th field="LocationName" width="150">Location</th>
+                    <th field="EmailAddress" width="220">Email</th>
+                    <th field="FinancialUserTypeSt" width="130">Financial UserType</th>
+                    <th field="ActivityInString" width="100">Activity</th>
+                    <th field="IsLocationBindded" width="100">Location Bindded</th>
+                    <th field="IsShowLedgerBalanceSt" width="100">Show Ledger Balance</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="usertoolbar">            
+            <input type="text" id="txtSearchByLoginID" placeholder="Login ID" style="width:120px; font-size:11px;" />
+            <input type="text" id="txtSearchByUN" placeholder="User Name" style="width:120px; font-size:11px;" />            
+            <a id="btnUserPermission" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">User Permission</a>
+            <a id="btnShowLedgerBalance" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Show Ledger Balance</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">        
+        var _oUsers=[];
+        var _nID=null;
+        $(document).ready(function () {
+            _oUsers = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));            
+            _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            var oUsers =sessionStorage.getItem("Users");
+            if(oUsers!=null)
+            {
+                oUsers = jQuery.parseJSON(oUsers);
+            }
+            else
+            {
+                oUsers=_oUsers;
+            }
+
+            RefreshList(oUsers);
+            if(_nID!=-1)
+            {
+                $('#tblUsers').datagrid('selectRow', _nID);
+            }           
+        });
+               
+        $('#txtSearchByLoginID').keyup(function (e) {
+            var obj =
+            {
+                Event: e,
+                SearchProperty: "LogInID",
+                GlobalObjectList: _oUsers,
+                TableId: "tblUsers"
+            };
+            $('#txtSearchByLoginID').icsSearchByText(obj);
+            var rows = $('#tblUsers').datagrid('getRows');
+            if (rows.length <= 0) {
+                if (e.keyCode == 13)
+                    GetEmployeeByLoginIDUN($('#txtSearchByLoginID').val(), true);
+            }
+        });
+
+        $('#txtSearchByUN').keyup(function (e) {        
+            var obj =
+            {
+                Event: e,
+                SearchProperty: "UserName",
+                GlobalObjectList: _oUsers,
+                TableId: "tblUsers"
+            };
+            $('#txtSearchByUN').icsSearchByText(obj);
+            var rows = $('#tblUsers').datagrid('getRows');
+            if(rows.length<=0)
+            {
+                if(e.keyCode==13)
+                    GetEmployeeByLoginIDUN($('#txtSearchByUN').val(), false);
+            }
+        });
+
+        function GetEmployeeByLoginIDUN(sLogInUN, bIsLogInID) {
+            var nts = ((new Date()).getTime()) / 1000;        
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: sessionStorage.getItem('BaseAddress') + "/User/GetByEmployeeLogInUN",
+                data: { sLogInUN: sLogInUN, bIsLogInID: bIsLogInID, nts: nts },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oUsers = jQuery.parseJSON(data);
+                    if (oUsers.length > 0) {
+                        for (var j = 0; j < oUsers.length; j++) {
+                            $('#tblUsers').datagrid('appendRow', oUsers[j]);
+                        }
+                    }
+                    else {
+                        alert('Data not found.!!!');
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+        
+        function RefreshList(oUsers)
+        {
+            data = oUsers;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblUsers').datagrid('loadData',data);
+        }
+                
+        $('#btnUserPermission').click(function (e) {        
+            var oUser = $('#tblUsers').datagrid('getSelected');
+            if(oUser==null || parseInt(oUser.UserID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblUsers').datagrid('getRowIndex',oUser);
+            var oUsers= $('#tblUsers').datagrid('getRows');
+            sessionStorage.setItem("Users", JSON.stringify(oUsers));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = sessionStorage.getItem("BaseAddress")+  "/User/ViewMenuPermission?id="+parseInt(oUser.UserID);
+        });
+        
+        $('#btnShowLedgerBalance').click(function (e) {        
+            var oUser = $('#tblUsers').datagrid('getSelected');
+            if(oUser==null || oUser.UserID<=0) 
+            { 
+                alert("Please select an item from list."); 
+                return false; 
+            }
+
+            if(oUser.IsShowLedgerBalance){
+                if (!confirm("Confirm to Hide Ledger Balance?")) return ;                
+            }
+            else{
+                if (!confirm("Confirm to Show Ledger Balance?")) return ;                
+            }
+            var SelectedRowIndex=$('#tblUsers').datagrid('getRowIndex',oUser);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/User/ToggleShowLedgerBalance",
+                traditional: true,
+                data:  JSON.stringify(oUser),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oTempUser = jQuery.parseJSON(data);
+                    if (parseInt(oTempUser.UserID)>0) {
+                        alert("Data Update sucessfully");
+                        $('#tblUsers').datagrid('updateRow',{ index: SelectedRowIndex, row: oTempUser });
+                    }
+                    else {
+                        alert(oTempUser.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+    </script>

@@ -1,0 +1,407 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.PurchaseQuotation>
+    <head>
+        <title>Purchase Quotation View</title>
+       
+    </head>
+    <body>
+       
+
+        <div class="menuMainCollectionTable" style="width:100%;height:100%;">
+            <table id="tblPurchaseQuotationDetails" title="Purchase Quotation List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="fasle" singleselect="true" autorowheight="false" toolbar="#toolbarPurchaseQuotation">
+                <thead>
+                    <tr>
+                        <th field="ProductCode" width="100" align="left">Code</th>
+                        <th field="ProductName" width="200" align="left">Product Name</th>
+                        <th field="SupplierName" width="120" align="left">Supplier Name</th>
+                        <th field="BuyerName" width="100" align="left">Buyer</th>
+                        <th field="PurchaseQuotationNo" width="150" align="left">Quotation No</th>
+                        <th field="UnitName" width="100" align="left">M. Unit</th>
+                        <th field="UnitPrice" width="110" formatter="formatPrice">Unit Price</th>
+                        <th field="Quantity" width="100"> Qty</th>
+                        <th field="MerchandiserName" width="160" align="left">Market Person</th>
+                        <th field="ApprovedDateInString" width="100" align="left">Approve Date</th>
+                        <th field="ApprovedByName" width="120" align="left">Approve By</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarPurchaseQuotation">
+                @Html.DropDownList("cboDate", new SelectList(Enum.GetValues(typeof(ESimSol.BusinessObjects.EnumCompareOperator))), new { id = "cboDate", style = "width: 95px;font-size:12px;text-align:left", @class = "_select_changeA" })
+                <label id="lblStartDate"><input id="txtPQStartDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 100px;" /></label>&nbsp;<label id="lblTo">To</label> &nbsp;
+                <label id="lblEndDate"><input id="txtPQEndDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 100px;" /></label>&nbsp;
+                    <input type="text" style="width:120px;" id="txtSupplierName" placeholder="Type Supplier Name & Press Enter" /><a id="btnPickSupplier" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Pick</a>&nbsp;
+                    <input type="text" id="txtProductName" placeholder="Type Product & Press Enter" style="width:110px;" /><a id="btnProductPick" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Pick</a>
+                    <a id="btnRefreshPQDetails" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                    <a id="btnPrintPQDetails" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+</div>
+        </div>
+    </body>
+
+    <style type="text/css">
+        #winContractorPicker {width: 400px;}
+        #winProductPicker {width: 400px;}
+        .txtPickerSearchInputField {width: 98%;}
+    </style>
+
+    <script type="text/javascript">
+        var _oPurchaseQuotation="";
+        var _oPurchaseQuotationDetails=[];
+        var _sBaseAddress="";
+        var _sSupplierIDs ="";
+        var _sProductIDs = "";
+        var _bMultipleReturn = false;
+        var _oAuthorizationRolesMapping =[];
+        $(document).ready(function () {
+            //debugger;
+            _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+            _oPurchaseQuotations =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            DateReset();
+        });
+
+        $('._select_changeA').change(function () {
+
+            var x = $("#cboDate").val();
+            if (x == 'EqualTo' || x == 'NotEqualTo' || x == 'GreaterThen' || x == 'SmallerThen') {
+                document.getElementById("lblTo").style.display = 'none';
+                document.getElementById("lblEndDate").style.display = 'none';
+            } else {
+                document.getElementById("lblTo").style.display = '';
+                document.getElementById("lblStartDate").style.display = '';
+                document.getElementById("lblEndDate").style.display = '';
+            }
+        
+        });
+
+        
+        //Supplier Part start
+        //Supplier Part
+        $("#txtSupplierName").keydown(function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) // Enter Press
+            {
+                var oContractor = { Param: 1 + '~' + document.getElementById('txtSupplierName').value };
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oContractor,
+                    ControllerName: "Contractor",
+                    ActionName: "ContractorSearchByNameType",
+                    IsWinClose: false
+                };
+                $.icsDataGets(obj, function (response) {
+                    debugger;
+                    if (response.status && response.objs.length > 0) {
+                        if (response.objs[0].ContractorID > 0) {
+                            debugger;
+                            var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 150, align: "left" }; tblColums.push(oColumn);
+                            oColumn = { field: "ContractorTypeInString", title: "Type", width: 150, align: "left" }; tblColums.push(oColumn);
+                            var oPickerParam = {
+                                winid: 'winSupplier',
+                                winclass: 'clsSupplier',
+                                winwidth: 600,
+                                winheight: 460,
+                                tableid: 'tblSuppliers',
+                                tablecolumns: tblColums,
+                                datalist: response.objs,
+                                multiplereturn: false,
+                                searchingbyfieldName: 'Name',
+                                windowTittle: 'Supplier List'
+                            };
+                            $.icsPicker(oPickerParam);
+                            IntializePickerbutton(oPickerParam, 'txtSupplierName' );//multiplereturn, valueassignfield
+                        }
+                        else { alert(response.objs[0].ErrorMessage); }
+                    }
+                });
+            }
+        });
+        ////Load for button click
+        $("#btnPickSupplier").click(function () {
+            var oContractor = { Param: "1" };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "GetsByContractorType",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 150, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ContractorTypeInString", title: "Type", width: 150, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winSupplier',
+                            winclass: 'clsSupplier',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblSuppliers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Supplier List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam, 'txtSupplierName' );//multiplereturn, assignfieldName
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+            });
+
+        });
+
+        $('#txtSupplierName').keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 8) //backspace=8
+            {
+                var txtSupplierName = document.getElementById("txtSupplierName");
+                txtSupplierName.value = '';
+                txtSupplierName.style.color = "black";
+                txtSupplierName.style.fontWeight = "normal";
+                _sSupplierIDs = "";
+            }
+        });
+        //Suplier Part End
+
+        //Product Part
+        $("#txtProductName").keydown(function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) // Enter Press
+            {
+                var oProduct = { NameCode: document.getElementById('txtProductName').value + '~' + "4,5,6" };
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oProduct,
+                    ControllerName: "Product",
+                    ActionName: "ProductSearchByNameCatetgory",
+                    IsWinClose: false
+                };
+                $.icsDataGets(obj, function (response) {
+                    debugger;
+                    if (response.status && response.objs.length > 0) {
+                        if (response.objs[0].ProductID > 0) {
+                            var tblColums = []; var oColumn = { field: "NameCode", title: "Product Name", width: 300, align: "left" }; tblColums.push(oColumn);
+                            var oPickerParam = {
+                                winid: 'winProductPicker',
+                                winclass: 'clsProductPicker',
+                                winwidth: 600,
+                                winheight: 460,
+                                tableid: 'tblProductPicker',
+                                tablecolumns: tblColums,
+                                datalist: response.objs,
+                                multiplereturn: false,
+                                searchingbyfieldName: 'NameCode',
+                                windowTittle: 'Product List'
+                            };
+                            $.icsPicker(oPickerParam);
+                            IntializePickerbutton(oPickerParam, 'txtProductName');//multiplereturn, assignfieldName
+                        }
+                        else {
+                            alert(response.objs[0].ErrorMessage);
+                        }
+
+                    }
+                });
+            }
+        });
+        //Load for button click
+        $("#btnProductPick").click(function () {
+            var oProduct = { NameCode: "" + '~' + "4,5,6" };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oProduct,
+                ControllerName: "Product",
+                ActionName: "ProductSearchByNameCatetgory",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ProductID > 0) {
+                        var tblColums = []; var oColumn = { field: "NameCode", title: "Product Name", width: 300, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winProductPicker',
+                            winclass: 'clsProductPicker',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblProductPicker',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'NameCode',
+                            windowTittle: 'Product List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam, 'txtProductName' );//multiplereturn, assignfieldName
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+
+                }
+            });
+
+        });
+    
+        $('#txtProductName').keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 8) //backspace=8
+            {
+                var txtProductName = document.getElementById("txtProductName");
+                txtProductName.value = '';
+                txtProductName.style.color = "black";
+                txtProductName.style.fontWeight = "normal";
+                _sProductIDs = "";
+            }
+        });
+   
+
+        //Refresh
+        $("#btnRefreshPQDetails").click(function () {
+            var cboIssueDate = document.getElementById("cboDate");
+            var nIssueDate=cboIssueDate.options[cboIssueDate.selectedIndex].index;
+            var dIssueStartDate=$('#txtPQStartDate').datebox('getValue');
+            var dIssueEndDate = $('#txtPQEndDate').datebox('getValue');
+            var chkResult = CheckEmpty();
+            if(chkResult!=true)
+            {
+                alert("Please Select at least one Criteria !!");
+                return;
+            }
+            var oPurchaseQuotation = {Parameter:nIssueDate+'~'+dIssueStartDate+'~'+dIssueEndDate+'~'+_sSupplierIDs+'~'+_sProductIDs};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oPurchaseQuotation,
+                ControllerName: "PurchaseQuotation",
+                ActionName: "SearchForView",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0)
+                {
+                    if (response.objs[0].PurchaseQuotationDetailID > 0) { _oPurchaseQuotationDetails = response.objs; DynamicRefreshList(_oPurchaseQuotationDetails, "tblPurchaseQuotationDetails"); }
+                    else { _oPurchaseQuotationDetails = []; DynamicRefreshList([], "tblPurchaseQuotationDetails"); alert(response.objs[0].ErrorMessage); }
+                } else {
+                    alert("Data Not Found");
+                    DynamicRefreshList([], "tblPurchaseQuotationDetails");
+                    return;
+                }
+            });
+
+        });
+
+        //Print Details
+        $('#btnPrintPQDetails').click(function (e) {
+            var oPurchaseQuotationDetails = $('#tblPurchaseQuotationDetails').datagrid('getRows');
+            var ids = "";
+            if (oPurchaseQuotationDetails.length > 0) {
+                for (var i = 0; i < oPurchaseQuotationDetails.length; i++) {
+                    ids = ids + oPurchaseQuotationDetails[i].PurchaseQuotationDetailID + ",";
+                }
+                ids = ids.substring(0, parseInt(ids.length - 1));
+            }
+            if (ids == "" || ids == null) {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/PurchaseQuotation/PrintPQDetails?sParam=' + ids, "_blank");
+        });
+
+        
+        function DateReset()
+        {
+            $('#txtPQStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtPQEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        function CheckEmpty() {
+
+            var cboIssueDate = document.getElementById("cboDate");
+            var nIssueDate = cboIssueDate.options[cboIssueDate.selectedIndex].index;
+            if (nIssueDate == 0 && _sSupplierIDs == "" && _sProductIDs == "" )
+            {
+                return false;    
+            }
+            return true;
+        }
+
+        function IntializePickerbutton(oPickerobj,sAppendfieldName) {
+            debugger;
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                debugger;
+                ReturnvalueAssign(oPickerobj, sAppendfieldName);
+            });
+            $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    ReturnvalueAssign(oPickerobj, sAppendfieldName);
+                }
+            });
+       
+        }
+        function ReturnvalueAssign(oPickerobj, sAppendfieldName) {
+            debugger;
+            var oreturnObjs = [], oreturnObj = "", ids = "";
+            //for Multiple Select
+            debugger;
+            if (oPickerobj.multiplereturn) {
+                oreturnObjs = $('#'+oPickerobj.tableid).icsGetCheckedItem();
+            } else {
+                //for Single Select
+                oreturnObj = $("#"+oPickerobj.tableid).icsGetSelectedItem();
+            }
+            if (oPickerobj.winid == 'winSupplier' || oPickerobj.winid == 'winBuyers')
+            {
+                if (oPickerobj.multiplereturn) {
+                    debugger;
+                    if (oreturnObjs != null && oreturnObjs.length > 0) {
+                        ids = "";
+                        for (var i = 0; i < oreturnObjs.length; i++) {
+                            ids = ids + oreturnObjs[i].ContractorID + ",";
+                        }
+                        ids = ids.substring(0, ids.length - 1);
+                        $('#' + sAppendfieldName).val((oreturnObjs.length > 1) ? oreturnObjs.length + " Items selected." : oreturnObjs[0].Name);
+                    }
+                } else {
+                    if (oreturnObj != null && oreturnObj.ContractorID > 0) {
+                        ids += "" + oreturnObj.ContractorID;
+                        $('#' + sAppendfieldName).val(oreturnObj.Name);
+                    }
+                }
+            } else {
+                if (oPickerobj.multiplereturn) {
+                    debugger;
+                    if (oreturnObjs != null && oreturnObjs.length > 0) {
+                        ids = "";
+                        for (var i = 0; i < oreturnObjs.length; i++) {
+                            ids = ids + oreturnObjs[i].ProductID + ",";
+                        }
+                        ids = ids.substring(0, ids.length - 1);
+                        $('#' + sAppendfieldName).val((oreturnObjs.length > 1) ? oreturnObjs.length + " Items selected." : oreturnObjs[0].ProductName);
+                    }
+                } else {
+                    if (oreturnObj != null && oreturnObj.ProductID > 0) {
+                        ids += "" + oreturnObj.ProductID;
+                        $('#' + sAppendfieldName).val(oreturnObj.ProductName);
+                    }
+                }
+            }
+   
+            var txtName = document.getElementById(""+sAppendfieldName);
+            txtName.style.color = "blue";
+            txtName.style.fontWeight = "bold";
+
+            if (oPickerobj.winid == 'winSupplier')
+            {
+                _sSupplierIDs = ids;
+            }  else if (oPickerobj.winid == 'winProductPicker') {
+                _sProductIDs = ids;
+            }
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+        }
+
+    </script>

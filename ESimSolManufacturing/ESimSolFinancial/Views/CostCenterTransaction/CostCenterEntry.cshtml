@@ -1,0 +1,218 @@
+﻿<html>
+<head>  
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+    
+</head>
+<body>
+@model IEnumerable<ESimSol.BusinessObjects.COA_ChartOfAccountCostCenter>
+@{
+    ViewBag.Title = "Sub Ledger Amount Entry";
+}
+
+ <div style="margin-left:2px; height:400px">
+     <table id="tblCostCenter" title="Sub Ledger  List" class="easyui-datagrid" style="width:555px;height:400px"
+            data-options="
+                    singleSelect: true,
+                    fitColumns:false,
+                    rownumbers:true,
+                    pagination:false,
+                    autoRowHeight:false,
+                    toolbar: '#toolbar',
+                    onClickRow: onClickRow
+                ">
+
+         <thead>
+             <tr>
+                 <th field="CCCode" width="100" align="left">Sub Ledger Code</th>
+                 <th field="CCName" width="270" align="left">Sub Ledger Name</th>
+                 <th data-options="field:'Amount',width:140, formatter:formatPrice, editor:{type:'numberbox',options:{precision:2}}" align="right">Amount</th>
+             </tr>
+         </thead>
+     </table>​  
+            <div id="toolbar">
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="RefreshGrid()"></a>
+                <input type="text" id="txtSearchByCostCenter" value="Search by Sub Ledger" style="width:250px" onclick="Clearfield()" />
+                <a id="btnAccecptEdit" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="AcceptEdit()">Accept</a>                       
+            </div>  
+    </div>
+
+    <fieldset>
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+            <tr>
+
+                <td style ="width:100px; text-align:left; font-size:15px"><b><label id="lblCount">Count : 0</label></b></td>
+                <td style ="width:200px;text-align:right; font-size:15px"><b><label id="lblTotalAmount">Total Amount : 0.00 </label></b></td>
+                <td style="width:150px; text-align:right">
+                </td>
+                <td style="width:50px">
+                   <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true">Save</a>
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>       
+        </table>
+    </fieldset>
+</body>
+</html>
+
+<script type="text/javascript">
+var _oCOACCs=[];
+var _sBaseAddress="";
+$(document).ready(function () {
+    //debugger;          
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oCOACCs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    RefreshList(_oCOACCs);
+    CalculateTotalValue();
+});
+
+
+$('#btnSave').click(function (e) {    
+    var oReturnCOACC=[];
+    var oCOACCs=$('#tblCostCenter').datagrid('getRows');
+    if(oCOACCs!=null)
+    {
+        for (var oItem in oCOACCs) 
+        {
+            if(oCOACCs[oItem].Amount>0)
+            {                    
+                oReturnCOACC.push(oCOACCs[oItem]);                
+            }
+        }   
+     }  
+     if(oReturnCOACC.length<=0)
+     {
+        alert('Please enter cost amount!'); 
+        return;
+     }
+     window.returnValue = oReturnCOACC;
+     window.close();
+});
+ 
+function formatPrice(val,row){  
+ //debugger;
+       var nTempVal=parseFloat(val);
+       return nTempVal.toFixed(2);       
+}    
+
+function AcceptEdit()
+{
+        endEditing();
+        data=$('#tblCostCenter').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCostCenter').datagrid('loadData',data); 
+        $('#tblCostCenter').datagrid({selectOnCheck:false, checkOnSelect:false})
+        CalculateTotalValue();
+    
+}
+
+var editIndex = undefined;  
+function endEditing(){  
+        if (editIndex == undefined){return true}  
+        if ($('#tblCostCenter').datagrid('validateRow', editIndex)){ 
+            $('#tblCostCenter').datagrid('endEdit', editIndex);  
+            editIndex = undefined;  
+            return true;  
+        } else {  
+            return false;  
+    }  
+    CalculateTotalValue();
+}  
+
+
+function onClickRow(index){  
+//debugger;
+    if (editIndex != index){  
+        if (endEditing()){  
+            $('#tblCostCenter').datagrid('selectRow', index)  
+                    .datagrid('beginEdit', index);  
+            editIndex = index;  
+        } else {  
+            $('#tblCostCenter').datagrid('selectRow', editIndex);  
+        }  
+    }  
+    CalculateTotalValue();
+} 
+
+function CalculateTotalValue()
+{
+    var nTotalAmount=0;
+    var ncount=0;        
+    var nAmount=0;
+
+    var oCOACCs=$('#tblCostCenter').datagrid('getRows');
+    if(oCOACCs!=null)
+    {
+        for (var oItem in oCOACCs) 
+        {
+            if(parseFloat(oCOACCs[oItem].Amount)>0)
+            {                    
+                nTotalAmount=nTotalAmount+parseFloat(oCOACCs[oItem].Amount);
+                ncount++;
+            }
+        }   
+     }  
+     document.getElementById('lblCount').innerHTML="Count : "+ncount;
+     document.getElementById('lblTotalAmount').innerHTML="Total Amount : "+parseFloat(nTotalAmount);                               
+}
+
+function RefreshList()
+{    
+    data=_oCOACCs;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblCostCenter').datagrid('loadData',data); 
+    $('#tblCostCenter').datagrid({selectOnCheck:false, checkOnSelect:false})
+}
+     
+function RefreshGrid()
+{    
+        data=$('#tblCostCenter').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCostCenter').datagrid('loadData',data); 
+        $('#tblCostCenter').datagrid({selectOnCheck:false, checkOnSelect:false})
+}
+
+function Close()
+{
+    window.close();
+}
+
+$('#txtSearchByCostCenter').keypress(function (e) {
+//debugger;
+    var c = String.fromCharCode(e.which);
+    var txtSearchByCostCenter = document.getElementById('txtSearchByCostCenter').value;
+    txtSearchByCostCenter = txtSearchByCostCenter + c;
+        
+    var bFlag=false;
+    var sCCName="";
+    var rows = $('#tblCostCenter').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sCCName=rows[i]['CCName'].substring(0, txtSearchByCostCenter.length);
+        if(txtSearchByCostCenter.toUpperCase()==sCCName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblCostCenter').datagrid('selectRow', i);
+    }
+})
+
+function Clearfield()
+{
+    $("#txtSearchByCostCenter")[0].value='';
+}
+</script>

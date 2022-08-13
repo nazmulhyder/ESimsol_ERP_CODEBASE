@@ -1,0 +1,512 @@
+﻿<html>
+@{
+    ViewBag.Title = "Recipe Configure";
+}
+<body>
+    @model ESimSol.BusinessObjects.Recipe
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Recipe" style="font-family:Tahoma; text-align:center; height:88%;">
+            <fieldset>
+                <legend style="font-weight:bold"> Recipe Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="0" style="font-size:11px; font-weight:bold; width:100%">
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Recipe Code :
+                        </td>
+
+                        <td style="width:35%; text-align:left;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="width:35%">@Html.TextBoxFor(model => model.RecipeCode, new { style = "width:100%;", id = "txtRecipeCode", disabled = "disabled" })</td>
+                                    <td style="width:30%; text-align:right;">Recipe Name :</td>
+                                    <td style="width:35%">@Html.TextBoxFor(model => model.RecipeName, new { style = "width:98%;", id = "txtRecipeName" })</td>
+                                </tr>
+                            </table>
+                        </td>
+
+                        <td style="width:15%; text-align:right">
+                            Color :
+                        </td>
+                        <td style="width:35%;text-align:left;">
+                         @Html.TextBoxFor(model => model.ColorName, new { style = "width: 96%; ", id = "txtColorName" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left;" colspan="4">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="width:15%; text-align:right">
+                                        Recipe Type :
+                                    </td>
+                                    <td style="width:15%; text-align:left">
+                                        <select id="cboRecipeType" style="width:80%"><option>--select type--</option></select>
+                                    </td>
+                                    <td style="width:8%; text-align:right">
+                                        Note :
+                                    </td>
+                                    <td style="width:65%;">
+                                        @Html.TextBoxFor(model => model.Note, new { style = "width:97.5%;", id = "txtNote" })
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    </table>
+            </fieldset>
+            <div style="margin-left:2px; height:40%;">
+                <table id="tblRecipeDetail" title="Recipe Details Information" class="easyui-datagrid" style="width:100%;height:380px"
+                       data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar',onClickRow: onClickRow">
+                    <thead>
+                        <tr>
+                            <th field="ProductName" width="500" align="left">Product Name</th>
+                            <th field="QtyTypeSt" width="100" align="left">Qty Type</th>
+                            <th data-options="field:'QtyInPercent',width:200,align:'right',editor:{type:'numberbox',options:{precision:8}}" align="right">Quantity</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbar">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshGrid()">Refresh</a>
+                    <select id="cboQtyType" style="width:150px"><option value="0">--Select Qty Type--</option><option value="1">Percent</option><option value="2">Count</option></select>
+                    <input type="text" id="txtRawMaterialName" placeholder="Type Raw Material Name & Press Enter" style="width:180px" />
+                    <a id="btnPickRawMaterial" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" >Pick</a>
+                    <a id="btnRemoveRawmaterial" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="RemoveRawMaterial()">Remove</a>
+                </div>
+            </div>
+        </div>
+            <fieldset style="height:10%">
+                <legend style="font-weight:bold; "> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;width:100%; font-weight:bold">
+                    <tr>
+                        <td style="width:85%; text-align:right"></td>
+                        <td style="width:15%">
+                            <a id="btnPaste" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-paste" plain="true" onclick="Save()">Paste</a>
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oRecipe;
+    var _sBaseAddress="";
+    var _oRecipeDetails=[];
+    $(document).ready(function () {
+        debugger;
+        _oRecipe =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oFGUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FGUnits));
+        var oRecipeTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RecipeTypes));
+        _oRecipeDetails=_oRecipe.RecipeDetails;
+        $('#btnPaste').hide();
+
+        if(_oRecipe.RecipeID >0)
+        {
+            RefreshControl();
+        }
+
+        $("#cboRecipeType").icsLoadCombo({List: oRecipeTypes,OptionValue: "id",DisplayText: "Value"});
+        $("#cboRecipeType").val(_oRecipe.RecipeType);
+    });
+
+
+
+    function RefreshControl()
+    {
+        RefreshList();
+
+        if(sessionStorage.getItem("RecipeHeader") =="View Recipe")
+        {
+            $('#btnSave,#btnPickRawMaterial,#btnRemoveRawmaterial').hide();
+        }
+        if(sessionStorage.getItem("RecipeHeader") =="Copy Recipe")
+        {
+            $('#btnSave').hide();
+            $('#btnPaste').show();
+            _oRecipe.RecipeID = 0;
+            var nLength = _oRecipeDetails.length;
+            for(var i=0;i<nLength;i++)//reset ID
+            {
+                _oRecipeDetails[i].RecipeID = 0;
+                _oRecipeDetails[i].RecipeDetailID = 0;
+            }
+        }
+
+    }
+
+
+
+    //Product Pick
+    $("#btnPickRawMaterial").click(function () {
+
+        if(parseInt($('#cboQtyType').val())<=0)
+        {
+            alert("Please select Qty Type!");
+            $('#cboQtyType').focus();
+            return;
+        }
+
+        GetRawMaterials("");
+
+    });
+    //
+    $("#txtRawMaterialName").keydown(function (e) {
+        debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtRawMaterialName').val())==null || $.trim($('#txtRawMaterialName').val())=="")
+            {
+                alert("Type Raw Material Name and Press Enter.");
+                $('#txtRawMaterialName').focus();
+                return;
+            }
+            if(parseInt($('#cboQtyType').val())<=0)
+            {
+                alert("Please select Qty Type!");
+                $('#cboQtyType').focus();
+                return;
+            }
+            var sProductName = $.trim($('#txtRawMaterialName').val());
+            GetRawMaterials(sProductName);
+        }else if (code == 8) //backspace=8
+        {
+            //debugger;
+            $("#txtRawMaterialName").removeClass("fontColorOfPickItem");
+        }
+    });
+    function GetRawMaterials(sProductName)
+    {
+        var oProduct = {ProductName:sProductName, BUID:sessionStorage.getItem("BUID")};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oProduct,
+            ControllerName: "Recipe",
+            ActionName: "SearchByProductBUModuleWise",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+                    var tblColums = []; var oColumn = { field: "ProductCode", title: "Code", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Product Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ShortName", title: "Short Name", width: 130, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ProductCategoryName", title: "Category Name", width: 120, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winProductPicker',
+                        winclass: 'clsProductPicker',
+                        winwidth: 640,
+                        winheight: 460,
+                        tableid: 'tblProductPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'NameCode',
+                        windowTittle: 'Product List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+
+            }else{
+                alert("Data Not Found.");
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if(oPickerobj.winid == 'winProductPicker')
+        {
+            if(oreturnobjs.length>0)
+            {
+                var oRecipeDetails=$('#tblRecipeDetail').datagrid('getRows');
+                for(var i = 0;i<oreturnobjs.length;i++)
+                {
+                    if(!ICS_IsExist(oRecipeDetails,"ProductID",oreturnobjs[i].ProductID))
+                    {
+                        var nQtyType = parseInt($('#cboQtyType').val())
+                        var oRecipeDetail = {
+                            RecipeDetailID : 0,
+                            RecipeID: _oRecipe.RecipeID,
+                            ProductID: oreturnobjs[i].ProductID,
+                            ProductName:oreturnobjs[i].ProductName,
+                            QtyTypeInt : parseInt(nQtyType),
+                            QtyTypeSt : (parseInt(nQtyType)===1)? "Percent":"Count",
+                            QtyInPercent :GetPercent(),
+                            Note: ""
+                        };
+                        $('#tblRecipeDetail').datagrid('appendRow',oRecipeDetail);
+                    }
+                }
+            }
+        }
+    }
+
+    function GetPercent()
+    {
+        var oRecipeDetails=$('#tblRecipeDetail').datagrid('getRows');
+        var QtyInPercent = 100;
+        for(var i = 0;i<oRecipeDetails.length;i++)
+        {
+            QtyInPercent = parseFloat(QtyInPercent)-parseFloat(oRecipeDetails[i].QtyInPercent);
+        }
+        return QtyInPercent;
+    }
+
+    function ValidateInput()
+    {
+        debugger;
+        if($("#txtRecipeName").val()==null || $("#txtRecipeName").val()=="")
+        {
+            alert("Please enter recipe name!");
+            $('#txtRecipeName').focus();
+            return false;
+        }
+        if($("#cboRecipeType").val()==0)
+        {
+            alert("Please Select Recipe Type!");
+            $('#cboRecipeType').focus();
+            return false;
+        }
+        if($("#txtColorName").val()==null || $("#txtColorName").val()=="")
+        {
+            alert("Please Type Color name!");
+            $('#txtColorName').focus();
+            return false;
+        }    
+     
+        var rows=$('#tblRecipeDetail').datagrid('getRows');
+        if(rows==null || rows.length<=0)
+        {
+            alert("Please enter recipe details!");
+            return false;
+        }
+
+        var nQtyInPercent = 0;
+        for(var i=0;i<rows.length;i++)
+        {
+            if(rows[i].QtyInPercent<=0)
+            {
+                alert("Please enter qty for"+rows[i].ProductName+" !");
+                return false;
+            }
+            nQtyInPercent+=parseFloat(rows[i].QtyInPercent);
+            nQtyInPercent = parseFloat(nQtyInPercent);
+        }
+        //if(parseFloat(nQtyInPercent.toFixed(8))!= parseFloat(100))
+        //{
+        //    alert("Your Enter Qty : "+parseFloat(nQtyInPercent.toFixed(8))+"\nQuantity Should be 100 %");
+        //    return false;
+        //}
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+        debugger;
+        var oRecipeDetail= {
+            RecipeID : _oRecipe.RecipeID,
+            RecipeCode : _oRecipe.RecipeCode,
+            RecipeName : document.getElementById("txtRecipeName").value,
+            RecipeType : $("#cboRecipeType").val(),
+            BUID: sessionStorage.getItem("BUID") ,
+            ProductNature:sessionStorage.getItem("ProductNature"),
+            IsActive : true,
+            Note : $("#txtNote").val(),
+            ColorName : $("#txtColorName").val(),
+            RecipeDetails:$('#tblRecipeDetail').datagrid('getRows')
+        };
+        return oRecipeDetail;
+    }
+
+    function Save()
+    {
+        debugger;
+        endEditing();
+        if(!ValidateInput()) return;
+        var oRecipe=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Save", "Recipe")',
+            traditional: true,
+            data:  JSON.stringify(oRecipe),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                oRecipe = jQuery.parseJSON(data);
+                if (oRecipe.ErrorMessage == '' || oRecipe.ErrorMessage == null) {
+                    alert("Data Saved sucessfully");
+                    var oRecipes = sessionStorage.getItem("Recipes");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oRecipes != null) {
+                        oRecipes = jQuery.parseJSON(oRecipes);
+                    }
+                    else {
+                        oRecipes = [];
+                    }
+                    if (nIndex != -1) {
+                        oRecipes[nIndex] = oRecipe;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oRecipes.length);
+                        oRecipes.push(oRecipe);
+                    }
+                    sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oRecipe.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Approve()
+    {
+        //debugger;
+        if(!ValidateInput()) return;
+        var oRecipe=RefreshObject();
+        oRecipe.RecipeDetails=oRecipeDetails;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/Recipe/Approve",
+            traditional: true,
+            data:  JSON.stringify(oRecipe),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var  oRecipe = jQuery.parseJSON(data);
+                if (oRecipe.ErrorMessage == '' || oRecipe.ErrorMessage == null) {
+                    alert("Data Saved sucessfully");
+                    var oRecipes = sessionStorage.getItem("Recipes");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oRecipes != null) {
+                        oRecipes = jQuery.parseJSON(oRecipes);
+                    }
+                    else {
+                        oRecipes = [];
+                    }
+                    if (nIndex != -1) {
+                        oRecipes[nIndex] = oRecipe;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oRecipes.length);
+                        oRecipes.push(oRecipe);
+                    }
+                    sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oRecipeD.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    var editIndex = undefined;
+    function endEditing(){
+        if (editIndex == undefined){return true}
+        if ($('#tblRecipeDetail').datagrid('validateRow', editIndex)){
+            $('#tblRecipeDetail').datagrid('endEdit', editIndex);
+            editIndex = undefined;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function onClickRow(index){
+        debugger;
+        if (editIndex != index){
+            if (endEditing()){
+                $('#tblRecipeDetail').datagrid('selectRow', index)
+                        .datagrid('beginEdit', index);
+                editIndex = index;
+            } else {
+                $('#tblRecipeDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function RemoveRawMaterial()
+    {
+        ////debugger;
+        var oRawMaterialDetail = $('#tblRecipeDetail').datagrid('getSelected');
+        if(oRawMaterialDetail==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        ////debugger;
+
+        var SelectedRowIndex=$('#tblRecipeDetail').datagrid('getRowIndex',oRawMaterialDetail);
+        $('#tblRecipeDetail').datagrid('deleteRow',SelectedRowIndex);
+        RefreshGrid();
+    }
+    function RefreshList()
+    {
+        debugger;
+        data=_oRecipeDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRecipeDetail').datagrid('loadData',data);
+        $('#tblRecipeDetail').datagrid({selectOnCheck:false, checkOnSelect:false})
+    }
+
+    function RefreshGrid()
+    {
+        data=$('#tblRecipeDetail').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRecipeDetail').datagrid('loadData',data);
+        $('#tblRecipeDetail').datagrid({selectOnCheck:false, checkOnSelect:false})
+    }
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+</script>

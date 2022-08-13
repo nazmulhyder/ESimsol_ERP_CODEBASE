@@ -1,0 +1,263 @@
+﻿<html>
+<body>
+    @model ESimSol.BusinessObjects.Shelf
+    <div id="divRack" class="easyui-panel" title="Add Rack" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:12%; text-align:center">
+            <fieldset>
+                <legend style="font-weight:bold"> Rack Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:125px; text-align:right">
+                            Rack No :
+                        </td>
+                        <td style="width:200px">
+                            <input type="text" style="width: 200px;" id="txtRackNo" />
+                        </td>
+                        <td style="width:50px"> </td>
+                        <td style="width:125px; text-align:right">
+                            Remarks :
+                        </td>
+                        <td style="width:300px">
+                            <input type="text" style="width: 300px;" id="txtRemarks" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+          </div>
+            <div style="margin-left:2px; height:400px">
+                <table id="tblRack" title="Rack List" class="easyui-datagrid" style="width:100%;height:400px"
+                       data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                    <thead>
+                        <tr>
+                            <th field="RackNo" width="300" align="left">Rack No</th>
+                            <th field="Remarks" width="300" align="left">Remarks</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div style="text-align:right" id="toolbar">
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshGrid()">Refresh</a>
+                    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                    <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+                    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Remove()">Remove</a>
+                </div>
+            </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript"> 
+ var _oRack;
+ var _oRacks=[]; 
+ var _oSelectedShelf =null; 
+ var _sBaseAddress="";
+ var _lBackLink="";
+ $(document).ready(function () {
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oSelectedShelf =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));         
+        _oRacks=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Racks));    
+     debugger;
+        RefreshList();
+        _sRackHeader=sessionStorage.getItem("RackHeader");
+        _lBackLink = sessionStorage.getItem("ShelfBackTo");
+        _sRackHeader=_sRackHeader+' -> for :' +_oSelectedShelf.ShelfName;     
+        $('#divRack').panel({ title:_sRackHeader});
+        RefreshList();
+       
+ }); 
+
+    function ValidateInput()
+    {
+        if(document.getElementById("txtRackNo").value==null || document.getElementById("txtRackNo").value=="")
+        {        
+            alert("Please enter name!");
+            $('#txtRackNo').focus();
+            return false;
+        }
+        if(_oSelectedShelf==null || _oSelectedShelf.ShelfID<=0)
+        {        
+            alert("Invalid Shelf!");        
+            return false;
+        }
+      
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+        var oRack= {
+            RackID : 0,
+            ShelfID : _oSelectedShelf.ShelfID,
+            RackNo : $("#txtRackNo").val(),
+            Remarks : $("#txtRemarks").val()
+           
+        };
+        return oRack;
+    } 
+
+    $("#btnAdd").click(function(){
+        debugger;
+        if(!ValidateInput()) return;
+        var oRack=RefreshObject();       
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/Shelf/SaveRack",
+            traditional: true,
+            data:  JSON.stringify(oRack),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oRack = jQuery.parseJSON(data);
+                if(parseInt(_oRack.RackID)>0)
+                {
+                    alert("Data Saved sucessfully");
+                    _oRacks = $('#tblRack').datagrid('getRows');               
+                    var nIndex=_oRacks.length;
+                    $('#tblRack').datagrid('appendRow',_oRack); 
+                    $('#tblRack').datagrid('selectRow', nIndex);
+                    $("#txtRackNo,#txtRemarks").val('');                  
+                }
+                else {
+                    alert(_oRack.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+         
+    function Remove()
+    {
+        var oRack = $('#tblRack').datagrid('getSelected'); 
+        if(oRack==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }        
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        var SelectedRowIndex=$('#tblRack').datagrid('getRowIndex',oRack);
+        if (parseInt(oRack.RackID)> 0) 
+        {
+            $.ajax
+                ({
+
+                    type: "POST",
+                    dataType: "json",                    
+                    url : _sBaseAddress+  "/Shelf/DeleteRack",
+                    traditional: true,
+                    data:  JSON.stringify(oRack),
+                    contentType: "application/json; charset=utf-8",
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted") 
+                        {
+                           alert("Delete sucessfully");                        
+                          $('#tblRack').datagrid('deleteRow',SelectedRowIndex);
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error) 
+                    {
+                        alert(error);
+                    }
+                });
+            }
+    }
+
+    $("#btnEdit").click(function(){
+        var oObj= $('#tblRack').datagrid('getSelected'); 
+        var SelectedRowIndex=$('#tblRack').datagrid('getRowIndex',oObj);
+        if(!ValidateInput()) return;
+        var oRack=UpdateObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/Shelf/EditRack",
+            traditional: true,
+            data:  JSON.stringify(oRack),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oRack = jQuery.parseJSON(data);
+                if (oRack.RackID>0) {                    
+                    alert("Data Saved sucessfully");
+                    $('#tblRack').datagrid('updateRow',{index: SelectedRowIndex,	row: oRack});
+                    $("#txtRackNo,#txtRemarks").val('');                      
+                    $('#txtRackNo').focus();
+                }
+                else 
+                {
+                    alert(oRack.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+   function UpdateObject()
+   {
+        var x= $('#tblRack').datagrid('getSelected');
+        var oRack= {                        
+            RackID: x.RackID,
+            ShelfID : x.ShelfID,
+            RackNo : $("#txtRackNo").val(),
+            Remarks : $("#txtRemarks").val()
+       }; 
+       return oRack;
+   }
+  
+    function RefreshList()
+    {    
+        var data=_oRacks;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRack').datagrid('loadData',data); 
+        $('#tblRack').datagrid({onSelect: function(rowIndex, rowData){ RowSelect(rowIndex, rowData);}});
+    }
+
+    function RowSelect(rowIndex, rowData)
+    {   
+       document.getElementById("txtRackNo").value=rowData.RackNo;
+       document.getElementById("txtRemarks").value=rowData.Remarks;
+      
+    }
+    
+    $("#btnRefresh").click(function(){
+        var data=$('#tblRack').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRack').datagrid('loadData',data);
+    });
+
+     
+    $("#btnClose").click(function(){
+        window.location.href = _lBackLink;
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _lBackLink;
+        }
+    });
+</script>

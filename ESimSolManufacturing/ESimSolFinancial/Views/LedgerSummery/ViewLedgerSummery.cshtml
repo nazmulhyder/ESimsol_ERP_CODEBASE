@@ -1,0 +1,768 @@
+﻿@model ESimSol.BusinessObjects.LedgerSummery
+@{
+    ViewBag.Title = "Ledger Summery";
+}
+    <div class="menuMainCollectionTable" style="width:100%;height:100%; text-align:center">
+        <table id="tblLedgerSummery" title="Ledger Summery" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="fales" singleselect="true" autorowheight="false" toolbar="#toolbar" showfooter="true">
+            <thead>
+                <tr>
+                    <th field="AccountHeadCode" width="15%">Code</th>
+                    <th field="AccountHeadName" width="52%">Name</th>
+                    <th field="DrAmountInString" width="15%" align="right">Debit</th>
+                    <th field="CrAmountInString" width="15%" align="right">Credit</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            Date Range
+            <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            To
+            <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            &nbsp;&nbsp;Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type part of ledger then press enter" style="width:250px" />
+            &nbsp;&nbsp; <select id="cboCurrency" style="width:90px;"></select>
+            &nbsp;&nbsp;<input type="checkbox" id="chkboxApproved" style="width:20px;" /><label for="chkboxApproved">Approved</label>
+            <br />
+            <input type="text" id="txtBUName" style="width:200px;" disabled /> <input type="button" onclick="BUClean()" value="C" />  <input type="button" value="Pick" onclick="PickBusinessUnit()" style="width:50px;" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Excel</a>
+            <input type="text" id="txtParams" style="display:none;" />
+        </div>
+    </div>
+
+<style>
+    #tblLedgerSummery tr:hover td,
+    #tblLedgerSummery tr:hover td.highlight {
+        background: #D6DAD5;
+    }
+
+    #tblLedgerSummery2 tr:hover td,
+    #tblLedgerSummery2 tr:hover td.highlight {
+        background: #40FF00;
+    }
+</style>
+
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oLedgerSummerys=[];
+    var _oCreditChartOfAccount=null;
+    var _nAccountHeadID=0;
+    var _oCurrencies = [];
+    var _oLedgerSummery = null;
+    var sParams = "";
+    $(document).ready(function (){        
+        var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+        sessionStorage.setItem("Company", JSON.stringify(oCompany));
+        _oLedgerSummery =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        _oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Currencies));
+        $("#cboCurrency").data('objs',_oCurrencies);
+        $("#cboCurrency").icsLoadCombo({List: _oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        $("#txtAccountHeadName").data('obj',oCOA);
+
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#txtBUName").data('BusinessUnits',oBusinessUnits);
+
+        var oGLConfigs= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.GLConfigs));
+        sessionStorage.setItem("GLConfigs",JSON.stringify(oGLConfigs));
+        sessionStorage.setItem("SelectedGLConfigs",JSON.stringify(_oLedgerSummery.ACConfigs));
+
+        var oDisplayModeObjs = _oLedgerSummery.DisplayModes;
+        $("#cboDisplayMode").data('objs',oDisplayModeObjs);
+        $("#cboDisplayMode").icsLoadCombo({List: oDisplayModeObjs,OptionValue: "id",DisplayText: "Value", InitialValue : "--Display Mode--"});
+
+        var oPreferences= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Preferences));
+        sessionStorage.setItem("Preferences",JSON.stringify(oPreferences));
+        //DynamicRefreshList(oPreferences,'tblPreferences');
+
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+
+        _oLedgerSummery.BusinessUnitIDs = "";        
+        $('#txtStartDate').datebox('setValue', _oLedgerSummery.StartDateInString);
+        $('#txtEndDate').datebox('setValue', _oLedgerSummery.EndDateInString);        
+        $('#cboCurrency').val(_oLedgerSummery.CurrencyID);
+
+        var sHeaderText=RefreshHeader();
+        sessionStorage.setItem('HeaderText',sHeaderText);        
+
+        $('#Mainlayout').layout('collapse', 'west');
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+    });
+
+    function RefreshTotalSummary(objs){
+
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='DebitAmount';
+        sParamCredit='CreditAmount';
+        sLabelDebit='lblDebitBalance';
+        sLabelCredit='lblCreditBalance';
+
+        sParamOpening='OpeiningValue';
+        sParamClosing='ClosingValue';
+        sLabelOpening='lblCCBOpeningBalance';
+        sLabelClosing='lblCCBClosingBalance';
+
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+
+        //if(parseInt($('#cboDisplayMode').val()) > 1){
+        //    $('#tdTotal').css('width','38%');
+        //    $('#tdDebit').css('width','20%');
+        //    $('#tdCredit').css('width','20%');
+        //    $('#tdClosing').css('width','20%');
+        //}else{
+        //    $('#tdTotal').css('width','56%');
+        //    $('#tdDebit').css('width','14%');
+        //    $('#tdCredit').css('width','14%');
+        //    $('#tdClosing').css('width','14%');
+        //}
+    }
+    function RefreshHeader()
+    {
+        var sHeaderText='';
+        if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0)
+        {
+            sHeaderText='Ledger Summery || '+$('#txtAccountHeadName').data('obj').AccountHeadName;
+        }else
+        {
+            sHeaderText='Ledger Summery';
+        }
+        debugger;
+        var sGetTextValues = $('#txtBUName').val();
+        if(_oLedgerSummery.BusinessUnitIDs!="")//( parseInt($('#txtBUName').val()) &&  parseInt($('#txtBUName').val())>0)
+        {
+            var sBUName=''+sGetTextValues;
+            sHeaderText=sHeaderText+'  || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+
+        }else{
+            sHeaderText=sHeaderText+'  || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+        }
+        return sHeaderText;
+    }
+
+    function GLDetailsSummary(){
+        var nOptionID=parseInt(sessionStorage.getItem('OptionID'))?parseInt(sessionStorage.getItem('OptionID')):0;
+        var sController='',sAction='',sSessionAction='';
+        var obj={
+            AccountHeadID: $('#txtAccountHeadName').data('obj').AccountHeadID,
+            BusinessUnitIDs:_oLedgerSummery.BusinessUnitIDs,// parseInt($('#txtBUName').val()),
+            BUName:$('#txtBUName').val(),
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            IsApproved:$('#chkboxApproved').is(':checked'),
+            IsApproved:$('#chkboxApproved').is(':checked')
+        }
+
+        if(nOptionID===1){
+            sController='FinancialStatement';
+            sSessionAction='SetCCBSessionData';
+            sAction='ViewSubLedgerTransactions';
+        }else if(nOptionID===2){
+            sController='FinancialStatement';
+            sSessionAction='SetVRRSessionData';
+            sAction='ViewBillTransactions';
+        }else if(nOptionID===4){
+            sController='FinancialStatement';
+            sSessionAction='SetVPTSessionData';
+            sAction='ViewItemTransactions';
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/"+sController+"/"+sSessionAction,
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/"+sController+"/"+sAction+"?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function OpenPreferences(){
+        var oPreferences=jQuery.parseJSON(sessionStorage.getItem("Preferences"));
+        var oTempObjs=[];
+        for(var i=0;i<oPreferences.length;i++){
+            if(oPreferences[i].id<5){
+                oTempObjs.push(oPreferences[i]);
+            }
+        }
+        oPreferences=oTempObjs;
+        DynamicRefreshList(oPreferences,'tblPreferences');
+        $("#winPreferences").icsWindow('open', "Choose Ledger Detail");
+        sessionStorage.setItem("PreferenceWindow", 'Open');
+    }
+    function ChoosePreferences(){
+        var selected = $('#tblPreferences').datagrid('getSelected');
+        sessionStorage.setItem("OptionID",selected==null?0: selected.id);
+        $("#winPreferences").icsWindow('close');
+        sessionStorage.setItem("PreferenceWindow", 'Close');
+        GLDetailsSummary();
+    }
+    $("#btnPreferenceClose").click(function (){
+        $("#winPreferences").icsWindow('close');
+        sessionStorage.setItem("PreferenceWindow", 'Close');
+    });
+    
+    function OpenSettings(){
+
+        var oGLConfigs=jQuery.parseJSON(sessionStorage.getItem("GLConfigs"));
+        DynamicRefreshList(oGLConfigs,'tblGLConfigs');
+
+        $("#winSettings").icsWindow('open', "Change Search Settings");
+        //$("#winSettings").focus();
+        sessionStorage.setItem("SettingWindow", 'Open');
+    }
+
+    function ChooseSettings(){
+        var oSelectedConfigs=$('#tblGLConfigs').datagrid('getChecked');
+        sessionStorage.setItem("SelectedGLConfigs",JSON.stringify(oSelectedConfigs));
+        $("#winSettings").icsWindow('close');
+        sessionStorage.setItem("SettingWindow", 'Close');
+
+
+        if(!ValidateInput())return false;
+
+
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oLedgerSummery= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            DisplayMode : cboDisplayModeVal,
+            BusinessUnitIDs :_oLedgerSummery.BusinessUnitIDs,// ,
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oLedgerSummery.IsApproved = true;
+        }else{
+            oLedgerSummery.IsApproved = false;
+        }
+
+        var sHeaderText=RefreshHeader();
+        //ProgressBarShow();
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/LedgerSummery/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oLedgerSummery),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    if(parseInt($('#cboDisplayMode').val())>1){
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/LedgerSummery/ViewLedgerSummerySummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                    else{
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/LedgerSummery/ViewLedgerSummery?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnSettingClose").click(function (){
+        $("#winSettings").icsWindow('close');
+        sessionStorage.setItem("SettingWindow", 'Close');
+    });
+
+    function ConfigLoadSuccessful(data){
+        var objs=data.rows;
+        var oSelectedConfigs=jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"));
+        for(var i=0;i<oSelectedConfigs.length;i++){
+            for(var j=0;j<objs.length;j++){
+                if(oSelectedConfigs[i].ConfigureType===objs[j].ConfigureType){
+                    $('#tblGLConfigs').datagrid('checkRow',j);
+                }
+            }
+        }
+    }
+
+    $("#btnRefresh").click(function(){
+        debugger;
+        if(!ValidateInput())return false;
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oLedgerSummery= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            BusinessUnitIDs :_oLedgerSummery.BusinessUnitIDs,// ,// parseInt($('#txtBUName').val()),
+            BUID : parseInt(_oLedgerSummery.BusinessUnitIDs)
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oLedgerSummery.IsApproved = true;
+        }else{
+            oLedgerSummery.IsApproved = false;
+        }
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+ "/LedgerSummery/GetLedgerSummerys",
+            traditional: true,
+            data:  JSON.stringify(oLedgerSummery),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                debugger;
+                oLedgerSummerys = data;  //jQuery.parseJSON(data);
+                if(oLedgerSummerys.length>0){
+                    DynamicRefreshList(oLedgerSummerys,'tblLedgerSummery');
+
+                    var TotalDrAmount=0;
+                    var TotalCrAmount=0;
+                    for(var i=0;i<oLedgerSummerys.length;i++){
+                        TotalDrAmount += oLedgerSummerys[i].DrAmount;
+                        TotalCrAmount += oLedgerSummerys[i].CrAmount;
+                    }
+
+                    var oFooters = [];
+                    var oFooter = {
+                        AccountHeadCode: 'Grand Total',
+                        Factoryname: '',
+                        AccountHeadName: '',
+                        DrAmountInString: TempFormatPrice(TotalDrAmount),
+                        CrAmountInString: TempFormatPrice(TotalCrAmount) 
+
+                    };
+                    oFooters.push(oFooter);
+                    $('#tblLedgerSummery').datagrid('reloadFooter', oFooters);
+
+                }
+                else{
+                    
+                    alert("Data not found!!");
+                    DynamicRefreshList([],'tblLedgerSummery');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    function onLoadSuccess(data){
+        var rows = $('#tblLedgerSummery').datagrid('getRows');
+        for(i=0;i<rows.length;i++){
+            if(rows[i].VoucherID == 0 && i > 0)
+            {
+                $('#tblLedgerSummery').datagrid('mergeCells',{
+                    index: i,
+                    field: 'VoucherNo',
+                    colspan: 5
+                });
+            }
+        }
+    }
+
+    function Resize(){
+        var div= document.getElementById('divReport'); // need real DOM Node, not jQuery wrapper
+        var hasVerticalScrollbar= div.scrollHeight>div.clientHeight;
+        var hasHorizontalScrollbar= div.scrollWidth>div.clientWidth;
+        if(hasVerticalScrollbar){
+            $('#tblHeader').width('98.5%');
+            $('#tblFooter').width('98.5%');
+        }
+    }
+
+    function GetParticualrAsTable(sParticulars)
+    {
+        if(sParticulars===null)
+        {
+            return "";
+        }
+        var sAccountHeadName = ''; var sAmount = ''; var sTempParticular='';
+        var sInnerHTML ='<table id="tblLedgerSummery2" border="0" cellpadding="0" cellspacing="0" style="width:100%;">'
+        var aParticulars = sParticulars.split(';');
+        for(var i=0; i<aParticulars.length; i++)
+        {
+            sAccountHeadName = '';  sAmount = ''; sTempParticular ='';
+            sTempParticular = aParticulars[i];
+            if(sTempParticular!=null)
+            {
+                sAccountHeadName = sTempParticular.split('@@')[0];
+                if((sTempParticular.split('@@')).length>1)
+                {
+                    sAmount = sTempParticular.split('@@')[1];
+                }
+            }
+            sInnerHTML = sInnerHTML + '<tr style="border:0"><td style="width:70%; text-align:left">'+ sAccountHeadName +'</td><td style="width:30%; text-align:right">'+sAmount+'</td> </tr>'
+        }
+        sInnerHTML = sInnerHTML + '</table>';
+        return sInnerHTML;
+    }
+
+    $("#btnPrintXL").click(function(){
+        if(!ValidateInput())return false;
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oLedgerSummery= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            BusinessUnitIDs :_oLedgerSummery.BusinessUnitIDs,// ,// parseInt($('#txtBUName').val()),
+            BUID : parseInt(_oLedgerSummery.BusinessUnitIDs),
+            AccountHeadName: $('#txtAccountHeadName').val()
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oLedgerSummery.IsApproved = true;
+        }else{
+            oLedgerSummery.IsApproved = false;
+        }
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/LedgerSummery/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oLedgerSummery),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.open(sessionStorage.getItem('BaseAddress')+'/LedgerSummery/ExcelLedgerSummerys?',"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function FormatStyle(value,row,index){
+        var s = "";
+        if(row.VoucherID>0 && value!='Opening Balance')
+        {
+            s = '<label id="lblVoucher~'+index+'" style="color:Blue;cursor:pointer;text-decoration:underline;" onclick="RefreshVoucherData('+row.VoucherID+')">'+value+'</label>';
+        }
+        else
+        {
+            s = '<label>'+value+'</label>';
+        }
+        return s;
+    }
+
+    function FormatOpeningStyle(value,row,index){
+        var s = "";
+        if(value==='Opening Balance' && row.VoucherID===0){
+            s = '<label id="lblOpening~'+index+'" style="color:Blue;cursor:pointer;text-decoration:underline;" onclick="OpeningBreakdown()">'+value+'</label>';
+        }
+        else
+        {
+            s = '<label>'+value+'</label>';
+        }
+        return s;
+    }
+
+    function OpeningBreakdown()
+    {
+
+        var oLedgerSummery = {
+            BusinessUnitIDs:_oLedgerSummery.BusinessUnitIDs, // parseInt($('#txtBUName').val())?parseInt($('#txtBUName').val()):0,
+            AccountHeadID : parseInt($("#txtAccountHeadName").data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID : parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0,
+            IsApproved:$('#chkboxApproved').is(':checked')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/FinancialStatement/SetAHOBSessionData",
+            traditional: true,
+            data:  JSON.stringify(oLedgerSummery),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/FinancialStatement/ViewAHOpeningBreakdowns?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function ValidateInput()
+    {
+        if ( $('#txtStartDate').datebox('getValue')=="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        if ( $('#txtEndDate').datebox('getValue')=="") {alert("Please select end date!!");$('#txtEndDate').focus();return false;}
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+
+
+        //if(_oLedgerSummery.BusinessUnitIDs=="")
+        //{
+        //    alert("Please Select BU.");
+        //    $('#txtBUName').focus();
+        //    return false;
+        //}
+
+        //var aBUs = _oLedgerSummery.BusinessUnitIDs.split(',');
+        //if(parseInt(aBUs.length)>1 && _oLedgerSummery.BusinessUnitIDs.includes("0"))
+        //{
+        //    alert("Please Select either Group Accounts Or multiple BU.");
+        //    $('#txtBUName').val("Group Accounts");
+        //    $('#txtBUName').focus();
+        //    return false;
+        //}
+
+        if(dEndDate < dStartDate)
+        {
+            alert("End date must be grater then start date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+
+        var oCreditChartOfAccount= $('#txtAccountHeadName').data('obj');
+        if(oCreditChartOfAccount==null ||oCreditChartOfAccount.AccountHeadID<=0){
+
+            alert("Please select an account head !");
+            $("#txtAccountHeadName").addClass("errorFieldBorder");
+            $("#txtAccountHeadName").focus();
+            return false;
+        } else {
+            $("#txtAccountHeadName").removeClass("errorFieldBorder");
+        }
+
+
+        return true;
+    }
+
+    $("#btnPrint").click(function(){
+        debugger;
+        if(!ValidateInput())return false;
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oLedgerSummery= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            BusinessUnitIDs :_oLedgerSummery.BusinessUnitIDs,// ,// parseInt($('#txtBUName').val()),
+            BUID : parseInt(_oLedgerSummery.BusinessUnitIDs),
+            AccountHeadName: $('#txtAccountHeadName').val()
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oLedgerSummery.IsApproved = true;
+        }else{
+            oLedgerSummery.IsApproved = false;
+        }
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/LedgerSummery/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oLedgerSummery),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.open(sessionStorage.getItem('BaseAddress')+'/LedgerSummery/PrintLedgerSummerys?',"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    
+    function BUClean()
+    {
+        $("#txtBUName").removeClass("fontColorOfPickItem");
+        $("#txtBUName").val("");
+        _oLedgerSummery.BusinessUnitIDs="";
+    }
+
+    function PickBusinessUnit()
+    {
+        //debugger;
+        var oBusinessUnits=  $("#txtBUName").data('BusinessUnits');
+        var tblColums = []; var oColumn = { field: "Code", title: "Code", width:60, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 120, align: "left" }; tblColums.push(oColumn);
+
+        var oPickerParam = {
+            winid: 'winBusinessUnit',
+            winclass: 'clsBusinessUnit',
+            winwidth: 420,
+            winheight: 460,
+            tableid: 'tblBusinessUnits',
+            tablecolumns: tblColums,
+            datalist: oBusinessUnits,
+            multiplereturn: false,
+            searchingbyfieldName: 'Name',
+            windowTittle: 'Business Unit List'
+        };
+        $.icsPicker(oPickerParam);
+        IntializePickerbutton(oPickerParam);
+        //var aSelectedBU = _oLedgerSummery.BusinessUnitIDs.split(',');
+        //var oBUList = $('#tblBusinessUnits').datagrid('getRows');
+        //debugger;
+        //for(var i =0;i<oBUList.length;i++)
+        //{
+        //    if(ICS_IsExistInArray(oBUList[i].BusinessUnitID,aSelectedBU))
+        //    {
+        //        $('#tblBusinessUnits').datagrid('checkRow',i);
+        //    }
+        //}
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winBusinessUnit')
+        {
+            //if (oreturnobjs.length>0)
+            //{
+            //    $('#txtBUName').val(ICS_PropertyConcatation(oreturnobjs,'ShortName'));
+            //    $('#txtBUName').addClass('fontColorOfPickItem');
+            //    _oLedgerSummery.BusinessUnitIDs=ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+            //}
+            if(oreturnObj != null){
+                $('#txtBUName').val(oreturnObj.ShortName);
+                $('#txtBUName').addClass('fontColorOfPickItem');
+                _oLedgerSummery.BusinessUnitIDs = oreturnObj.BusinessUnitID;
+            }
+        }
+    }
+
+    function TempFormatPrice(val) {
+        if (val == null) {
+            val = 0.00;
+        }
+        val = parseFloat(val);
+        if (isNaN(val) || val === undefined) { return 0.00; }
+        var test = val.toFixed(2);
+        var tests = TempAddComma(test);
+        return tests;
+    }
+
+    function TempAddComma(nStr) {
+        nStr += '';
+        x = nStr.split('.');
+        x1 = x[0];
+        x2 = x.length > 1 ? '.' + x[1] : '';
+        var process = /(\d+)(\d{3})/;
+        while (process.test(x1)) {
+            x1 = x1.replace(process, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    }
+</script>
+<style type="text/css">
+    .tablebordaer {
+        border: 1px solid black;
+    }
+
+    #tblVoucherDetail td, tr {
+        border-left: 1px solid #D8D8D8;
+        border-bottom: 1px solid black;
+    }
+
+    #tblVoucherDetailHeader td {
+        border-left: 1px solid black;
+    }
+
+
+    .highlight {
+        background-color: #CFB53B;
+        color: #fff;
+    }
+
+    .highlighthover {
+        background-color: #FAE794;
+        color: #000;
+    }
+</style>

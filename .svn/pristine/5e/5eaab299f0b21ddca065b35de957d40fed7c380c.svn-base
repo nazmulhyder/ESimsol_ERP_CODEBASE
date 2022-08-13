@@ -1,0 +1,380 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeLoan>
+@{
+    ViewBag.Title = "View_EmployeeLoan";
+}
+
+<div style="margin-left:0px; height:550px">
+    <table id="tblEmployeeLoanApprove" title="Loan Management"  class="easyui-datagrid" style="width:1030px;height:548px" fitColumns="false" rownumbers="true" pagination="true" singleSelect="true" autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr>
+                <th field="Code" width="100" align="left">Code </th> 
+                <th field="Amount" width="150" align="left">Amount</th>               
+                <th field="Outstanding" width="100" align="right" >Outstanding</th>
+                <th field="RequestDateInString" width="100" align="right" >Request Date</th>
+                <th field="EffectToDateInString" width="100" align="right" >Senction Date</th>
+                <th field="ApproveDaInString" width="100" align="right" >Inst. Balance</th>
+                <th field="StatusInString" width="100" align="left">Status</th>
+            </tr>  
+        </thead> 
+    </table>
+    <div id="toolbar" style="height:55px;">
+         
+         <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" >Approve</a>
+         <a id="btnCancel" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-edit" plain="true" >Cancel</a>
+         <a id="btnPaymentInstruction" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >Payment Instruction</a>
+         
+         <br />
+          <input id="txtEmployee" type="text" style="width:200px;" placeholder = "Type Code or Name then enter"/>
+         <input id="btnClearEmployee" type ="button" value="C" /><input id="btnPickEmployee" type ="button" value="P" />
+         <input type="text" id="txtCode" placeholder="Type Code & Enter" style="width: 150px"  />
+         @Html.DropDownList("cboStatus", new SelectList(Enum.GetValues(typeof(ESimSol.BusinessObjects.EnumEmployeeLoanStatus))), new { id = "cboStatus", style = "width: 150px;" })
+         <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" plain="true" ></a>
+    </div>  
+</div>
+
+<script type="text/javascript">
+var _oEmployeeLoans=null;
+var _sBaseAddress="";
+var _oEmployee = null;
+var _nEmployeeID = 0;
+var _nStatus =0;
+var _nAll = 0;
+var _sCourseName = "";
+
+$(document).ready(function ()
+{
+    _oEmployeeLoans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    RefreshList(_oEmployeeLoans)
+
+});
+
+function RefreshList(oEmployeeLoans)
+{
+    data = oEmployeeLoans ;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblEmployeeLoanApprove').datagrid('loadData', data);
+    
+}
+
+$('#btnApprove').click(function (e)
+{
+    var oEmployeeLoan = $('#tblEmployeeLoanApprove').datagrid('getSelected');
+    if (oEmployeeLoan == null || oEmployeeLoan.EmployeeLoanID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    if(oEmployeeLoan.Status == 3)
+    {
+        alert("Already approved !");
+        return;
+    }
+    if(oEmployeeLoan.Status != 2)
+    {
+        alert("Only accepted Loan can be approved !");
+        return;
+    }
+
+    var SelectedRowIndex=$('#tblEmployeeLoanApprove').datagrid('getRowIndex',oEmployeeLoan);
+    var oParameter = new Object();
+    oParameter.Name = "Loan Approve";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/EmployeeLoan/View_Approve?nId="+oEmployeeLoan.EmployeeLoanID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(550/2);
+    var nHeight=(window.screen.height/2)-(505/2);
+    oEmployeeLoan = window.showModalDialog(url, oParameter, 'dialogHeight:505px;dialogWidth:550px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //oEmployeeLoan = window.showModalDialog(url, oParameter, 'dialogHeight:505px;dialogWidth:550px;dialogLeft:150;dialogRight:150;dialogTop:120;center:yes;resizable:no;status:no;scroll:no');
+    
+    if (oEmployeeLoan != null)
+    {
+        if (oEmployeeLoan.EmployeeLoanID > 0)
+        {
+           $('#tblEmployeeLoanApprove').datagrid('updateRow',{index: SelectedRowIndex,row: oEmployeeLoan});
+        }
+    }
+
+});
+
+$('#txtEmployee').keypress(function (e) 
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    var sEmpCode=document.getElementById("txtEmployee").value;
+        
+    if (code == 13)//Enter key-13
+    {
+        if(sEmpCode=="")
+        {
+            alert("Please Enter Code !");
+            return;
+        }
+        var nts=(new Date()).getTime()/1000;
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0&nts="+nts;
+        var nLeft=(window.screen.width/2)-(515/2);
+        var nHeight=(window.screen.height/2)-(415/2);
+        _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:510px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            
+        if(_oEmployee!=null)
+        {
+
+            if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+            {
+                alert("This Employee Has No Official Information !");
+                return;
+            }
+
+            if(_oEmployee.IsActive == false)
+            {
+                alert("InActive Employee. Work can not be assigned for this employee!");
+                return;
+            }
+
+            if(_oEmployee.WorkingStatus != 1)
+            {
+                alert("This employee is not in work place!");
+                return;
+            }
+
+            
+            $("#txtEmployee")[0].value=_oEmployee.Name;
+            _nEmployeeID=_oEmployee.EmployeeID;
+            var sEmpCode = "";
+            var _nStatus = 0;
+            var sParam = _nEmployeeID + "~"+ sEmpCode + "~" + _nStatus;
+            Search(sParam);
+            
+        }
+    }
+});
+
+$('#btnPickEmployee').click(function (e)
+{
+
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=false;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    var nLeft=(window.screen.width/2)-(1000/2);
+    var nHeight=(window.screen.height/2)-(510/2);
+    _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+   // _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:945px;dialogLeft:200;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+    if(_oEmployee!=null)
+    {
+        if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+        {
+            alert("This Employee Has No Official Information !");
+            return;
+        }
+        
+        if(_oEmployee.IsActive == false)
+        {
+            alert("InActive Employee. Work can not be assigned for this employee!");
+            return;
+        }
+        if(_oEmployee.WorkingStatus != 1)
+        {
+            alert("This employee is not in work place!");
+            return;
+        }
+
+        $("#txtEmployee")[0].value=_oEmployee.Name;
+        _nEmployeeID = _oEmployee.EmployeeID;
+        var sEmpCode = "";
+        var _nStatus = 0;
+        var sParam = _nEmployeeID + "~"+ sEmpCode + "~" + _nStatus;
+        Search(sParam);
+    }
+});
+
+$('#btnClearEmployee').click(function (e)
+{
+    $("#txtEmployee")[0].value="";
+    _nEmployeeID = 0;
+
+});
+
+$('#btnSearch').click(function (e) 
+{
+   
+    _nStatus = document.getElementById("cboStatus").selectedIndex;
+    var sEmpCode = "";
+    sEmpCode=document.getElementById("txtCode").value;
+   
+    if(_nEmployeeID == 0 && sEmpCode == "" && _nStatus == 0)
+    {
+        alert("Please select at least one item from the list !");
+        return;
+    }
+    var sParam = _nEmployeeID + "~"+ sEmpCode + "~" + _nStatus;
+    Search(sParam);
+   
+});
+
+$('#txtCode').keypress(function (e) 
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    var sEmpCode = "";
+    sEmpCode=document.getElementById("txtCode").value;
+    _nEmployeeID = 0;
+    _nStatus = 0;
+     
+    if (code == 13)//Enter key-13
+    {
+        if(sEmpCode=="")
+        {
+            alert("Please Enter Code !");
+            return;
+        }
+        var sParam = _nEmployeeID + "~"+ sEmpCode + "~" + _nStatus;
+        Search(sParam);
+      
+    }
+});
+
+function Search(sParam)
+{
+     $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_Search_V1",
+            traditional: true,
+            data: JSON.stringify({sParam : sParam}),
+            contentType: "application/json; charset=utf-8",
+            
+            success: function(data)
+            {
+                var oEmployeeLoans=[];
+                oEmployeeLoans = jQuery.parseJSON(data);
+                
+                if (oEmployeeLoans.length>0 && oEmployeeLoans[0].ErrorMessage=="") 
+                {
+                    RefreshList(oEmployeeLoans);
+                  
+                } 
+                else 
+                {
+                    alert(oEmployeeLoans[0].ErrorMessage);
+                    oEmployeeLoans=[];
+                    RefreshList(oEmployeeLoans); 
+                    
+                }
+              
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }    
+         });
+}
+
+$('#btnCancel').click(function (e)
+{
+    var oEmployeeLoan = $('#tblEmployeeLoanApprove').datagrid('getSelected');
+    if (oEmployeeLoan == null || oEmployeeLoan.EmployeeLoanID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+   
+    if(oEmployeeLoan.Status != 2)
+    {
+        alert("Only Accepted item can be cancelled !");
+        return;
+    }
+    //if(oEmployeeLoan.Status != 3)
+    //{
+    //    alert("Only Approved item can be cancelled !");
+    //    return;
+    //}
+    var SelectedRowIndex=$('#tblEmployeeLoanApprove').datagrid('getRowIndex',oEmployeeLoan);
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_Cancel",
+    traditional: true,
+    data: JSON.stringify({nEmployeeLoanID: oEmployeeLoan.EmployeeLoanID}),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+             
+             oEmployeeLoan = jQuery.parseJSON(data);
+             if (oEmployeeLoan.EmployeeLoanID > 0)
+             {
+                 alert("Cancelled sucessfully !");
+                 $('#tblEmployeeLoanApprove').datagrid('updateRow',{index: SelectedRowIndex,row: oEmployeeLoan});
+                SaveEmployeeLoanHistory() ;
+                //window.returnValue = oEmployeeLoan;
+                //window.close();  
+             } 
+             else
+             {
+                 alert(oEmployeeLoan.ErrorMessage);
+             }
+         }
+         
+     });
+
+});
+
+function RefreshObject() 
+{
+    var oEmployeeLoan = $('#tblEmployeeLoanApprove').datagrid('getSelected');
+    var oEmployeeLoanHistory ={
+        ELHID : 0,
+        EmployeeLoanID : oEmployeeLoan.EmployeeLoanID,
+        StatusInt : 4, // cancel
+        PreviousStatusInt : 1 //Request
+    }
+return oEmployeeLoanHistory
+}
+
+function SaveEmployeeLoanHistory() 
+{
+    var oEmployeeLoanHistory = RefreshObject();
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoanHistory_IU",
+    traditional: true,
+    data: JSON.stringify(oEmployeeLoanHistory),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+        
+        var oEmployeeLoan = jQuery.parseJSON(data);
+    },
+    error: function(xhr, status, error) {
+        alert(error);
+    }
+    });
+    
+}
+
+$('#btnPaymentInstruction').click(function (e)
+{
+    
+    var oEmployeeLoan = $('#tblEmployeeLoanApprove').datagrid('getSelected');
+    if (oEmployeeLoan == null || oEmployeeLoan.EmployeeLoanID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblEmployeeLoanApprove').datagrid('getRowIndex',oEmployeeLoan);
+    var oParameter = new Object();
+    oParameter.Name = "Payment Instruction";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/EmployeeLoan/View_PaymentInstruction?nId="+oEmployeeLoan.EmployeeLoanID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(650/2);
+    var nHeight=(window.screen.height/2)-(850/2);
+    var oEmployeeLoan = window.showModalDialog(url, oParameter, 'dialogHeight:850px;dialogWidth:650px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oEmployeeLoan = window.showModalDialog(url, oParameter, 'dialogHeight:850px;dialogWidth:650px;dialogLeft:150;dialogRight:150;dialogTop:0;center:yes;resizable:no;status:no;scroll:no');
+    if(oEmployeeLoan.EmployeeLoanID >0)
+    {
+        $('#tblEmployeeLoanApprove').datagrid('updateRow',{index: SelectedRowIndex,row: oEmployeeLoan});
+    }
+});
+
+</script>

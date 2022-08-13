@@ -1,0 +1,314 @@
+﻿@{
+    ViewBag.Title = "BusinessUnits List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.BusinessUnit>
+<body>
+    <div class="menuMainCollectionTable">
+        <table id="tblBusinessUnits" title="BusinessUnit List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarBusinessUnit">
+            <thead>
+                <tr>
+                    <th field="Code" width="6%">Code</th>
+                    <th field="Name" width="15%">BusinessUnit Name</th>
+                    <th field="ShortName" width="5%">Short Name</th>
+                    <th field="RegistrationNo" width="10%">Registration No</th>
+                    <th field="TINNo" width="10%">TIN No</th>
+                    <th field="VatNo" width="10%">Vat No</th>
+                    <th field="BusinessNatureInString" width="12%">Business Nature</th>
+                    <th field="LegalFormatInString" width="15%">Legal format</th>
+                    <th field="Address" width="18%">Address</th>
+                    <th field="Phone" width="12%">Phone</th>
+                    <th field="Email" width="12%">Email</th>
+                    <th field="WebAddress" width="13%">WebAddress</th>
+                    <th field="Note" width="10%">Note</th>
+                    <th field="IsAreaEffectSt" width="10%">Area Effect</th>
+                    <th field="IsZoneEffectSt" width="10%">Zone Effect</th>
+                    <th field="IsSiteEffectSt" width="10%">Site Effect</th>
+
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarBusinessUnit">
+            <table>
+                <tr>
+                    <td>
+                        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>                        
+                        <input type="text" id="txtSearchByName" placeholder="Search by Name" />
+                        <a id="btnAddBusinessUnit" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-add" title="Add Business Unit" plain="true">Add</a>
+                        <a id="btnEditBusinessUnit" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-edit" title="Edit Business Unit" plain="true">Edit</a>
+                        <a id="btnViewBusinessUnit" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-details" title="View Business Unit" plain="true">View</a>
+                        <a id="btnDeleteBusinessUnit" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-remove" title="Delete Business Unit" plain="true">Delete</a>
+                        <a id="btnLocationAssign" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-add" title="Assign Location" plain="true">Operation Unit</a>
+                        <a id="btnAccountHeadAssign" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-add" title="Assign Account Head" plain="true">Account Head</a>
+                        <a id="btnAddFooter" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Add Footer" iconcls="icon-add" plain="true">Add Footer</a>
+                        <a id="btnUploadLogo" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-details" title="Upload Business Unit Logo" plain="true">Upload Logo</a>
+                    </td>
+                    <td>
+                        @using (Html.BeginForm("PrintBusinessUnits", "BusinessUnit", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                        {
+                            <input type="text" name="txtBusinessUnitCollectionList" id="txtBusinessUnitCollectionList" hidden="hidden" />
+                            <input type="submit" id="btnPrintBusinessUnit" value="     Print List" class="icon-print PrintList" style="margin-top: 4px;" />
+                        }
+                        <a id="btnPrintInXLBusinessUnit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" hidden="hidden">Print in XL</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oBusinessUnit = null;
+    var _oBusinessUnits = [];
+    var _sBaseAddress = "";
+    var _oAuthorizationRolesMapping = [];
+    var _oBusinessUnitBranch = null;
+    var _nID=null;
+    $(document).ready(function() {
+        debugger;
+        _oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oBusinessUnits =sessionStorage.getItem("BusinessUnits");
+        if(oBusinessUnits!=null)
+        {
+            oBusinessUnits = jQuery.parseJSON(oBusinessUnits);  
+        }
+        else
+        {
+            oBusinessUnits=_oBusinessUnits;
+        }
+        
+        DynamicRefreshList(oBusinessUnits, 'tblBusinessUnits');
+        if(_nID!=-1)
+        {
+            $('#tblBusinessUnits').datagrid('selectRow', _nID);
+        }
+        
+        RefreshControlLayout();
+        
+        $('#btnPrintInXLBusinessUnit').hide();
+        
+    });
+    
+    $('#txtSearchByName').keyup(function(e){$('#txtSearchByName').icsSearchByText({Event: e,
+        SearchProperty: "Name",
+        GlobalObjectList: _oBusinessUnits,
+        TableId: "tblBusinessUnits"});});
+    function RefreshArguments(){
+        var sErrorMessage='Arguments;';               
+        var txtSearchByName=$("#txtSearchByName").val();
+        if(txtSearchByName!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchByName+'~';
+        }
+
+        return {ErrorMessage:sErrorMessage};
+    }
+    $('#btnRefresh').click(function(){
+        var oBusinessUnit=RefreshArguments();
+        $.icsDataGets({
+            BaseAddress: _sBaseAddress,
+            Object: oBusinessUnit,
+            ControllerName: "BusinessUnit",
+            ActionName: "Gets",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oBusinessUnits=response.objs;
+                    DynamicRefreshList(oBusinessUnits, 'tblBusinessUnits');
+                }
+            }
+        });
+    });
+    $('#btnPrintBusinessUnit').click(function(){
+        var oBusinessUnits=$('#tblBusinessUnits').datagrid('getRows');
+        if(oBusinessUnits==null||oBusinessUnits.length<=0){return false;}
+        $("#txtBusinessUnitCollectionList").val(JSON.stringify(oBusinessUnits));
+    });
+    $("#btnAddBusinessUnit").click(function(){
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits)); 
+        sessionStorage.setItem("SelectedRowIndex", -1);   
+        sessionStorage.setItem("BusinessUnitHeader", "Add BusinessUnit");
+        //var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnit?id=0";
+    });
+    $("#btnEditBusinessUnit").click(function(){
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BusinessUnitHeader", "Edit BusinessUnit");
+        window.location.href = _sBaseAddress+  "/BusinessUnit/ViewBusinessUnit?id="+oBusinessUnit.BusinessUnitID;    
+    });
+    $("#btnViewBusinessUnit").click(function(){
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BusinessUnitHeader", "View BusinessUnit");    
+        window.location.href = _sBaseAddress+  "/BusinessUnit/ViewBusinessUnit?id="+oBusinessUnit.BusinessUnitID;
+    });
+    $("#btnUploadLogo").click(function(){
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BusinessUnitHeader", "View BusinessUnit");    
+        window.location.href = _sBaseAddress+  "/BusinessUnit/ViewUploadLogo?id="+oBusinessUnit.BusinessUnitID;
+    });
+    $("#btnDeleteBusinessUnit").click(function(){
+        debugger;
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected');
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        if (oBusinessUnit.BusinessUnitID > 0) 
+        {
+            $.icsDelete({
+                BaseAddress: _sBaseAddress,
+                Object: oBusinessUnit,
+                ControllerName: "BusinessUnit",
+                ActionName: "Delete",
+                TableId: "tblBusinessUnits",
+                IsWinClose: false
+            });
+        }
+    });
+    
+   
+
+    function RefreshControlLayout() {
+        //BusinessUnit
+        $("#btnAddBusinessUnit").hide();
+        $("#btnEditBusinessUnit").hide();
+        $("#btnViewBusinessUnit").hide();
+        $("#btnDeleteBusinessUnit").hide();
+        
+        $("#btnPrintListBusinessUnit").hide();
+        $("#btnPrintInXLBusinessUnit").hide();
+
+        if (HavePermission('Add', 'BusinessUnit')) {
+            $("#btnAddBusinessUnit").show();
+        }
+        if (HavePermission('Edit', 'BusinessUnit')) {
+            $("#btnEditBusinessUnit").show();
+        }
+        if (HavePermission('View', 'BusinessUnit')) {
+            $("#btnViewBusinessUnit").show();
+        }
+        if (HavePermission('Delete', 'BusinessUnit')) {
+            $("#btnDeleteBusinessUnit").show();
+        }
+        
+        if (HavePermission('PrintList', 'BusinessUnit')) {
+            $("#btnPrintListBusinessUnit").show();
+        }
+        if (HavePermission('XLPrint', 'BusinessUnit')) {
+            $("#btnPrintInXLBusinessUnit").show();
+        }
+
+       
+    }
+
+    function HavePermission(sOperationType,sDbObject) {
+        var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nUserId === -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString === sOperationType && _oAuthorizationRolesMapping[i].DBObjectName === sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+
+
+    $("#btnLocationAssign").click(function(){
+  
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BusinessUnitHeader",oBusinessUnit.Name);
+        window.location.href = _sBaseAddress+  "/BusinessUnit/ViewBusinessLocationAssign?id="+oBusinessUnit.BusinessUnitID;
+
+    
+    });
+
+    $("#btnAccountHeadAssign").click(function(){
+  
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        debugger;
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblBusinessUnits').datagrid('getRowIndex',oBusinessUnit);
+        var oBusinessUnits= $('#tblBusinessUnits').datagrid('getRows');
+        sessionStorage.setItem("BusinessUnits", JSON.stringify(oBusinessUnits));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BusinessUnitHeader",oBusinessUnit.Name);
+        window.location.href = _sBaseAddress+  "/BusinessUnit/ViewBusinessUnitWiseAccountHeadAssign?id="+oBusinessUnit.BusinessUnitID;
+
+    
+    });
+ 
+    $('#btnAddFooter').click(function (e)
+    { 
+        var oBusinessUnit= $('#tblBusinessUnits').datagrid('getSelected'); 
+        if(oBusinessUnit==null || oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        //EnumAttchRefType : Contractor = 11        
+        window.open(_sBaseAddress + '/AttachDocument/Attachment?id='+parseInt( oBusinessUnit.BusinessUnitID)+'&RefType=11&OperationInfo= Selected Unit : '+ oBusinessUnit.Name, '_blank');
+    });
+ 
+
+</script>

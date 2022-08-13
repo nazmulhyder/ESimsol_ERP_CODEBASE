@@ -1,0 +1,415 @@
+﻿@{
+    ViewBag.Title = "Add Invoice Receive";
+}
+@model ESimSol.BusinessObjects.ExpenditureHead
+
+<div style="padding-top:5px" ng-app="ExpenditureHeadAPP" ng-controller="ExpenditureHeadCtrl" class="form-horizontal regionExpenditureHead">
+    <fieldset>
+        <legend>Expenditure Info</legend>
+        <div class="row col-md-12">
+            <div class="col-md-2 text-right"><label class="control-label">Expenditure Name:</label></div>
+            <div class="col-md-2 text-left">
+                <input ng-model="ExpenditureHead.Name" ng-disabled="disabled" class="form-control" required />
+            </div>
+            <div class="col-md-1 text-right"><label class="control-label">Head Type:</label></div>
+            <div class="col-md-2 text-right">
+                <select class="form-control" ng-model="ExpenditureHead.ExpenditureHeadTypeInt"  ng-change="changeHeadType()" ng-options="item.id as item.Value for item in ExpenditureHeadTypes"></select>
+            </div>
+            <div class="col-md-2 text-right"><label class="control-label">A/C Head:</label></div>
+            <div class="col-md-3 text-left">
+                <div class="input-group">
+                    <input ng-model="ExpenditureHead.AccountHeadName" class="form-control" ng-keydown="SearchKeyAccountHeadName($event)" placeholder="Type AccountHead & Press Enter" required />
+                    <span class="input-group-btn">
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PickAccountHead()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                    </span>
+                </div>
+                
+            </div>
+        </div>
+    </fieldset>
+    <div class="ui-grid-top-panel">
+        <div class="input-group">
+            <div class="row col-md-12">
+                <span class="input-group-btn">
+                    <input ng-model="ExpenditureHead.InvoiceNos" class="form-control" ng-keydown="SearchKeyDownPackingList($event)" placeholder="Type Name & Press Enter" required />
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PickPackingList()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> </button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="deleteDetail()" ng-hide="hide"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> </button>
+                </span>
+            </div>
+           
+        </div>
+       
+    </div>
+    <div ui-grid="gridOptions" ui-grid-selection ui-grid-cellnav class="grid"></div>
+   
+    <fieldset>
+        <legend>Action</legend>
+        <div class="row col-md-12 text-right">
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="save()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Save</span> </button>
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+        </div>
+    </fieldset>
+
+ 
+</div>
+
+
+<style type="text/css">
+
+    .grid{
+        margin-left:2px;
+        width:100%; 
+        height:380px;
+    }
+    .regionExpenditureHead .form-horizontal .control-label{
+        padding-top:3px;
+    }
+    .regionExpenditureHead .form-control{
+        height:26px;
+        padding:1px 5px;
+        font-size:12px;
+    }
+    .regionExpenditureHead .col-md-12{
+        width:100%;
+        padding-right:5px;
+        padding-left:5px;
+        margin-bottom:5px;
+    }
+    .regionExpenditureHead .col-md-2{
+        width:15%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+    .regionExpenditureHead .col-md-1{
+        width:12%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionExpenditureHead .col-md-3{
+        width:28%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    
+
+     
+    .regionExpenditureHead .btn-sm{
+         padding:3px 10px;
+     }
+     .regionExpenditureHead .input-group-addon{
+         padding: 4px 8px;
+     }
+</style>
+
+<script type="text/javascript">
+
+   var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oExpenditureHead =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oExpenditureHeadMappings =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ExpenditureHeadMappings));
+    var oExpenditureHeadTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ExpenditureHeadTypes));
+    var ExpenditureHeadModule = angular.module('ExpenditureHeadAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    ExpenditureHeadModule.controller('ExpenditureHeadCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession, msGridControl) {
+        //sessionStorage.setItem('BaseAddress',_sBaseAddress);
+        $scope.disabled= userSession.viewOption() || (oExpenditureHead.IsGRN==true)?true:false;
+        $scope.ExpenditureHead=oExpenditureHead;
+        $scope.ExpenditureHeadTypes = oExpenditureHeadTypes;
+        debugger;
+        //uigrid
+        $scope.gridOptions = {
+            enableSorting: true,
+            enableRowSelection: true,
+            enableSelectAll: false,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                { field: 'OperationTypest', name: 'Operation Type', width: '90%', enableCellEdit:false, headerCellClass: 'blue' }
+            ],
+            data: oExpenditureHeadMappings,
+            onRegisterApi: function (gridApi) {
+                $scope.gridApi = gridApi;
+            }
+        };
+
+        $scope.changeHeadType = function()
+        {
+                $scope.ExpenditureHead.AccountHeadName='';
+                $scope.ExpenditureHead.AccountHeadID=0;
+        };
+
+        // Search AccountHeadID Start
+        $scope.SearchKeyAccountHeadName=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                if(parseInt($scope.ExpenditureHead.ExpenditureHeadTypeInt)==0) { alert("Please select Expenditure Head Type"); return false; }
+                var AccountHeadName = $.trim($scope.ExpenditureHead.AccountHeadName);
+                if(AccountHeadName==""||AccountHeadName==null)
+                {
+                    alert("Type AccountHead ID Name and Press Enter");
+                    return;
+                }
+     
+                    $scope.PickAccountHead();
+               
+                
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.ExpenditureHead.AccountHeadName='';
+                $scope.ExpenditureHead.AccountHeadID = 0;
+            }
+        };
+        $scope.PickAccountHead= function () {
+            debugger;
+            if(parseInt($scope.ExpenditureHead.ExpenditureHeadTypeInt)==1) //NONe = 0;Ledger = 1, SubLedger = 2
+            { 
+                var oChartsOfAccount = {
+                    AccountTypeInInt:5,//Ledger
+                    AccountHeadName:$.trim($scope.ExpenditureHead.AccountHeadName)
+                };
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(sessionStorage.getItem('BaseAddress')+'/ChartsOfAccount/GetsbyAccountTypeOrName',$.param(oChartsOfAccount),config).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        var oColumns = [];
+                                        var oColumn = { field: 'AccountCode', name: 'Code',width: '20%'  };oColumns.push(oColumn);
+                                        oColumn = { field: 'AccountHeadName', name: 'Account Head Name',width: '50%', enableSorting: false  };oColumns.push(oColumn);
+                                        var results=jQuery.parseJSON(response.data);
+                                        var modalObj={
+                                            size:'md',
+                                            modalcontroller:'ModalCommonListCtrl',
+                                            appcontroller:'ExpenditureHeadCtrl',
+                                            objs:results,
+                                            multiSelect:false,
+                                            pickertitle:'Account Head List',
+                                            searchingbyfieldName:'AccountHeadName',
+                                            columns:oColumns
+                                        }
+                                        debugger;
+                                        var modalInstance=msModal.Instance(modalObj);
+                                        modalInstance.result.then(function (result)
+                                        {
+                                            debugger;
+                                            $scope.ExpenditureHead.AccountHeadName=result.AccountHeadName;
+                                            $scope.ExpenditureHead.AccountHeadID=result.AccountHeadID;
+                                        }, function () {
+                                            $log.info('Modal dismissed at: ' + new Date());
+                                        });
+                                    },
+                                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                                );
+            }else{
+
+              
+                var oACCostCenter = {Name:$.trim($scope.ExpenditureHead.AccountHeadName)};
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/ACCostCenter/GetACCostCenters_ForAccountEffect',JSON.stringify(oACCostCenter)).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        var oColumns = [];
+                                        var oColumn = { field: 'Code', name: 'Code',width: '20%'  };oColumns.push(oColumn);
+                                        oColumn = { field: 'Name', name: 'Head Name',width: '50%', enableSorting: false  };oColumns.push(oColumn);
+                                        var results=response.data;
+                                        var modalObj={
+                                            size:'md',
+                                            modalcontroller:'ModalCommonListCtrl',
+                                            appcontroller:'ExpenditureHeadCtrl',
+                                            objs:results,
+                                            multiSelect:false,
+                                            pickertitle:'Sub Ledger List',
+                                            searchingbyfieldName:'Name',
+                                            columns:oColumns
+                                        }
+                                        debugger;
+                                        var modalInstance=msModal.Instance(modalObj);
+                                        modalInstance.result.then(function (result)
+                                        {
+                                            debugger;
+                                            $scope.ExpenditureHead.AccountHeadName=result.Name;
+                                            $scope.ExpenditureHead.AccountHeadID=result.ACCostCenterID;
+                                        }, function () {
+                                            $log.info('Modal dismissed at: ' + new Date());
+                                        });
+                                    },
+                                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                                );
+            }
+        };
+
+        $scope.save = function () {
+            debugger;
+            //if(parseInt($scope.ExpenditureHead.ExpenditureHeadTypeInt)==0) { alert("Please select Expenditure Head Type"); return false; }
+            //if(parseInt($scope.ExpenditureHead.AccountHeadID)==0) { alert("Please Pick Account Head "); return false; }
+            $scope.ExpenditureHead.ExpenditureHeadMappings = $scope.gridOptions.data;
+            $http.post(_sBaseAddress+'/ExpenditureHead/Save',JSON.stringify($scope.ExpenditureHead)).then(
+                             function (response) {   
+                                 var result=jQuery.parseJSON(response.data);
+                                 if(result.ExpenditureHeadID>0)
+                                 {
+                                     debugger;
+                                     $scope.ExpenditureHead=result;
+                                     alert("Data Save Succefully.");
+                                     userSession.setData('ExpenditureHeads',$scope.ExpenditureHead);
+                                     userSession.previousPage();
+                                    
+                                 }
+                                 else
+                                 { alert(result.ErrorMessage);}
+                                 
+                                 
+                             },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                       );
+        };
+
+         $scope.close = function () {
+            userSession.previousPage();
+        };
+
+        $scope.SearchKeyDownPackingList =  function (e) {
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var txtInvoiceNos = $.trim($scope.ExpenditureHead.InvoiceNos);
+                if(txtInvoiceNos=="" || txtInvoiceNos==null)
+                {
+                    alert("Type Invoice No and Press Enter");
+                    return;
+                }
+                $scope.PickPackingList();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.InvoiceNos = '';
+            }
+        };
+        $scope.PickPackingList= function () {
+            var oExpenditureHeadMapping = {
+                ErrorMessage: $.trim($scope.InvoiceNos)
+            };
+           
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ExpenditureHead/GetList',$.param(oExpenditureHeadMapping), config).then(
+                    function (response)
+                    {
+                        var oColumns = [];
+                        var oColumn = { field: 'OperationTypest', name: 'OperationType',width: '80%'  };oColumns.push(oColumn);
+                       
+                        var results=jQuery.parseJSON(response.data);
+                        var modalObj={
+                            size:'lg',
+                            title:'Operation Type List',
+                            url:_sBaseAddress+'/Home/Modal',
+                            modalController:'', 
+                            appController:'ExpenditureHeadCtrl', 
+                            objs:results,
+                            multiSelect:true,
+                            pickertitle:'Operation Type List',
+                            searchingbyfieldName:'OperationTypest',
+                            columns:oColumns
+                        }
+                        var modalInstance=msModal.Instance(modalObj);
+                        modalInstance.result.then(function (result)
+                        {
+
+                            angular.forEach(result,function(value,index)
+                            {
+                                $scope.gridOptions.data.push(value);
+                            });
+                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+
+
+                        }, function () {
+                            $log.info('Modal dismissed at: ' + new Date());
+                        });
+                    },
+                        function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                );
+        };
+
+       $scope.deleteDetail = function () 
+        {
+            debugger;
+            var data = $scope.gridApi.selection.getSelectedRows();
+            if(data==null || data[0].length>0){
+                msModal.Message({headerTitle : '', bodyText:"Select an item from list", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index)
+            {
+                if (value.ExpenditureHeadMappingID == data[0].ExpenditureHeadMappingID) {
+                    $scope.gridOptions.data.splice(index, 1);
+                }
+            }, $scope.gridOptions.data);
+            //$http.post('/ExpenditureHead/DeleteDetail', JSON.stringify(data[0])).then(
+            //                function (response) 
+            //                {
+            //                    if (jQuery.parseJSON(response.data) == 'Deleted')
+            //                    {
+            //                        angular.forEach($scope.gridOptions.data, function (value, index)
+            //                        {
+            //                            if (value.ExpenditureHeadMappingID == data[0].ExpenditureHeadMappingID) {
+            //                                $scope.gridOptions.data.splice(index, 1);
+            //                            }
+            //                        }, $scope.gridOptions.data);
+            //                    }
+            //                    else {
+            //                        msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //                    }
+            //                },
+            //                function (response) { alert(jQuery.parseJSON(response.data)); }
+            //            );
+        };
+
+        $scope.Modal = function (obj, operation, url) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                //animation: $scope.animationsEnabled,
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'lg',
+                templateUrl: 'ExpenditureHeadDeatailModal.html',
+                controller: 'ModalInstanceCtrl',
+                controllerAs: 'ExpenditureHeadCtrl',
+                resolve: {
+                    obj: function () {
+                        return { ExpenditureHead:$scope.ExpenditureHead, ExpenditureHeadMapping: obj, operation: operation };
+                    }
+                }
+            });
+
+            modalInstance.result.then(function (result) {
+                if(operation=='add'){
+                    $scope.gridOptions.data.push(result);
+                    if(result.ExpenditureHead.ExpenditureHeadID>0)
+                    {
+                        $scope.ExpenditureHead=result.ExpenditureHead;
+                        userSession.setData('ExpenditureHeads',$scope.ExpenditureHead);
+                        $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                        $scope.gridApi.selection.selectRow($scope.gridOptions.data[0]);
+                    }    
+                }
+                else{
+                    $scope.gridOptions.data[$scope.index]=result;
+                    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    $scope.gridApi.selection.selectRow($scope.gridOptions.data[$scope.index]);
+                }
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+     });
+
+
+
+</script>
+
+

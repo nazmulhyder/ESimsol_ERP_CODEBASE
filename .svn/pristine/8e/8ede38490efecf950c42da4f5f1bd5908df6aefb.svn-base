@@ -1,0 +1,298 @@
+﻿@{
+    ViewBag.Title = "Financial Position Mgt. Report Setup";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FPMReportSetup>
+
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+                <div class="col-md-12">
+                    <div class="form-inline">
+                        <label>SetUp Type: </label>
+                        <select ng-model="cboSetUpType" id="cboSetUpType" class="form-control" ng-change="changeSetUpType()" ng-options="item.id as item.Value for item in SetUpTypes" style="width: 160px;"></select>
+                        <label>Sub Set Up: </label>
+                        <select ng-model="cboSubSetUp" class="form-control"  ng-options="item.id as item.Value for item in SubSetUpList" style="width: 200px;"></select>
+                        <label>A/C Head: </label>
+                        <input class="form-control" type="text" ng-keydown="SearchKeyDownAccountHead($event)" placeholder="Type A/C Head Nme & Press Ener" ng-model="txtAccountHeadName" style="width:230px;" />
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Save()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Update()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Print()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span></button>
+                    </div>
+                    <div ui-grid="gridOptions1" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 485px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFPMReportSetupList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oSetUpTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.SetUpTypes)); 
+
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+        oSetUpTypes[0].Value='--Select One--';
+       var oSubSetUpList =[{id:0,Value:'--Select One--'}];
+        $scope.SetUpTypes = oSetUpTypes;
+        $scope.SubSetUpList = oSubSetUpList;
+        $scope.cboSetUpType= $scope.cboSubSetUp = 0;
+        $scope.FPMReportSetup = {FPMReportSetupID:0, AccountHeadID:0};
+        $scope.index = -1;
+        $scope.IsUpdate = false;
+
+        $scope.gridOptions1 ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs: [
+                { field: 'SetUpTypeInString', name: 'SetUp Type', width: '20%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'SubSetupInString', name: 'Sub Setup', width: '20%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'AccountCode', name: 'Code', width: '20%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'AccountHeadName', name: 'A/C Head Name', width: '35%',  cellClass: 'text-left',enableCellEdit:false   }
+            ],
+            data:oFPMReportSetupList,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    debugger;
+                    $scope.FPMReportSetup.FPMReportSetupID = row.entity.FPMReportSetupID;
+                    $scope.cboSetUpType = row.entity.SetUpType;
+                    $scope.changeSetUpType();
+                    $scope.cboSubSetUp = row.entity.SubSetUp;
+                    $scope.txtAccountHeadName = row.entity.AccountHeadName;
+                    $scope.FPMReportSetup.AccountHeadID = row.entity.AccountHeadID;
+                    $scope.index = $scope.gridOptions1.data.indexOf(row.entity);
+                }); 
+
+            }
+        };
+
+        $scope.Update = function()
+        {
+            if( $scope.FPMReportSetup.FPMReportSetupID<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Please Select a Item From List', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.IsUpdate = true;
+            $scope.Save();
+        }
+
+        $scope.Save = function () {
+            debugger;
+            if($scope.cboSetUpType <= 0 || $scope.cboSetUpType == undefined || $scope.cboSetUpType == null) {
+                msModal.Message({headerTitle : '', bodyText:'Please Select SetUpType', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            //if($scope.cboSubSetUp <= 0 || $scope.cboSubSetUp == undefined || $scope.cboSubSetUp == null)
+            //{
+            //    msModal.Message({headerTitle : '', bodyText:'Please Select Process', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //    return false;
+            //}
+            if($scope.FPMReportSetup.AccountHeadID<= 0) {
+                msModal.Message({headerTitle : '', bodyText:'Please Enter AccountHeadName', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var oFPMReportSetup = {
+                FPMReportSetupID : $scope.FPMReportSetup.FPMReportSetupID,
+                SetUpType: $scope.cboSetUpType,
+                SubSetUp:$scope.cboSubSetUp,
+                AccountHeadID: $scope.FPMReportSetup.AccountHeadID
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/CapacityAllocation/SaveFPMReportSetup',$.param(oFPMReportSetup), config).then(function (response){
+
+                debugger;
+                var oFPMReportSetup=jQuery.parseJSON(response.data);
+                if( oFPMReportSetup.FPMReportSetupID > 0)
+                {
+                    debugger;
+                    alert("Successfull Saved.");
+                    if(!$scope.IsUpdate)
+                    {
+                        $scope.gridOptions1.data.push(oFPMReportSetup);
+                    }else{
+                        if($scope.index!=1)
+                        {
+                            $scope.gridOptions1.data[$scope.index]=oFPMReportSetup;
+                        }
+                    }
+                    $scope.txtAccountHeadName = '';
+                    $scope.cboSubSetUp = $scope.FPMReportSetup.AccountHeadID = 0;
+                    $scope.index = -1;
+                    $('#cboSetUpType').focus();
+                }
+                else{
+                    msModal.Message({headerTitle : '', bodyText:oFPMReportSetup.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                }
+            },
+                             function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage);}
+             );
+        };
+
+        $scope.changeSetUpType= function()
+        {
+            debugger;
+            var obj = {
+                SetUpTypeInt:$scope.cboSetUpType
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/CapacityAllocation/GetSubSetUpList',$.param(obj), config).then(
+            function (response) 
+            {
+                debugger;
+                results=jQuery.parseJSON(response.data);
+                results.push({id:0,Value:'--Select One--'});
+                $scope.SubSetUpList=results;
+                if($scope.cboSubSetUp>0 )
+                {
+                    $scope.cboSubSetUp = $scope.cboSubSetUp;
+                }else{
+                    $scope.cboSubSetUp = 0;
+                }
+                
+            }, function () {
+                $log.info('FPMReportSetup Dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.remove = function () {
+            debugger;
+            var oFPMReportSetup=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oFPMReportSetup==null || oFPMReportSetup.FPMReportSetupID<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            
+            var SelectedRowIndex=$scope.gridOptions1.data.indexOf(oFPMReportSetup);
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/CapacityAllocation/DeleteFPMReportSetup',JSON.stringify(oFPMReportSetup)).then(
+                            function (response) {
+                                var sMessage= jQuery.parseJSON(response.data).toLowerCase();
+                                if(sMessage=='deleted')
+                                {
+                                    alert("Successfully Deleted.");
+                                    $scope.gridOptions1.data.splice(SelectedRowIndex,1);
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        //Print
+        $scope.Print = function () {
+            debugger;
+            window.open(sessionStorage.getItem('BaseAddress') +'/CapacityAllocation/PrintFPMgtReport?sParam=');
+
+        };
+
+        $scope.SearchKeyDownAccountHead=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var AccountHeadName = $.trim($scope.txtAccountHeadName);
+                if(AccountHeadName==""||AccountHeadName==null)
+                {
+                    alert("Type AccountHead Name and Press Enter");
+                    return;
+                }
+                $scope.PickAccountHead();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtAccountHeadName='';
+                $scope.FPMReportSetup.AccountHeadID = 0;
+            }
+        };
+        $scope.PickAccountHead= function () {
+            // debugger;
+            if($scope.cboSetUpType<=0)
+            {
+                alert("Please Select SetUp Type");
+                return;
+            }
+            var oFPMReportSetup = {
+                SetUpTypeInt: $scope.cboSetUpType,
+                AccountHeadName:$.trim($scope.txtAccountHeadName)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/CapacityAllocation/GetAccountHeads',$.param(oFPMReportSetup), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    var oColumns = [];
+                                    var oColumn = { field: 'AccountCode', name: 'Code',width: '30%'  };oColumns.push(oColumn);
+                                    oColumn = { field: 'AccountHeadName', name: 'AccountHead Name',width: '65%', enableSorting: false  };oColumns.push(oColumn);
+                                    var results= jQuery.parseJSON(response.data);
+                                    var modalObj={
+                                        size:'md',
+                                        //url:sessionStorage.getItem('BaseAddress')+'/CommonModal/CommonListModal',
+                                        modalcontroller:'ModalCommonListCtrl',
+                                        appcontroller:'CapacityAllocationController',
+                                        objs:results,
+                                        multiSelect:false,
+                                        pickertitle:'AccountHead List',
+                                        searchingbyfieldName:'AccountHeadName',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        $scope.txtAccountHeadName=result.AccountHeadName;
+                                        $scope.FPMReportSetup.AccountHeadID=result.AccountHeadID;
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+        };
+
+    });
+
+
+    </script>
+
+
+
+

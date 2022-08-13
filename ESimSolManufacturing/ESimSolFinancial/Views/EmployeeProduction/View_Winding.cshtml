@@ -1,0 +1,594 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Winding  Receive</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+
+    @model IEnumerable<ESimSol.BusinessObjects.EmployeeProduction>
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 1025px; color: White">
+                    <label id="lblHeader" style="font-size:20px; font-weight: bold; text-decoration: Underline; font-family:Tahoma">
+                        Winding  Receive
+                    </label>
+                </td>
+            </tr>
+
+        </table>
+        <div style="margin-left:0px; height:452px; font-family:Tahoma">
+            <table id="tblWindingList" class="easyui-datagrid" style="width:1025px;height:452px;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+
+                <thead>
+                    <tr>
+                        <th field="IssueDateInString" width="110" align="center">Issue Date</th>
+                        <th field="EmployeeNameCode" width="250" align="left">Employee</th>
+                        <th field="IssueQty" width="90" align="center">Issue(lbs)</th>
+                        <th field="RcvQty" width="90" align="center">Rcv(lbs)</th>
+                        <th field="EmpWiseBalanceQty" width="90" align="center">Balance(lbs)</th>
+                        <th field="RcvByDateInString" width="110" align="center">Receive Date</th>
+                        <th field="GPName" width="120" align="center">Yarn Category</th>
+                        @*<th field="ColorName" width="90" align="center" >Color</th>
+                            <th field="SizeCategoryName" width="90" align="center" >Size</th>*@
+                        <th field="ActivityStatus" width="100" align="center">Activity</th>
+
+                    </tr>
+                </thead>
+            </table>
+            ​<table>
+                <tr>
+                    <td>
+                        Load <input id="txtLoadRecords" type="text" style="width:70px" />  &nbsp; Records &nbsp; &nbsp;
+                        <label id="lblcount"></label>
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Next()">Next</a>
+                    </td>
+
+                </tr>
+            </table>
+            <div id="toolbar" style="height : 75px;">
+
+
+                Style : <input id="txtStyle" type="text" style="width:140px;" />
+                Yarn Category : <select id="cboGarmentPart" style="width:130px;"></select>
+
+                Emp. :  <input id="txtTrimEmpCode" type="text" style="width:120px;" placeholder="Type Code & Enter" />
+                <input id="btnTrimEmployeePicker" type="button" value="P" />&nbsp;
+
+                Qty. : <input id="txtIssueReceiveQty" type="text" style="width:50px; " />&nbsp; lbs &nbsp;
+                <input id="dtDate" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat" />&nbsp;
+                <a id="btnIssueReceive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Receive</a>
+
+                <a id="btnAdvanceEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Adv. Edit</a>
+
+                <br />
+                <hr />
+                <input id="chkIssueDateWise" type="checkbox" />Issue Date Wise
+                <input id="chkReceiveDateWise" type="checkbox" />Receive Date Wise
+                <input id="dtDateFrom" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat" />&nbsp; To &nbsp;
+                <input id="dtDateTo" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat" />&nbsp;&nbsp;
+                <input id="txtCode" type="text" style="width:140px;" placeholder="Type Code & Enter" />
+                <input id="btnEmployeePicker" type="button" value="P" />
+                Yarn Category : <select id="cboGarmentPartForSearch" style="width:120px;"></select>
+                <input id="chkLoginUser" type="checkbox" checked="checked" />Login User
+                <a id="btnSearchByCodeNo" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="SearchWithPasignation()"></a>
+
+
+            </div>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oWindingLists=null;
+    var _sBaseAddress="";
+    var _obj=null;
+    var _sPSNo="";
+    var _oEmployee = null;
+    var _oWinding = null;
+    var _nRQty = 0;
+    var _bFlag = 0;
+    var _nReferenceEPSID = 0;
+    var _nOrderRecapDetailID = 0;
+    var _bFlag1 = true;
+    var _nEmployeeID = 0;
+    var _nEPSID = 0;
+    var _nLoadRecords = 0;
+    var _nRowLength = 0;
+    var _bNext = false;
+    var _nLastEPSID = 0;
+    var _oEmployeeProductions = [];
+    var _nOrderRecapID = 0;
+
+    $(document).ready(function ()
+    {
+
+        _oWindingLists =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        @*var bAdvanceEdit =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["AdvanceEdit"]));*@
+
+        _obj = window.dialogArguments;
+        $('#txtLoadRecords').numberbox({min:0, precision:0 });
+        $('#txtLoadRecords').numberbox('setValue',100);
+        $('#dtDate').datebox('setValue', icsdateformat(new Date()));
+        $('#dtDateFrom').datebox('setValue', icsdateformat(new Date()));
+        $('#dtDateTo').datebox('setValue', icsdateformat(new Date()));
+        LoadWindingGarmentPart();
+        document.getElementById("txtStyle").value = "Posmi_Winding";
+        document.getElementById("txtStyle").readOnly = true;
+        //if(bAdvanceEdit==false)
+        //{
+        //    document.getElementById("btnAdvanceEdit").style.display='none';
+        //}
+        $("#cboGarmentPart").focus();
+    });
+
+    function RefreshList(oWindingLists)
+    {
+        data = oWindingLists ;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblWindingList').datagrid('loadData', data);
+    }
+
+    function  icsdateformat(date)
+    {
+        var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var y = date.getFullYear();
+        var m = date.getMonth();
+        var d = date.getDate();
+        var result= d +' '+ mthNames[m]+' '+ y;
+        return result;
+    }
+
+    function LoadWindingGarmentPart()
+    {
+
+        $("#cboGarmentPart").empty();
+        var listItems="";
+        listItems += "<option value=0>" +"--None--" +"</option>";
+        for (i = 0; i < _oWindingLists[0].TechnicalSheetBodyParts.length; i++)
+        {
+            listItems += "<option value='" +_oWindingLists[0].TechnicalSheetBodyParts[i].GPID+"'>" + _oWindingLists[0].TechnicalSheetBodyParts[i].GPName+"</option>";
+        }
+        $("#cboGarmentPart").html(listItems);
+        $("#cboGarmentPartForSearch").html(listItems);
+    }
+
+    $('#txtCode').keypress(function (e)
+    {
+        _nEmployeeID= 0;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var sEmpCode=document.getElementById("txtCode").value;
+
+        if (code == 13)//Enter key-13
+        {
+            if(sEmpCode=="")
+            {
+                alert("Please Enter Code !");
+                return;
+            }
+            var nts=(new Date()).getTime()/1000;
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = false;
+            var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID="+_oWindingLists[0].EmployeeOfficial.DepartmentID+"&nts="+nts;
+
+            _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(_oEmployee!=null)
+            {
+                if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                {
+                    alert("This Employee Has No Official Information !");
+                    return;
+                }
+                _nEmployeeID = _oEmployee.EmployeeID;
+                $("#txtCode")[0].value=_oEmployee.Name+"["+_oEmployee.Code+"]";
+
+            }
+        }
+    });
+
+    $('#txtTrimEmpCode').keypress(function (e)
+    {
+        _nEmployeeID= 0;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var sEmpCode=document.getElementById("txtTrimEmpCode").value;
+
+        if (code == 13)//Enter key-13
+        {
+            if(sEmpCode=="")
+            {
+                alert("Please Enter Code !");
+                return;
+            }
+            var nts=(new Date()).getTime()/1000;
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = false;
+            var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID="+_oWindingLists[0].EmployeeOfficial.DepartmentID+"&nts="+nts;
+
+            _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(_oEmployee!=null)
+            {
+                if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                {
+                    alert("This Employee Has No Official Information !");
+                    return;
+                }
+                _nEmployeeID = _oEmployee.EmployeeID;
+                $("#txtTrimEmpCode")[0].value=_oEmployee.Name+"["+_oEmployee.Code+"]";
+
+            }
+        }
+    });
+
+    function SearchWithPasignation()
+    {
+        if(!_bNext)
+        {
+            _nRowLength = 0;
+            _nLastEPSID = 0;
+        }
+        var sDepartmentIDs = "";
+        var bIssueDateWise= false;
+        var bReceiveDateWise= false;
+        var dtDateFrom = $('#dtDateFrom').datebox('getValue');
+        var dtDateTo = $('#dtDateTo').datebox('getValue');
+        var nLoginID = 0;
+        var sUserIds="";
+        var  sCode = "";
+        var nGarmentPart = 0;
+        var nSizeCategoryID = 0;
+        bIssueDateWise = document.getElementById("chkIssueDateWise").checked;
+        bReceiveDateWise = document.getElementById("chkReceiveDateWise").checked;
+        nGarmentPart=document.getElementById("cboGarmentPartForSearch").value;
+        if(_oEmployee != null)
+        {
+            sCode = _oEmployee.Code;
+        }
+
+        var nOrderRecapIds = "" ;
+        var nPP = 9;//Production Process= Winding (9)
+        var sStyleNos="";
+
+        if(document.getElementById("chkLoginUser").checked == true)
+        {
+            nLoginID = 1;
+        }
+
+        //var sParam = dtDateFrom + "~"+ dtDateTo + "~" + sCode + "~" + nOrderRecapId+ "~" + sStyleNos + "~" + nPP ;
+        _nLoadRecords = document.getElementById("txtLoadRecords").value;
+        var sParam = dtDateFrom + "~"+ dtDateTo + "~" + sCode + "~" + nOrderRecapIds+ "~" + sStyleNos + "~" + nPP+ "~" + bIssueDateWise+ "~" + bReceiveDateWise+"~"+sDepartmentIDs+"~"+nLoginID+"~"+sUserIds+"~"+nGarmentPart+"~"+nSizeCategoryID+"~"+_nLoadRecords+"~"+_nRowLength;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeProduction/SearchByCodeAndDate",
+            traditional: true,
+            data: JSON.stringify({sParam : sParam}),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                var oEmployeeProductions=[];
+                oEmployeeProductions = jQuery.parseJSON(data);
+
+                if (oEmployeeProductions.length>0 && oEmployeeProductions[0].ErrorMessage=="")
+                {
+                    if(!_bNext)
+                    {
+                        _oEmployeeProductions=[];
+                        RefreshList(_oEmployeeProductions);
+                    }
+
+                    for (var j = 0; j < oEmployeeProductions.length; j++)
+                    {
+                        $('#tblWindingList').datagrid('appendRow',oEmployeeProductions[j]);
+                    }
+                }
+                else
+                {
+                    if(_bNext == false)
+                    {
+                        alert("Data not found !!");
+                        _oEmployeeProductions=[];
+                        RefreshList(_oEmployeeProductions);
+                    }
+                    else
+                    {
+                        alert("No more data found !");
+                    }
+                }
+                var oEmployeeProductions=$('#tblWindingList').datagrid('getRows');
+                document.getElementById("lblcount").innerHTML = " | Count ="+ oEmployeeProductions.length;
+                _bNext = false;
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    function Next()
+    {
+        var oEmployeeProductions =[];
+        oEmployeeProductions=$('#tblWindingList').datagrid('getRows');
+        _nRowLength = oEmployeeProductions.length;
+        _bNext = true;
+
+        if (oEmployeeProductions.length<=0)
+        {
+            alert('Please Select Criteria and click on "Search" to find information.!!');
+            return;
+        }
+        var oEmployeeProduction = oEmployeeProductions[oEmployeeProductions.length-1];
+
+        if (_nLastEPSID==oEmployeeProduction.EPSID)
+        {
+            alert('No more data found by this date range');
+            return;
+        }
+        _nLastEPSID=oEmployeeProduction.EPSID;
+        SearchWithPasignation()
+    }
+
+    $('#btnTrimEmployeePicker').click(function (e)
+    {
+        _nEmployeeID= 0;
+        var oParameter = new Object();
+        oParameter.Name = "Employee Advance Search";
+        oParameter.MultipleItemReturn=false;
+        var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+        _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:1000px;dialogLeft:150;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+        if(_oEmployee!=null)
+        {
+            if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+            {
+                alert("This Employee Has No Official Information !");
+                return;
+            }
+            $("#txtTrimEmpCode")[0].value=_oEmployee.Name+"["+_oEmployee.Code+"]";
+            _nEmployeeID = _oEmployee.EmployeeID;
+        }
+    });
+
+    $('#btnEmployeePicker').click(function (e)
+    {
+        _nEmployeeID= 0;
+        var oParameter = new Object();
+        oParameter.Name = "Employee Advance Search";
+        oParameter.MultipleItemReturn=false;
+        var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+        _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:1000px;dialogLeft:150;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+        if(_oEmployee!=null)
+        {
+            if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+            {
+                alert("This Employee Has No Official Information !");
+                return;
+            }
+            $("#txtCode")[0].value=_oEmployee.Name+"["+_oEmployee.Code+"]";
+            _nEmployeeID = _oEmployee.EmployeeID;
+        }
+    });
+
+
+    function ValidateInputForIssue()
+    {
+
+        if(_oEmployee==null && _nEmployeeID == 0)
+        {
+            alert("Please Enter Employee!");
+            $("#txtTrimEmpCode").focus();
+            return false;
+        }
+
+        var nIssueQty=parseFloat(document.getElementById("txtIssueReceiveQty").value);
+        if(nIssueQty==0 || isNaN(nIssueQty)|| nIssueQty == null)
+        {
+
+            alert("Please Enter Issue Qty!");
+            $("#txtIssueReceiveQty").focus();
+            return false;
+        }
+
+        if( document.getElementById("cboGarmentPart").value == 0)
+        {
+            alert("Please select yarn category!");
+            $("#cboGarmentPart").focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    function RefreshObjectForIssue()
+    {
+
+        var oEmployeeProduction=
+        {
+            EPSID : _nEPSID,
+            EmployeeID : _nEmployeeID,
+            OrderRecapDetailID : _oWindingLists[0].OrderRecapDetails[0].OrderRecapDetailID,
+            ProductionProcessInt : 9,
+            GPID : document.getElementById("cboGarmentPart").value,
+            MachineNo : 0,
+            TSPID : 0,
+            IssueQty : document.getElementById("txtIssueReceiveQty").value,
+            IssueDate : $('#dtDate').datebox('getValue'),
+            ReferenceEPSID : 0
+
+        }
+
+        return oEmployeeProduction;
+    }
+
+    $('#btnIssueReceive').click(function (e)
+    {
+
+        if (!ValidateInputForIssue()) return;
+        var oEmployeeProduction = RefreshObjectForIssue();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeProduction/EmployeeProduction_IU",
+            traditional: true,
+            data: JSON.stringify(oEmployeeProduction),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                _opEmployeeProduction = jQuery.parseJSON(data);
+                if (_opEmployeeProduction.ErrorMessage == "")
+                {
+
+                    Approve();
+
+                }
+                else
+                {
+                    alert(_opEmployeeProduction.ErrorMessage);
+                }
+
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $('#btnAdvanceEdit').click(function (e)
+    {
+
+        var oEPS = $('#tblWindingList').datagrid('getSelected');
+        if(oEPS == null)
+        {
+            alert("Please select an item from the list !");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblWindingList').datagrid('getRowIndex',oEPS);
+        var oParameter = new Object();
+        oParameter.oOrderRecape=_obj.oOrderRecape;
+        oParameter.Name = "EPS Advance Edit";
+        var tsv = ((new Date()).getTime()) / 1000;
+        var url = _sBaseAddress + "/EmployeeProduction/View_AdvanceEdit?EmployeeProductionID="+ oEPS.EPSID+"&ts=" + tsv;
+        var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:310px;dialogWidth:380px;dialogLeft:400;dialogRight:100;dialogTop:250;center:yes;resizable:no;status:no;scroll:no');
+
+        if(oEPS !=null)
+        {
+
+            $('#tblWindingList').datagrid('updateRow',{index: SelectedRowIndex,	row: oEPS});
+
+        }
+
+    });
+
+
+    function RefreshObject()
+    {
+
+        var oEmployeeProductionReceiveDetail=
+        {
+            EPSRDID : 0,
+            EPSID : _opEmployeeProduction.EPSID,
+            RcvQty : document.getElementById("txtIssueReceiveQty").value,
+            RcvByDate : $('#dtDate').datebox('getValue')
+        }
+        return oEmployeeProductionReceiveDetail;
+    }
+
+    function Receive()
+    {
+        var oEmployeeProductionReceiveDetail = RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeProduction/EmployeeProductionReceiveDetail_IU",
+            traditional: true,
+            data: JSON.stringify({oEmployeeProductionReceiveDetail:oEmployeeProductionReceiveDetail}),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                var oEmployeeProduction = jQuery.parseJSON(data);
+                alert("Received sucessfully");
+
+                var oEPSs = $('#tblWindingList').datagrid('getRows');
+                var nIndex = oEPSs.length;
+                $('#tblWindingList').datagrid('appendRow', oEmployeeProduction);
+                $('#tblWindingList').datagrid('selectRow', nIndex);
+                BlankAndFocus();
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    function BlankAndFocus()
+    {
+        $("#cboGarmentPart").focus();
+        document.getElementById("txtTrimEmpCode").value = "";
+        _nEmployeeID = 0;
+        document.getElementById("txtIssueReceiveQty").value = "";
+    }
+
+    function Approve()
+    {
+
+
+        if (_opEmployeeProduction.ApproveBy > 0)
+        {
+            alert("Already Approve!");
+            return ;
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeProduction/EmployeeProduction_Approve",
+            traditional: true,
+            data: JSON.stringify({nId:_opEmployeeProduction.EPSID}),
+            contentType: "application/json; charset=utf-8",
+            success: function(data)
+            {
+                var oEmployeeProduction=[];
+
+                oEmployeeProduction = jQuery.parseJSON(data);
+                if (oEmployeeProduction.ErrorMessage=="")
+                {
+                    Receive() ;
+                }
+                //else
+                //{
+                //alert(oEmployeeProduction.ErrorMessage);
+                //}
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    $('#txtTrimEmpCode').click(function (e)
+    {
+        $("#txtTrimEmpCode")[0].value = "";
+    });
+    $('#txtCode').click(function (e)
+    {
+        $("#txtCode")[0].value = "";
+    });
+
+</script>

@@ -1,0 +1,177 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.TableColumn>
+<div style="font-family: Tahoma">
+    <fieldset>
+        <div style="font-size: 13px;">
+            <span><strong>Select:</strong> </span>
+            <input type="checkbox" id="chkTable" /><span style="padding-right: 15px;"> Table</span>
+            <input type="checkbox" id="chkView" /><span style="padding-right: 15px;"> View</span>
+        </div>
+        <div>
+            <div style="float: left; width: 100%;">
+                <table id="tblTableViewsName" title="Default View" class="easyui-datagrid" style="width: 100%;
+                    height: 350px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+                    autorowheight="false" toolbar="#toolbar">
+                    <thead>
+                        <tr>
+                            <th field="Name" width="220">
+                                Name
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+        <div id="toolbar">
+           <input type="text" placeholder="Search By Name" id="txtName" style=" width:180px; font-size:11px;" /> 
+           <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload"
+                plain="true"></a>
+        </div>
+        <div style="float: right">
+            <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                plain="true">Ok</a> <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton"
+                    iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+        </div>
+    </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript"> 
+var _oTableViewsNames=[];
+var _nTableCount=0;
+var _sBaseAddress="";
+var _oTables=[];
+var _oViews=[];
+$(document).ready(function () {
+    debugger;     
+    var obj=window.dialogArguments;
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                            
+    _oTableViewsNames =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nTableCount =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.TableCount));
+
+    LoadintoGrid(_oTableViewsNames);
+    if(_oTableViewsNames.length>0)
+    {
+      _oTables=[];
+      for(var i=0; i<_nTableCount;i++)
+      {
+         _oTables.push(_oTableViewsNames[i]);
+      }
+      _oViews=[];
+      for(var n=_nTableCount; n<_oTableViewsNames.length;n++)
+      {
+         _oViews.push(_oTableViewsNames[n]);
+      }
+    }
+});
+
+
+function LoadintoGrid(oTableViewsName)
+{
+    $('#tblTableViewsName').empty();
+    data=oTableViewsName;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblTableViewsName').datagrid('loadData',data); 
+}
+
+
+$('#chkTable').change(function(e)
+{
+    if(document.getElementById('chkTable').checked==true)
+    {
+      document.getElementById('chkView').checked=false; 
+       LoadintoGrid(_oTables); 
+    }  
+    else
+    {
+     LoadintoGrid(_oTableViewsNames);
+    }  
+});
+$('#chkView').change(function(e)
+{
+    if(document.getElementById('chkView').checked==true)
+    {
+      document.getElementById('chkTable').checked=false; 
+      LoadintoGrid(_oViews);
+    } 
+    else
+    {
+     LoadintoGrid(_oTableViewsNames);
+    }    
+});
+
+
+
+
+$('#txtName').keydown(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13)//Enter key
+    {
+       var oTableViewsNames=[];
+       oTableViewsNames=$('#tblTableViewsName').datagrid('getRows');
+        if (oTableViewsNames.length <= 0) {
+                alert("There are no data for searching!!!!");
+                    return;
+        }
+       
+        var sSearchByName = document.getElementById('txtName').value;
+        if($(sSearchByName).trim!="")
+        {
+            var sName = "";
+            var oSearchedData = [];
+            var n = 0;
+            for (i = 0; i < oTableViewsNames.length; ++i) {
+                sName = oTableViewsNames[i].Name;
+                n = 0;
+                n = sName.toUpperCase().indexOf(sSearchByName.toUpperCase())
+                if (n != -1) {
+                    oSearchedData.push(oTableViewsNames[i]);
+                }
+            }
+            LoadintoGrid(oSearchedData);
+        }
+        else
+        {
+          LoadintoGrid(oTableViewsNames);
+        }
+    }
+});
+
+$('#btnRefresh').click(function(e)
+{
+  LoadintoGrid(_oTableViewsNames);
+});
+
+
+$('#btnOk').click(function(e)
+{
+   var oTableViewsName=$('#tblTableViewsName').datagrid('getSelected');
+   if(oTableViewsName!=null)
+   {
+     window.returnValue=oTableViewsName;
+     window.close();
+   }
+   else{
+   alert("Please select an item from list.");
+   }
+ });
+function Close()
+{
+    
+    window.close();
+}
+
+
+
+</script>

@@ -1,0 +1,204 @@
+﻿<html>
+<head>  
+
+</head>
+<body>
+
+    @model ESimSol.BusinessObjects.Property
+    <div id="divProperty" class="easyui-panel" title="Add Property" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; align-content:center;">
+
+
+            <fieldset style="height:97%">
+                <legend style="font-weight:bold"> Property Informations</legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%;margin-top:50px;">
+                    <tr>
+                        <td style="width: 40%;text-align: right">
+                            Name:
+                        </td>
+                        <td style="text-align: left;width:60%;">
+                            @Html.TextBoxFor(model => model.PropertyName, new { style = "width: 235px;", id = "txtPropertyName" })
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="width: 40%; text-align: right">
+                            Note:
+                        </td>
+                        <td style="width:60%; text-align: left">
+                            @Html.TextBoxFor(model => model.Note, new { style = "width: 235px;", id = "txtNote" })
+                        </td>
+                        <td></td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight:bold">Actions</legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;font-weight:bold; width:100%;">
+
+                    <tr>
+                        <td style="width: 80%;"></td>
+                        <td style="width: 10%; text-align: right">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        </td>
+                        <td style="width: 10%; text-align: right">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+
+                </table>
+            </fieldset>
+        </div>
+    </div>        
+</body>
+</html>
+<script type="text/javascript">
+    var _sPropertyHeader,_sBaseAddress,_nMenuid,_sPropertyBackTo=null;
+    var _oProperty = null;
+$(document).ready(function () {
+    _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+    _oProperty =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _sPropertyHeader=sessionStorage.getItem("PropertyHeader");
+    _sPropertyBackTo=sessionStorage.getItem("PropertyBackTo");
+    $('#divProperty').panel({ title:_sPropertyHeader});
+
+
+    if (_sPropertyHeader == "View Property")
+    {
+        $("#btnSave").hide();
+        $('#divProperty input,select').prop('disabled',true);
+    }
+});
+
+
+$('#btnClose').click(function (e) {
+    window.location.href = _sPropertyBackTo;
+})
+
+function ValidateInput()
+{
+    var sPropertyName =$("#txtPropertyName").val();
+    if (sPropertyName =="")
+    {
+        alert("Please Provide Name");
+        $("#txtPropertyName").addClass("errorFieldBorder");
+        $("#txtPropertyName").focus();
+        return false;
+    } else {
+        $("#txtPropertyName").removeClass("errorFieldBorder");
+    }
+    var sNote =$("#txtNote").val();
+    if (sNote =="")
+    {
+        alert("Please Provide Note");
+        $("#txtNote").addClass("errorFieldBorder");
+        $("#txtNote").focus();
+        return false;
+    } else {
+        $("#txtNote").removeClass("errorFieldBorder");
+    }
+    return true;
+}
+
+function RefreshObject()
+{
+    var oProperty= {
+        PropertyID: _oProperty==null?0: _oProperty.PropertyID,
+        PropertyName : $.trim($("#txtPropertyName").val()),
+        Note : $.trim($("#txtNote").val()),
+    };
+    return oProperty;
+}
+$('#btnSave').click(function ()
+{
+    if(!ValidateInput()) return false;
+    var oProperty=RefreshObject();
+
+    $.icsSave({ BaseAddress: _sBaseAddress,
+        Object: oProperty,
+        ObjectId: oProperty.PropertyID,
+        ControllerName: "Property",
+        ActionName: "Save",
+        Message: "Data Saved sucessfully."},function(resp){
+            debugger;
+            if(resp.status && resp.obj!=null){
+                if(resp.obj.PropertyID>0){
+                    var oProperty =resp.obj;
+                    var oPropertys =sessionStorage.getItem("Propertys");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oPropertys!=null)
+                    {
+                        oPropertys = jQuery.parseJSON(oPropertys);
+                    }
+                    else
+                    {
+                        oPropertys=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oPropertys[nIndex]=oProperty;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oPropertys.length);
+                        oPropertys.push(oProperty);
+                    }
+                    sessionStorage.setItem("Propertys", JSON.stringify(oPropertys));
+                    window.location.href = _sPropertyBackTo;
+                }
+            }
+        });
+
+    @*$.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("Save", "Property")',
+        data:  JSON.stringify(oProperty),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oProperty = jQuery.parseJSON(data);
+            if (oProperty.ErrorMessage == '' || oProperty.ErrorMessage == null)
+            {
+                var oPropertys =sessionStorage.getItem("Propertys");
+                var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                if(oPropertys!=null)
+                {
+                    oPropertys = jQuery.parseJSON(oPropertys);
+                }
+                else
+                {
+                    oPropertys=[];
+                }
+                if(nIndex!=-1)
+                {
+                    oPropertys[nIndex]=oProperty;
+                }
+                else
+                {
+                    sessionStorage.setItem("SelectedRowIndex", oPropertys.length);
+                    oPropertys.push(oProperty);
+                }
+                sessionStorage.setItem("Propertys", JSON.stringify(oPropertys));
+                
+            }
+            else
+            {
+                alert(oProperty.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });*@
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.close();
+    }
+});
+</script>

@@ -1,0 +1,284 @@
+﻿@{
+    ViewBag.Title = "Cash Flow Manage";
+}
+@model IEnumerable<ESimSol.BusinessObjects.CashFlow>
+    
+<div id="winCashFlowManaged" class="easyui-window" title="Cash Flow Manage" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+    <div id="divCashFlowManaged" tabindex="-1">
+        <table id="tblTempCashFlow" class="easyui-datagrid" style="width:900px;height:350px;margin:0;" data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false ">
+            <thead>
+                <tr>                    
+                    <th field="VoucherNo" width="120">Voucher No</th>
+                    <th field="VoucherDateST" width="70">Voucher Date</th>
+                    <th field="DisplayCaption" width="140">Display Caption</th>
+                    <th field="AccountHeadName" width="120">Account Head</th>
+                    <th field="Narration" width="280">Narration</th>
+                    <th field="AmountST" width="110" align="right">Amount</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div>
+        Cash Flow Head : <select id="cboTempCashFlowHead" style="width:250px;"></select>
+    </div>
+    <fieldset class="actionfieldsetstyle">
+        <legend>Actions : </legend>
+        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+    </fieldset>
+</div>
+
+<div class="menuMainCollectionTable">
+    <table id="tblCashFlows" title="Cash flow List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" showfooter="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th data-options="field:'Selected',checkbox:true"></th>
+                <th field="VoucherNo" width="120">Voucher No</th>
+                <th field="VoucherDateST" width="70">Voucher Date</th>
+                @*<th field="DisplayCaption" width="140">Display Caption</th>*@
+                <th field="AccountHeadName" width="120">Effected Ledger</th>
+                <th field="SubGroupName" width="120">Effected Sub Group</th>
+                <th field="Narration" width="280">Narration</th>
+                <th field="AmountST" width="110" align="right">Amount</th>
+            </tr>
+        </thead>
+
+    </table>
+    <div id="toolbar">
+        <select id="cboCashFlowHead" style="width:170px;"></select>
+        <select id="cboBU" style="width:150px;"> </select>
+        Date :<input id="txtStartDate" type="text" class="easyui-datebox" style="width: 110px;" data-options="formatter:icsdateformat,parser:icsdateparser" /> To &nbsp;&nbsp;<input id="txtEndDate" type="text" class="easyui-datebox" style="width: 110px;" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <select id="cboSubGroup" style="width:140px;"> </select>
+        <input type="text" id="txtNarration" style="width:170px" placeholder="Search by Narration" />
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Process</a>
+        <a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+        <a id="btnManage" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Manage()">Cash Flow Manage</a>
+        <a id="btnUnEffectedHead" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Un-Effected Head</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var _oCashFlows=[];
+    var _sBaseAddress="";
+    var _oCashFlowHeads = [];
+    var _oTempList = [];
+    $(document).ready(function () {
+        //debugger;
+        _oCashFlows =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCashFlowHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CashFlowHeads));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+        var oSubLedgers = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.SubLedgers));
+        $("#cboCashFlowHead").icsLoadCombo({List: _oCashFlowHeads,OptionValue:"CashFlowHeadID", DisplayText: "DisplayCaption", InitialValue:"--Cash Flow Head--"});
+        $("#cboBU").icsLoadCombo({List: oBUs,OptionValue:"BusinessUnitID", DisplayText: "Name", InitialValue:"--Business Unit--"});
+        $("#cboSubGroup").icsLoadCombo({List: oSubLedgers, OptionValue:"AccountHeadID", DisplayText: "AccountHeadName", InitialValue:"--Effected Sub Group--"});
+        $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+        RefreshList(_oCashFlows);
+    });
+
+    $("#btnRefresh").click(function(){
+        var nCashFlowHead = parseInt($('#cboCashFlowHead').val());
+        if(nCashFlowHead<=0)
+        {
+            alert("Please select Cash Flow Head!");
+            $('#cboCashFlowHead').focus();
+            return;
+        }
+
+        var nBUID = parseInt($('#cboBU').val());
+        if(nBUID<=0)
+        {
+            alert("Please select Business Unit!");
+            $('#cboBU').focus();
+            return;
+        }
+
+        var sVoucherStartDate   = $('#txtStartDate').datebox('getValue');
+        var sVoucherEndDate   = $('#txtEndDate').datebox('getValue');
+        if(sVoucherStartDate===null || sVoucherStartDate==="")
+        {
+            alert("Please select Voucher start date!");
+            $('#txtStartDate').focus();
+            return;
+        }
+        if(sVoucherEndDate===null || sVoucherEndDate==="")
+        {
+            alert("Please select Voucher end date!");
+            $('#txtEndDate').focus();
+            return;
+        }
+        if(new Date(sVoucherStartDate) > new Date(sVoucherEndDate))
+        {
+            alert("Start date must be smallar than or equal end date!");
+            $('#txtStartDate').focus();
+            return;
+        }
+
+
+        var dStartDate = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate = new Date($('#txtEndDate').datebox('getValue'));
+        var oCashFlow = {
+            StartDate : dStartDate,
+            EndDate : dEndDate,
+            BUID : parseInt($('#cboBU').val()),
+            CashFlowHeadID : parseInt($('#cboCashFlowHead').val()),
+            SubGroupID : parseInt($('#cboSubGroup').val()),
+            Narration : $.trim($('#txtNarration').val())
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CashFlowDmSetup/GetCashFlowList",
+            traditional: true,
+            data:  JSON.stringify(oCashFlow),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var oCashFlows = jQuery.parseJSON(data);
+                if(oCashFlows.length<=0)
+                {
+                    alert("Data Not Found!");
+                }
+                RefreshList(oCashFlows);
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnUnEffectedHead").click(function(){        
+        var oChartsOfAccount = { AccountHeadID : 0 };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CashFlowDmSetup/GetsCashFlowUnEffectedHead",
+            traditional: true,
+            data:  JSON.stringify(oChartsOfAccount),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var oChartsOfAccounts = jQuery.parseJSON(data);
+                if(oChartsOfAccounts.length>0)
+                {
+                    if(oChartsOfAccounts[0].ErrorMessage==="")
+                    {
+                        var sUnEffectedHeads = "";
+                        for(var i=0; i<oChartsOfAccounts.length; i++)
+                        {
+                            sUnEffectedHeads =  sUnEffectedHeads + (i+1)+". "+ oChartsOfAccounts[i].AccountHeadName+"\n";
+                        }
+                        alert(sUnEffectedHeads);
+                    }
+                    else
+                    {
+                        alert(oChartsOfAccounts[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("There is no Un-Effected Head!");
+                }                
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+    
+    function Manage()
+    {
+        var oCashFlows = $('#tblCashFlows').datagrid('getChecked');
+        if(oCashFlows.length<=0)
+        {
+            alert("Select an Item from List");
+            return;
+        }
+        data=oCashFlows;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTempCashFlow').datagrid('loadData',data);
+
+        $("#cboTempCashFlowHead").icsLoadCombo({List: _oCashFlowHeads,OptionValue:"CashFlowHeadID", DisplayText: "DisplayCaption"});
+        $("#winCashFlowManaged").icsWindow("open", "Cash Flow Manage");
+    }
+
+    $("#btnSave").click(function(){
+        if(parseInt($("#cboTempCashFlowHead").val())<=0)
+        {
+            alert("Select Head Item from List");
+            return;
+        }
+        _oTempList = [];
+
+        var oCashFlows = $('#tblCashFlows').datagrid('getChecked');
+        for(var i=0;i<oCashFlows.length;i++)
+        {
+            var oItem = {VoucherDetailID:oCashFlows[i].VoucherDetailID,Index:$('#tblCashFlows').datagrid('getRowIndex',oCashFlows[i])};
+            _oTempList.push(oItem);
+        }
+        debugger;
+        var oTempCashFlows = $('#tblTempCashFlow').datagrid('getRows');
+        var oCashFlow = {
+            Narration:ICS_PropertyConcatation(oTempCashFlows,'CashFlowID'),
+            CashFlowHeadID :$('#cboTempCashFlowHead').val()
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CashFlowDmSetup/UpdateCashFlows",
+            traditional: true,
+            data:  JSON.stringify(oCashFlow),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oCashFlows = jQuery.parseJSON(data);
+                if (oCashFlows.length>0 && (oCashFlows[0].ErrorMessage=="" || oCashFlows[0].ErrorMessage==null))
+                {
+                    alert("Data Saved sucessfully");
+                    $("#winCashFlowManaged").icsWindow("close");
+                    for(var i =0;i<oCashFlows.length;i++)
+                    {
+                        var oSelectedItem = ICS_FindObject(_oTempList,'VoucherDetailID',oCashFlows[i].VoucherDetailID);
+                        $('#tblCashFlows').datagrid('updateRow',{index:oSelectedItem.Index,row:oCashFlows[i] });
+                    }
+                }
+                else {
+                    alert(oCashFlows[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+    function RefreshList(oCashFlows)
+    {
+        debugger;
+        data=oCashFlows;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCashFlows').datagrid('loadData',data);
+
+        var sBaseCurrency = ""; if(oCashFlows.length>0){sBaseCurrency=oCashFlows[0].CurrencySymbol;}
+        var nTotal = ICS_TotalCalculation(oCashFlows,'Amount');
+        var oFooterList = [{VoucherNo:'Total',VoucherDateST:'',DisplayCaption:'',Narration:'',AmountST:formatPrice(nTotal,0)+" "+sBaseCurrency}];
+        $('#tblCashFlows').datagrid('reloadFooter',oFooterList);
+
+        $('#tblCashFlows').datagrid({selectOnCheck:false, checkOnSelect:true});
+    }
+
+    $('#btnPreview').click(function(){
+        var oCashFlow = $('#tblCashFlows').datagrid('getSelected');
+        if(oCashFlow!=null && parseInt(oCashFlow.VoucherID)==0)
+        {
+            alert("Please select at least one Voucher.");
+            return;
+        }
+        window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintVoucher?id=' + oCashFlow.VoucherID+'&buid=0', "_blank");
+    });
+
+    $("#btnClose").click(function(){
+        $("#winCashFlowManaged").icsWindow("close");
+    });
+</script>

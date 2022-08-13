@@ -1,0 +1,157 @@
+﻿@{
+    ViewBag.Title = "FA Report";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FAScheduleReport>
+
+<div ng-app="FAScheduleReportModule">
+    @*<script src="~/Views/FAScheduleReport/AdvanceSearch.js"></script>*@
+ 
+    <div ng-controller="FAScheduleReportController">
+        <div class="ui-grid-top-panel" style="height:50px; width:100%; padding:10px 0 0 30px;">
+            <div class="container">
+                <div class="form-inline">
+                   <label> Year :</label>
+                    <div class="input-group date date-containerYear">
+                        <input id="dateDateYear" type="text" class="form-control text-primary" style="width:80px; height:30px" ng-model="DateYear" ng-disabled="YearDisabled">
+                        <span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                    </div>
+                    <div class="input-group">
+                        <button class="btn btn-sm btn-primary" ng-click="RefreshAll()">
+                            <i class="glyphicon glyphicon-refresh"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <button class="btn btn-sm btn-primary" ng-click="ExportToExcel()">
+                            <i class="glyphicon glyphicon-print"></i> Export To Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="width:99.8%" ui-grid="gridOptions" ui-grid-grouping class="grid"></div>
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 500px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+
+    .ui-grid-top-panel {
+        background-color:red
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFAScheduleReports =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    debugger;
+    var  FAScheduleReportModule = angular.module('FAScheduleReportModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.grouping', 'ui.grid.cellNav','ms.service']);
+    FAScheduleReportModule.controller('FAScheduleReportController', function ($scope, $http, $uibModal, $log, uiGridGroupingConstants, uiGridConstants, msModal, userSession) {
+        debugger;
+        
+        $('.date-containerYear').datepicker({
+            autoclose: true,
+            format: "yyyy",
+            viewMode: "years", 
+            minViewMode: "years",
+            startDate: '1900',
+            endDate: new Date(),
+        });
+
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableFiltering: false,
+            treeRowHeaderAlwaysVisible: false,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'ProductCategoryName',grouping: { groupPriority: 1 }, sort: { priority: 1, direction: 'asc' }, width: '15%' },
+                { field: 'ProductName', name: 'ProductName', width: '25%' },
+                { field: 'PurchaseDateSt', name: 'PurchaseDate', width: '8%' },
+                { field: 'OpenningCost', name: 'Openning Cost', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.SUM, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+                { field: 'SalvageValue', name: 'SalvageValue', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.SUM, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+                { field: 'UsefulLifetime', name: 'UsefulLifetime', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.AVG, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+                { field: 'DepreciationperYear', name: 'DEP/Year', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.SUM, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+                { field: 'TotalAccumulatedCost', name: 'TotalAccumulated', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.SUM, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+                { field: 'ClosingCost', name: 'ClosingCost', width: '20%' , cellFilter:'number',  treeAggregationType: uiGridGroupingConstants.aggregation.SUM, customTreeAggregationFinalizerFn: function( aggregation ) {aggregation.rendered = aggregation.value;},  cellClass:'text-right'},
+            ],
+            data:oFAScheduleReports,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+            }
+        };
+
+        $scope.RefreshAll = function () {
+
+            if($scope.DateYear==null || $scope.DateYear== undefined)
+            {
+                alert("Please Select Year And Try Again!!");
+                return;
+            }
+            
+            $scope.FARS= {
+                EndDate: '1 '+'JULY '+ $scope.DateYear,
+                BUID:_nBUID
+            }
+            debugger;
+            $http.post(_sBaseAddress + '/FARule/GetsGridData',JSON.stringify($scope.FARS)).then(
+                  function (response) {
+                      debugger;
+                      $scope.results = response.data;
+                      if ($scope.results.length > 0) 
+                      {
+                          $scope.gridOptions.data=$scope.results;
+                      }
+                      else
+                      {
+                          $scope.gridOptions.data=[];
+                          msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                          return;
+                      }
+                  },
+                  function (response) { alert(response.statusText)}
+            );
+        };
+
+        $scope.ExportToExcel = function ()
+        {
+            if($scope.DateYear==null || $scope.DateYear== undefined)
+            {
+                alert("Please Select Year And Try Again!!");
+                return;
+            }
+            window.open(_sBaseAddress + '/FARule/ExportToExcel_Report?sTempString='+'1 '+'JULY '+ $scope.DateYear+'~'+_nBUID);
+        };
+    });
+</script>
+                       
+
+
+              

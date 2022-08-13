@@ -1,0 +1,499 @@
+﻿@{
+    ViewBag.Title = "DUDyeingType Entry";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.LotBaseTestResult>
+
+    <div ng-app="LBTApp">
+        <div ng-controller="LBTCntrl" class="ms-custom-control">
+            <div class="row ui-grid-top-panel">
+                <div class="form-inline">
+                    <input type="checkbox" class="form-control" ng-model="chkRawLot" ng-change="changechkFinishLot()" />
+                    <label class="control-label"> Raw Lot</label>
+                    <input type="checkbox" class="form-control" ng-model="chkFinishLot" ng-change="changechkRawLot()" />
+                    <label class="control-label"> Finish Lot</label>
+                    <div class="input-group">
+                        <input type="text" ng-model="LotNo"  ng-keyup="searchByLotNo($event)" class="form-control" style="width:120px" placeholder="Enter Lot No" />
+                        <span class="input-group-btn">
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="pickLot()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="search()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search</button>
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="previewStockinHand()" ng-hide="hide"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview</button>*@
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="addTestBaseResult()" ng-hide="hide"> <span class="glyphicon glyphicon-plus-sign" aria-hidden="true"></span> Add Test Result</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="TestResultPreview()" ng-hide="hide"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Test Result Preview</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Attachment()"        ng-hide="hide"> <span class="glyphicon glyphicon-copy" aria-hidden="true"> Attachment</span></button>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav  class="grid ui-grid-selectable"></div>
+          
+        </div>
+
+        
+    </div>
+
+    <style type="text/css">
+        .grid {
+            height: 520px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oLotBaseTests =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oLots =@Html.Raw(Json.Encode(ViewBag.Lot));
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+      
+
+        var  LBTApp = angular.module('LBTApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.cellNav','ms.service']);
+
+    LBTApp.controller('LBTCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+       
+        $scope.chkRawLot =true; 
+        $scope.chkFinishLot =false;
+       
+        $scope.changechkFinishLot = function()
+        {
+            if($scope.chkRawLot == true){
+                $scope.chkFinishLot =false;
+            }
+            else{
+                $scope.chkFinishLot =true;
+            }
+        }
+        $scope.changechkRawLot = function()
+        {
+            if($scope.chkFinishLot == true){
+                $scope.chkRawLot =false;
+            }
+            else{
+                $scope.chkRawLot =true;
+            }
+        }
+        oLots= (userSession.getData('CreateLotTestBaseResult').length>0)? userSession.getData('CreateLotTestBaseResult'):oLots;
+     
+            $scope.gridOptions ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+           
+                columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'LotNo', name: 'Lot No', width:'10%' },
+                    { field: 'ProductNameCode', name: 'Product Name', width:'25%' },
+                    { field: 'OperationUnitName', name: 'Store', width:'10%' },
+                    { field: 'Balance', name: 'Balance', width:'15%',cellFilter: 'number: 2',cellClass:'text-right' },
+                    { field: 'MUName', name: 'Unit', width:'10%' }
+                
+                ],
+                data:oLots,
+                onRegisterApi:function(gridApi) {
+                    debugger;
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    $scope.gridApi.selection.selectRow($scope.gridOptions.data[0]);
+                    if(oLots.length>0 && userSession.getRowIndex()>=0){
+                        $scope.gridApi.grid.modifyRows(oLots);
+                        $scope.gridApi.selection.selectRow(oLots[userSession.getRowIndex()]);
+                    
+                    }
+                    userSession.clear();
+                
+                }
+            };
+     
+        $scope.LotID = ""; 
+        $scope.searchByLotNo = function (e) {
+          
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                $scope.pickLot();
+            } 
+            //else if (code == 8) 
+            //{
+            //    $scope.LotNo = "";
+               
+            //}
+        };
+        $scope.pickLot = function () {
+            
+            if($scope.LotNo == undefined){
+                $scope.LotNo = "";
+            }
+            var oLot ={
+                Params : $scope.LotNo +'~'+ $scope.chkRawLot +'~' + $scope.chkFinishLot +'~'+sessionStorage.getItem('BUID')
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/LotBaseTest/GetsLot', $.param(oLot), config).then(
+                                function (response) {
+                                    var oColumns = [];
+                                    var oColumn = { field: "LotNo", name: "Lot No", width:100, align: "left" };oColumns.push(oColumn);
+                                    oColumn = { field: "Balance", name: "Balance", width: 80, align: "left" };oColumns.push(oColumn);
+                                    oColumn = { field: "ProductName", name: "ProductName", width: 150, align: "left" };oColumns.push(oColumn);
+                                    oColumn = { field: "WorkingUnitName", name: "Name", width: 150, align: "left" };oColumns.push(oColumn);
+                                    var results = jQuery.parseJSON(response.data);
+                                    var modalObj = {
+                                        size: 'md',
+                                        modalcontroller: 'ModalCommonListCtrl',
+                                        appcontroller: 'LBTCntrl',
+                                        objs: results,
+                                        multiSelect: true,
+                                        pickertitle: 'Lot List',
+                                        columns: oColumns
+                                    }
+                                    var modalInstance = msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (results) {
+                                        debugger;
+                                        $scope.gridOptions.data = results;
+                                       // $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                       // $scope.gridApi.selection.selectRow($scope.gridOptions.data[0]);
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+        };
+        $scope.search = function(){
+             if($scope.LotNo == undefined){
+                $scope.LotNo = "";
+            }
+            var oLot ={
+                Params : $scope.LotNo +'~'+ $scope.chkRawLot +'~' + $scope.chkFinishLot +'~'+sessionStorage.getItem('BUID')
+            }
+            $http.post(_sBaseAddress + '/LotBaseTest/GetsLot', JSON.stringify(oLot)).then(
+                        function (response) {
+                            var results = jQuery.parseJSON(response.data);
+                            if (results.length > 0) {
+                                $scope.gridOptions.data = results;
+                                $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                $scope.gridApi.selection.selectRow($scope.gridOptions.data[0]);
+                            } else {
+                                msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                                return;
+                            }
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                    );
+        }
+        $scope.previewStockinHand = function(){
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.LotID<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item selected!.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var sTempString =data.LotID +'~' +sessionStorage.getItem('BUID');
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/LotTraking/PrintStockLotTracking?sTempString='+sTempString+"&nts=" + nts ,"_blank");
+        };
+        $scope.addTestBaseResult = function(){
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.LotID<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item selected!.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            sessionStorage.setItem("Operation", "AddLotTestBaseResult");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",$scope.gridOptions.data.indexOf(data));
+            sessionStorage.setItem("SalesComApprovalHeader", "Add LotTestBaseResult");
+            sessionStorage.setItem("CreateLotTestBaseResult", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/LotBaseTest/View_AddLotBaseTestResults?nId="+data.LotID+"&ts="+tsv+"&nbuid="+sessionStorage.getItem('BUID');
+        }
+        $scope.TestResultPreview = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.LotID<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item selected!.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+          
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/LotBaseTest/PrintLotBaseTestResult?nID='+data.LotID+"&nts=" + nts+"&nbuid="+sessionStorage.getItem('BUID') ,"_blank");
+
+        }
+
+        
+        $scope.Attachment = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows()[0];
+            if(data==null || data.FDOID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+
+            window.open(_sBaseAddress + '/AttachDocument/Attachment?id='+data.LotID+'&RefType=22&OperationInfo= Attachment of Lot No : '+data.LotNo, '_blank');
+        }
+    });
+
+    LBTApp.directive('uiGridKeyNav', ['$compile', 'gridUtil', function($compile, gridUtil) {
+        return {
+            require: '^uiGrid',
+            scope: false,
+            link: function ($scope, $elm, $attrs, uiGridCtrl) {
+                var grid = uiGridCtrl.grid;
+               
+                var focuser = $compile('<div class="ui-grid-focuser" role="region" aria-live="assertive" aria-atomic="false" tabindex="0" aria-controls="' + grid.id + '-aria-speakable ' + grid.id + '-grid-container' + '" aria-owns="' + grid.id + '-grid-container' + '"></div>')($scope);
+                $elm.append(focuser);
+                //var currRow =0;
+                $elm.bind('keypress', function (e) {
+                    debugger;
+                    //if(e.keyCode== 38 || e.keyCode ==40){
+                    //    //grid.api.selection.selectRowByVisibleIndex(currRow); 
+                        gridUtil.focus.byElement(focuser[0]);
+                    //}
+                   
+                });
+                $elm.bind('click', function () {
+                    debugger;
+                    gridUtil.focus.byElement(focuser[0]);
+                });
+                focuser.bind('keydown', function (e) {
+                    $scope.$apply(function () {
+                        var selectedEntities,
+                            visibleRows,
+                            selectedIndex;
+
+                        if (e.keyCode !== 38 && e.keyCode !== 40 && e.keyCode !== 37 && e.keyCode !== 39 
+                                && e.keyCode !== 33 && e.keyCode !== 34 && e.keyCode !== 13)
+                            return;
+                        debugger;
+                        selectedEntities = grid.api.selection.getSelectedRows();
+
+                        if (selectedEntities.length === 1) {
+                            visibleRows = grid.getVisibleRows();
+
+                            selectedIndex = visibleRows.map(function (item) {
+                                return item.entity;
+                            }).indexOf(selectedEntities[0]);
+
+                            if (selectedIndex < 0)
+                                return;
+                            // Enter
+                            if (e.keyCode === 13) {
+                                // You might want to do something here like:
+                                //grid.api.selection.unSelectRow(selectedEntities[0], e);
+                                // This way you can pass the enter key to your gridApi.selection.on.rowSelectionChanged event handler when the the row is reselected again below
+                                // Left
+                            } else if (e.keyCode === 37) {
+                                grid.api.treeBase.collapseRow(grid.rowHashMap.get(selectedEntities[0]));
+                                // Right
+                            } else if (e.keyCode === 39) {
+                                grid.api.treeBase.expandRow(grid.rowHashMap.get(selectedEntities[0]));
+                                // Up
+                            } else if (e.keyCode === 38 && selectedIndex > 0) {
+                                --selectedIndex;
+                                // Down
+                            } else if (e.keyCode === 40 && selectedIndex < grid.getVisibleRows().length - 1) {
+                                ++selectedIndex;
+                                // pgUp 
+                            } else if (e.keyCode === 33 && selectedIndex > 0) {
+                                selectedIndex = selectedIndex - 15;
+                                if (selectedIndex < 0) {
+                                    selectedIndex = 0;
+                                }
+                                // pgDown
+                            } else if (e.keyCode === 34 && selectedIndex < grid.getVisibleRows().length - 1) {
+                                selectedIndex = selectedIndex + 15;
+                                if (selectedIndex > grid.getVisibleRows().length - 1) {
+                                    selectedIndex = grid.getVisibleRows().length - 1;
+                                }
+                            } 
+
+                            grid.api.selection.selectRowByVisibleIndex(selectedIndex, e);
+                            grid.api.core.scrollToIfNecessary(visibleRows[selectedIndex], grid.columns[0]);
+                        }
+                    });
+                });
+            }
+        //    require: '^uiGrid',
+        //    scope: false,
+        //    link: function ($scope, $elm, $attrs, uiGridCtrl) {
+        //        var grid = uiGridCtrl.grid;
+        //        var selectedGrids = [];
+        //        var count = -1;
+        //        var currRow = 0;
+        //        var focuser = $compile('<div class="ui-grid-focuser" role="region" aria-live="assertive" aria-atomic="false" tabindex="0" aria-controls="' + grid.id + '-aria-speakable ' + grid.id + '-grid-container' + '" aria-owns="' + grid.id + '-grid-container' + '"></div>')($scope);
+        //        $elm.append(focuser);
+
+        //        $elm.bind('keyup', function (e) {
+                   
+        //            gridUtil.focus.byElement(focuser[0]);           
+        //            // only tab key
+        //            if(e.keyCode === 9){
+        //                grid.api.selection.selectRowByVisibleIndex(currRow); 
+        //            }
+        //            //Shift + tab key 
+        //            if (e.shiftKey && e.keyCode === 9)
+        //            {
+        //                e.keyCode = 99;
+        //            }
+        //            if(e.keyCode === 16 || e.keyCode === 99){
+        //                var selectedEntities = grid.api.selection.getSelectedRows();
+        //                // no rows selected
+        //                if(selectedEntities.length === 0)
+        //                {
+        //                    grid.api.selection.selectRowByVisibleIndex(0);
+        //                }
+        //                else // go back to last slected index
+        //                {
+        //                    grid.api.selection.selectRowByVisibleIndex(currRow); 
+        //                }
+        //            }
+        //        });
+
+        //        focuser.bind('keydown', function (e) {
+
+        //            $scope.$apply(function () {
+        //                var selectedEntities,
+        //                    visibleRows,
+        //                    selectedIndex;
+        //                if (e.keyCode !== 38 && e.keyCode !== 40 && e.keyCode !== 32 && e.keyCode !== 9)
+        //                    return;
+
+        //                selectedEntities = grid.api.selection.getSelectedRows();
+        //                visibleRows = grid.getVisibleRows();
+        //                if (selectedEntities.length > 0){
+        //                    selectedIndex = currRow;
+        //                }else
+        //                {
+        //                    selectedIndex = visibleRows.map(function (item) {
+        //                        return item.entity;
+        //                    }).indexOf(selectedEntities[0]);
+        //                }
+        //                if (selectedIndex < 0)
+        //                    return;
+        //                // arrow up
+        //                if (e.keyCode === 38 && selectedIndex > 0)
+        //                {    
+        //                    var check = false;
+        //                    if(selectedGrids.length > 0)
+        //                    {
+        //                        for (var i=0; i < selectedGrids.length ; i++) 
+        //                        {
+        //                            if(selectedGrids[i] === selectedIndex )
+        //                            {
+        //                                check=true;
+        //                            }
+        //                        }
+        //                        if(!check)
+        //                        {
+        //                            for(var j=0;j<selectedEntities.length;j++){
+        //                                if(visibleRows[currRow].entity.id === selectedEntities[j].id)
+        //                                    break;
+        //                            }
+        //                            grid.api.selection.unSelectRow(selectedEntities[j], e);
+        //                        }
+        //                    }else{
+        //                        grid.api.selection.unSelectRow(selectedEntities[0], e);
+        //                    }
+
+        //                    --selectedIndex;
+        //                    grid.api.selection.selectRowByVisibleIndex(selectedIndex);
+        //                    e.preventDefault();
+        //                }
+        //                //arrow down
+        //                if (e.keyCode === 40 && selectedIndex < grid.getVisibleRows().length - 1)
+        //                {
+        //                    var check = false;
+        //                    if(selectedGrids.length > 0)
+        //                    {
+        //                        for (var i=0; i < selectedGrids.length ; i++) 
+        //                        {
+        //                            if(selectedGrids[i] === selectedIndex )
+        //                            {
+        //                                check=true;
+        //                            }
+        //                        }
+        //                        if(!check)
+        //                        { 
+        //                            for(var j=0;j<selectedEntities.length;j++){
+        //                                if(visibleRows[currRow].entity.id === selectedEntities[j].id)
+        //                                    break;
+        //                            }
+        //                            grid.api.selection.unSelectRow(selectedEntities[j], e);
+        //                        }
+        //                    }else{
+        //                        grid.api.selection.unSelectRow(selectedEntities[0], e);
+        //                    }
+
+        //                    ++selectedIndex;
+        //                    grid.api.selection.selectRowByVisibleIndex(selectedIndex);
+        //                    e.preventDefault();
+        //                }  
+        //                //space bar
+        //                if (e.keyCode === 32 && selectedIndex < grid.getVisibleRows().length)
+        //                {
+        //                    if (selectedGrids.length > 0)
+        //                    {
+        //                        for (var i=0; i < selectedGrids.length ; i++) 
+        //                        {
+        //                            if(selectedGrids[i] === selectedIndex )
+        //                            {
+        //                                selectedGrids[i] = null;
+        //                                break;
+        //                            }
+        //                        }
+        //                        if(selectedGrids[i] === null)
+        //                        {
+        //                            for(var j=0;j<selectedEntities.length;j++)
+        //                            {
+        //                                if(visibleRows[selectedIndex].entity.id === selectedEntities[j].id)
+        //                                    break;
+        //                            }
+        //                            grid.api.selection.unSelectRow(selectedEntities[j], e);
+        //                        }else
+        //                        {
+        //                            count++;
+        //                            selectedGrids[count] = selectedIndex; 
+        //                        }
+        //                    }else
+        //                    {
+        //                        count++;
+        //                        selectedGrids[count] = selectedIndex; 
+        //                    }
+        //                    e.preventDefault();
+        //                }
+        //                //tab key
+        //                if(e.keyCode === 9 && selectedIndex < grid.getVisibleRows().length - 1)
+        //                {
+        //                    //unselect the row if not selected using space
+        //                    for (var i=0; i < selectedGrids.length ; i++) 
+        //                    {
+        //                        if(selectedGrids[i] === selectedIndex )
+        //                        {
+        //                            check=true;
+        //                        }
+        //                    }
+        //                    if(!check)
+        //                    { 
+        //                        for(var j=0;j<selectedEntities.length;j++)
+        //                        {
+        //                            if(visibleRows[selectedIndex].entity.id === selectedEntities[j].id)
+        //                                break;
+        //                        }
+        //                        grid.api.selection.unSelectRow(selectedEntities[j], e);
+        //                    }
+        //                }
+        //                currRow = selectedIndex;
+        //                grid.api.core.scrollToIfNecessary(visibleRows[selectedIndex], grid.columns[0]);
+        //            }); // end of $apply
+        //        }); // end of focuser.bind
+        //    }// end of link
+        //};
+        };
+    }]);
+
+       
+
+
+    </script>

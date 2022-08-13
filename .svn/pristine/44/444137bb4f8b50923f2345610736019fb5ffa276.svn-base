@@ -1,0 +1,177 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Production Time Setup";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.ProductionTimeSetup>
+    <div id="divProductionTimeSetup" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">
+            <table id="tblProductionTimeSetup" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="BUName" width="225" align="left">BU Name</th>
+                        <th field="OffDay" width="225" align="left">Off Day</th>
+                        <th field="RegularTimeInString" width="225" align="left">Regular Time</th>
+                        <th field="OverTimeInString" width="225" align="left">Over Time</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                BU : <select id="cboBU" style="width:150px;"></select>&nbsp;&nbsp;&nbsp;
+                Off Day : <select id="cboOffDay" style="width:130px;"></select>&nbsp;&nbsp;&nbsp;
+                Regular Time : <input type="text" id="txtRegularTime" style="width:60px;" /> Hours&nbsp;&nbsp;&nbsp;
+                Over Time : <input type="text" id="txtOverTime" style="width:60px;" /> Hours&nbsp;
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>    
+   </body>
+</html>
+
+
+<script type="text/javascript">
+
+    var _oProductionTimeSetups=[];
+    $(document).ready(function () {
+        _oProductionTimeSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        var oWeekDays = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WeekDays));
+        $("#cboBU").icsLoadCombo({List: oBUs,OptionValue: "BusinessUnitID",DisplayText: "Name",InitialValue:"--Select One--"});
+
+        $("#cboOffDay").icsLoadCombo({List: oWeekDays,OptionValue: "id",DisplayText: "Value",InitialValue:"Default"});
+        $('#txtRegularTime,#txtOverTime').icsCurrencyBox(null, null,0);
+        $('#txtRegularTime').val(10);
+        $('#txtOverTime').val(2);
+        RefreshList(_oProductionTimeSetups);
+ });
+
+    
+
+ function ValidateInput()
+ {
+    if($('#cboBU').val()===null || $('#cboBU').val()===undefined || parseInt($('#cboBU').val())<=0)
+    {
+        alert("Please select Module!");
+        $('#cboBU').focus();
+        return false;
+    }
+    if($('#cboOffDay').val()===null || $('#cboOffDay').val()===undefined || parseInt($('#cboOffDay').val())<=0)
+    {
+        alert("Please select Week Day.");
+        $('#cboOffDay').focus();
+        return false;
+    }
+    if(parseFloat($('#txtRegularTime').val())<=0)
+    {
+        alert("Regular Time Should be Grearter than 0!");
+        return false;
+    }
+    if(parseFloat($('#txtOverTime').val())<0)
+    {
+        alert("Over Time Can't 0.");
+        return false;
+    }
+    return true;
+ }
+
+
+function RefreshObject()
+ {
+    var oProductionTimeSetup=   {
+                                ProductionTimeSetupID : 0,
+                                BUID : parseInt($('#cboBU').val()),
+                                OffDay :$('#cboOffDay option:selected').text().split(' ').join(''),
+                                RegularTime  :parseFloat($('#txtRegularTime').val()),
+                                OverTime  :parseFloat($('#txtOverTime').val())
+                            };
+    return oProductionTimeSetup;
+}
+
+$("#btnAdd").click(function(){
+    if(!ValidateInput()) return;
+    var oProductionTimeSetup=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/ProductionTimeSetup/Save",
+        traditional: true,
+        data:  JSON.stringify(oProductionTimeSetup),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oProductionTimeSetup = jQuery.parseJSON(data);
+            if(parseInt(oProductionTimeSetup.ProductionTimeSetupID)>0)
+            {
+                alert("Data Saved sucessfully");
+                var nIndex=$('#tblProductionTimeSetup').datagrid('getRows').length;
+                $('#tblProductionTimeSetup').datagrid('appendRow',oProductionTimeSetup);
+                $('#tblProductionTimeSetup').datagrid('selectRow', nIndex);
+                $("#cboBU,#cboOffDay").val(0);
+                $('#txtRegularTime').val(10);
+                $('#txtOverTime').val(2);
+                $("#cboBU").focus();
+            }
+            else {
+                alert(oProductionTimeSetup.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oProductionTimeSetup = $('#tblProductionTimeSetup').datagrid('getSelected');
+    if(oProductionTimeSetup==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex=$('#tblProductionTimeSetup').datagrid('getRowIndex',oProductionTimeSetup);
+    if (parseInt(oProductionTimeSetup.ProductionTimeSetupID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ProductionTimeSetup/Delete",
+            traditional: true,
+            data:  JSON.stringify(oProductionTimeSetup),
+            contentType: "application/json; charset=utf-8",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblProductionTimeSetup').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList(oProductionTimeSetups)
+{
+    var data=oProductionTimeSetups;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionTimeSetup').datagrid('loadData',data);
+}
+
+$("#btnRefresh").click(function(){
+    var data=$('#tblProductionTimeSetup').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionTimeSetup').datagrid('loadData',data);
+});
+
+
+</script>

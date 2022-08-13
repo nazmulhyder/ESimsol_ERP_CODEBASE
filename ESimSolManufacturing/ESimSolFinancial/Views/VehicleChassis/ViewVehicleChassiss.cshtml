@@ -1,0 +1,283 @@
+﻿@{
+    ViewBag.Title = "VehicleChassis List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VehicleChassis>
+                      <script src="~/Views/VehicleChassis/AdvanceSearch.js"></script>
+
+                      <script src="~/Views/VehicleChassis/VehicleChassiss.js"></script>
+    <div class="menuMainCollectionTable" ng-app="VehicleChassisApp" >
+        <div ng-controller="VehicleChassisController" style="height:100%; width:100%">
+            <div style="margin-bottom:2px; display:block" title="VehicleChassis List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by ChassisNo" style="width:190px" />
+                <button type="button" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+
+                <button type="button" id="btnAdd" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnDetails" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                <button type="button" id="btnExportToExcel" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style="width:99%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oVehicleChassiss =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+   
+    $('#btnExportToExcel,#btnPrintList').hide(); 
+    debugger;
+    var CCapp= angular.module('VehicleChassisApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ms.service','chassis.service','advanceSearch.service']);
+    CCapp.controller('VehicleChassisController',function ($scope,$http,$log,$uibModal,msModal,uiGridConstants,userSession,chassisservice,advanceSearchservice) 
+    {                                                    ///$scope,,,,uiGridConstants,msModal,userSession,engineservice
+        oVehicleChassiss= (userSession.getData('VehicleChassiss').length>0)? userSession.getData('VehicleChassiss'):oVehicleChassiss;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+              { field: 'FileNo', name:'File No', width:'10%' },
+              { field: 'ChassisNo', name:'Chassis No', width:'15%' },
+              { field: 'ManufacturerName', name:'Manufacturer', width:'17%' },
+              { field: 'EngineLayout', name:'Engine Layout', width:'15%' },
+              { field: 'DriveWheels', name:'Drive Wheels', width:'13%' , enableSorting: false},
+              { field: 'Steering', name:'Steering', width:'12%' },
+              { field: 'Gearbox', name:'Gearbox', width:'15%' },
+            ],
+
+            data: oVehicleChassiss,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                //userSession.clear();
+            }
+        };
+        $scope.SearchByName = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oVehicleChassiss;
+            }     
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].ChassisNo;        
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+
+
+        $scope.OpenViewVehicleChassis= function(nVehicleChassisID,index)
+        {
+            debugger;
+            var result=null;
+            var oVehicleChassis={
+                VehicleChassisID: nVehicleChassisID
+            };
+            
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/VehicleChassis/GetByID', $.param(oVehicleChassis), config).then(
+                                function (response) {
+                                    debugger;
+                                    result=jQuery.parseJSON(response.data);
+
+                                    var modalObj={
+                                        modalcontroller:'CCategoryapp',
+                                        appcontroller:'VehicleChassisController',
+                                        VehicleChassis: result
+                                    }
+                                    var modalInstance=chassisservice.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+
+                                        $scope.gridApi.selection.clearSelectedRows();
+                                        if(result.VehicleChassisID>0){
+                                            if(index>=0)
+                                                $scope.gridOptions.data[index]=result;
+                                            else
+                                                $scope.gridOptions.data.push(result);
+
+                                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                            $scope.gridApi.selection.selectRow(result);
+                                        }
+                                        userSession.clear();
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                }
+                            );
+        }
+
+        $scope.Add=function()
+        {
+            debugger;
+            sessionStorage.setItem("VehicleChassiss", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("VehicleChassisHeader", "Add Vehicle Chassis");
+            $scope.OpenViewVehicleChassis(0,-1);
+        }            
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleChassis= data[0];//get selected index
+            if(oVehicleChassis==null || oVehicleChassis.VehicleChassisID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleChassis);
+            sessionStorage.setItem("VehicleChassiss", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("VehicleChassisHeader", "Edit Vehicle Chassis");
+            $scope.OpenViewVehicleChassis(oVehicleChassis.VehicleChassisID,SelectedRowIndex);
+        }
+                
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleChassis= data[0];//get selected index
+            if(oVehicleChassis==null || oVehicleChassis.VehicleChassisID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleChassis);
+            sessionStorage.setItem("VehicleChassiss", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("VehicleChassisHeader", "View Vehicle Chassis");
+            $scope.OpenViewVehicleChassis(oVehicleChassis.VehicleChassisID,SelectedRowIndex);
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleChassis= data[0];//get selected index
+            if(oVehicleChassis==null || oVehicleChassis.VehicleChassisID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleChassis);
+            if (oVehicleChassis.VehicleChassisID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/VehicleChassis/Delete",
+                    data: { id: oVehicleChassis.VehicleChassisID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'VehicleChassisController',
+                CompareOperators:$scope.CompareOperators,
+                BussinessSessions:$scope.BussinessSessions
+            }
+            var modalInstance=advanceSearchservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.PrintList = function()
+        {
+            var oVehicleChassiss= $scope.gridOptions.data;
+            var ids ="";
+            if(oVehicleChassiss.length >0)
+            {
+                for(var i =0;i<oVehicleChassiss.length;i++)
+                {
+                    ids =ids+oVehicleChassiss[i].VehicleChassisID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/VehicleChassis/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oVehicleChassiss=  $scope.gridOptions.data;
+            var ids ="";
+            if(oVehicleChassiss.length >0)
+            {
+                for(var i =0;i<oVehicleChassiss.length;i++)
+                {
+                    ids =ids+oVehicleChassiss[i].VehicleChassisID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/VehicleChassis/VehicleChassisExportToExcel?sIDs='+ids);
+        }
+
+        //button hide unhide
+            $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide(); 
+            if(PermissionChecker('Add','VehicleChassis',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            if(PermissionChecker('Edit','VehicleChassis',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            if(PermissionChecker('View','VehicleChassis',oAuthorizationRolesMapping)){$("#btnView").show();}
+            if(PermissionChecker('Delete','VehicleChassis',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            //if(PermissionChecker('PrintList','VehicleChassis',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

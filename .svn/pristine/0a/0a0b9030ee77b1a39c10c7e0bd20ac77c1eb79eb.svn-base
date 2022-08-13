@@ -1,0 +1,219 @@
+﻿<html>
+<head></head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.AccountHeadConfigure>
+    @{
+        ViewBag.Title = "Reference Configure";
+    }
+    <div id="divAccountHeadConfigure" class="easyui-panel" title="Reference Configure" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblAccountHeadConfigures" title="" class="easyui-datagrid" style="width:893px;height:300px"
+                   data-options=" singleSelect: true, fit:true,  fitColumns:true,  rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="Name" width="50%" align="left">Sub Ledger Category</th>
+                        <th field="CostCenterDescription" width="50%" align="left">Description</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" style="width:50%" id="txtACCostCenterName" placeholder="Type Sub ledger Category Name" /> 
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+
+                        <td style="width:10%"></td>
+                        <td style="width:10%; text-align:right">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>       
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oAccountHeadConfigures=null;
+    var _oAccountHeadConfigure=null;
+    var _oACCostCenter=null;
+    var _sBaseAddress='';
+    var _nMuneID=0;
+    var _nHeadID=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMuneID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oAccountHeadConfigures =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nHeadID=parseInt(sessionStorage.getItem("SelectedHeadID"));
+
+        DynamicRefreshList(_oAccountHeadConfigures, 'tblAccountHeadConfigures');
+        $('#divAccountHeadConfigure').panel({ title: 'Sub Ledger Configure'});
+        $('#txtACCostCenterName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsCostCenter",
+            Object: {Name:''},
+            PropertyName: "Name",
+            ParamName: "Name"},function(resp){
+                if(resp.obj!=null){
+                    _oACCostCenter=resp.obj;
+                }
+            });
+    });
+
+
+    function ValidateInput()
+    {
+        if(_nHeadID==null || _nHeadID<=0){
+            alert('Invalid Account Head. \nPlease Refresh and try again!');
+            return false;
+        }
+        if(_oACCostCenter==null || _oACCostCenter.ACCostCenterID<=0)
+        {
+            alert("Please select a reference object first!");
+            $("#txtACCostCenterName").addClass("errorFieldBorder");
+            $("#txtACCostCenterName").focus();
+            return false;
+        } else {
+            $("#txtACCostCenterName").removeClass("errorFieldBorder");
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        return {
+            AccountHeadConfigureID : 0,
+            AccountHeadID : _nHeadID,
+            ReferenceObjectID :  _oACCostCenter.ACCostCenterID,
+            ReferenceObjectType : 1,
+        };
+    }
+
+    $("#btnAdd").click(function(){
+        if(!ValidateInput()) return;
+        var oAHC=RefreshObject();
+
+        $.icsSave({BaseAddress: _sBaseAddress,
+            Object: oAHC,
+            ObjectId: oAHC.AccountHeadConfigureID,
+            ControllerName: "ChartsOfAccount",
+            ActionName: "SaveAHC",
+            TableId: "tblAccountHeadConfigures",
+            Message: "Save Successfully."},function (response){
+                if(response.status && response.obj!=null){
+                    if(response.obj.AccountHeadConfigureID>0){
+                        _oACCostCenter=null;
+                        $('#txtACCostCenterName').val('');
+                        $('#txtACCostCenterName').removeClass('fontColorOfPickItem');
+                        $('#txtACCostCenterName').focus();
+                    }
+                }
+            });
+
+        //$.ajax({
+        //    type: "POST",
+        //    dataType: "json",
+        //    url : _sBaseAddress+  "/ACCostCenter/Save",
+        //    traditional: true,
+        //    data:  JSON.stringify(oACCostCenter),
+        //    contentType: "application/json; charset=utf-8",
+        //    success: function (data) {
+
+        //        oACCostCenter = jQuery.parseJSON(data);
+        //        if (oACCostCenter.AccountHeadID>0) {
+        //            alert("Data Saved sucessfully");
+
+        //            var oChartsOfAccouts= $('#tblACCostCenters').datagrid('getRows');
+        //            var nIndex=oChartsOfAccouts.length;
+
+        //            $('#tblACCostCenters').datagrid('appendRow',oACCostCenter);
+        //            $('#tblACCostCenters').datagrid('selectRow', nIndex);
+
+        //            $('#txtACCostCenterCode').val(oACCostCenter.NewAccountCode);
+        //            $('#txtACCostCenterName').val('');
+        //            $('#txtDescription').val('');
+        //            $('#txtACCostCenterName').focus();
+        //        }
+        //        else {
+        //            alert(oACCostCenter.ErrorMessage);
+        //        }
+        //    },
+        //    error: function (xhr, status, error) {
+        //        alert(error);
+        //    }
+        //});
+    });
+
+
+    $("#btnRemove").click(function(){
+        var oAccountHeadConfigure= $('#tblAccountHeadConfigures').datagrid('getSelected');
+        if(oAccountHeadConfigure==null || oAccountHeadConfigure.AccountHeadConfigureID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        if (!confirm("Confirm to Delete?")) return false;
+        var SelectedRowIndex=$('#tblAccountHeadConfigures').datagrid('getRowIndex',oAccountHeadConfigure);
+
+        if (oAccountHeadConfigure.AccountHeadConfigureID > 0)
+        {
+            $.icsDelete({BaseAddress: _sBaseAddress,
+                Object: oAccountHeadConfigure,
+                ControllerName: "ChartsOfAccount",
+                ActionName: "DeleteAHC",
+                TableId: "tblAccountHeadConfigures"
+                });
+
+            //$.ajax
+            //({
+            //    type: "POST",
+            //    dataType: "json",
+            //    url : _sBaseAddress+  "/ACCostCenter/Delete",
+            //    data:  JSON.stringify({ AccountHeadID: oACCostCenter.AccountHeadID }),
+            //    contentType: "application/json; charset=utf-8",
+            //    success: function (data) {
+
+            //        feedbackmessage = jQuery.parseJSON(data);
+            //        if (feedbackmessage == "Data Delete Successfully")
+            //        {
+            //            alert("Data Delete Successfully");                        
+            //            $('#tblACCostCenters').datagrid('deleteRow',SelectedRowIndex);
+            //        }
+            //        else
+            //        {
+            //            alert(feedbackmessage);
+            //        }
+            //    },
+            //    error: function (xhr, status, error)
+            //    {
+            //        alert(error);
+            //    }
+
+            //});
+        }
+    });
+    
+    
+   
+    function Close()
+    {
+        window.location.href = _sBaseAddress+ "/ChartsOfAccount/ViewChartOfAccounts?menuid="+_nMuneID;
+    }
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/ChartsOfAccount/ViewChartOfAccounts?menuid="+_nMuneID;
+        }
+    });
+</script>

@@ -1,0 +1,339 @@
+﻿@{
+    ViewBag.Title = "VoucherBatchs List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VoucherBatch>
+<head>
+    
+</head>
+<body>
+    <div class="bodyPart" style="height:100%">
+        <table id="tblVoucherBatchs" title="VoucherBatch List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarVoucherBatch">
+            <thead>
+                <tr>
+                    <th field="BatchNO" width="15%">Batch NO</th>
+                    <th field="CreateDateInString" width="10%">Create Date</th>
+                    <th field="CreateByName" width="20%">Create By</th>
+                    <th field="BatchStatusInString" width="15%">Batch Status</th>
+                    <th field="RequestDateInString" width="10%">Request Date</th>
+                    <th field="RequestToName" width="20%">Request To</th>
+                    <th field="VoucherCount" width="10%">Voucher Count</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarVoucherBatch">
+            <table>
+                <tr>
+                    <td>
+                        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>
+                        <input type="text" id="txtSearchbyBatchNO" placeholder="Search by Batch No" />
+                        <input id="txtStartDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 97px;" />
+                        <input id="txtEndDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 97px;" />
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                        <a id="btnCloseVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-seal" plain="true">Close</a>
+                        <a id="btnReOpenVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-open" plain="true">Re Open</a>
+                        <a id="btnRequestVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-request" plain="true">Request For Approve</a>
+                        <a id="btnUndoRequestVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Undo Request</a>
+                        <a id="btnTransferVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-transfer" plain="true">Transfer</a>
+                        <a id="btnViewVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                        <a id="btnHistoryVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">History</a>
+                        
+                        </td>
+                    <td>
+                        @using (Html.BeginForm("PrintVoucherBatchs", "VoucherBatch", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                        {
+                            <input type="text" name="txtVoucherBatchCollectionList" id="txtVoucherBatchCollectionList" hidden="hidden" />
+                            <input type="submit" id="btnPrintVoucherBatch" value="     Print List" class="icon-print PrintList" style="margin-top: 4px;" />
+                        }
+                        <a id="btnPrintInXLVoucherBatch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" hidden="hidden">Print in XL</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oVoucherBatch = null;
+    var _oVoucherBatchs = [];
+    var _oVoucherBatchBranch = null;
+    var _nID=null;
+    $(document).ready(function() {
+        _oVoucherBatchs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oAURolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));        
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oVoucherBatchs =sessionStorage.getItem("VoucherBatchs");        
+        if(oVoucherBatchs!=null)
+        {
+            oVoucherBatchs = jQuery.parseJSON(oVoucherBatchs);  
+        }
+        else
+        {
+            oVoucherBatchs=_oVoucherBatchs;
+        }
+        
+        DynamicRefreshList(oVoucherBatchs, 'tblVoucherBatchs');
+        if(_nID!=-1)
+        {
+            $('#tblVoucherBatchs').datagrid('selectRow', _nID);
+        }
+        
+        RefreshControlLayout(oAURolesMapping);    
+        $('#btnPrintInXLVoucherBatch').hide();
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));  
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date())); 
+    });
+
+    $('#btnSearch').click(function(){
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        if(sStartDate===null || sStartDate==="")
+        {
+            alert("Please Select Start Date!");
+            return;
+        }
+        if(sEndDate===null || sEndDate==="")
+        {
+            alert("Please Select End Date!");
+            return;
+        }
+        if(new Date(sStartDate)>new Date(sEndDate))
+        {
+            alert("Start Date Must be smallar then end date!");
+            return;
+        }
+
+        var oVoucherBatch= {
+            CreateDate : sStartDate, 
+            RequestDate : sEndDate
+        };
+        $.icsDataGets({
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ControllerName: "VoucherBatch",
+            ActionName: "BatchSearch",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oVoucherBatchs=response.objs;
+                    DynamicRefreshList(oVoucherBatchs, 'tblVoucherBatchs');
+                }
+            }
+        });
+    });
+
+    function RefreshArguments(){
+        var sErrorMessage='Arguments;';
+        
+        var txtSearchbyBatchNO=$("#txtSearchbyBatchNO").val();
+        if(txtSearchbyBatchNO!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchbyBatchNO+'~';
+        }
+        return {ErrorMessage:sErrorMessage};
+    }
+
+    $('#txtSearchbyBatchNO').keyup(function(e){$('#txtSearchbyBatchNO').icsSearchByText({ Event: e,SearchProperty: "BatchNO",GlobalObjectList: _oVoucherBatchs,TableId: "tblVoucherBatchs"});});
+    $('#btnRefresh').click(function(){
+        var oVoucherBatch=RefreshArguments();
+        $.icsDataGets({
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ControllerName: "VoucherBatch",
+            ActionName: "Gets",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oVoucherBatchs=response.objs;
+                    DynamicRefreshList(oVoucherBatchs, 'tblVoucherBatchs');
+                }
+            }
+        });
+    });
+    $('#btnPrintVoucherBatch').click(function(){
+        var oVoucherBatchs=$('#tblVoucherBatchs').datagrid('getRows');
+        if(oVoucherBatchs==null||oVoucherBatchs.length<=0){return false;}
+        for(var i=0;i<oVoucherBatchs.length;i++){
+            oVoucherBatchs[i].CreateDate=oVoucherBatchs[i].CreateDateInString;
+            oVoucherBatchs[i].RequestDate=oVoucherBatchs[i].RequestDateInString;
+        }
+        $("#txtVoucherBatchCollectionList").val(JSON.stringify(oVoucherBatchs));
+    });
+
+    $("#btnAddVoucherBatch").click(function(){
+        $.icsSave({BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: {VoucherBatchID:0,BatchStatus:1},
+            ObjectId: 0,
+            ControllerName: "VoucherBatch",
+            ActionName: "Save",
+            TableId: "tblVoucherBatchs",
+            IsWinClose: false,
+            Message: "Save Successfully."});
+    });
+
+
+    $("#btnCloseVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if(_oVoucherBatch.BatchStatus!=1){alert("Can not close! \nSelected Voucher Batch is not Open.");return false;}
+        
+        if (!confirm("Confirm to Close Voucher Batch?")) return false;
+        var oVoucherBatch=_oVoucherBatch;
+        oVoucherBatch.BatchStatus=2;
+        $.icsSave({BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ObjectId: oVoucherBatch.VoucherBatchID,
+            ControllerName: "VoucherBatch",
+            ActionName: "UpdateStatus",
+            TableId: "tblVoucherBatchs",
+            IsWinClose: false,
+            Message: "Status Changed Successfully."});        
+    });
+
+
+    $("#btnReOpenVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if(_oVoucherBatch.BatchStatus!=2){alert("Can not re-open! \nSelected Voucher Batch is not Closed.");return false;}
+        
+        if (!confirm("Confirm to re-open Voucher Batch?")) return false;
+        var oVoucherBatch=_oVoucherBatch;
+        oVoucherBatch.BatchStatus=1;
+        $.icsSave({BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ObjectId: oVoucherBatch.VoucherBatchID,
+            ControllerName: "VoucherBatch",
+            ActionName: "UpdateStatus",
+            TableId: "tblVoucherBatchs",
+            IsWinClose: false,
+            Message: "Status Changed Successfully."});
+        
+    });
+    $("#btnUndoRequestVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if(_oVoucherBatch.BatchStatus!=3 && _oVoucherBatch.BatchStatus!=4){alert("Can not undo request! \nRequest not submitted for your selected Voucher Batch.");return false;}
+        
+        if (!confirm("Confirm to undo submitted request for approval?")) return false;
+        var oVoucherBatch=_oVoucherBatch;
+        oVoucherBatch.BatchStatus=2;
+        $.icsSave({BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ObjectId: oVoucherBatch.VoucherBatchID,
+            ControllerName: "VoucherBatch",
+            ActionName: "UpdateStatus",
+            TableId: "tblVoucherBatchs",
+            IsWinClose: false,
+            Message: "Status Changed Successfully."});
+        
+    });
+    $("#btnRequestVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if(_oVoucherBatch.BatchStatus!=2){alert("Can not request! \nYour selected Voucher Batch is not closed.");return false;}
+        
+        if (!confirm("Confirm to submit request for approval?")) return false;
+
+        var oVoucherBatch=_oVoucherBatch;
+        oVoucherBatch.BatchStatus=3;
+        $.icsSave({BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oVoucherBatch,
+            ObjectId: oVoucherBatch.VoucherBatchID,
+            ControllerName: "VoucherBatch",
+            ActionName: "UpdateStatus",
+            TableId: "tblVoucherBatchs",
+            IsWinClose: false,
+            Message: "Status Changed Successfully."});
+    });
+    $("#btnViewVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblVoucherBatchs').datagrid('getRowIndex',_oVoucherBatch);
+        var oVoucherBatchs= $('#tblVoucherBatchs').datagrid('getRows');
+        sessionStorage.setItem("VoucherBatchs", JSON.stringify(oVoucherBatchs));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("VoucherBatchHeader", "View VoucherBatch");    
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/VoucherBatch/ViewVoucherBatch?id="+_oVoucherBatch.VoucherBatchID;
+    });
+    $("#btnTransferVoucherBatch").click(function(){
+        debugger;
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected');
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        if(_oVoucherBatch.BatchStatus!=1){alert("Can not perform Transfer! \nSelected Voucher Batch is not Open.");return false;}
+        
+
+        var SelectedRowIndex=$('#tblVoucherBatchs').datagrid('getRowIndex',_oVoucherBatch);
+        var oVoucherBatchs= $('#tblVoucherBatchs').datagrid('getRows');
+        sessionStorage.setItem("VoucherBatchs", JSON.stringify(oVoucherBatchs));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("VoucherBatchHeader", "Transfer From VoucherBatch");    
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/VoucherBatch/ViewVoucherBatch?id="+_oVoucherBatch.VoucherBatchID;
+
+       
+    });
+    $("#btnHistoryVoucherBatch").click(function(){
+        _oVoucherBatch= $('#tblVoucherBatchs').datagrid('getSelected'); 
+        if(_oVoucherBatch==null || _oVoucherBatch.VoucherBatchID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblVoucherBatchs').datagrid('getRowIndex',_oVoucherBatch);
+        var oVoucherBatchs= $('#tblVoucherBatchs').datagrid('getRows');
+        sessionStorage.setItem("VoucherBatchs", JSON.stringify(oVoucherBatchs));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("VoucherBatchHeader", "History of Batch No: " + _oVoucherBatch.BatchNO);    
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/VoucherBatch/ViewVoucherBatchHistorys?id="+_oVoucherBatch.VoucherBatchID;
+    });
+   
+    function RefreshControlLayout(oAURolesMapping)
+    {        
+        $("#btnAddVoucherBatch").hide();
+        $("#btnCloseVoucherBatch").hide();
+        $("#btnViewVoucherBatch").hide();
+        $("#btnDeleteVoucherBatch").hide();        
+        $("#btnPrintListVoucherBatch").hide();
+        $("#btnPrintInXLVoucherBatch").hide();
+        
+        
+        if(PermissionChecker('Add','VoucherBatch',oAURolesMapping)){$("#btnAddVoucherBatch").show();}
+        if(PermissionChecker('Close','VoucherBatch',oAURolesMapping)){$("#btnCloseVoucherBatch").show();}
+        if(PermissionChecker('View','VoucherBatch',oAURolesMapping)){$("#btnViewVoucherBatch").show();}
+        if(PermissionChecker('Delete','VoucherBatch',oAURolesMapping)){$("#btnDeleteVoucherBatch").show();}
+        if(PermissionChecker('PrintList','VoucherBatch', oAURolesMapping)){$("#btnPrintListVoucherBatch").show();}
+        if(PermissionChecker('XLPrint','VoucherBatch',oAURolesMapping)){$("#btnPrintInXLVoucherBatch").show();}
+    }
+</script>

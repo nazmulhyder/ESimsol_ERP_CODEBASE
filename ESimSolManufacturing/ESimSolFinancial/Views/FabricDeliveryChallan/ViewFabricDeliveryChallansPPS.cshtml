@@ -1,0 +1,518 @@
+﻿@{
+    ViewBag.Title = "FabricDeliveryChallan";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FabricDeliveryChallan>
+<script src="~/Views/FabricDeliveryChallan/AdvanceSearch.js"></script>
+<div ng-app="FabricDeliveryChallanModule">
+    <div ng-controller="FabricDeliveryChallanController">
+        <div class="row ui-grid-top-panel regionSCLC">
+            <div class="container">
+                <div class="form-inline">
+                    @*<label class="control-label">Exe No :</label>*@
+                    <input type="text" class="form-control" style="width:110px" ng-model="ChallanNo" ng-keydown="searchByChallanNo($event)" placeholder="Type Challan No & Press Enter"><input type="text" style="width:110px" class="form-control" ng-model="DONo" ng-keydown="searchByDO($event)" placeholder="Type Dispo No & Press Enter">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+                    @*<input type="text" ng-model="subjectInfo.SubjectName" class="form-control" style="width:200px" placeholder="Search Invoice" />*@
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()" ng-hide="btnAdd"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>New</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>Edit</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Delete</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="approve()" ng-hide="btnApprove"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>Approve</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="undoApprove()" ng-hide="btnUndoApprove"> <span class="glyphicon glyphicon-hand-left" style="color:black;font-weight:bold" aria-hidden="true"></span> Undo Approve</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Disburse()" ng-hide="btnDisburse"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span>Disburse</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintGatePass()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Gate Pass</span></button>
+
+                </div>
+            </div>
+        </div>
+        @*<div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid-angular ui-grid-selectable"></div>*@
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid"></div>
+        @*<div class="custom-pagination">
+            <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+        </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+      .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 520px;
+        width: 99%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 1px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFabricDeliveryChallans =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    debugger;
+
+    var  FabricDeliveryChallanModule = angular.module('FabricDeliveryChallanModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.resizeColumns','ms.service','FabricDeliveryChallan.service']);
+
+    FabricDeliveryChallanModule.controller('FabricDeliveryChallanController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advsearchFdcService) {
+        debugger;
+        oFabricDeliveryChallans= (userSession.getData('FabricDeliveryChallans').length>0)? userSession.getData('FabricDeliveryChallans'):oFabricDeliveryChallans;
+        $scope.CompareOperators= oCompareOperators;
+        $scope.IsMeter= false;
+        $scope.IsYard= true;
+        $scope.PrintFormat= -1;
+        $scope.gridOptions ={
+
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            showColumnFooter: true,
+            enableGridMenu: true,
+
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'ChallanNo', name: 'ChallanN No', width:'15%', enableCellEdit: false },
+                { field: 'IssueDateSt', name: ' Date', width: '15%', enableCellEdit: false },
+                { field: 'Qty', name: ' Qty(Y)', width: '10%', cellClass: 'text-right', width: '10%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                //{ field: 'DeliveryToName', name: 'Delivery To', width: '10%' },
+                //{ field: 'DriverName', name: 'Driver Name', width: '15%' },
+                { field: 'PreparedByName', name: 'Prepared By', width: '20%' },
+                { field: 'ApproveByName', name: 'Approve By', width: '20%' },
+                { field: 'DisburseByName', name: 'Delivered By', width: '16%' }
+                //{ field: 'IsGRNSt', name: 'Receive By', width: '15%' }
+            ],
+            data:oFabricDeliveryChallans,
+            onRegisterApi:function(gridApi) {
+
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFabricDeliveryChallans.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFabricDeliveryChallans);
+                    $scope.gridApi.selection.selectRow(oFabricDeliveryChallans[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFabricDeliveryChallans[userSession.getRowIndex()]);
+                }
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity ); });
+                userSession.clear();
+            }
+        };
+
+        $scope.btnAdd = $scope.btnEdit =  $scope.btnDelete = $scope.btnApprove= $scope.btnDisburse   = $scope.btnUndoApprove  = true ;
+        //button show
+        if(PermissionChecker('Add','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnAdd = false; }
+        if(PermissionChecker('Edit','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnEdit = false;}
+        if(PermissionChecker('Delete','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnDelete = false;}
+        if(PermissionChecker('Approved','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnApprove = false;}
+        if(PermissionChecker('UnApproved','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnUndoApprove = false;}
+        if(PermissionChecker('Disburse','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnDisburse = false;}
+
+
+        function CheckControll()
+        {
+            debugger;
+            if($scope.btnAdd == false  && !PermissionChecker('Add','FabricDeliveryChallan',oAuthorizationRolesMapping))
+            {$scope.btnAdd = true; }
+            if($scope.btnEdit == false && !PermissionChecker('Edit','FabricDeliveryChallan',oAuthorizationRolesMapping))
+            {$scope.btnEdit = true;}
+
+            if($scope.btnDelete == false && !PermissionChecker('Delete','FabricDeliveryChallan',oAuthorizationRolesMapping))
+            {$scope.btnDelete = true;}
+
+            if($scope.btnApprove == false && !PermissionChecker('Approved','FabricDeliveryChallan',oAuthorizationRolesMapping))
+            {$scope.btnApprove = true;}
+
+            if($scope.btnDisburse == false && !PermissionChecker('Disburse','FabricDeliveryChallan',oAuthorizationRolesMapping))
+            {$scope.btnDisburse = true;}
+
+            if(PermissionChecker('UnApproved','FabricDeliveryChallan',oAuthorizationRolesMapping)){$scope.btnUndoApprove = false;}
+
+        }
+
+        $scope.RowSelect =  function (entity)
+        {
+            debugger;
+            if(entity.FDOType==8)//Local Bill
+            {
+                $scope.btnPreviewBill=false;
+            }
+            else
+            {
+                $scope.btnPreviewBill=true;
+            }
+
+            if(entity.ApproveBy!=0 && entity.DisburseBy==0){
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =false;
+                $scope.btnDisburse=false;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+
+                CheckControll();
+            }
+            else if(entity.ApproveBy!=0 && entity.DisburseBy!=0)
+            {
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                CheckControll();
+            }
+
+            else
+            {
+                $scope.btnApprove=false;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                CheckControll();
+            }
+        }
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("FabricDeliveryChallanHeader", "Add FabricDeliveryChallan");
+            sessionStorage.setItem("FabricDeliveryChallans", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FabricDeliveryChallan/ViewFabricDeliveryChallanPPS?id=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FDCID==data[0].FDCID){
+
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FabricDeliveryChallanHeader", "Edit FabricDeliveryChallan");
+                    sessionStorage.setItem("FabricDeliveryChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FabricDeliveryChallan/ViewFabricDeliveryChallanPPS?id="+value.FDCID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].ApproveBy!=0){
+                //msModal.Message({headerTitle : '', bodyText:'Already Approve .', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                //return false;
+                alert("Already  Approve");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].DisburseBy!=0){
+                //msModal.Message({headerTitle : '', bodyText:'Already Disburse.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                //return false;
+                alert("Already  Disburse");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return false;
+            $http.post(_sBaseAddress+ '/FabricDeliveryChallan/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.FDCID==data[0].FDCID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FDCID==data[0].FDCID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FabricDeliveryChallanHeader", "View FabricDeliveryChallan");
+                    sessionStorage.setItem("FabricDeliveryChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FabricDeliveryChallan/ViewFabricDeliveryChallanPPS?id="+value.FDCID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.approve = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FDOID==data[0].FDOID){
+                    sessionStorage.setItem("Operation", "Approve");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FabricDeliveryChallanHeader", "View FabricDeliveryChallan");
+                    sessionStorage.setItem("FabricDeliveryChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FabricDeliveryChallan/ViewFabricDeliveryChallanPPS?id="+value.FDCID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.undoApprove = function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var nIndex= $scope.gridOptions.data.indexOf(data[0]);
+            if (!confirm("Confirm to Unapprove?")) return ;
+
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FDCID==data[0].FDCID){
+                    $http.post(_sBaseAddress+'/FabricDeliveryChallan/UndoApproveFDC', JSON.stringify(data[0])).then(
+                         function (response) {
+                             var result=jQuery.parseJSON(response.data);
+                             if(result.FDCID>0)
+                             {
+                                 debugger;
+                                 $scope.gridOptions.data[index]=result;
+                                 $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                 $scope.gridApi.selection.selectRow(result);
+                             }
+                             else{
+                                 alert(result.ErrorMessage);
+                             }
+                         },
+                         function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                   );
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.Disburse = function () {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                //msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                alert("Select a valid item");
+                return false;
+            }
+            else if(data[0].ApproveBy===0){
+                alert("Yet not Approve");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].DisburseBy!=0){
+                alert("Already Disburse");
+                //msModal.Message({headerTitle : '', bodyText:'Already Received.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if (!confirm("Confirm to Disburse?")) return ;
+            // msModal.Message({headerTitle : '', bodyText:'Are you sure to approve?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result)
+            //{
+            debugger;
+            //if(result)
+            //{
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FDCID==data[0].FDCID){
+                    $http.post( _sBaseAddress+'/FabricDeliveryChallan/FDCDisburse', JSON.stringify(data[0])).then(
+                         function (response) {
+                             var result=jQuery.parseJSON(response.data);
+                             if(result.FDCID>0)
+                             {
+                                 debugger;
+                                 $scope.gridOptions.data[index]=result;
+                                 $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                 $scope.gridApi.selection.selectRow(result);
+                             }
+                             else{
+                                 alert(result.ErrorMessage);
+                             }
+                         },
+                         function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                   );
+                }
+            },$scope.gridOptions.data);
+            //}
+            //});
+
+        };
+        $scope.searchByChallanNo = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.ChallanNo);
+                if (sChallanNo=!"")
+                {
+                    var oFabricDeliveryChallan = {
+                        ChallanNo:$.trim($scope.ChallanNo),
+                        FabricDONo:"",
+                        IsSample: true
+                    };
+
+                    debugger;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.post(_sBaseAddress+'/FabricDeliveryChallan/SearchByNo',$.param(oFabricDeliveryChallan), config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }
+            //else if (code == 8) //backspace=8
+            //{
+            //    $scope.ChallanNo='';
+            //}
+        };
+        $scope.searchByDO = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.DONo);
+                if (sChallanNo=!"")
+                {
+                    var oFabricDeliveryChallan = {
+                        ChallanNo:"",
+                        Params:$.trim($scope.DONo),
+                        IsSample: true
+                    };
+                    debugger;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.post(_sBaseAddress+'/FabricDeliveryChallan/SearchByNo',$.param(oFabricDeliveryChallan), config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }
+            //else if (code == 8) //backspace=8
+            //{
+            //    $scope.DONo='';
+            //}
+        };
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oFabricDeliveryChallan = data[0];
+            if(oFabricDeliveryChallan==null || oFabricDeliveryChallan.FDCID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            //window.open(_sBaseAddress + '/FabricDeliveryChallan/PrintFDC?id='+oFabricDeliveryChallan.FDCID+'&nBUID='+_nBUID+"&bIsMeter=false");
+            window.open(_sBaseAddress + '/FabricDeliveryChallan/PrintFDC?id='+oFabricDeliveryChallan.FDCID+'&nBUID='+_nBUID+"&bIsMeter="+$scope.IsMeter+"&nFormat="+$scope.PrintFormat);
+        };
+        $scope.PrintGatePass = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oFabricDeliveryChallan = data[0];
+            if(oFabricDeliveryChallan==null || oFabricDeliveryChallan.FDCID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            //window.open(_sBaseAddress + '/FabricDeliveryChallan/PrintFDC_GatePass?id='+oFabricDeliveryChallan.FDCID+'&nBUID='+_nBUID+"&bIsMeter=false");
+            window.open(_sBaseAddress + '/FabricDeliveryChallan/PrintFDC_GatePass?id='+oFabricDeliveryChallan.FDCID+'&nBUID='+_nBUID+"&bIsMeter="+$scope.IsMeter+"&nFormat="+$scope.PrintFormat);
+        };
+
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'FabricDeliveryChallanController',
+                CompareOperators:$scope.CompareOperators,
+                FDOSetups: @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FDOSetups)),
+                IsSample: true
+            }
+            var modalInstance=advsearchFdcService.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+    });
+
+
+</script>
+                       
+
+
+              

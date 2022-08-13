@@ -1,0 +1,574 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "Accounts Book Setup";
+    }
+</head>
+<body>
+    @model ESimSol.BusinessObjects.AccountsBookSetup
+    <div id="progbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable">
+        <div id="divAccountsBookSetup" class="easyui-panel" title="Accounts Book Setup" style="font-family:Tahoma; text-align:center; height:88%; width:100%">
+            <fieldset style="width:97.8%">
+                <legend style="font-weight:bold">Requisition Informations : </legend>
+                <table border="0" cellspacing="1" cellpadding="1" style="width:100%; font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:10%; text-align:right">
+                            Book Name :
+                        </td>
+                        <td style="width:50%">
+                            <input type="text" style="width:100%" id="txtBookName" />
+                        </td>
+                        <td style="width:15%; text-align:right">
+                            Mapping Type :
+                        </td>
+                        <td style="width:15%">
+                            <select style="width:103%" id="cboMappingType"> </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:10%; text-align:right">
+                            Remarks :
+                        </td>
+                        <td colspan="3" style="width:90%">
+                            <input type="text" style="width:100%" id="txtRemarks"/>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div style="margin-left:2px; height:375px; margin-left:2px; width:99.80%">
+                <table id="tblAccountsBookSetupDetail" title="Ledger/Sub-Ledger List" class="easyui-datagrid" style="width:100%;height:375px" data-options="singleSelect: true, fitColumns:true, rownumbers:true,pagination:false, autoRowHeight:false,toolbar: '#toolbar'">
+                    <thead>
+                        <tr>
+                            <th field="AccountHeadCode" width="100" align="left">Code</th>
+                            <th field="AccountHeadName" width="200" align="left">Ledger/Sub-Ledger Name</th>
+                            <th field="ComponentTypeSt" width="150" align="left">Component Type</th>                            
+                            <th field="CategoryName" width="200" align="left">Category Name</th>                            
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbar" style=" height:25px">
+                    <input type="text" placeholder="Search by Subledger Name/Code" style="width:200px" id="txtSubledger" />
+                    <input type="text" placeholder="Search by Account Head Name/Code" style="width:200px" id="txtAccountHead" />
+                    Component Types : <select style="width:120px" id="cboComponentType"> </select>
+                    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                    <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                </div>
+            </div>
+        </div>
+        <fieldset style="height:8%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:83%; text-align:right"></td>
+                    <td style="width:17%;text-align:right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oAccountsBookSetup = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oMappingTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MappingTypes));
+        var oComponentTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ComponentTypes));
+        
+        $('#divAccountsBookSetup').data('AccountsBookSetup', oAccountsBookSetup);
+        $('#divAccountsBookSetup').data('MappingTypes', oMappingTypes);
+        $('#divAccountsBookSetup').data('ComponentTypes', oComponentTypes);
+        $('#txtAccountHead').data('AccountHead', null);
+        $('#txtSubledger').data('Subledger', null);
+
+        $("#progbar").progressbar({ value: 0 });
+        $("#progbarParent").hide();
+
+        RefreshControl(oAccountsBookSetup);
+        RefreshLayOut(oAccountsBookSetup);
+    });
+
+    function updateProgress() {
+        var value =$('#progbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progbarParent").hide();
+    }
+
+    function RefreshControl(oAccountsBookSetup)
+    {
+        RefreshCombobox();
+        $('#txtBookName').val(oAccountsBookSetup.AccountsBookSetupName);
+        $('#cboMappingType').val( parseInt(oAccountsBookSetup.MappingTypeInt));
+        $('#txtRemarks').val(oAccountsBookSetup.Note);
+        RefreshList(oAccountsBookSetup.AccountsBookSetupDetails);
+        ChangeMappingType();
+    }
+
+    function RefreshCombobox()
+    {
+        var oMappingTypes = $('#divAccountsBookSetup').data('MappingTypes');
+        var oComponentTypes = $('#divAccountsBookSetup').data('ComponentTypes');
+
+        $("#cboMappingType").icsLoadCombo({List: oMappingTypes, OptionValue: "id",DisplayText: "Value"});
+        $("#cboComponentType").icsLoadCombo({List: oComponentTypes, OptionValue: "id",DisplayText: "Value"});
+    }
+
+    function RefreshLayOut(oAccountsBookSetup) {
+        var sAccountsBookSetupHeader = sessionStorage.getItem("AccountsBookSetupHeader");
+        if (sAccountsBookSetupHeader === "View Accounts Book Setup") {
+            $('#divAccountsBookSetup :input').prop('disabled', true);
+            $("#btnAdd").hide();
+            $("#btnRemove").hide();
+            $("#btnSave").hide();
+        }
+    }
+
+    function ValidateInput() {
+
+        if($('#txtBookName').val() === null || $('#txtBookName').val()==="")
+        {
+            alert("Please enter Book Name!");
+            $('#txtBookName').focus();
+            return false;
+        }
+
+        if($('#cboMappingType').val() === null || parseInt($('#cboMappingType').val())<=0)
+        {
+            alert("Please select Mapping Type!");
+            $('#cboMappingType').focus();
+            return false;
+        }
+
+        var oAccountsBookSetupDetails = $('#tblAccountsBookSetupDetail').datagrid('getRows');
+        if(oAccountsBookSetupDetails === null || oAccountsBookSetupDetails.length<=0)
+        {
+            alert("Please select at least one Ledge/Sub-Ledger!");
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject() {
+        var oTempAccountsBookSetup = $('#divAccountsBookSetup').data('AccountsBookSetup');
+        var oAccountsBookSetup = {
+            AccountsBookSetupID : parseInt(oTempAccountsBookSetup.AccountsBookSetupID),
+            AccountsBookSetupName : $.trim($('#txtBookName').val()),
+            MappingTypeInt : parseInt($('#cboMappingType').val()),            
+            Note : $.trim($('#txtRemarks').val()),
+            AccountsBookSetupDetails : $('#tblAccountsBookSetupDetail').datagrid('getRows')
+        };
+        return oAccountsBookSetup;
+    }
+
+    $("#btnSave").click(function () {
+        if (!ValidateInput()) return;
+        var oAccountsBookSetup = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: sessionStorage.getItem("BaseAddress")+  "/AccountsBookSetup/Save",
+            traditional: true,
+            data: JSON.stringify(oAccountsBookSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oAccountsBookSetup = jQuery.parseJSON(data);
+                if (oAccountsBookSetup.AccountsBookSetupID > 0) {
+                    alert("Data Saved sucessfully");
+                    var oAccountsBookSetups = sessionStorage.getItem("AccountsBookSetups");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oAccountsBookSetups != null) {
+                        oAccountsBookSetups = jQuery.parseJSON(oAccountsBookSetups);
+                    }
+                    else {
+                        oAccountsBookSetups = [];
+                    }
+                    if (nIndex != -1) {
+                        oAccountsBookSetups[nIndex] = oAccountsBookSetup;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oAccountsBookSetups.length);
+                        oAccountsBookSetups.push(oAccountsBookSetup);
+                    }
+                    sessionStorage.setItem("AccountsBookSetups", JSON.stringify(oAccountsBookSetups));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oAccountsBookSetup.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnClose").click(function () {
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+
+    $("#btnRemove").click(function () {
+        var oAccountsBookSetupDetail = $('#tblAccountsBookSetupDetail').datagrid('getSelected');
+        if (oAccountsBookSetupDetail == null) {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if (conf == false) return;
+
+        var SelectedRowIndex = $('#tblAccountsBookSetupDetail').datagrid('getRowIndex', oAccountsBookSetupDetail);
+        $('#tblAccountsBookSetupDetail').datagrid('deleteRow', SelectedRowIndex);
+
+        var oAccountsBookSetupDetails = $('#tblAccountsBookSetupDetail').datagrid('getRows');
+        RefreshList(oAccountsBookSetupDetails);
+    });
+
+    $("#btnRefresh").click(function () {
+        data = $('#tblAccountsBookSetupDetail').datagrid('getRows');
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblAccountsBookSetupDetail').datagrid('loadData', data);
+    });
+
+    $('#cboMappingType').change(function(e){
+        ChangeMappingType();
+        RefreshList([]);
+    });
+
+    function ChangeMappingType()
+    {
+        //Ledger = 1, SubLedger = 2
+        if(parseInt($('#cboMappingType').val())===1)
+        {
+            $('#txtSubledger').hide();
+            $('#txtAccountHead').show();
+            $("#cboComponentType").prop('disabled', true);
+        }
+        else  if(parseInt($('#cboMappingType').val())===2)
+        {
+            $('#txtAccountHead').hide();
+            $('#txtSubledger').show();
+            $("#cboComponentType").prop('disabled', false);
+        }
+        else
+        {
+            $('#txtAccountHead').hide();
+            $('#txtSubledger').hide();
+            $("#cboComponentType").prop('disabled', false);
+        }
+    }
+
+    ///AccountHead Pick
+    $("#txtAccountHead").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            var sAccountHeadName = $.trim($('#txtAccountHead').val())
+            if(sAccountHeadName === null || sAccountHeadName === "")
+            {
+                alert("Please enter payable account Name!");
+                $('#txtAccountHead').focus();
+                return;
+            }
+
+            var oChatOfAccount = {
+                AccountHeadCodeName : sAccountHeadName
+            }
+            PickAccountHeads(oChatOfAccount);
+        }
+    });
+
+    $('#txtAccountHead').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 8) //backspace=8
+        {
+            $("#txtAccountHead").removeClass("fontColorOfPickItem");
+            $('#txtAccountHead').data('AccountHead', null);
+        }
+    });
+
+    function PickAccountHeads(oChatOfAccount)
+    {
+        var obj = {
+            BaseAddress: sessionStorage.getItem("BaseAddress"),
+            Object: oChatOfAccount,
+            ControllerName: "AccountsBookSetup",
+            ActionName: "GetsCOAByCodeOrName",
+            IsWinClose: false
+        };
+        $("#progbar").progressbar({ value: 0 });
+        $("#progbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.icsDataGets(obj, function (response) {
+            clearInterval(intervalID);
+            $("#progbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].AccountHeadID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "AccountCode", title: "Account Code", width: 120, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "AccountHeadName", title: "Account Name", width: 220, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ParentHeadName", title: "Category Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winAccountHead',
+                        winclass: 'clsAccountHead',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblAccountHeads',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'AccountHeadName',
+                        windowTittle: 'Account Head List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    //End AccountHead Picker
+
+    ///Subledger Pick
+    $("#txtSubledger").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            var sSubledgerName = $.trim($('#txtSubledger').val())
+            if(sSubledgerName === null || sSubledgerName === "")
+            {
+                alert("Please enter subledger Name!");
+                $('#txtSubledger').focus();
+                return;
+            }
+
+            var oACCostCenter = {
+                Name : sSubledgerName
+            };
+            PickSubledger(oACCostCenter);
+        }
+    });
+
+    $('#txtSubledger').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 8) //backspace=8
+        {
+            $("#txtSubledger").removeClass("fontColorOfPickItem");
+            $('#txtSubledger').data('Subledger', null);
+        }
+    });
+
+    function PickSubledger(oACCostCenter)
+    {
+        var obj = {
+            BaseAddress: sessionStorage.getItem("BaseAddress"),
+            Object: oACCostCenter,
+            ControllerName: "ACCostCenter",
+            ActionName: "GetsCostCenter",
+            IsWinClose: false
+        };
+        $("#progbar").progressbar({ value: 0 });
+        $("#progbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.icsDataGets(obj, function (response) {
+            clearInterval(intervalID);
+            $("#progbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ACCostCenterID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "Code", title: "Subledger Code", width: 120, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Name", title: "Subledger Name", width: 220, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "CategoryName", title: "Category Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winSubledger',
+                        winclass: 'clsSubledger',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblSubledger',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Subledger List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    //End Subledger Picker
+
+    $('#btnAdd').click(function(){
+        if($('#cboMappingType').val()===null || parseInt($('#cboMappingType').val())<=0)
+        {
+            alert('Please select mapping type!');
+            return;
+        }
+        if($('#cboComponentType').val() === null || parseInt($('#cboComponentType').val())<=0)
+        {
+            alert("Please select Component Type!");
+            $('#cboComponentType').focus();
+            return;
+        }
+
+        //Ledger = 1, SubLedger = 2
+        if(parseInt($('#cboMappingType').val())===1)
+        {
+            var oAccountHead = $('#txtAccountHead').data('AccountHead');
+            if(oAccountHead===null)
+            {
+                alert("Please select account head!");
+                return;
+            }
+            if(IsExists(parseInt(oAccountHead.AccountHeadID)))
+            {
+                alert("Your selected account head already exists!");
+                return;
+            }
+
+            var oAccountsBookSetupDetail = {
+                AccountsBookSetupDetailID : 0,
+                AccountsBookSetupID : 0,
+                AccountHeadID : parseInt(oAccountHead.AccountHeadID),
+                AccountHeadName : oAccountHead.AccountHeadName,
+                AccountHeadCode : oAccountHead.AccountCode,
+                CategoryName : oAccountHead.ParentHeadName,
+                ComponentTypeInt : parseInt($('#cboComponentType').val()),
+                ComponentTypeSt : $("#cboComponentType option:selected").text()
+            };
+            $('#tblAccountsBookSetupDetail').datagrid('appendRow', oAccountsBookSetupDetail);
+            $("#txtAccountHead").removeClass("fontColorOfPickItem");
+            $('#txtAccountHead').data('AccountHead', null);
+            $('#txtAccountHead').val('');
+            $('#txtAccountHead').focus();
+            $('#cboComponentType').val(0);
+        }
+        else
+        {
+            var oSubledger = $('#txtSubledger').data('Subledger');
+            if(oSubledger===null)
+            {
+                alert("Please select subledger!");
+                return;
+            }
+            if(parseInt(oSubledger.ParentID) === 1)
+            {
+                alert("Your selected item is category not subledger!");
+                return;
+            }
+
+            if(IsExists(parseInt(oSubledger.ACCostCenterID)))
+            {
+                alert("Your selected subledger already exists!");
+                return;
+            }
+
+            var oAccountsBookSetupDetail = {
+                AccountsBookSetupDetailID : 0,
+                AccountsBookSetupID : 0,
+                AccountHeadID : parseInt(oSubledger.ACCostCenterID),
+                AccountHeadName : oSubledger.Name,
+                AccountHeadCode : oSubledger.Code,
+                CategoryName : oSubledger.CategoryName,
+                ComponentTypeInt : parseInt($('#cboComponentType').val()),
+                ComponentTypeSt : $("#cboComponentType option:selected").text()
+            };
+            $('#tblAccountsBookSetupDetail').datagrid('appendRow', oAccountsBookSetupDetail);
+            $("#txtSubledger").removeClass("fontColorOfPickItem");
+            $('#txtSubledger').data('Subledger', null);
+            $('#txtSubledger').val('');
+            $('#txtSubledger').focus();
+            $('#cboComponentType').val(0);
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid === 'winAccountHead')
+        {
+            if (oreturnObj != null && parseInt(oreturnObj.AccountHeadID) > 0) {
+                $('#txtAccountHead').val(oreturnObj.AccountHeadName);
+                $('#txtAccountHead').addClass('fontColorOfPickItem');
+                $('#txtAccountHead').data('AccountHead', oreturnObj);
+                $("#cboComponentType").val(parseInt(oreturnObj.ComponentID));
+                $('#txtAccountHead').focus();
+            }
+        }
+        else if (oPickerobj.winid === 'winSubledger')
+        {
+            if (oreturnObj != null && parseInt(oreturnObj.ACCostCenterID) > 0) {
+                $('#txtSubledger').val(oreturnObj.Name);
+                $('#txtSubledger').addClass('fontColorOfPickItem');
+                $('#txtSubledger').data('Subledger', oreturnObj);
+                $('#txtSubledger').focus();
+            }
+        }
+    }
+
+    function IsExists(nAccountID)
+    {
+        var oAccountsBookSetupDetails =$('#tblAccountsBookSetupDetail').datagrid('getRows');
+        for(var i=0; i<oAccountsBookSetupDetails.length;i++)
+        {
+            if(parseInt(oAccountsBookSetupDetails[i].AccountHeadID)=== parseInt(nAccountID))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function RefreshGrid() {
+        data = $('#tblAccountsBookSetupDetail').datagrid('getRows');
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblAccountsBookSetupDetail').datagrid('loadData', data);
+    }
+
+    function RefreshList(oAccountsBookSetupDetails) {
+        data = oAccountsBookSetupDetails;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblAccountsBookSetupDetail').datagrid('loadData', data);
+    }
+</script>

@@ -1,0 +1,422 @@
+﻿@{
+    ViewBag.Title = "Production Detail";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ExportFollowup>
+<div ng-app="DUDBDVApp">
+   <div ng-controller="DUDBDVCntrl">
+
+       <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1000;opacity:.9;">
+           <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+               <label style="font-size:18px; color: black;">Please wait</label>
+               <div id="progressbar" style="width:100%;height:17px; border-radius: 10px"></div>
+           </div>
+       </div>
+
+       <div class="panel-warning">
+        <div class="panel-heading">
+            <label class="control-label">{{lblHeader}} </label>
+            <label class="control-label">|| Date : {{dtStart}}</label>
+            <label class="control-label" ng-show="IsDate==5"> <span> To {{dtEnd}}</span></label>
+        </div>
+       </div>
+       <div ui-grid="SummarygridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+       <div>
+           <fieldset>
+               <legend>Action</legend>
+               <div class="row col-md-12 text-right">
+                   <div style="float:right; padding-left:20px">
+                       <button type="button" class="btn btn-sm btn-primary" style="" aria-label="Left Align" ng-click="PrintDetails()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print</button>
+                       <button type="button" class="btn btn-sm btn-primary" style="" aria-label="Left Align" ng-click="PrintDetailsExcel()"> <span class="glyphicon glyphicon-file" aria-hidden="true"></span> Excel</button>
+                       <button type="button" id="btnclose" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+                   </div>
+               </div>
+           </fieldset>
+       </div>
+    </div>
+</div>
+
+<style type="text/css">
+    
+    #progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }
+    .grid {
+        height: 459px;
+    }
+    .form-control{
+    height:26px;
+    padding:0px 6px;
+    font-size:12px;
+}
+    .input-group-addon{
+        height:26px;
+    padding:0px 6px;
+    font-size:12px;
+    }
+
+    .ui-grid-cell.lightGreen {
+        background-color:  #B5DA69!important ;  /*90EE90*/ /*8ab92d*/
+        color: #000 !important;
+        font-size:12px;
+        font-weight:bold;
+    }
+   .my-button {
+            /*padding-top:-15px;*/
+            background:#B5DA69;
+            display: none;
+            position: relative;
+
+        }
+   .ui-grid-cell:hover .my-button {
+        display: block;
+        padding-top:-5px;
+        width: 95%;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        /*padding: 5px 0;*/
+        position: static;
+        z-index: 1;
+        /*bottom: 2%;
+        left: 1%;*/
+        /*margin-top: 5px;*/
+        opacity: 10;
+        transition: opacity 2s;
+        overflow:visible;
+        visibility:visible;
+        font-size:8px;
+        cursor:pointer;
+    }
+</style>
+
+<script type="text/javascript">
+    debugger;    
+    var oExportFollowups =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var nTrackID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TrackID));
+    var sParam = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Param));
+    var str ="@ViewBag.SearchStr";
+    var oCols = [];
+    sessionStorage.setItem('BUID',nBUID);
+
+    var  DUDBDVApp = angular.module('DUDBDVApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.resizeColumns', 'ui.grid.cellNav','ms.service']);
+    DUDBDVApp.controller('DUDBDVCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+
+        console.log(oExportFollowups);
+        $scope.reset = function(){
+            var SearchStr = sessionStorage.getItem('SearchStr');
+            //$scope.TrackID = nTrackID;
+            $scope.IsDate =SearchStr.split('~')[0];
+            $scope.dtStart =SearchStr.split('~')[1];
+            $scope.dtEnd = (SearchStr.split('~')[2]);
+            //$scope.ActiveView= (SearchStr.split('~')[4]);
+            //$scope.PortionID= (SearchStr.split('~')[5]);
+            $scope.lblHeader=sessionStorage.getItem("Header");
+            debugger;
+        }
+        $scope.reset();
+        debugger;
+
+        var _oGridColDefs= [
+                {name: ' ',width:'3%', colWidth:'', dataType:'', Sum:0, format:0, cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellFilter: 'number: 2',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'ContractorName', name: 'Party Name', width:'20%', Sum:0, format:0, colWidth:80, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+                { field: 'BankName_Nego', name: 'Bank (Nego)', width:'15%', Sum:0, format:0, colWidth:50, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';}, type: 'number'},
+                { field: 'BBranchName_Nego', name: 'Branch (Nego)', width:'15%', Sum:0, format:0, colWidth:30, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';},  type: 'number'},
+                { field: 'BankName_Issue', name: 'Bank (Issue)', width:'15%' , Sum:0, format:0, colWidth:30, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';}},
+                { field: 'Bill_Status', name: 'Bill Status', width:'15%' , Sum:0, format:0, colWidth:10, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';}},
+                { field: 'BBranchName_Issue', name: 'Branch (Issue)', width:'15%', Sum:0, format:0, colWidth:30, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';},  type: 'number'},
+                { field: 'ExportLCNo', name: 'LC No', width:'12%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';}, type: 'number'},
+                { field: 'LCFileNo', name: 'File No', width:'12%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-left':'text-left';}, type: 'number'},
+                { field: 'Amount_LC', name: 'Amount (LC)', width:'10%', colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0' },
+                { field: 'Amount', name: 'Amount', width:'10%', colWidth:20, Sum:1, format:2, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0' },
+                { field: 'Amount_Bill', name: 'Bill Value', width:'10%', colWidth:20, Sum:1, format:2, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0' },
+                { field: 'DeliveryQty', name: 'Do Qty', width:'10%' , colWidth:20, Sum:1,format:1,  dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'Qty_Bill', name: 'Bill Qty', width:'10%' , colWidth:20, Sum:1, format:2, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'DeliveryValue', name: 'Do Amount', width:'10%', colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0' },
+                { field: 'ExportBillNo', name: 'Invoice No', width:'12%',colWidth:30, Sum:0, format:0, dataType:'String',  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';}, type: 'number'},
+                { field: 'Qty', name: 'PI Qty', width:'10%' , colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'StartDateStr', name: 'Invoice Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number',cellFcellFilter: 'number: 2',},
+                { field: 'SendToPartyStr', name: 'Send To Party', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'RecdFromPartyStr', name: 'Recd From Party', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}},
+                { field: 'SendToBankStr', name: 'Send To Bank', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number', cellFilter: 'number: 2'},
+                { field: 'OverdueRate', name: 'Overdue Rate', width:'10%' , colWidth:30, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,cellFilter: 'number: 2',  type: 'number:2', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'Currency', name: 'Currency', width:'8%', colWidth:20, Sum:0, format:2, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2', type: 'number:2'},
+                { field: 'LCOpeningDateStr', name: 'LC Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-center':'text-center';}, type: 'number'},
+                { field: 'LCRecivedDateStr', name: 'LC Received Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-center':'text-center';}, type: 'number'},
+                { field: 'MKTPName', name: 'Mkt. Person', width:'10%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'MaturityDateStr', name: 'Maturity Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}},
+                { field: 'MaturityReceivedDateStr', name: 'Maturity Rcv Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'LDBCNo', name: 'LDBC No', width:'10%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2', type: 'number'},
+                { field: 'LDBPNo', name: 'LDBP No', width:'10%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2', type: 'number'},
+                //{ field: 'MaturityReceivedDateStr', name: 'Maturity Rcv Date', width:'10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'LDBPAmount', name: 'LDBP Amount', width:'10%' , colWidth:20, Sum:1, format:2, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'LDBCDateStr', name: 'LDBC Date', width:'10%', colWidth:20, Sum:0, format:0, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number',cellFilter: 'number: 2'},
+                { field: 'AcceptanceDateStr', name: 'Acceptance Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, cellFilter: 'number: 2', type: 'number'},
+                { field: 'DiscountedDateStr', name: 'Discounted Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},type: 'number'},
+                { field: 'BankFDDRecDateStr', name: 'FDD Rec Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'RelizationDateStr', name: 'Relization Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'EncashmentDateStr', name: 'Encashment Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'DeliveryDateStr', name: 'Delivery Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'Shipment_DateStr', name: 'Shipment Date', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'PINo', name: 'PI No', width:'10%', colWidth:50, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':''} },
+                { field: 'YetToDeliveryQty', name: 'Rem. Do Qty', width:'10%' , colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'DeliveryChallanQty', name: 'Delivery Challan Qty', width:'10%' , colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'LCQty', name: 'Lc Qty', width:'10%' , colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'YetToDeliveryValue', name: 'Rem. Do Amount', width:'10%' , colWidth:20, Sum:1, format:1, dataType:'Double', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';},cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                { field: 'PIDateStr', name: 'PIDate', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}, type: 'number'},
+                { field: 'TimeLag', name: 'Time Lag', width:'10%', colWidth:30, Sum:0, format:0, dataType:'String', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen text-right':'text-right';}},
+        ];
+
+        var oFields=[];
+        function SetFields(){
+            debugger;
+            var PartId=parseInt(sessionStorage.getItem("PartID"));
+            var TabID=parseInt(sessionStorage.getItem("TabID"));
+            if(PartId==4)
+            {
+                if(TabID == 1 || TabID == 3)
+                    oFields=['PINo','PIDateStr','ContractorName','MKTPName','Qty','Amount','DeliveryQty','DeliveryValue','YetToDeliveryQty','YetToDeliveryValue','TimeLag'];
+                else if(TabID == 2)
+                    oFields=['LCFileNo','ExportLCNo','ContractorName','LCOpeningDateStr','Shipment_DateStr','LCQty','Amount_LC','PINo','Qty','DeliveryQty','YetToDeliveryQty','Qty_Bill','Amount_Bill','YetToInvoice'];
+            }else if (PartId==5)
+            {
+                debugger;
+                if(TabID == 1)
+                    oFields=['LCFileNo','ExportLCNo','LCOpeningDateStr','LCRecivedDateStr','ContractorName','LCQty', 'Amount_LC','PINo','Qty'];
+                else if (TabID == 2)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','LCOpeningDateStr', 'ContractorName','Amount_LC','Amount_Bill','YetToInvoice'];
+                else if (TabID == 3)
+                    oFields=['LCFileNo','ExportLCNo','StartDateStr','ContractorName','PINo', 'ContractorName','LCQty','Amount_LC','DeliveryQty','DeliveryValue','DeliveryChallanQty','Qty_Bill','Amount_Bill','YetToInvoice'];
+                //oFields=['ExportLCNo','LCOpeningDateStr','PINo','PIDateStr','ContractorName','MKTPName','DeliveryDateStr','Qty','DeliveryQty','Amount','DeliveryValue','YetToDeliveryQty','YetToDeliveryValue'];
+            }else if (PartId==6)
+            {
+                if(TabID == 1)
+                    oFields=['ExportBillNo','StartDateStr','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','Bill_Status'];
+                else if (TabID == 2)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','SendToPartyStr','TimeLag'];
+                else if (TabID == 3)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','SendToPartyStr','TimeLag'];
+            }
+            else if (PartId==7)
+            {
+                if(TabID == 1 || TabID == 3)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','SendToPartyStr','TimeLag'];
+                else if (TabID == 2)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','SendToPartyStr','RecdFromPartyStr','TimeLag'];
+            }
+            else
+            {
+                if(TabID == 1)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','RecdFromPartyStr','SendToBankStr','TimeLag'];
+                else if (TabID == 2)
+                    oFields=['ExportBillNo','StartDateStr','LCFileNo','ExportLCNo','ContractorName','BankName_Nego','BankName_Issue','Qty_Bill','Amount_Bill','RecdFromPartyStr','SendToBankStr','MaturityDateStr','MaturityReceivedDateStr','LDBCNo','LDBCDateStr','TimeLag'];
+            }
+        }
+        SetFields();
+        SetColumnNames(oFields);
+
+        $scope.SummarygridOptions ={
+            showColumnFooter: true,
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            //rowHeight:40,
+            noUnselect : true,
+            autoResize:true ,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs:GetColumnDefs(oFields),
+            data:oExportFollowups,
+            onRegisterApi:function(SummarygridApi) {
+                debugger;
+                $scope.SummarygridApi = SummarygridApi;
+
+                $scope.SummarygridApi.selection.clearSelectedRows();
+                $scope.SummarygridApi.core.refresh();
+                debugger;
+                if(oExportFollowups.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.SummarygridApi.grid.modifyRows(oExportFollowups);
+                    $scope.SummarygridApi.selection.selectRow(oExportFollowups[userSession.getRowIndex()]);
+                    $scope.RowSelect(oExportFollowups[userSession.getRowIndex()]);
+                }
+                $scope.SummarygridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity); });
+            }
+        };
+
+
+        $scope.updateProgress = function() {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 90){
+                value += Math.floor(Math.random() * 10);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+        $scope.hideShow = function(miliseconds) {
+            $("#progressbarParent").hide();
+        }
+
+        $scope.getsSummary=function(){
+            debugger;
+            if(sParam != null && sParam != "")
+            {
+                var obj={
+                    Params: sParam ,
+                    BUID : nBUID
+                }
+                $("#progressbar").progressbar({ value: 0 });
+                $("#progressbarParent").show();
+                var intervalID = setInterval($scope.updateProgress, 250);
+                                
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(sessionStorage.getItem("BaseAddress")+'/ExportFollowup/GetsExportFollowupSummary',$.param(obj), config).then(function (response)
+                {
+                    debugger;
+                    var results=response.data;
+
+                    $scope.SummarygridOptions.data = results;
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+
+                },
+                    function (response) { alert(response.data.ErrorMessage);}
+                );
+            }
+        }
+
+        $scope.getsSummary();
+
+        function GetColumnDefs(oFields)
+        {
+            debugger;
+            if(oFields.length==0)
+                return  _oGridColDefs;
+
+            var ColumnDefs=[];
+            for(var i=0; i<oFields.length; i++)
+            {
+                for(var j=1;j<_oGridColDefs.length;j++)
+                {
+                    if(_oGridColDefs[j].field==oFields[i])
+                        ColumnDefs.push(_oGridColDefs[j]);
+                }
+            }
+            return ColumnDefs;
+        }
+
+
+
+        function SetColumnNames(oFields)
+        {
+            debugger;
+            if(oFields.length==0)
+                return  _oGridColDefs;
+
+            oCols=[];
+            for(var i=0; i<oFields.length; i++)
+            {
+                for(var j=0;j<_oGridColDefs.length;j++)
+                {
+                    if(_oGridColDefs[j].field==oFields[i])
+                        oCols.push({Column:_oGridColDefs[j].field, FieldName:_oGridColDefs[j].name, Datatype:_oGridColDefs[j].dataType, Width:parseFloat(_oGridColDefs[j].colWidth), Format : parseInt(_oGridColDefs[j].format), Sum : parseInt(_oGridColDefs[j].Sum)});
+                }
+            }
+            
+        }
+
+
+
+        //
+        $scope.ShowDetails=function(value)
+        {
+            sessionStorage.setItem("SelectedRowIndex", $scope.SummarygridOptions.data.indexOf(value));
+            sessionStorage.setItem("BackLinkDetail", window.location.href);
+            sessionStorage.setItem("HeaderDetail", $scope.lblHeader+"  ||"+value.Name);
+
+            sessionStorage.setItem('Name',value.Name);
+            sessionStorage.setItem("ExportFollowups", JSON.stringify(oExportFollowups));
+            sessionStorage.removeItem('DUPID');
+            sessionStorage.setItem('DUPID',value.ID);
+            //window.location.href=sessionStorage.getItem("BaseAddress")+ '/ExportFollowup/View_DU_Dashboard_Production_DetailViewRS?buid='+sessionStorage.getItem('BUID')+"&ViewType="+$scope.ActiveView+'&portionID='+$scope.PortionID+"&searchStr=" +str+'~'+value.ID;
+        }
+
+        $scope.PrintDetails = function()
+        {
+            debugger;
+
+
+
+            $http.post(_sBaseAddress + '/ExportFollowup/SetPrintingData',JSON.stringify({oCols:oCols})).then(
+                function (response) {
+                    var sSearchStr = sessionStorage.getItem("SearchStr");
+                    if(sSearchStr == undefined || sSearchStr == null || sSearchStr == "") {
+                        msModal.Message({ headerTitle: '', bodyText: 'Invalid Searching Parameter', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                        return ;
+                    }
+                    console.log(oCols);
+                    var nBUID = sessionStorage.getItem('BUID');
+                    window.open(sessionStorage.getItem("BaseAddress")+ "/ExportFollowup/PrintExportFollowupDetail?buid="+nBUID+"&sSearchStr="+sSearchStr,"_blank");
+            })
+
+
+
+        }
+        $scope.PrintDetailsExcel = function()
+        {
+            var sSearchStr = sessionStorage.getItem("SearchStr");
+            if(sSearchStr == undefined || sSearchStr == null || sSearchStr == "") {
+                msModal.Message({ headerTitle: '', bodyText: 'Invalid Searching Parameter', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                return ;
+            }
+            var nBUID = sessionStorage.getItem('BUID');
+
+
+
+            $http.post(_sBaseAddress + '/ExportFollowup/SetPrintingData',JSON.stringify({oCols:oCols})).then(
+                function (response) {
+                    var sSearchStr = sessionStorage.getItem("SearchStr");
+                    if(sSearchStr == undefined || sSearchStr == null || sSearchStr == "") {
+                        msModal.Message({ headerTitle: '', bodyText: 'Invalid Searching Parameter', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                        return ;
+                    }
+                    console.log(oCols);
+                    var nBUID = sessionStorage.getItem('BUID');
+                    window.open(sessionStorage.getItem("BaseAddress")+ "/ExportFollowup/PrintExportFollowupDetailExcel?buid="+nBUID+"&sSearchStr="+sSearchStr,"_blank");
+                })
+
+
+            
+        }
+
+        $scope.Close = function () {
+            userSession.previousPage();
+        };
+    });
+</script>
+
+
+
+
+

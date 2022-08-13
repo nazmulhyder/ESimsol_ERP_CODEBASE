@@ -1,0 +1,589 @@
+﻿<html>
+<head>  
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+@model ESimSol.BusinessObjects.VoucherDetail
+@{
+    ViewBag.Title = Html.DisplayFor(model => model.AccountHeadName);
+}
+<body>
+    <div style="font-family:Tahoma">           
+        <table border="0" cellspacing="1" cellpadding="1">
+            <tr>
+                <td style="background-color:#CFB53B; text-align:center; width:900px; color:White">
+                    <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline"> </label>
+                </td>
+            </tr>            
+        </table>
+       
+        <div style="margin-left:2px"> 
+           
+               <table id="tblCostCenterTransaction" title="Voucher Detail Information"  class="easyui-datagrid" style="width:895px;height:200px"
+                data-options="                       
+                    singleSelect: true, 
+                    fitColumns:false, 
+                    rownumbers:true,
+                    pagination:false,
+                    autoRowHeight:false,
+                    toolbar: '#toolbar',
+                    onClickRow: onClickRow  
+                ">  
+                <thead>                      
+                    <tr> 
+                       
+                        <th field="CostCenterName" width="220">CostCenterName(s)</th>                          
+                        <th data-options="field:'Description',width:250,align:'Left',editor:{type:'text'}"  align="right">Narration</th> 
+                        <th field="Amount" width="125" align="right" formatter="formatPrice"> Amount</th>                        
+                                         
+                                                                                        
+                    </tr>  
+                </thead> 
+            </table>​
+            <div id="toolbar" style="height:30px">    
+                <table border="0" cellpadding="1" cellspacing="1" style="font-size:12px; font-weight:bold">                    
+                    <tr>
+                        <td><a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="GridRefresh()"></a></td>
+                    @*    <td>Dr/Cr:</td>
+                        <td>
+                            <select id="cboIsDebit">
+                                    <option>Dr</option>
+                                    <option>Cr</option>
+                            </select> 
+                        </td>*@
+                        <td>Sub Ledger:</td>
+                        <td><input type="text" id="txtCostcenter" placeholder="Type part of CostCenter then press enter" style="width:250px"/></td>
+                         <td>Amount:</td>
+                        <td><input type="text" id="txtAmount" style="width:100px; text-align:right"/></td>
+                        <td>   
+                            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="Add()">Add</a>                           
+                            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Remove()">Remove</a>    
+                            @*<a id="btnCostCenter" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-Edit" plain="true" onclick="CostCenterEdit()">Cost Center</a>*@                        
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div id="dd"></div>
+            <table border="0" cellpadding="0" cellspacing="0" width="880">
+                <tr>
+                    <td style="width:230px; text-align:center"></td>
+                    <td style="width:150px; text-align:right; font-size:12px; font-weight:bold" > Total =</td>
+                    <td style="width:150px; text-align:right; font-size:12px; font-weight:bold"><label id="dCurrencySymbol">BDT</label>&nbsp;&nbsp;<label id="lblTotalAmount" >0.00</label> </td>     
+                    @*<td style="width:150px; text-align:right; font-size:12px; font-weight:bold"><label id="cCurrencySymbol">BDT</label>&nbsp; &nbsp;<label id="lblTotalCreditAmount" > 0.00</label></td>*@                                                                                                                      
+                </tr>
+            </table>
+        </div>
+           
+        <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="1" cellpadding="1" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:900px; text-align:right">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true">Save</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>       
+                </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+var _sBaseAddress='';
+var _oVoucher=null;
+var _oVoucherDetail=null;
+var _oCurrencyes = [];
+var _oCompany =null;
+var _oCCTs=null;
+var _oCostCenter=null;
+var _nTotalAmount=0;
+
+$(document).ready(function () {
+    //debugger;  
+    var obj = window.dialogArguments;          
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oVoucherDetail =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+   _oCCTs=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.CCTs)); 
+
+//    document.getElementById('lblHeaderName').innerHTML=obj.Name+ " (Session :"+_oRunningAccountingYear.SessionName+")";
+    $('#txtAmount').numberbox({min:0, precision:2 });//number box
+    $('#txtAmount').numberbox('setValue', 0);    
+    $('#txtConversionRate').numberbox({min:0, precision:2 });//number box
+
+    if(_oVoucherDetail.VoucherDetailID<=0 ||_oVoucherDetail==null)
+    {
+    _oVoucherDetail=obj.VoucherDetail;
+     _oCCTs=_oVoucherDetail.CCTs;
+    }
+
+  RefreshControl(); 
+//    RefreshLayout(obj);  
+}); 
+
+ function RefreshLayout(obj)
+ {
+    //debugger; 
+    if(obj.Operation=='Add' || obj.Operation=='Edit')   
+    {
+//        document.getElementById("btnApprove").style.display = 'none';        
+    }     
+    if(obj.Operation=='Approved')   
+    {
+      
+        document.getElementById("btnSave").style.display = 'none';
+        document.getElementById("btnAdd").style.display  = 'none';
+        document.getElementById("btnDelete").style.display  = 'none';
+//        document.getElementById("txtNarration").style.disabled  = 'true';            
+//        document.getElementById("cboIsDebit").disabled  = 'true';
+        document.getElementById("txtCostcenter").disabled  = 'true';
+        document.getElementById("txtAmount").disabled  = 'true';
+        document.getElementById("ddlCurrency").disabled  = 'true';
+        document.getElementById("txtVoucherNo").disabled  = 'true';
+        document.getElementById("txtVoucherDate").disabled  = 'true';        
+        document.getElementById("txtConversionRate").disabled  = 'true';
+     }
+     if(obj.Operation=='View')   
+     {
+//        document.getElementById("btnApprove").style.display = 'none';
+        document.getElementById("btnSave").style.display = 'none';
+        document.getElementById("btnAdd").style.display  = 'none';
+        document.getElementById("btnDelete").style.display  = 'none';
+//        document.getElementById("txtNarration").style.disabled  = 'true';            
+//        document.getElementById("cboIsDebit").disabled  = 'true';
+        document.getElementById("txtCostcenter").disabled  = 'true';
+        document.getElementById("txtAmount").disabled  = 'true';
+        document.getElementById("ddlCurrency").disabled  = 'true';
+        document.getElementById("txtVoucherNo").disabled  = 'true';
+        document.getElementById("txtVoucherDate").disabled  = 'true';        
+        document.getElementById("txtConversionRate").disabled  = 'true';
+     }
+     if(obj.NumberMethod==2)
+     {
+        document.getElementById("txtVoucherNo").disabled ='fales';
+     }
+ }
+ 
+function RefreshControl()
+{
+ document.getElementById('lblHeaderName').innerHTML=_oVoucherDetail.AccountHeadName; 
+
+    RefreshList(_oCCTs);
+    CalculateTotalSummary();
+}
+
+function ValidateInput()
+{
+    
+    //debugger;;
+    if ($('#txtVoucherNo').val() == null ||$('#txtVoucherNo').val() == '' ) {
+        alert("Please enter voucher no!");
+         $('#txtVoucherNo').focus();
+        return false;
+    }
+
+     if ($('#txtConversionRate').val() == null ||$('#txtConversionRate').val() <= 0 ) {
+        alert("Currency Convertion Rate Should be greater than 0!");
+         $('#txtConversionRate').focus();
+        return false;
+    } 
+       
+    if(_oCompany.BaseCurrencyID<=0)
+    {
+        alert("Please Confirm Base Currency for RT!"); 
+        return false;
+    }
+
+//    if(_oRunningAccountingYear.AccountingSessionID<=0)
+//    {
+//        alert("Please Confirm Running Accounting Year!"); 
+//        return false;
+//    }
+
+   
+
+    if (_nTotalAmount <= 0) {
+        alert("Please enter debit amount");
+        return false;
+    }
+ 
+
+//    if (Math.round(_nTotalDebitAmount) != Math.round(_nTotalCreditAmount)) {
+//        alert("Please Confirm Debit & Credit Amount must be equal");
+//        return false;
+//    }
+    return true;
+ }
+
+
+
+
+
+$('#btnSave').click(function (e) {    
+    //debugger;;
+      endEditing();
+
+         var oCCTs= $('#tblCostCenterTransaction').datagrid('getRows'); 
+
+      _oVoucherDetail.CCTs=oCCTs;
+      if( _oVoucherDetail.IsDr==true)
+      {
+      _oVoucherDetail.DebitAmount=_nTotalAmount;
+      _oVoucherDetail.CreditAmount=0;
+       _oVoucherDetail.Amount=_nTotalAmount;
+      }
+      else
+      {
+        _oVoucherDetail.DebitAmount=0;
+        _oVoucherDetail.CreditAmount=_nTotalAmount;
+         _oVoucherDetail.Amount=_nTotalAmount;
+      }            
+
+           alert("Data Saved sucessfully");                  
+           window.returnValue = _oVoucherDetail;
+           window.close();
+   
+});
+
+
+
+function ValidateInPutForDetail() {
+//debugger;
+    if (_oCostCenter== null || parseInt(_oCostCenter.CostCenterID)<=0) {
+        alert("Please select an account Head!");
+        $("#txtCostcenter")[0].focus();        
+        return false;
+    }
+
+    var sAmount=$('#txtAmount').numberbox('getValue');
+    if(sAmount==null || sAmount=="")
+    {
+        alert("Please enter a amount.");
+        $("#txtAmount")[0].focus(); 
+        $('#txtAmount').numberbox('clear');       
+        return false;
+    }
+    var nAmount = parseFloat(sAmount);
+    if (nAmount <= 0) {
+        alert("Please enter a amount.");
+        $("#txtAmount")[0].focus(); 
+        $('#txtAmount').numberbox('clear');       
+        return false;
+    }
+
+    var oVoucherDetails =$('#tblCostCenterTransaction').datagrid('getRows');
+    if(oVoucherDetails!=null)
+    {
+//        for(var i=0; i<oVoucherDetails.length;i++)
+//        {
+//            if(parseInt(oVoucherDetails[i].CostCenterID)==parseInt(_oCostCenter.CostCenterID))
+//            {
+//                 alert("Your selected head already exists");
+//                 $("#txtCostcenter")[0].focus();                
+//                 return false;
+//            }
+//        }
+    }
+    return true;
+}
+
+
+
+function RefreshDetailObj()
+{
+//     var nDebitAmount=0;  var nCreditAmount=0; var bIsDebit=false; var sIsDebit=""; 
+     var nAmount = parseFloat($('#txtAmount').numberbox('getValue'));
+//     var cboIsDebit = document.getElementById("cboIsDebit");     
+//     var sDebitCredit = cboIsDebit.options[cboIsDebit.selectedIndex].text;
+//     if(sDebitCredit=="Dr")
+//     {
+//        nDebitAmount=nAmount; nCreditAmount=0; bIsDebit=true; sIsDebit="Debit";
+//     }
+//     else
+//     {
+//        nCreditAmount=nAmount; nDebitAmount=0; bIsDebit=false; sIsDebit="Credit";
+//     }
+
+     var oCostCenterTransaction = {
+            VoucherDetailID: 0,
+            CCID:parseInt(_oCostCenter.CCID),
+            AccountHeadID:0,
+            CostCenterName: _oCostCenter.Name,
+            Amount: nAmount,
+            Description: 'N/A',
+            CurrencyID: 1,
+            CurrencyConversionRate: 1
+      };
+    return oCostCenterTransaction;
+}
+
+function Add()
+{
+    //debugger;;
+//    if(!ValidateInPutForDetail()) return;
+    var oCostCenterTransaction = RefreshDetailObj();
+    $('#tblCostCenterTransaction').datagrid('appendRow',oCostCenterTransaction);
+    alert("Data add Successfully.");
+    CalculateTotalSummary();
+    _oCostCenter=null;
+    var txtCostcenter=document.getElementById("txtCostcenter");             
+    txtCostcenter.value="";
+    txtCostcenter.style.color="Black";
+    txtCostcenter.style.fontWeight="Normal";
+    $('#txtAmount').numberbox('setValue', 0);
+//    document.getElementById("cboIsDebit").focus();     
+}
+
+
+function Remove()
+{   
+    //debugger;;
+    var oCostCenterTransaction = $('#tblCostCenterTransaction').datagrid('getSelected'); 
+    if(oCostCenterTransaction==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }        
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    //debugger; 
+        
+    var SelectedRowIndex=$('#tblCostCenterTransaction').datagrid('getRowIndex',oCostCenterTransaction);
+    $('#tblCostCenterTransaction').datagrid('deleteRow',SelectedRowIndex);           
+    CalculateTotalSummary();
+}
+
+function CalculateTotalSummary()
+{
+    //debugger;;
+    _nTotalAmount=0;
+  
+    var oCostCenterTransactions =$('#tblCostCenterTransaction').datagrid('getRows');
+    if(oCostCenterTransactions!=null)
+    {
+        for(var i=0; i<oCostCenterTransactions.length;i++)
+        {
+            _nTotalAmount=_nTotalAmount+ parseFloat(oCostCenterTransactions[i].Amount)
+//            _nTotalCreditAmount=_nTotalCreditAmount+parseFloat(oVoucherDetails[i].CreditAmount);
+        }
+    }
+    document.getElementById('lblTotalAmount').innerHTML =formatPrice(_nTotalAmount, null) ;
+//    document.getElementById('lblTotalCreditAmount').innerHTML =formatPrice(_nTotalCreditAmount, null);  
+}
+  
+
+function RefreshList(oCCTs)
+{  
+    ////debugger;
+    if(oCCTs!=null)
+    {
+        data={"total":""+oCCTs.length+"","rows":oCCTs};
+        $('#tblCostCenterTransaction').datagrid('loadData',data); 
+    }
+}
+
+function Close()
+{  
+    window.close();
+} 
+
+$('._select_change').change(function () 
+{
+    //debugger;
+    //showHideConverionRate();
+    CurrencyChangedEvent();
+});
+
+function CurrencyChangedEvent()
+{
+    var scboCurrency =document.getElementById("ddlCurrency");
+    var nCurrencyID = scboCurrency.options[scboCurrency.selectedIndex].value;
+    for(var i =0;i<_oCurrencyes.length;i++)
+    {
+        if(_oCurrencyes[i].CurrencyID==nCurrencyID)
+        {
+            document.getElementById('dCurrencySymbol').innerHTML =_oCurrencyes[i].Symbol;
+            document.getElementById('cCurrencySymbol').innerHTML = _oCurrencyes[i].Symbol;
+            break;
+        }
+    }    
+    if(parseInt(nCurrencyID)== parseInt(_oCompany.BaseCurrencyID))
+    {
+        $("#txtConversionRate")[0].value=1;
+        document.getElementById("txtConversionRate").disabled  = 'true';
+    }
+    else
+    {
+        $("#txtConversionRate")[0].value=0;
+        document.getElementById("txtConversionRate").removeAttribute('disabled');
+    }
+}
+
+
+$('#txtVoucherDate').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        document.getElementById('ddlCurrency').focus();                     
+    }
+});
+
+$('#ddlCurrency').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {       
+        var scboCurrency =document.getElementById("ddlCurrency");
+        var nCurrencyID = scboCurrency.options[scboCurrency.selectedIndex].value;
+        if(parseInt(nCurrencyID)== parseInt(_oCompany.BaseCurrencyID))
+        {     
+//            document.getElementById('cboIsDebit').focus();                        
+        }
+        else
+        {
+            document.getElementById('txtConversionRate').focus();       
+            $('#txtConversionRate').numberbox('clear');                
+        }
+    }
+    if (code == 38 || code == 40) //up arrow=38, down arrow	=40
+    {
+        CurrencyChangedEvent();
+    }
+    if (code == 8) //backspace=8
+    {
+        $('#txtVoucherDate').datebox('options');
+        //document.getElementById('txtVoucherDate').focus();                      
+    }   
+});
+
+
+$('#txtConversionRate').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+//        document.getElementById('cboIsDebit').focus();                     
+    }   
+    if (code == 8) //backspace=8
+    {
+        document.getElementById('ddlCurrency').focus();                      
+    }  
+});
+
+
+$('#cboIsDebit').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        document.getElementById('txtCostcenter').focus();                   
+    }
+    if (code == 8) //backspace=8
+    {
+        document.getElementById('ddlCurrency').focus();                      
+    }  
+});
+
+
+$('#txtCostcenter').keypress(function (e) {
+    debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        var txtCostcenter = document.getElementById('txtCostcenter').value;
+        if(txtCostcenter!="")
+        {
+            //debugger;
+            var tsv=((new Date()).getTime())/1000;
+            _oCostCenter=null;
+            var oParameter = new Object();
+            oParameter.EnteredText=txtCostcenter;            
+            var url =_sBaseAddress+ "/CostCenter/ViewCostCenter_Voucher?sTemp="+txtCostcenter+"&ts="+tsv;  
+            _oCostCenter = window.showModalDialog(url, oParameter, 'dialogHeight:270px;dialogWidth:383px;dialogLeft:520;dialogTop:310;center:yes;resizable:no;status:no;scroll:no');
+            
+            debugger;            
+            if(_oCostCenter !=null)
+            {
+                if(parseInt(_oCostCenter.CCID)>0)
+                {
+                    var txttempCostCenter=document.getElementById("txtCostcenter");
+                    var sLedgerName=_oCostCenter.Name;          
+                    txttempCostCenter.value=sLedgerName;
+                    txttempCostCenter.style.color="blue";
+                    txttempCostCenter.style.fontWeight="bold";
+                    document.getElementById("txtAmount").focus();
+                    $('#txtAmount').numberbox('clear');
+                }
+            }
+        }
+    }
+    if (code == 8) //backspace=8
+    {
+        var txtCostcenter = document.getElementById('txtCostcenter').value;
+        if(txtCostcenter=="")
+        {
+//            document.getElementById('cboIsDebit').focus();                  
+        }                 
+    } 
+});
+
+
+$('#txtAmount').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        document.getElementById('btnAdd').focus();                      
+    }   
+});
+//$('#txtNarration').keydown(function (e) {
+//    //debugger;
+//    var code = (e.keyCode ? e.keyCode : e.which);
+//    if (code == 13) {
+//        document.getElementById('btnSave').focus();         
+//    }
+//});
+$('#btnSave').keydown(function (e) {
+    //debugger;
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 8) //backspace=8
+    {
+//        document.getElementById('txtNarration').focus();                      
+    }  
+});
+
+  function onClickRow(index){  
+   
+            if (editIndex != index){  
+                if (endEditing()){  
+                    $('#tblCostCenterTransaction').datagrid('selectRow', index)  
+                            .datagrid('beginEdit', index);  
+                    editIndex = index;  
+                } else {  
+                    $('#tblCostCenterTransaction').datagrid('selectRow', editIndex);  
+                }  
+            }  
+    }  
+   var editIndex = undefined;  
+   function endEditing(){  
+            if (editIndex == undefined){return true}  
+            if ($('#tblCostCenterTransaction').datagrid('validateRow', editIndex)){ 
+                $('#tblCostCenterTransaction').datagrid('endEdit', editIndex);  
+                $('#tblCostCenterTransaction').datagrid('selectRow',editIndex);
+
+                var oVoucherDetail=$('#tblCostCenterTransaction').datagrid('getSelected');     
+//                var nCRate=parseFloat($('#txtConversionRate').val());
+//                oPaymentContractDetail.CRate=nCRate;
+                  $('#tblCostCenterTransaction').datagrid('updateRow',{index: editIndex,	row: oVoucherDetail});
+
+                editIndex = undefined;  
+                return true;  
+            } else {  
+                return false;  
+       }  
+    }  
+
+</script>

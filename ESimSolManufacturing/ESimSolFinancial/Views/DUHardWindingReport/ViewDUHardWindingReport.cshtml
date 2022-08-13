@@ -1,0 +1,383 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.DUHardWindingReport>
+
+    @{
+        ViewBag.Title = "Hard Winding Report";
+    }
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable" id="regionHardWindingReport">
+        <table id="tblDUHardWindingReports" title="Hard Winding Report" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar" showfooter="true">
+            <thead>
+                <tr>
+                    <th field="StartDateInString" width="10%">Date</th>
+                    <th field="QtyHWIn" width="10%" align="right" formatter="formatPrice">H/W (In)</th>
+                    <th field="QtyHWOut" width="10%" align="right" formatter="formatPrice">H/W (Out)</th>
+                    <th field="QtyReHWIn" width="10%" align="right" formatter="formatPrice">Reprocess (In)</th>
+                    <th field="QtyReHWOut" width="10%" align="right" formatter="formatPrice">Reprocess (Out)</th>
+                    <th field="QtyGreige" width="10%" align="right" formatter="formatPrice">Greige Prod.</th>
+                    <th field="TotalQty" width="10%" align="right" formatter="formatPrice">Total</th>
+                    <th field="Qty_LO" width="10%" align="right" formatter="formatPrice">L/O</th>
+                    <th field="GrandTotalQty" width="10%" align="right" formatter="formatPrice">G. Total</th>
+                    <th field="BeamCom" width="10%" align="right" formatter="formatPrice">Beam Com.</th>
+                    <th field="BeamTF" width="10%" align="right" formatter="formatPrice">Beam T/F</th>
+                    <th field="Warping" width="10%" align="right" formatter="formatPrice">Warping</th>
+                    <th field="BeamStock" width="10%" align="right" formatter="formatPrice">Beam Stock</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <select id="cboDate" style=" width:86px;height:22px;"></select>
+            <input id="txtDateStart" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="txtStartTime" class="easyui-timespinner" style="width:60px;" required="required" />
+            <input id="txtDateEnd" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="txtEndTime" class="easyui-timespinner" style="width:60px;" required="required" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+            <a id="btnPrintListXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel</a>
+            <select style="width: 100px;" id="cboReportType">
+                <option value="0">Select</option>
+                <option value="1">Dyed Yarn Received</option>
+                <option value="2">ReProcess</option>
+                <option value="3">Greige Yarn Received</option>
+                <option value="4">Beam Com</option>
+                <option value="6">Beam T/F</option>
+                <option value="7">Beam Stock</option>
+                <option value="8">Left Over</option>
+                @*<option value="5">E</option>
+                <option value="6">F</option>*@
+            </select>
+            <a id="btnPrintDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(Detail)</a>
+            <a id="btnPrintDetailExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel(Detail)</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var _sBaseAddress="";
+        var oCompareOperators=[];
+        var oOrderTypes=[];
+        var oRSShifts=[];
+        var oDyeingTypes=[];
+        var oRSStates=[];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oDUHardWindingReports =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators)); 
+        $("#cboDate").icsLoadCombo({List:oCompareOperators,OptionValue: "id",DisplayText: "Value",});
+        sessionStorage.setItem('BUID',nBUID); 
+        RefreshList(oDUHardWindingReports);
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $('#txtDateStart').datebox({ disabled : true });
+        $('#txtDateEnd').datebox({ disabled : true });
+        $('#txtDateStart').datebox('setValue',icsdateformat(new Date()));
+        $('#txtDateEnd').datebox('setValue',icsdateformat(new Date()));
+
+        var nHour=6;
+        var nMin=0;
+        if(isNaN(nHour))
+        {
+            nHour=0;
+        }
+        if(isNaN(nMin))
+        {
+            nMin=0;
+        }
+        $('#txtStartTime').timespinner('setValue', nHour+":"+nMin);
+        $('#txtEndTime').timespinner('setValue', nHour+":"+nMin);
+
+    });
+
+    $('#cboDate').change(function(e){
+        //EqualTo = 1, NotEqualTo = 2, GreaterThen = 3, SmallerThen = 4, Between = 5, NotBetween = 6
+        var nCompareOperator =   parseInt($('#cboDate').val());
+        if(nCompareOperator===0)
+        {
+            $('#txtDateStart').datebox({ disabled : true });
+            $('#txtDateEnd').datebox({ disabled : true });
+        }
+        else if (nCompareOperator===1 || nCompareOperator===2 || nCompareOperator===3 || nCompareOperator===4)
+        {
+            $('#txtDateStart').datebox({ disabled : false });
+            $('#txtDateEnd').datebox({ disabled : true });
+        }
+        else
+        {
+            $('#txtDateStart').datebox({ disabled : false });
+            $('#txtDateEnd').datebox({ disabled : false });
+        }
+        $('#txtDateStart').datebox('setValue', icsdateformat(new Date()));
+        $('#txtDateEnd').datebox('setValue', icsdateformat(new Date()));
+    });
+
+    function RefreshList(oProductionReports)
+    {
+        debugger;
+        var data=oProductionReports;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDUHardWindingReports').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblDUHardWindingReports').datagrid('selectRow',nIndex);
+    }
+
+
+//Start  search
+   
+    $('#btnRefresh').click(function(){
+        //debugger;
+        var nDate = parseInt($("#cboDate").val());
+       
+        var dFromOrderDate = $('#txtDateStart').datebox('getValue');
+        var dToOrderDate = $('#txtDateEnd').datebox('getValue');
+
+        var nhr=$('#txtStartTime').timespinner('getHours');
+        var nmin=$('#txtStartTime').timespinner('getMinutes');
+        var oStartDate=new Date(dFromOrderDate);            
+        oStartDate.setHours(oStartDate.getHours()+nhr);
+        oStartDate.setMinutes(oStartDate.getMinutes()+nmin);
+        oStartDate = icsdatetimeformat(oStartDate);
+
+        nhr=$('#txtEndTime').timespinner('getHours');
+        nmin=$('#txtEndTime').timespinner('getMinutes');
+        var oEndDate=new Date(dToOrderDate);
+        oEndDate.setHours(oEndDate.getHours()+nhr);
+        oEndDate.setMinutes(oEndDate.getMinutes()+nmin);
+        oEndDate = icsdatetimeformat(oEndDate);
+
+
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        if(nDate == 1){
+            oEndDate = oStartDate;
+        }
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportLayout: 1, //for Day wise
+            StartDate: oStartDate,
+            EndDate: oEndDate
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUHardWindingReport/GetsData",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oDUPSs = jQuery.parseJSON(data);
+                if (oDUPSs != null) {
+                    if(oDUPSs.length>0)
+                    {
+                        DynamicRefreshList(oDUPSs, "tblDUHardWindingReports");
+                        $.icsMakeFooterColumn('tblDUHardWindingReports',['StartDateInString','QtyHWIn','QtyHWOut','QtyReHWIn','QtyReHWOut','QtyGreige','TotalQty','Qty_LO','GrandTotalQty','BeamCom','BeamTF','Warping','BeamStock']);
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+//end  search
+
+
+    $('#btnPrintList').click(function(){
+
+        var nDate = parseInt($("#cboDate").val());
+        var nDate = parseInt($("#cboDate").val());
+       
+        var dFromOrderDate = $('#txtDateStart').datebox('getValue');
+        var dToOrderDate = $('#txtDateEnd').datebox('getValue');
+
+        var nhr=$('#txtStartTime').timespinner('getHours');
+        var nmin=$('#txtStartTime').timespinner('getMinutes');
+        var oStartDate=new Date(dFromOrderDate);            
+        oStartDate.setHours(oStartDate.getHours()+nhr);
+        oStartDate.setMinutes(oStartDate.getMinutes()+nmin);
+        oStartDate = icsdatetimeformat(oStartDate);
+
+        nhr=$('#txtEndTime').timespinner('getHours');
+        nmin=$('#txtEndTime').timespinner('getMinutes');
+        var oEndDate=new Date(dToOrderDate);
+        oEndDate.setHours(oEndDate.getHours()+nhr);
+        oEndDate.setMinutes(oEndDate.getMinutes()+nmin);
+        oEndDate = icsdatetimeformat(oEndDate);
+
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        if(nDate == 1){
+            oEndDate = oStartDate;
+        }
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportLayout: 1, //for Day wise
+            StartDate: oStartDate,
+            EndDate: oEndDate
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUHardWindingReport/SetDUHardWindingReport",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUHardWindingReport/PrintDUHardWindingReports");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+    $('#btnPrintListXL').click(function(){
+
+        var nDate = parseInt($("#cboDate").val());
+        var nDate = parseInt($("#cboDate").val());
+       
+        var dFromOrderDate = $('#txtDateStart').datebox('getValue');
+        var dToOrderDate = $('#txtDateEnd').datebox('getValue');
+
+        var nhr=$('#txtStartTime').timespinner('getHours');
+        var nmin=$('#txtStartTime').timespinner('getMinutes');
+        var oStartDate=new Date(dFromOrderDate);            
+        oStartDate.setHours(oStartDate.getHours()+nhr);
+        oStartDate.setMinutes(oStartDate.getMinutes()+nmin);
+        oStartDate = icsdatetimeformat(oStartDate);
+
+        nhr=$('#txtEndTime').timespinner('getHours');
+        nmin=$('#txtEndTime').timespinner('getMinutes');
+        var oEndDate=new Date(dToOrderDate);
+        oEndDate.setHours(oEndDate.getHours()+nhr);
+        oEndDate.setMinutes(oEndDate.getMinutes()+nmin);
+        oEndDate = icsdatetimeformat(oEndDate);
+
+        if(nDate <= 0 ){
+            alert("Please enter Date!!!");
+            return false;
+        }
+
+        if(nDate == 1){
+            oEndDate = oStartDate;
+        }
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportLayout: 1, //for Day wise
+            StartDate: oStartDate,
+            EndDate: oEndDate
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUHardWindingReport/SetDUHardWindingReport",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUHardWindingReport/PrintDUHardWindingExcel");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $('#btnPrintDetail').click(function(){
+        debugger;
+        var oDUHardWindingReport = $('#tblDUHardWindingReports').datagrid('getSelected');
+        if (oDUHardWindingReport ==null ) { alert("Please select an item from list."); return ; }
+     
+        oDUHardWindingReport.ReportType=parseInt($("#cboReportType").val());
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportType: parseInt($("#cboReportType").val()), //for Day wise
+            StartDate: oDUHardWindingReport.StartDateInString,
+            EndDate: oDUHardWindingReport.EndDateInString
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUHardWindingReport/SetDUHardWindingReport",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUHardWindingReport/PrintDUHardWindingDetail");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+    $('#btnPrintDetailExcel').click(function(){
+        debugger;
+        var oDUHardWindingReport = $('#tblDUHardWindingReports').datagrid('getSelected');
+        if (oDUHardWindingReport ==null ) { alert("Please select an item from list."); return ; }
+     
+        oDUHardWindingReport.ReportType=parseInt($("#cboReportType").val());
+
+        var oObj = {
+            BUID: sessionStorage.getItem('BUID'),
+            ReportType: parseInt($("#cboReportType").val()), //for Day wise
+            StartDate: oDUHardWindingReport.StartDateInString,
+            EndDate: oDUHardWindingReport.EndDateInString
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/DUHardWindingReport/SetDUHardWindingReport",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/DUHardWindingReport/PrintDUHardWindingDetailExcel");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+
+    </script>

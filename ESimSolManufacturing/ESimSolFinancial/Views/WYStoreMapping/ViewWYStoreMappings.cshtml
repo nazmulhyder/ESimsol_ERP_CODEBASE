@@ -1,0 +1,212 @@
+﻿@{
+    ViewBag.Title = "Store Mapping List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.WYStoreMapping>
+
+    <div class="menuMainCollectionTable" ng-app="WYStoreMappingApp" style="height:520px">
+        <div ng-controller="WYStoreMappingController">
+            <div style="margin-bottom:2px; display:block" title="WYStoreMapping List" class="ui-grid-top-panel">
+                @*<input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Name" style="width:190px" />*@
+                    @*<button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printIt()"></button>*@
+                    <button type="button" id="btnAdd" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                    <button type="button" id="btnEdit" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                    <button type="button" id="btnDetails" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                    @*<button type="button" id="btnToggleActivity" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ToggleActivity()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Activity</span></button>*@
+                    <button type="button" id="btnDelete" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                    @*<button type="button" id="btnPrintList" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>*@
+                    @*<button type="button" id="btnExportToExcel" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>*@
+                </div>
+            <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style="width:100%" ></div>@*id="printArea"*@
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oWYStoreMappings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var nBUID=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+
+    $('#btnExportToExcel,#btnPrintList').hide();
+    debugger;
+    var CCapp= angular.module('WYStoreMappingApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('WYStoreMappingController',function ($scope,$http,$window,uiGridConstants,userSession)
+    {
+        oWYStoreMappings= (userSession.getData('WYStoreMappings').length>0)? userSession.getData('WYStoreMappings'):oWYStoreMappings;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'WYarnTypeSt', name:'YarnType', width:'20%' },
+              { field: 'WYStoreTypeSt', name:'StoreType', width:'20%' },
+              { field: 'StoreName', name:'StoreName', width:'20%' },
+              { field: 'Note', name:'Note', width:'15%' , enableSorting: false}
+            ],
+            data: oWYStoreMappings,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oWYStoreMappings.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oWYStoreMappings);
+                    $scope.gridApi.selection.selectRow(oWYStoreMappings[userSession.getRowIndex()]);
+                    //$scope.RowSelect(oDURequisitions[userSession.getRowIndex()]);
+                }
+            }
+        };
+        //$scope.printIt = function(){
+        //    var table = document.getElementById('printArea').innerHTML;
+        //    var myWindow = $window.open('', '', 'width=800, height=600');
+        //    myWindow.document.write(table);
+        //    myWindow.print();
+        //};
+
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("WYStoreMappings", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("WYStoreMappingHeader", "Add WYStoreMapping Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/WYStoreMapping/ViewWYStoreMapping?id=0&buid="+nBUID;
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYStoreMapping= data[0];//get selected index
+            if(oWYStoreMapping==null || oWYStoreMapping.WYStoreMappingID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYStoreMapping);
+            sessionStorage.setItem("WYStoreMappings", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYStoreMappingHeader", "Edit WYStoreMapping Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYStoreMapping/ViewWYStoreMapping?id="+oWYStoreMapping.WYStoreMappingID+"&buid="+nBUID;
+        }
+        $scope.ToggleActivity= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYStoreMapping= data[0];//get selected index
+            if(oWYStoreMapping==null || oWYStoreMapping.WYStoreMappingID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+
+            if(oWYStoreMapping.Activity){
+                if (!confirm("Confirm to Inactivate?")) return ;
+            }
+            else
+            {
+                if (!confirm("Confirm to Activate?")) return ;
+            }
+
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYStoreMapping);
+          
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYStoreMapping/ToggleActivity',oWYStoreMapping).then(
+                   function (response)
+                   {
+                       var oWYStoreMapping= jQuery.parseJSON(response.data);
+                       if (oWYStoreMapping.ErrorMessage=="" || oWYStoreMapping.ErrorMessage==null)
+                       {
+                           if(oWYStoreMapping.Activity)
+                               alert("Sift Is Activated!!");
+                           else
+                               alert("Sift Is Inactivated!!");
+                           $scope.gridOptions.data[SelectedRowIndex]=oWYStoreMapping;
+                       }
+                       else
+                       {
+                           alert(oWYStoreMapping.ErrorMessage);
+                       }
+
+                   },
+                       function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+               );
+        }
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYStoreMapping= data[0];//get selected index
+            if(oWYStoreMapping==null || oWYStoreMapping.WYStoreMappingID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYStoreMapping);
+            sessionStorage.setItem("WYStoreMappings", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYStoreMappingHeader", "View WYStoreMapping Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYStoreMapping/ViewWYStoreMapping?id="+oWYStoreMapping.WYStoreMappingID+"&buid="+nBUID;;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYStoreMapping= data[0];//get selected index
+            if(oWYStoreMapping==null || oWYStoreMapping.WYStoreMappingID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYStoreMapping);
+            if (oWYStoreMapping.WYStoreMappingID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/WYStoreMapping/Delete",
+                    data: { id: oWYStoreMapping.WYStoreMappingID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Delete sucessfully")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+       
+        //button hide unhide
+            //$('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide();
+            //if(PermissionChecker('Add','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            //if(PermissionChecker('Edit','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            //if(PermissionChecker('Edit','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnToggleActivity").show();}
+            //if(PermissionChecker('View','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnView").show();}
+            //if(PermissionChecker('Delete','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            //if(PermissionChecker('PrintList','WYStoreMapping',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

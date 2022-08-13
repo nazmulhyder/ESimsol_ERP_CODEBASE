@@ -1,0 +1,339 @@
+﻿@{
+    ViewBag.Title = "FN Batch QC";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.FNBatchQC>
+
+    <head>
+        <title>FN Batch</title>
+    </head>
+
+    <body>
+        <div class="menuMainCollectionTable">
+                <table id="tblFNBatchQC" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarFNBatchQC" data-options="rowStyler: function(index,row){
+                if (row.BuyerName=='Total'){
+                return 'color:#016B18; font-weight:bold;';
+            }
+        }
+        ">
+                    <thead>
+                        <tr>
+                            <th field="FNBatchNo" width="10%">BatchNo</th>
+                            <th field="FNBatchStatusStr" width="12%">Batch Status</th>
+                            <th field="BuyerName" width="15%">Customer</th>
+                            @*<th field="StartTimeStr" width="10%">Start Date</th>
+                    <th field="EndTimeStr" width="10%">End Date</th>*@
+                            <th field="BatchQty" width="10%" align="right" formatter="formatPrice">Batch Qty</th>
+                            <th field="OutQty" width="10%" align="right" formatter="formatPrice">Out Qty</th>
+                            <th field="Qty" width="10%" align="right" formatter="formatPrice">QC Qty</th>
+                            <th field="CountName" width="12%" align="left">Count</th>
+                            <th field="Construction" width="12%">EPI*PPI</th>
+                            <th field="FinishTypeName" width="10%">Finish Type</th>
+
+                        </tr>
+                    </thead>
+
+                </table>
+
+            <div id="toolbarFNBatchQC">
+                <input type="text" id="txtBatchNoSearch" placeholder="Search Batch No" style="width:20%;" />
+
+                <input id="chkDate" type="checkbox" />
+                <input id="dtIssueFrom" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <input id="dtIssueTo" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-remove" plain="true">Delete</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-details" plain="true">View</a>
+                <a id="btnPacking" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Packing</a>
+                <a id="btnPackingNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Packing2</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-print" plain="true">Print</a>
+                <a id="btnExcel" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-print" plain="true">Excel</a>
+            </div>
+        </div>
+    </body>
+
+
+    <script type="text/javascript">
+        var _sBaseAddress="";
+        var _oFNBatchQCs=[];
+        var _nbuid=0;
+        $(document).ready(function () {
+            _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oFNBatchQCs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _nbuid= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.buid));
+            $('#btnPrint').hide();
+
+            debugger;
+            if(sessionStorage.getItem("FNBatchQCs")!=null && jQuery.parseJSON(sessionStorage.getItem('FNBatchQCs')).length>0)
+            {
+                _oFNBatchQCs= jQuery.parseJSON(sessionStorage.getItem('FNBatchQCs'));
+                var nIndex= sessionStorage.getItem('SelectedRowIndex');
+                DynamicRefreshList(_oFNBatchQCs, 'tblFNBatchQC');
+                if(nIndex>-1){
+                    $('#tblFNBatchQC').datagrid('selectRow',nIndex);
+                }
+            }
+            else
+            {
+                DynamicRefreshList(_oFNBatchQCs, 'tblFNBatchQC');
+               
+            }
+            $('#dtIssueFrom,#dtIssueTo').datebox({'disabled':true});
+            $('#dtIssueFrom,#dtIssueTo').datebox('setValue', icsdateformat(new Date()));
+          
+
+        });
+
+        $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+
+        $('#chkDate').change(function(e){
+            debugger;
+            if($('#chkDate').is(':checked')){
+                $('#dtIssueFrom,#dtIssueTo').datebox({'disabled':false});
+            }
+            else{
+                $('#dtIssueFrom,#dtIssueTo').datebox({'disabled':true});
+            }
+            $('#dtIssueFrom,#dtIssueTo').datebox('setValue', icsdateformat(new Date()));
+        });
+
+
+        /*.......... Searching ............. */
+
+
+        $("#txtBatchNoSearch").keyup(function (e) {
+            var oFNBatchQCs =[];
+            var keyCode = e.keyCode || e.which;
+            $('#txtBatchNoSearch').removeClass("errorFieldBorder");
+            if (keyCode == 8) { oFNBatchQCs = _oFNBatchQCs; }
+            else{ oFNBatchQCs = $('#tblFNBatchQC').datagrid('getRows'); }
+            if (e.keyCode == 13) // Enter Press
+            {
+                if (!$.trim($("#txtBatchNoSearch").val()).length ) {
+
+                    alert("Please FN Batch No.");
+                    $('#txtBatchNoSearch').focus();
+                    $('#txtBatchNoSearch').val("");
+                    return;
+                }
+                else { $('#txtBatchNoSearch').removeClass("errorFieldBorder"); }
+                if ($.trim($("#txtBatchNoSearch").val()).length<=0 ) {
+                    alert("Type FN Batch No to search.");
+                    $('#txtBatchNoSearch').focus();
+                    $('#txtBatchNoSearch').val("");
+                    return;
+                }
+                else { $('#txtBatchNoSearch').removeClass("errorFieldBorder"); }
+
+
+                var oFNBatchQC={
+                    Params: $.trim($("#txtBatchNoSearch").val()) +'~'+ $('#chkDate').is(':checked') +'~'+$('#dtIssueFrom').datebox('getValue') +'~'+ $('#dtIssueTo').datebox('getValue')
+                };
+
+                GetsFNBatchQC(oFNBatchQC, false) ;
+            }
+            else {
+                var sTempName="";
+                var oSearchedData = [];
+                for(i=0;i<oFNBatchQCs.length;++i)
+                {
+                    sTempName=oFNBatchQCs[i]['BatchNo'];
+                    if(sTempName.toUpperCase().indexOf($('#txtBatchNoSearch').val().toUpperCase())>-1)
+                    {
+                        oSearchedData.push(oFNBatchQCs[i]);
+                    }
+                }
+                $('#tblFNBatchQC').empty();
+                if (oSearchedData.length == 0) { DynamicRefreshList(_oFNBatchQCs, "tblFNBatchQC");}
+                else { DynamicRefreshList(oSearchedData, "tblFNBatchQC"); }
+
+            }
+        });
+
+        $('#btnSearch').click(function(e){
+
+            if($.trim($("#txtBatchNoSearch").val())=="" && !$('#chkDate').is(':checked')){
+                alert("No searching criteria found to search."); return false;
+            }
+            var oFNBatchQC={
+                Params: $.trim($("#txtBatchNoSearch").val()) +'~'+ $('#chkDate').is(':checked') +'~'+$('#dtIssueFrom').datebox('getValue') +'~'+ $('#dtIssueTo').datebox('getValue')
+            };
+            sessionStorage.setItem("SearchString", oFNBatchQC.Params);
+            GetsFNBatchQC(oFNBatchQC, false) ;
+        });
+
+        function GetsFNBatchQC(oFNBatchQC, bIsAdvSearch) {
+
+            var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oFNBatchQC,
+                ControllerName: "FNBatch",
+                ActionName: "GetsFNBatchQC",
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs != null) {
+                    if(bIsAdvSearch){
+                        ResetAdvSearchPicker();
+                        $("#winAdvanceSearch").icsWindow("close");
+                    }
+                    if (response.objs.length > 0) {
+                        if(response.objs[0].FNBatchQCID>0){
+                            _oFNBatchQCs=response.objs;
+                            DynamicRefreshList(response.objs, "tblFNBatchQC");
+                        }
+                        else{DynamicRefreshList([], "tblFNBatchQC"); alert(response.objs[0].ErrorMessage);}
+                    }
+                    else { DynamicRefreshList([], "tblFNBatchQC"); alert("No FNBatchQC found."); }
+                    RefreshSummary();
+                }
+            });
+        }
+
+        /*------------------------------------*/
+
+        $("#btnAdd").click(function(){
+            debugger;
+            sessionStorage.setItem("buid", _nbuid);
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("FNBatchQCHeader", "Add FN Batch QC");
+            sessionStorage.setItem("FNBatchQCs", JSON.stringify($('#tblFNBatchQC').datagrid('getRows')));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FNBatch/ViewFNBatchQC?nId=0&ts="+tsv;
+        });
+
+        $('#btnEdit').click(function (e)
+        {
+
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+
+
+            var nIndex=$('#tblFNBatchQC').datagrid('getRowIndex',oFNBatchQC);
+
+            sessionStorage.setItem("buid", _nbuid);
+            sessionStorage.setItem("Operation", "Edit");
+            sessionStorage.setItem("SelectedRowIndex", nIndex);
+            sessionStorage.setItem("FNBatchQCHeader", "Edit FN Batch QC");
+            sessionStorage.setItem("FNBatchQCs", JSON.stringify($('#tblFNBatchQC').datagrid('getRows')));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FNBatch/ViewFNBatchQC?nId="+oFNBatchQC.FNBatchQCID+"&ts="+tsv;
+        });
+
+        $('#btnDelete').click(function(e){
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+            if (!confirm("Confirm to delete?")) return;
+            sessionStorage.clear();
+            var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oFNBatchQC,
+                ControllerName: "FNBatch",
+                ActionName: "FNBatchQCDelete",
+                TableId: "tblFNBatchQC",
+                IsWinClose: false
+            };
+            $.icsDelete(obj);
+          
+        });
+
+        $('#btnView').click(function (e)
+        {
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+
+            var nIndex=$('#tblFNBatchQC').datagrid('getRowIndex',oFNBatchQC);
+
+           
+            sessionStorage.setItem("buid", _nbuid);
+            sessionStorage.setItem("Operation", "View");
+            sessionStorage.setItem("SelectedRowIndex", nIndex);
+            sessionStorage.setItem("FNBatchQCHeader", "FN Batch QC");
+            sessionStorage.setItem("FNBatchQCs", JSON.stringify($('#tblFNBatchQC').datagrid('getRows')));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FNBatch/ViewFNBatchQC?nId="+oFNBatchQC.FNBatchQCID+"&ts="+tsv;;
+        });
+
+        $('#btnPrint').click(function (e)
+        {
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+            var tsv=((new Date()).getTime())/1000;
+            window.open(_sBaseAddress+ "/FNBatch/PrintFNBatchQCCard?nId="+oFNBatchQC.FNBatchQCID+"&nts="+tsv, "_blank");
+        });
+
+        $('#btnExcel').click(function (e)
+        {
+            var sString = "";
+            sString = sessionStorage.getItem("SearchString");
+            if(sString=="" || sString == null)
+            {
+                alert("Please Search First");
+                return;
+            }
+            window.open(_sBaseAddress+'/FNBatch/PrintExcelList?sParam=' + sString + "&nBUID=" + _nbuid);
+        });
+        
+        $("#btnPacking").click(function(){
+
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+            var sFNQCDID="";
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/FNBatch/PrintFNPackingTransfer?sFNQCDID='+ sFNQCDID+"&nFNBatchID=" +oFNBatchQC.FNBatchQCID+" &buid="+parseInt(_nbuid)  +"&IsMeter=false"   +" &nts=" + nts, "_blank");
+        });
+        $("#btnPackingNew").click(function(){
+
+            var oFNBatchQC = $('#tblFNBatchQC').datagrid('getSelected');
+            if (oFNBatchQC ==null || oFNBatchQC.FNBatchQCID <=0 ) { alert("Please select an item from list."); return ; }
+            var sFNQCDID="";
+
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/FNBatch/PrintFNPackingTransferNew?sFNQCDID='+ sFNQCDID +"&nFNBatchID=" +oFNBatchQC.FNBatchQCID+" &buid="+ parseInt(_nbuid) +"&IsMeter=false"   +" &nts=" + nts, "_blank");
+        });
+
+
+        function RefreshSummary()
+        {
+            var oRows = $('#tblFNBatchQC').datagrid('getRows');
+            if(oRows.length>0)
+            {
+                var nBatchQty = 0,nOutQty=0,nQty=0;
+                for(var i=0;i<oRows.length;i++)
+                {
+                    nBatchQty = parseFloat(nBatchQty)+parseFloat(oRows[i].BatchQty);
+                    nOutQty = parseFloat(nOutQty)+parseFloat(oRows[i].OutQty);
+                    nQty = parseFloat(nQty)+parseFloat(oRows[i].Qty);
+                }
+                nBatchQty = parseFloat(nBatchQty).toFixed(2);
+                nOutQty = parseFloat(nOutQty).toFixed(2);
+                nQty = parseFloat(nQty).toFixed(2);
+
+                debugger
+                var oRow =
+                {
+                    BuyerName : 'Total',
+                    BatchQty:nBatchQty,
+                    OutQty:nOutQty,
+                    Qty:nQty,
+                   
+                }
+                $('#tblFNBatchQC').datagrid('appendRow',oRow); 
+               
+            } 
+        }
+
+
+    </script>

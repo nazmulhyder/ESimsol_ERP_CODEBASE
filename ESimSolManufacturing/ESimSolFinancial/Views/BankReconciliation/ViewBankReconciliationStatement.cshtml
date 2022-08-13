@@ -1,0 +1,713 @@
+﻿@model ESimSol.BusinessObjects.BankReconcilationStatement
+
+@{
+    ViewBag.Title = "Statement of Financial Position";
+}
+
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%;height:65px;padding:5px; overflow:hidden">
+            <div style="margin-bottom:5px">
+                
+                <select id="cboBUs" style="width:210px;"></select>
+                <input id="txtEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+
+                Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:219px;margin-left: 5px;" />
+                Sub Ledger :<input type="text" style=" width:284px;" id="txtCostCneterName" placeholder="Type Sub Ledger Name" />
+                
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Print </a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Excel</a>
+                
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:0px solid black; margin-bottom:20px">
+                <table id="tblBankReconcilationStatement" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:center">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold"></label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:center">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray"></label>
+                        </td>
+                    </tr>
+                    @*<tr>
+                <td colspan="5" style="width:100%; text-align:center">
+                    <label id="lblStatementDate" style="font-size:13px;">As on</label>
+                </td>
+            </tr>*@
+                    <tr>
+                        @*<td style="width:48%; text-align:left; font-weight:bold">Balance as Per Bank Book</td>*@
+                        
+                        <td colspan="5" style="width:66%;  text-align:left; border:0px solid black">
+                            <label id="lblStatement" style="font-size:13px; font-weight:bold"></label>
+                        </td>
+                        <td style="width:18%; text-align:center; font-weight:bold"></td>
+                        <td style="width:16%;  text-align:right; border:0px solid black">
+                            <label id="lblStatementAmount" style="font-size:13px; font-weight:bold"></label>
+                        </td>
+                        @*<td style="width:2%"></td>*@
+                    </tr>
+                    @*<tr>
+                <td style="width:2%"></td>
+                <td style="width:48%"></td>
+                <td style="width:28%"></td>
+                <td style="width:20%"></td>
+                <td style="width:2%"></td>
+            </tr>*@
+                </table>
+            </div>
+        </div>        
+    </div>
+</div>
+
+<style>
+    /*#progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }*/
+    .segmentclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;
+        font-weight:bold;
+        font-style:italic;
+    }
+    .subgroupclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;           
+    }
+    .segmentsummeryclass {        
+        color: black;
+        font-size : 13px;
+        font-family : Tahoma;  
+        font-weight:bold;       
+    }
+    .segmentHeaderclass {        
+        color: black;
+        font-size : 15px;
+        font-family : Tahoma;  
+        font-weight:bold;       
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblBankReconcilationStatement tr:hover td,
+    #tblBankReconcilationStatement tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oBankReconcilationStatement=null;
+    var _oBankReconcilationStatements = [];
+    var _oBankReconcilationStatementsDatatypeZero= [];
+    var _oBankReconcilationStatementsDatatypeOne= [];
+    var _oBankReconcilationStatementsDatatypeTwo= [];
+    var _oBankReconcilationStatementsDatatypeThree= [];
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _nSubLedgerID = 0;
+    var _nAccountHeadID = 0;
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBankReconcilationStatement =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oBankReconcilationStatements =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankReconciliationStatements));
+        _oBankReconcilationStatementsDatatypeZero =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankReconciliationStatementsDataTypeZero));
+        _oBankReconcilationStatementsDatatypeOne =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankReconciliationStatementsDataTypeOne));
+        _oBankReconcilationStatementsDatatypeTwo =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankReconciliationStatementsDataTypeTwo));
+        _oBankReconcilationStatementsDatatypeThree =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankReconciliationStatementsDataTypeThree));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({ List: oBUs, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Select Business Unit--" });
+
+        $('#cboBUs').val(_oBankReconcilationStatement.BUID);
+        $('#txtEndDate').datebox('setValue', _oBankReconcilationStatement.BankReconcilationStatementDate);
+
+        //RefreshControl(_oBankReconcilationStatement);
+        //RefreshAssets(_oBankReconcilationStatement);
+        //RefreshLiabilitys(_oBankReconcilationStatement);
+
+        $('#Mainlayout').layout('collapse', 'west');
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({ List: oBUs, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Select Business Unit--" });
+
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+        $('#txtCostCneterName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ACCostCenter",
+            ActionName: "GetsByCodeOrName",
+            Object: {NameCode:''},
+            PropertyName: "Name",
+            ParamName: "NameCode",
+            Columns:[{field:'Name',width:'70%'},{field:'CategoryName',width:'30%'}]});
+
+    });
+
+    function clearTable()
+    {
+        var tableRef = document.getElementById('tblBankReconcilationStatement');
+        while ( tableRef.rows.length > 0 )
+        {
+            tableRef.deleteRow(0);
+        }
+    }
+
+    $("#btnRefresh").click(function()
+    {
+        clearTable();
+        var obj={
+            BusinessUnitID : parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            BalanceDate : $('#txtEndDate').datebox('getValue'),    //balance date
+            AccountHeadID : $('#txtAccountHeadName').data('obj')?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0,
+            SubLedgerID: $('#txtCostCneterName').data('obj')?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/BankReconciliation/GetBankReconciliationStatements",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oBankReconcilationStatement = jQuery.parseJSON(data);
+                if (oBankReconcilationStatement.ErrorMessage == null || oBankReconcilationStatement.ErrorMessage == '') {
+                    //window.location.href = sessionStorage.getItem('BaseAddress')+ "/BankReconciliation/ViewBankReconciliationStatement?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    
+                    if(oBankReconcilationStatement.BankReconciliationStatements.length > 0){
+                        RefreshHeader();
+                        if(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero.length > 0){
+                            RefreshBRDT0(oBankReconcilationStatement);
+                        }
+                        if(oBankReconcilationStatement.BankReconciliationStatementsDataTypeOne.length > 0){
+                            RefreshBRDT1(oBankReconcilationStatement);
+                        }
+                        if(oBankReconcilationStatement.BankReconciliationStatementsDataTypeTwo.length > 0){
+                            RefreshBRDT2(oBankReconcilationStatement);
+                        }
+                        if(oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree.length > 0){
+                            RefreshBRDT3(oBankReconcilationStatement);
+                        }
+                    }
+                    
+                    
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshHeader(){
+
+        var cmbo = document.getElementById("cboBUs");
+        var selectedText = cmbo.options[cmbo.selectedIndex].text;
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 7;
+        cellTotalAssets.width= "100%";
+        cellTotalAssets.innerHTML = selectedText;    //oBankReconcilationStatement.Company.Name;
+        cellTotalAssets.className = 'segmentHeaderclass';
+        cellTotalAssets.style.textAlign = 'center';
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 7;
+        cellTotalAssets.width= "100%";
+        cellTotalAssets.innerHTML = 'Bank Reconciliation Statement';
+        cellTotalAssets.className = 'segmentHeaderclass';
+        cellTotalAssets.style.textAlign = 'center';
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 7;
+        cellTotalAssets.width= "100%";
+        cellTotalAssets.innerHTML = 'As on ' + $('#txtEndDate').datebox('getValue');
+        cellTotalAssets.className = 'segmentHeaderclass';
+        cellTotalAssets.style.textAlign = 'center';
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 7;
+        cellTotalAssets.width= "100%";
+        cellTotalAssets.innerHTML = 'Account No. ' + $('#txtCostCneterName').data('obj').NameCode;
+        cellTotalAssets.className = 'segmentHeaderclass';
+        cellTotalAssets.style.textAlign = 'center';
+    }
+
+    function RefreshBRDT0(oBankReconcilationStatement)
+    {
+        debugger;
+        //console.log(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero)   //
+        //$('#lblCompanyName').text(oBankReconcilationStatement.Company.Name);
+        //$('#lblStatementName').text('Bank Reconciliation Statement');
+        //$('#lblStatement').text('Balance as Per Bank Book');
+        //$('#lblStatementAmount').text(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount);
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 6;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].OperationHeadName;    //'Balance as Per Bank Book ';        //OperationHeadName
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        if(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount < 0){
+            oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount = (-1*oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount);
+            cellTotalAssetsAmount.innerHTML = "(" + icsFormatPrice(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount,nRowIndex) + ")";
+        }
+        else{
+            cellTotalAssetsAmount.innerHTML = icsFormatPrice(oBankReconcilationStatement.BankReconciliationStatementsDataTypeZero[0].RefAmount,nRowIndex);    //icsFormatPrice(oAssets[i].RefAmount,nRowIndex)
+        }
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+        
+    }
+
+    function RefreshBRDT1(_oBankReconcilationStatement)
+    {
+        debugger;
+        //Segment = 2, SubGroup = 4,
+        var oAssets = _oBankReconcilationStatement.BankReconciliationStatementsDataTypeOne;
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAssets = row.insertCell(0);
+        cellAssets.colSpan= 7;
+        cellAssets.width= "100%";
+        cellAssets.innerHTML = 'Add:    List of payment in transit but not appearing on statement';
+        cellAssets.height = '10';
+        cellAssets.className = 'segmentsummeryclass';
+        cellAssets.style.textAlign = 'left';
+
+        //head start
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAccountHead = row.insertCell(0);
+        cellAccountHead.width= "4%";
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+ "SL."+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+                
+        var cellAccountHead = row.insertCell(1);
+        //cellAccountHead.colSpan= 1;
+        cellAccountHead.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Payment Date"+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+
+        var cellAccountHead = row.insertCell(2);
+        //cellAccountHead.colSpan= 1;
+        cellAccountHead.width= "20%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Voucher No"+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(3);
+        cellAmount.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  class="segmentclass">'+"Party"+'</label>';
+        cellAmount.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(4);
+        cellAmount.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Amount"+'</label>';  
+        cellAmount.style.textAlign = 'right';
+
+        var cellAmount = row.insertCell(5);
+        cellAmount.width= "18%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Cheque No"+'</label>';
+        cellAmount.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(6);
+        cellAmount.width= "16%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+""+'</label>';
+        cellAmount.style.textAlign = 'center';
+        //head end
+        var rowIndex =0;
+        var nTotalAmount = 0;
+        for(var i=0;  i<oAssets.length; i++ )
+        {
+            
+                var table = document.getElementById('tblBankReconcilationStatement');
+                var nRowIndex = table.rows.length;
+                rowIndex = nRowIndex+1;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.width= "4%";
+                cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ (i+1) +'</label>';
+                cellAccountHead.style.textAlign = 'center';
+                
+                var cellAccountHead = row.insertCell(1);
+                cellAccountHead.width= "14%";
+                cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+oAssets[i].PaymentDateInString+'</label>';
+                cellAccountHead.style.textAlign = 'center';
+
+                var cellAccountHead = row.insertCell(2);
+                cellAccountHead.width= "20%";
+                cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ '<a id="btnVoucher" onclick="OpenVoucher('+oAssets[i].VoucherID+','+oAssets[i].BUID+')">"'+oAssets[i].VoucherNo+'"</a>' +'</label>';
+                cellAccountHead.style.textAlign = 'center';
+
+                var cellAccountHead = row.insertCell(3);
+                cellAccountHead.width= "14%";
+                cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ oAssets[i].PartyName +'</label>';
+                cellAccountHead.style.textAlign = 'center';
+
+                var cellAmount = row.insertCell(4);
+                cellAmount.width= "14%";
+                if(oAssets[i].RefAmount < 0){
+                    oAssets[i].RefAmount = (-1*oAssets[i].RefAmount);
+                    cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  >'+ "(" +icsFormatPrice(oAssets[i].RefAmount,nRowIndex) + ")" +'</label>';
+                }
+                else{
+                    cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  >'+ icsFormatPrice(oAssets[i].RefAmount,nRowIndex)+'</label>';
+                }
+                
+                nTotalAmount += oAssets[i].RefAmount;
+                cellAmount.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(5);
+                cellAmount.width= "18%";
+                cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+oAssets[i].ChequeNo+'</label>';  //oAssets[i].ChequeNo
+                cellAmount.style.textAlign = 'center';
+
+                var cellAmount = row.insertCell(6);
+                cellAmount.width= "16%";
+                cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+""+'</label>';
+                cellAmount.style.textAlign = 'center';
+
+            
+        }
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 6;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = 'Total payment not appeared on bank statement: ';
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        if(nTotalAmount < 0){
+            nTotalAmount = (-1*nTotalAmount);
+            cellTotalAssetsAmount.innerHTML = "(" + icsFormatPrice(nTotalAmount,nRowIndex) + ")";
+        }
+        else{
+            cellTotalAssetsAmount.innerHTML = icsFormatPrice(nTotalAmount,nRowIndex);
+        }   
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+
+        
+    }
+
+    function RefreshBRDT2(_oBankReconcilationStatement)
+    {
+        debugger;
+        var oAssets = _oBankReconcilationStatement.BankReconciliationStatementsDataTypeTwo;
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAssets = row.insertCell(0);
+        cellAssets.colSpan= 7;
+        cellAssets.width= "100%";
+        cellAssets.innerHTML = 'Less:    List of Cheques outstanding/Not appearing in bankl statement.';
+        cellAssets.height = '10';
+        cellAssets.className = 'segmentsummeryclass';
+        cellAssets.style.textAlign = 'left';
+
+        //head start
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAccountHead = row.insertCell(0);
+        cellAccountHead.width= "4%";
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+ "SL."+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+                
+        var cellAccountHead = row.insertCell(1);
+        //cellAccountHead.colSpan= 1;
+        cellAccountHead.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Payment Date"+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+
+        var cellAccountHead = row.insertCell(2);
+        //cellAccountHead.colSpan= 1;
+        cellAccountHead.width= "20%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Voucher No"+'</label>';
+        cellAccountHead.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(3);
+        cellAmount.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  class="segmentclass">'+"Party"+'</label>';
+        cellAmount.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(4);
+        cellAmount.width= "14%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Amount"+'</label>';  
+        cellAmount.style.textAlign = 'right';
+
+        var cellAmount = row.insertCell(5);
+        cellAmount.width= "18%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+"Cheque No"+'</label>';
+        cellAmount.style.textAlign = 'center';
+
+        var cellAmount = row.insertCell(6);
+        cellAmount.width= "16%";
+        cellAccountHead.className = 'segmentsummeryclass';
+        cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass">'+""+'</label>';
+        cellAmount.style.textAlign = 'center';
+        //head end
+        var rowIndex =0;
+        var nTotalAmount = 0;
+        for(var i=0;  i<oAssets.length; i++ )
+        {
+            
+            var table = document.getElementById('tblBankReconcilationStatement');
+            var nRowIndex = table.rows.length;
+            rowIndex = nRowIndex+1;
+            var row = table.insertRow(nRowIndex);
+
+            var cellAccountHead = row.insertCell(0);
+            cellAccountHead.width= "4%";
+            cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ (i+1) +'</label>';
+            cellAccountHead.style.textAlign = 'center';
+                
+            var cellAccountHead = row.insertCell(1);
+            cellAccountHead.width= "14%";
+            cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+oAssets[i].PaymentDateInString+'</label>';
+            cellAccountHead.style.textAlign = 'center';
+
+            var cellAccountHead = row.insertCell(2);
+            cellAccountHead.width= "20%";   //oAssets[i].VoucherNo
+            cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ '<a id="btnVoucher" onclick="OpenVoucher('+oAssets[i].VoucherID+','+oAssets[i].BUID+')">"'+oAssets[i].VoucherNo+'"</a>' +'</label>';
+            cellAccountHead.style.textAlign = 'center';
+
+            var cellAccountHead = row.insertCell(3);
+            cellAccountHead.width= "14%";
+            cellAccountHead.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+ oAssets[i].PartyName +'</label>';
+            cellAccountHead.style.textAlign = 'center';
+
+            var cellAmount = row.insertCell(4);
+            cellAmount.width= "14%";
+            if(oAssets[i].RefAmount < 0){
+                oAssets[i].RefAmount = (-1*oAssets[i].RefAmount);
+                cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  >'+ "(" +icsFormatPrice(oAssets[i].RefAmount,nRowIndex) + ")" +'</label>';
+            }
+            else{
+                cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'"  >'+ icsFormatPrice(oAssets[i].RefAmount,nRowIndex)+'</label>';
+            }
+            nTotalAmount += oAssets[i].RefAmount;
+            cellAmount.style.textAlign = 'right';
+
+            var cellAmount = row.insertCell(5);
+            cellAmount.width= "18%";
+            cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+oAssets[i].ChequeNo+'</label>';  //oAssets[i].ChequeNo
+            cellAmount.style.textAlign = 'center';
+
+            var cellAmount = row.insertCell(6);
+            cellAmount.width= "16%";
+            cellAmount.innerHTML = '<label "'+nRowIndex+'" rowIndex="'+nRowIndex+'" >'+""+'</label>';
+            cellAmount.style.textAlign = 'center';
+
+            
+        }
+
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 6;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = 'Total outstanding cheques not listed on bank statement: ';
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        if(nTotalAmount < 0){
+            nTotalAmount = (-1*nTotalAmount);
+            cellTotalAssetsAmount.innerHTML = "(" + icsFormatPrice(nTotalAmount,nRowIndex) + ")";
+        }
+        else{
+            cellTotalAssetsAmount.innerHTML = icsFormatPrice(nTotalAmount,nRowIndex);
+        }        
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+
+        
+    }
+
+    function RefreshBRDT3(_oBankReconcilationStatement){
+        var table = document.getElementById('tblBankReconcilationStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 6;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = _oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].OperationHeadName;    //'Balance as Per Bank Statement ';   //OperationHeadName
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        if(_oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].RefAmount < 0){
+            _oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].RefAmount = (-1*_oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].RefAmount);
+            cellTotalAssetsAmount.innerHTML = "(" + icsFormatPrice(_oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].RefAmount,nRowIndex) + ")";
+        }
+        else{
+            cellTotalAssetsAmount.innerHTML = icsFormatPrice(_oBankReconcilationStatement.BankReconciliationStatementsDataTypeThree[0].RefAmount,nRowIndex);    //icsFormatPrice(oAssets[i].RefAmount,nRowIndex)
+        }
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "4px double black"
+    }
+
+    function OpenVoucher(id,buid){
+        window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintVoucher?id=' + id+'&buid=0', "_blank");
+    }
+
+
+    $('#btnPrint').click(function(){
+        var cmbo = document.getElementById("cboBUs");
+        var selectedText = cmbo.options[cmbo.selectedIndex].text;
+        var obj={
+            BusinessUnitID : parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            BalanceDate : $('#txtEndDate').datebox('getValue'),    //balance date
+            AccountHeadID : $('#txtAccountHeadName').data('obj')?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0,
+            SubLedgerID: $('#txtCostCneterName').data('obj')?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0,
+            ErrorMessage : $('#txtCostCneterName').data('obj').NameCode,    //subledger
+            Note: selectedText             //for header name
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/BankReconciliation/SetBankReconcilationStatementListData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/BankReconciliation/PrintBankReconcilationStatementList");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+    
+    $('#btnPrintXL').click(function(){
+        var cmbo = document.getElementById("cboBUs");
+        var selectedText = cmbo.options[cmbo.selectedIndex].text;
+        var obj={
+            BusinessUnitID : parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            BalanceDate : $('#txtEndDate').datebox('getValue'),    //balance date
+            AccountHeadID : $('#txtAccountHeadName').data('obj')?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0,
+            SubLedgerID: $('#txtCostCneterName').data('obj')?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0,
+            ErrorMessage : $('#txtCostCneterName').data('obj').NameCode,    //subledger
+            Note: selectedText             //for header name
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/BankReconciliation/SetBankReconcilationStatementListData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/BankReconciliation/PrintBankReconcilationStatementListForExcel");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+</script>

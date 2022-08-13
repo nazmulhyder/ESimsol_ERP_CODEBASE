@@ -1,0 +1,382 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Dispo Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RPT_Dispo>
+    <div ng-app="RPT_DispoAPP" class="form-horizontal regionRPT_Dispo menuMainCollectionTable">
+        <div ng-controller="RPT_DispoCtrl" style="width:100%">
+            <div class=" ui-grid-top-panel" style="margin:5px;">
+                <div class="form-inline">
+                    <input type="text" ng-model="txtDispoNo" ng-keyup="SearchByDispoNo($event)" placeholder="Search by Dispo No" style="width:140px" />
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Adv. Search</button>
+                    <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="ExportToExcel()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Export to Excel</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview(Dispo)</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewPO()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview(PO)</button>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable" style="width:99%; height:510px"></div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .regionRPT_Dispo .form-horizontal .control-label {
+            padding-top: 3px;
+        }
+
+        .regionRPT_Dispo .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .regionRPT_Dispo .col-md-12 {
+            width: 70%;
+            padding-right: 5px;
+            padding-left: 5px;
+            margin-bottom: 5px;
+            margin-left: 90px;
+        }
+
+        .regionRPT_Dispo .col-md-1 {
+            width: 4%;
+            padding-right: 2px;
+            padding-left: 2px;
+            padding-top: 3px;
+        }
+
+        .regionRPT_Dispo .col-md-2 {
+            width: 22%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-3 {
+            width: 24%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-4 {
+            width: 28%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-5 {
+            width: 40%;
+            padding-right: 5px;
+            padding-left: 0px;
+        }
+
+        .regionRPT_Dispo .col-md-6 {
+            width: 54.5%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-10 {
+            width: 88%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+        .regionRPT_Dispo .col-md-7 {
+            width: 54.6%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+        .regionRPT_Dispo .col-md-8 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+        .regionRPT_Dispo .col-md-9 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+        .regionRPT_Dispo .btn-sm {
+            padding: 3px 10px;
+        }
+        .regionRPT_Dispo .input-group-addon {
+            padding: 4px 8px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var oRPT_Dispos =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oOrderTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+    var oProcessTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProcessTypes));
+    var oFabricWeaves = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricWeaves));
+    var oExeStauts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ExeStauts));
+        var oMktPersons = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MktPersons));
+        var _txtOrderNo = "";
+        debugger;
+    var date=new Date();
+    $('.date-container').datepicker({
+        format: "dd M yyyy",
+        calendarWeeks: true,
+        autoclose: true,
+        todayHighlight: true,
+    });
+    var RPT_DispoModule = angular.module('RPT_DispoAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ui.grid.resizeColumns','ui.grid.cellNav','ms.service']);
+    RPT_DispoModule.controller('RPT_DispoCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal,icsMethod, userSession,msGridControl,userSession,advanceSearch,uiGridConstants) {
+        debugger;
+        var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        sessionStorage.setItem('BaseAddress',_sBaseAddress)
+        var viewType = sessionStorage.getItem("Operation");
+
+        $scope.gridOptions= {
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableColumnResizing: true,
+
+            columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'ExeNo',                  name:'Dispo No',                         width:'10%' },
+                    { field: 'ExeDateSt',              name:'Dispo Date',                       width:'10%' },
+                    { field: 'FabricNo',               name:'Mkt No',                            width:'10%' },
+                    { field: 'SCNoFull',               name:'PO No',                            width:'10%' },
+                    { field: 'Qty_Dispo',              name:'Dispo Qty(Yds)',                   width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Qty_Order',              name:'PO Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'BuyerName',              name:'End Buyer',                        width:'10%' },
+                    { field: 'ContractorName',         name:'Garments name',                    width:'10%' },
+                    { field: 'ProcessTypeName',        name:'Process Type',                      width:'10%' },
+                    { field: 'FinishDesign',           name:'Fabric Type',                       width:'10%' },
+                    { field: 'FabricWeaveName',           name:'Fabric Weave',                       width:'10%' },
+                    { field: 'FinishTypeName',         name:'Finish',                           width:'10%' },
+                    { field: 'Construction',           name:'Construction',                     width:'10%' },
+                    { field: 'YarnType',               name:'Yarn Category',                    width:'10%' },
+                    { field: 'GreyYarnReqWarp',        name:'Dispo Grey Yarn Req (Warp)',       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'DyedYarnReqWarp',  name:'Actual Grey Yarn Issue (Warp)',    width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YarnPriceWarp',          name:'Yarn Price',                       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'GreyYarnReqWeft',        name:'Dispo Grey Yarn Req(Weft)',        width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'DyedYarnReqWeft',  name:'Actual Grey Yarn Issue (Weft)',    width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YarnPriceWeft',          name:'Yarn Price',                       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'TotalDispoGreyYarnReq',  name:'Total Dispo Grey Yarn Req.',       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'TotalGreyYarnIssue',     name:'Total Grey Yarn Issue',            width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ValueGreyYarn',  name:'Actual Grey Yarn Value',           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqDyedYarn',            name:'Req.Dyed Yarn',                    width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqDyedYarnPro',         name:'Dyed Yarn Production',             width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqGreyFabrics',         name:'Req Grey Fabrics(MTR)',            width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqGreyFabricsY',        name:'Req Grey Fabrics(YDS)',            width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'GreyProductionActual',   name:'Grey Production Actual(YDS)',      width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqFinishedFabrics',     name:'Req Finished Fabrics(MTR)',        width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ReqFinishedFabricsY',    name:'Req Finished Fabrics (YDS)',       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ActualFinishfabrics',    name:'Actual Finish fabrics (YDS)',      width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'PINo',                   name:'PI No',                            width:'10%'},
+                    { field: 'PIRate',                 name:'PI Rate',                          width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YDYarnValue',        name:'YD Yarn Value',                width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YDChemicalValue',        name:'YD Chemical Value',                width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YDDyesValue',            name:'YD Dyes Value',                    width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'PrintingDCValue',        name:'Printing D/C Value',               width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'SizingChemicalVal',name:'Sizing & Finishing Chemical',      width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'MKTPersonName',          name:'Acc.Holder',                       width:'10%' },
+                    { field: 'DONo',                   name:'DO No',                            width:'10%' },
+                    { field: 'DOQty',                  name:'DO Qty',                           width:'10%' },
+                    { field: 'DCQty',                  name:'Delivery Qty',                     width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Note',                   name:'Note',                             width:'15%' },
+                    { field: 'ShortExcessPro',         name:'Short Excess Production',          width:'10%',    cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'IsPrintSt',              name:'Print',                            width:'8%' }, 
+                    { field: 'SampleQty',              name:'Sample Qty',                       width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'DispoRef',               name:'Dispo Ref',                        width:'10%' },
+                    { field: 'ProdtionTypeSt',         name:'Type',                             width:'10%' },
+                    //{ field: 'OrderQty',        name:'OrderQty',        width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'},
+
+            ],
+            data: oRPT_Dispos,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+
+                $scope.gridApi.core.refresh();
+                if(oRPT_Dispos.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oRPT_Dispos);
+                    $scope.gridApi.selection.selectRow(oRPT_Dispos[userSession.getRowIndex()]);
+                }
+            }
+        };
+        //$scope.SearchByOrderNo = function(e)
+        //{
+        //    var code = (e.keyCode ? e.keyCode : e.which);
+        //    if (code != 13)
+        //    {
+        //        return;
+        //    }
+        //    if($('#txtOrderNo').val()=="")
+        //    {
+        //        alert("Please Enter Order No");
+        //        return;
+        //    }
+        //    _txtOrderNo = $('#txtOrderNo').val();
+        //    var sString = "~~~~~0~0~0~0~18 Oct 2018~18 Oct 2018~0~0~" + _txtOrderNo+"~";
+        //    sessionStorage.setItem("AdvSearchString",sString);
+        //    var oRPT_Dispo = {
+        //        Params : sString
+        //    };
+        //    $.ajax({
+        //        type: "POST",
+        //        dataType: "json",
+        //        url : _sBaseAddress+  "/RPT_Dispo/AdvSearch",
+        //        traditional: true,
+        //        data:  JSON.stringify(oRPT_Dispo),
+        //        contentType: "application/json; charset=utf-8",
+        //        success: function (data) {
+        //            debugger;
+        //            $scope.gridOptions.data=data;
+        //        },
+        //        error: function (xhr, status, error) {
+        //            alert(error);
+        //        }
+        //    });
+        //}
+        $scope.ExportToExcel = function ()
+        {
+            debugger;
+            //if($scope.ReportType<=0)
+            //{
+            //    alert("Please Select Report Type & Try Again !"); return;
+            //}
+
+            var sParams = sessionStorage.getItem('AdvSearchString');
+
+            if(sParams==null || sParams == undefined)
+            {
+                alert("Nothing To Print!");
+                return;
+            }
+            window.open(_sBaseAddress+ '/RPT_Dispo/ExportToExcel?sParams=' + sParams + '&nReportType=1');
+        }
+        $scope.PrintPreview = function ()
+        {
+            var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FEOSID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            // window.open(_sBaseAddress + '/FabricExecutionOrderSpecification/PrintFabricSpecification?nId='+oFabricLotAssign.FEOSID+"&nBUID="+_nBUID);
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/FabricExecutionOrderSpecification/PrintFabricSpecification?nId=' +oRPT_Dispo.FEOSID + "&nts=" + nts, "_blank");
+        };
+        $scope.PrintPreviewPO = function ()
+        {
+            var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FEOSID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            // window.open(_sBaseAddress + '/FabricExecutionOrderSpecification/PrintFabricSpecification?nId='+oFabricLotAssign.FEOSID+"&nBUID="+_nBUID);
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress+ "/FabricSalesContract/PrintPreview?nID="+oRPT_Dispo.FSCID+"&bIsRnd=true&nts="+nts+"&bPrintFormat=true&nTitleTypeInImg=1", "_blank");
+        };
+
+        $scope.AdvanceSearch=function()
+        {
+            _txtOrderNo = "";
+            var oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Buyer List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            var oColumnsGarments = [];
+            var oColumnGarments = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+            oColumnGarments = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+
+            var paramObj_Garments={
+                obj:{Params: '3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Garments List',
+                multiSelect:true,
+                columns:oColumnsGarments
+            }
+
+            var oRPT_Dispo = [
+                                { DisplayName: "Dispo No",             BOField: "ExeNo",                InputType: 'text' },
+                                { DisplayName: "Dispo Date",        BOField: "ExeDate",           InputType: 'date' },
+                                { DisplayName: "Buyer Name",        BOField: "ContractorName",      InputType: 'picker',   PickerObject:paramObj_Contractor },
+                                { DisplayName: "Garments Name",        BOField: "GarmentsName",      InputType: 'picker',   PickerObject:paramObj_Garments },
+
+                                //{ DisplayName: "Constraction",      BOField: "Constraction",        InputType: 'text' },
+                                //{ DisplayName: "MKT Name",    	    BOField: "Name",                InputType: 'select',   OptionList:$scope.MktPersons, OptionValue:{id:'EmployeeID', Value:'Name'}},
+                                //{ DisplayName: "Process Type",    	BOField: "ProcessType",         InputType: 'select',   OptionList:oProcessTypes, OptionValue:{id:'FabricProcessID', Value:'Name'}},
+                                //{ DisplayName: "Order Type",    	BOField: "OrderType",           InputType: 'select',   OptionList:oOrderTypes, OptionValue:{id:'Value', Value:'Text'}},
+                                //{ DisplayName: "Weave Type",    	BOField: "FabricWeaves",        InputType: 'select',   OptionList:oFabricWeaves, OptionValue:{id:'FabricProcessID', Value:'Name'}},
+                                //{ DisplayName: "Exe Stauts",    	BOField: "ExeStauts",           InputType: 'select',   OptionList:oExeStauts, OptionValue:{id:'id', Value:'Value'}},
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oRPT_Dispo,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/RPT_Dispo/AdvSearch'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        $scope.SearchByDispoNo=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+             
+                var oRPT_Dispo = {
+                    Params: $.trim($scope.txtDispoNo)+'~'+ '0~28 Jun 2018~28 Jun 2018~~~0~'
+                };
+                sessionStorage.setItem("AdvSearchString",oRPT_Dispo.Params);
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(sessionStorage.getItem('BaseAddress')+'/RPT_Dispo/AdvSearch',$.param(oRPT_Dispo), config).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        var results=response.data;
+                                        if(results.length>0)
+                                        {
+                                            $scope.gridOptions.data = results;
+                                           
+                                        }else
+                                        {
+                                            alert("Data Not Found.");
+                                        }
+                                    },
+                                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                                );
+            }
+        };
+        //$scope.Close = function () {
+        //    userSession.previousPage();
+        //};
+    });
+    </script>
+
+
+
+
+
+
+
+

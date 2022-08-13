@@ -1,0 +1,167 @@
+﻿<html>
+
+@{
+    ViewBag.Title = "Business Account Head Assign";  
+}
+@model ESimSol.BusinessObjects.BusinessUnit         
+<body>
+       
+            <div id="divChartsOfAccountTree" class="easyui-panel" title="Assign Operation Unit" style="font-family:Tahoma; height:100%; width:100%">
+                <div class="easyui-panel"  style="width:100%;height:88%;overflow:auto">
+                    <ul id="ttBChartsOfAccount" data-options="checkbox:true"></ul>
+                </div>
+
+
+                <div style="width:100%; height:10%">
+                    <fieldset>
+                        <legend style="font-weight: bold">Action : </legend>
+                        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                            <tr>
+                                <td style="width:80%; text-align:right"></td>
+                                <td style="width: 10%">
+                                    <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="false">Commit</a>
+                                </td>
+                                <td style="width: 10%">
+                                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false">Close</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </fieldset>
+                </div>
+            </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oBusinessUnit=null;
+    var _oSelectedMenuKeys=null;
+    var _oTChartsOfAccount=null;
+    var _sBaseAddress='';
+    var _nMenuid=0;
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oBusinessUnit =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        LoadBusinessUnitWiseAccountHead();
+
+        _sBusinessUnitHeader=sessionStorage.getItem("BusinessUnitHeader");
+        _sBusinessUnitHeader="Assign Account Head for-> "+_sBusinessUnitHeader
+        $('#divChartsOfAccountTree').panel({ title:_sBusinessUnitHeader});
+    });
+
+
+
+    function LoadBusinessUnitWiseAccountHead()
+    {
+        _oTChartsOfAccount =_oBusinessUnit.TChartsOfAccount;
+        if (_oTChartsOfAccount != null) {
+            $('#ttBChartsOfAccount').tree({
+                data: [_oTChartsOfAccount]
+            });
+            RefreshControl();
+        }
+    }
+
+
+
+    //Checked Selected Items
+    function RefreshControl()
+    {
+
+        var oAllNodes=$('#ttBChartsOfAccount').tree('getChecked', 'unchecked');
+        if(oAllNodes!=null)
+        {
+            for(var n=0;n<oAllNodes.length;n++)
+            {
+                if(oAllNodes[n].IsChecked)
+                {
+                    if($('#ttBChartsOfAccount').tree('isLeaf', oAllNodes[n].target))
+                    {
+                      $('#ttBChartsOfAccount').tree('check', oAllNodes[n].target);
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
+    $("#btnOk").click(function () {
+        debugger;
+        if(_oBusinessUnit==null)
+        {
+            alert("Invalid BusinessUnit please try again!");
+            return;
+        }
+
+        if(_oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Invalid Business Unit please try again!");
+            return;
+        }
+
+
+        var _oSelectedChartsOfAccounts= [];
+        _oSelectedChartsOfAccounts= $('#ttBChartsOfAccount').tree('getChecked', ['checked','indeterminate']);
+        if(_oSelectedChartsOfAccounts==null || _oSelectedChartsOfAccounts.length<=0)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+
+        var oBusinessUnitWiseAccountHeads=[];
+        //get indeterminate items
+        //_oSelectedChartsOfAccounts= [];
+        //_oSelectedChartsOfAccounts= $('#ttBChartsOfAccount').tree('getChecked', 'indeterminate');
+        for(var i=0; i<_oSelectedChartsOfAccounts.length;i++)
+        {
+            var oBusinessUnitWiseAccountHeadTemp= {
+                BusinessUnitWiseAccountHeadID:_oSelectedChartsOfAccounts[i].BUAHID,
+                BusinessUnitID:_oBusinessUnit.BusinessUnitID,
+                AccountHeadID : _oSelectedChartsOfAccounts[i].id
+            }
+            oBusinessUnitWiseAccountHeads.push(oBusinessUnitWiseAccountHeadTemp);
+        }
+
+        var oBusinessUnitWiseAccountHead= {
+            BusinessUnitID:_oBusinessUnit.BusinessUnitID,
+            BusinessUnitWiseAccountHeads:oBusinessUnitWiseAccountHeads
+        }
+
+        $.icsSave({
+            BaseAddress: _sBaseAddress,
+            Object: oBusinessUnitWiseAccountHead,
+            ControllerName: "BusinessUnit",
+            ActionName: "SaveBUAH",
+            TableId: "",
+            IsWinClose: false,
+            Message: "Save Successfully."
+
+        },function (response){
+            if(response.status && response.obj!=null){
+                var oBusinessUnitWiseAccountHead = response.obj;
+                if (oBusinessUnitWiseAccountHead.ErrorMessage=="" ||oBusinessUnitWiseAccountHead.ErrorMessage==null)
+                {
+                    window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+
+                }
+            }
+        });
+
+       
+    })
+
+    $("#btnClose").click(function(){
+        window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+        }
+    });
+</script>

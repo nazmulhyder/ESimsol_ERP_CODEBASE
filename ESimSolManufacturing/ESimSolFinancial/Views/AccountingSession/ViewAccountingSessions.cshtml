@@ -1,0 +1,418 @@
+﻿@model ESimSol.BusinessObjects.TAccountingSession
+@{
+    ViewBag.Title = "Accounting Session";
+}
+
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tablAccountingSessionTreeGrid" title="Accounting Sessions List" class="easyui-treegrid" fit="true" fitcolumns="true" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th data-options="field:'text',width:350">Session Name</th>
+                <th data-options="field:'SessionType',width:100">Session Type</th>
+                <th data-options="field:'YearStatus',width:100">Year Status</th>
+                <th data-options="field:'StartDate',width:90">Start Date</th>
+                <th data-options="field:'EndDate',width:90">End Date</th>
+                <th data-options="field:'LockDateInString',width:110">Lock Date Time</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        <a id="btnLock" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-lock" plain="true">Lock</a>
+        <a id="btnUnLock" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-unlock" plain="true">Un-Lock</a>
+        <select id="cboBusinessUnit" style="width:150px"></select>
+        <a id="btnRunning" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-running" plain="true">Running</a>
+        <a id="btnClosed" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-closed" plain="true">Closed</a>
+    </div>
+</div>
+<div id="progress"></div>
+<div id="result"></div>
+
+<script type="text/javascript">
+    var _oTAccountingSession=null;
+    var _sBaseAddress="";
+    var _oAccountingSessionsMapping = [];
+    $(document).ready(function () {
+        _oTAccountingSession=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));        
+
+        var sOperation =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["Operation"]));
+
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").data('objs',oBusinessUnits);
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "--Business Unit--"});
+               
+        RefreshList(_oTAccountingSession);
+        //RefreshControlLayout(oAURolesMapping);
+        ButtonView(sOperation);
+    });
+
+    $("#btnLock").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid<=1)
+        {
+            alert("Please select with out year end & root session!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus!="Running")
+        {
+            alert("Please select an Running Item!!");
+            return;
+        }
+        var oParameter = new Object();
+        oParameter.Name="Session Lock";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+ "/AccountingSession/ViewSessionLockUnLock?id="+oAccountingSession.id+"&ts="+tsv;
+        var oTAccountingSession = window.showModalDialog(url, oParameter, 'dialogHeight:230px;dialogWidth:600px;dialogLeft:300;dialogTop:150;center:yes;resizable:no;status:no;scroll:yes');
+        if(oTAccountingSession!=null)
+        {
+            if(oTAccountingSession.id>0)
+            {
+                RefreshList(oTAccountingSession);
+            }
+        }
+    });
+
+    $("#btnUnLock").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid<=1)
+        {
+            alert("Please select with out year end & root session!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus!="Running")
+        {
+            alert("Please select an Running Item!!");
+            return;
+        }
+        var oParameter = new Object();
+        oParameter.Name="Session Un-Lock";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+ "/AccountingSession/ViewSessionLockUnLock?id="+oAccountingSession.id+"&ts="+tsv;
+        var oTAccountingSession = window.showModalDialog(url, oParameter, 'dialogHeight:230px;dialogWidth:600px;dialogLeft:300;dialogTop:150;center:yes;resizable:no;status:no;scroll:yes');
+        if(oTAccountingSession!=null)
+        {
+            if(oTAccountingSession.id>0)
+            {
+                RefreshList(oTAccountingSession);
+            }
+        }
+    });
+
+    $("#btnRunning").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid==-1 || oAccountingSession.parentid!=1)
+        {
+            alert("Please select an year end session!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus=="Running")
+        {
+            alert("Please select session already Running!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus=="Closed")
+        {
+            alert("Please select session already Closed!!");
+            return;
+        }
+
+        var nBUID = parseInt($('#cboBusinessUnit').val());
+        if(parseInt(nBUID) <= 0)
+        {
+            alert('Please Select a Business Unit!');
+            $('#cboBusinessUnit').focus();
+            return;
+        } 
+
+        if (!confirm("Confirm to Running Accounting Year "+oAccountingSession.text+" ?")) return ;
+
+        var oTempAccountingSession= {
+            BUID : parseInt(nBUID),
+            AccountingSessionID: parseInt(oAccountingSession.id)
+        };
+        
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/AccountingSession/DeclareNewAccountingYear",
+            traditional: true,
+            data:  JSON.stringify(oTempAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTAccountingSession = jQuery.parseJSON(data);                
+                if (oTAccountingSession.id>0) {                   
+                    alert("Successfully Running Session.")
+                    RefreshList(oTAccountingSession);                    
+                }
+                else {                    
+                    alert(oTAccountingSession.ErrorMessage);
+                }
+                ProgressBarHide();
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnClosed").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid==-1 || oAccountingSession.parentid!=1)
+        {
+            alert("Please select a year end session!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus=="Closed")
+        {
+            alert("Please select session already Closed!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus!="Freeze")
+        {
+            alert("Please select an Freeze Accounting Session!!");
+            return;
+        }
+
+        var nBUID = parseInt($('#cboBusinessUnit').val());
+        if(parseInt(nBUID) <= 0)
+        {
+            alert('Please Select a Business Unit!');
+            $('#cboBusinessUnit').focus();
+            return;
+        } 
+
+        if (!confirm("Confirm to Close Accounting Year "+oAccountingSession.text+" ?")) return ;
+        var oTempAccountingSession= {
+            BUID : parseInt(nBUID),
+            AccountingSessionID: parseInt(oAccountingSession.id)
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/AccountingSession/AccountingYearClose",
+            traditional: true,
+            data:  JSON.stringify(oTempAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTAccountingSession = jQuery.parseJSON(data);
+                if (oTAccountingSession.id>0) {
+                    alert("Successfully Close Accounting.")
+                    RefreshList(oTAccountingSession);
+                }
+                else {
+                    alert(oTAccountingSession.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnRefresh").click(function(){
+        var oAccountingSession= {
+            AccountingSessionID:0
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/AccountingSession/Refresh",
+            traditional: true,
+            data:  JSON.stringify(oAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                var oTAccountingSession = jQuery.parseJSON(data);
+                if (oTAccountingSession.id>0) {
+                    RefreshList(oTAccountingSession);
+                }
+                else {
+                    alert(oTAccountingSession.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnAdd").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid!=-1)
+        {
+            alert("You Can add Under Root Session!");
+            return;
+        }
+        var oParameter = new Object();
+        var tsv=((new Date()).getTime())/1000;
+        sessionStorage.setItem("Operation", "Add");
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("AccountingSessionHeader", "Add AccountingSession");
+        sessionStorage.setItem("AccountingSessions", JSON.stringify($('#tablAccountingSessionTreeGrid').datagrid('getRows')));
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/AccountingSession/ViewAccountingSession?id=0&ts="+tsv;
+        if(oTAccountingSession!=null)
+        {
+            if(oTAccountingSession.id>0)
+            {
+                RefreshList(oTAccountingSession);
+            }
+        }
+    });
+
+    $("#btnEdit").click(function(){
+        debugger;
+        var oAccountingSession = $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid==-1 || oAccountingSession.parentid!=1)
+        {
+            alert("Please select a editable item! You can edit an year end session!!");
+            return;
+        }
+        if(oAccountingSession.YearStatus!="Initialize")
+        {
+            alert("Please select an Initialize Item!!");
+            return;
+        }
+        var oParameter = new Object();
+        var tsv=((new Date()).getTime())/1000;
+        //sessionStorage.setItem("SelectedRowIndex", $('#tablAccountingSessionTreeGrid').datagrid('getRowIndex',oAccountingSession));
+        var SelectedRowIndex=$('#tablAccountingSessionTreeGrid').datagrid('getRowIndex',oAccountingSession);
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+
+        sessionStorage.setItem("AccountingSessionHeader", "Edit AccountingSession");
+        sessionStorage.setItem("Operation", "Edit");
+        sessionStorage.setItem("AccountingSessions", JSON.stringify($('#tablAccountingSessionTreeGrid').datagrid('getRows')));
+        var ase = sessionStorage.getItem("AccountingSessions");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/AccountingSession/ViewAccountingSession?id="+oAccountingSession.id+"&ts="+tsv;
+    });
+
+    function RefreshList(oTAccountingSession)
+    {
+        debugger;
+        $('#tablAccountingSessionTreeGrid').empty();
+        var data= [oTAccountingSession];
+        data={"total":""+data.length+"","rows":data};
+        $('#tablAccountingSessionTreeGrid').treegrid('loadData',data);
+        var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(nIndex>0){
+            $('#tablAccountingSessionTreeGrid').datagrid('selectRow',nIndex);
+        }
+        else
+        {
+            //$('#tablAccountingSessionTreeGrid').datagrid('selectRow',oTAccountingSession.length);
+        }
+    }
+
+    $("#btnDelete").click(function(){
+        var oAccountingSession= $('#tablAccountingSessionTreeGrid').datagrid('getSelected');
+        if(oAccountingSession==null || oAccountingSession.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oAccountingSession.parentid==-1 || oAccountingSession.parentid!=1)
+        {
+            alert("Deletion not possible ! You can delete an year end session!!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        if (oAccountingSession.id > 0)
+        {
+            var oSession= {
+                AccountingSessionID : oAccountingSession.id
+            };
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/AccountingSession/Delete",
+                data:  JSON.stringify(oSession),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tablAccountingSessionTreeGrid').treegrid('remove',oAccountingSession.id);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    function ButtonView(sOperation)
+    {
+        if(sOperation=="issue")
+        {
+            $('#cboBusinessUnit,#btnRunning,#btnClosed').hide();
+        }
+        else
+        {
+            $('#btnAdd,#btnEdit,#btnDelete,#btnLock,#btnUnLock').hide();
+        }
+    }
+
+    function RefreshControlLayout(oAURolesMapping)
+    {
+        $('#btnAdd').hide();
+        $('#btnEdit').hide();
+        $('#btnDelete').hide();
+        $('#btnLock').hide();
+        $('#btnUnLock').hide();
+        $('#btnRunning').hide();
+        $('#btnClosed').hide();
+
+        if(PermissionChecker('Add','AccountingSession',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','AccountingSession',oAURolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('Lock','AccountingSession',oAURolesMapping)){$("#btnLock").show();}
+        if(PermissionChecker('UnLock','AccountingSession',oAURolesMapping)){$("#btnUnLock").show();}
+        if(PermissionChecker('Delete','AccountingSession',oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('Running','AccountingSession',oAURolesMapping)){$("#btnRunning").show();}
+        if(PermissionChecker('Close','AccountingSession',oAURolesMapping)){$("#btnClosed").show();}
+    }
+</script>

@@ -1,0 +1,151 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Shipment Schedule";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.ShipmentSchedule>
+    <div class="menuMainCollectionTable" style="margin-left: 0px; height:100%; width:100%">
+        <div style="width:100%;height:89%;">
+            <table id="tblShipmentSchedule" title="Shipment Schedule List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="CountryCode" width="100" align="left">Country Code</th>
+                        <th field="CountryName" width="100" align="left">Country Name</th>
+                        <th field="ShipmentDateSt" width="95" align="left">Shipment Date</th>
+                        <th field="CutOffTypeST" width="100" align="left">Cut Off Type</th>
+                        <th field="CutOffDateSt" width="100" align="left">C.Off Date</th>
+                        <th field="CutOffWeek" width="100" align="center">C.Off Week</th>
+                        <th field="ShipmentModeST" width="100" align="left">Shipment Mode</th>
+                        <th field="TotalQtySt" width="100" align="right">Qty</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+        </div>
+       <div style="width:100%; height:10%">
+            <fieldset>
+                        <legend style="font-weight: bold">Action : </legend>
+                        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                            <tr>
+                                <td style="width:92%; text-align:right"></td>
+                                <td style="width:8%">
+                                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </fieldset>
+       </div>
+   </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _sBaseAddress  = "";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oShipmentSchedules =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oOrderRecap = JSON.parse(sessionStorage.getItem("OrderRecap"));
+        $('#tblShipmentSchedule').datagrid({ title: ('Shipment Schedule List For Style No : ' +oOrderRecap.StyleNo+' || Order No : '+oOrderRecap.OrderRecapNo+' || Buyer : '+oOrderRecap.BuyerName+' || Qty : '+oOrderRecap.TotalQuantityInString+' '+oOrderRecap.UnitName)});
+        RefreshList(oShipmentSchedules);
+    });
+
+
+    $("#btnAdd").click(function(){
+        var oShipmentSchedules= $('#tblShipmentSchedule').datagrid('getRows');
+        sessionStorage.setItem("ShipmentSchedules", JSON.stringify(oShipmentSchedules));
+        sessionStorage.setItem("Shipment_SelectedRowIndex", -1);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href =_sBaseAddress+ "/ShipmentSchedule/ViewShipmentSchedule?id=0&ORID="+JSON.parse(sessionStorage.getItem("OrderRecap")).OrderRecapID;
+
+    });
+
+    $("#btnEdit").click(function(){
+
+        var oShipmentSchedule= $('#tblShipmentSchedule').datagrid('getSelected');
+        if(oShipmentSchedule==null || oShipmentSchedule.ShipmentScheduleID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblShipmentSchedule').datagrid('getRowIndex',oShipmentSchedule);
+        var oShipmentSchedules= $('#tblShipmentSchedule').datagrid('getRows');
+        sessionStorage.setItem("ShipmentSchedules", JSON.stringify(oShipmentSchedules));
+        sessionStorage.setItem("Shipment_SelectedRowIndex",SelectedRowIndex);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href =_sBaseAddress+ "/ShipmentSchedule/ViewShipmentSchedule?id="+oShipmentSchedule.ShipmentScheduleID+"&ORID=0";
+    });
+
+    $('#btnDelete').click(function(e){
+        var oShipmentSchedule = $('#tblShipmentSchedule').datagrid('getSelected');
+        if(oShipmentSchedule==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        var SelectedRowIndex=$('#tblShipmentSchedule').datagrid('getRowIndex',oShipmentSchedule);
+
+        if (parseInt(oShipmentSchedule.ShipmentScheduleID) > 0)
+        {
+
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/ShipmentSchedule/Delete",
+                data: { id: oShipmentSchedule.ShipmentScheduleID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    ////
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblShipmentSchedule').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+
+     
+    });
+
+    function RefreshList(oShipmentSchedules)
+    {
+        var data=oShipmentSchedules;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblShipmentSchedule').datagrid('loadData',data);
+        if(sessionStorage.getItem("Shipment_SelectedRowIndex")!=null || sessionStorage.getItem("Shipment_SelectedRowIndex") !="")
+        {
+            var nIndex= parseInt(sessionStorage.getItem("Shipment_SelectedRowIndex"));
+            $('#tblShipmentSchedule').datagrid('selectRow',nIndex);
+        }
+    }
+
+    $("#btnClose").click(function(){
+        window.location.href = sessionStorage.getItem("ORBackLink");
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = sessionStorage.getItem("ORBackLink");
+        }
+    });
+</script>

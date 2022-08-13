@@ -1,0 +1,438 @@
+﻿@model ESimSol.BusinessObjects.GLMonthlySummary
+@{
+    ViewBag.Title = "Monthly Summary";
+}
+
+
+<div id="divMonthlyGL" class="easyui-panel menuMainCollectionTable" title="Monthly Summary" style="height:100%;width:100%;">
+    <table id="tblGLMonthlySummarys" class="easyui-datagrid" style="height:96.5%;width:100%;" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="NameOfMonth" width="47%" align="left" rowspan="2" formatter="FormatStyle">Month</th>
+                <th colspan="2">Transaction Summary</th>
+                <th field="ClosingBalanceSt" width="17%" align="right" rowspan="2">Closing Balance</th>
+            </tr>
+            <tr>
+                <th field="DebitAmountInString" width="17%" align="right">Debit</th>
+                <th field="CreditAmountInString" width="17%" align="right">Credit</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        Date Range
+        <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        To
+        <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type AccountHead Name" style="width:250px" />
+        <select id="cboCurrency" style="width:90px;"></select>
+        <input type="text" id="txtBUName" style="width:180px;" disabled /><input type="button" onclick="BUClean()" value="C" /><input type="button" value="Pick" onclick="PickBusinessUnit()" style="width:40px;" />
+        <input type="checkbox" id="chkboxApproved" style="width:20px;" /><label for="chkboxApproved">Approved</label> 
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To Excel</a>
+    </div>
+    <div style="height:10px;width:100%;">
+        <table style="height:100%;width:100%;">
+            <tr>
+                <td style="width:26px;"></td>
+                <td style="width:47%;"></td>
+                <td style="width:17%;text-align:right;">
+                    <label id="lblMGLDebitBalance" style="font-weight:bold;">0.00</label>
+                </td>
+                <td style="width:17%;text-align:right;">
+                    <label id="lblMGLCreditBalance" style="font-weight:bold;">0.00</label>
+                </td>
+                <td style="width:17%;"></td>
+                <td style="width:38px;"></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+    $(document).ready(function ()
+    {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+        var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+        sessionStorage.setItem("Company", JSON.stringify(oCompany));
+        var oBU =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BU));
+        $('#divMonthlyGL').data('BU',oBU);
+        var oGLMonthlySummary =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divMonthlyGL').data('obj',oGLMonthlySummary);
+        $('#divMonthlyGL').data('objs',oGLMonthlySummary.GLMonthlySummarys);
+        var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+        $("#cboCurrency").data('objs',oCurrencies);
+        $("#cboCurrency").icsLoadCombo({List: oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        $("#txtAccountHeadName").data('obj',oCOA);
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#txtBUName").data('BusinessUnits',oBusinessUnits);
+        $('#txtBUName').val(oGLMonthlySummary.BUName);
+        $('#txtBUName').addClass('fontColorOfPickItem');
+
+        var oGLConfigs= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.GLConfigs));
+        sessionStorage.setItem("GLConfigs",JSON.stringify(oGLConfigs));
+        sessionStorage.setItem("SelectedGLConfigs",JSON.stringify([]));
+
+
+
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+        DynamicRefreshList(oGLMonthlySummary.GLMonthlySummarys,'tblGLMonthlySummarys');
+        RefreshTotalSummary(oGLMonthlySummary.GLMonthlySummarys);
+
+        ////refresh control
+        $('#txtStartDate').datebox('setValue', oGLMonthlySummary.StartDateSt);
+        $('#txtEndDate').datebox('setValue', oGLMonthlySummary.EndDateSt);
+        $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+        $('#cboCurrency').val(oGLMonthlySummary.CurrencyID);
+        document.getElementById('chkboxApproved').checked =  oGLMonthlySummary.IsApproved;
+        sessionStorage.setItem("BusinessUnitID", parseInt(oGLMonthlySummary.BusinessUnitID));
+
+        /////end refresh control
+        var sHeaderText=RefreshHeader();
+        
+
+        sessionStorage.setItem('HeaderText',sHeaderText);
+        $('#divMonthlyGL').panel({ title:sHeaderText});
+
+
+        $('#Mainlayout').layout('collapse', 'west');
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+    });
+
+    function RefreshTotalSummary(objs){
+
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='DebitAmount';
+        sParamCredit='CreditAmount';
+        sLabelDebit='lblMGLDebitBalance';
+        sLabelCredit='lblMGLCreditBalance';
+
+
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+
+    }
+   
+    function RefreshHeader(){
+        var sHeaderText='';
+        if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0){
+            sHeaderText='Monthly Summary || '+$('#txtAccountHeadName').data('obj').AccountHeadName;
+        }else{
+            sHeaderText='Monthly Summary';
+        }
+        
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        var sBUName = $('#txtBUName').val();
+        if(oTempGLMonthlySummary.BusinessUnitIDs!="0")
+        {
+            sHeaderText=sHeaderText+' || '+sBUName+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+
+        }else{
+            sHeaderText=sHeaderText+' || '+jQuery.parseJSON(sessionStorage.getItem("Company")).Name+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+        }
+        return sHeaderText;
+    }
+
+    $("#btnRefresh").click(function(){
+
+        if(!ValidateInput())return false;
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        var oGLMonthlySummary= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            BusinessUnitIDs:oTempGLMonthlySummary.BusinessUnitIDs,
+            BUName: oTempGLMonthlySummary.BUName
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGLMonthlySummary.IsApproved = true;
+        }else{
+            oGLMonthlySummary.IsApproved = false;
+        }
+        sessionStorage.setItem("BusinessUnitIDs", oTempGLMonthlySummary.BusinessUnitIDs);
+                
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/GeneralLedger/SetMonthlyGLSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGLMonthlySummary),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = _sBaseAddress+ "/GeneralLedger/ViewGLMonthlySummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+    $("#btnPrintXL").click(function(){
+
+        if(!ValidateInput())return;
+        var sStartDate= $('#txtStartDate').datebox('getValue');
+        var sEndDate=$('#txtEndDate').datebox('getValue');
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        var sHeader=sessionStorage.getItem("HeaderText");
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+oTempGLMonthlySummary.BusinessUnitIDs+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+        window.open(_sBaseAddress+'/GeneralLedger/ExportGLMSToExcel?Params=' +sParam, "_blank");
+    });
+
+    function FormatStyle(value,row,index){
+        debugger;
+        var s='';
+        var param="'"+row.StartDateSt+"',"+"'"+row.EndDateSt+"'";
+        if(value!='Opening Balance'){
+            s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="GeneralLedger('+param+')">'+value+'</label>';
+        }
+        else if(value==='Opening Balance'){
+            s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="OpeningBreakdown('+param+')">'+value+'</label>';
+        }
+        else{
+            s=value;
+        }
+        return s;
+    }
+    function OpeningBreakdown(startdate, enddate)
+    {
+        debugger;
+        var oGeneralLedger = RefreshObject(startdate, enddate);
+        oGeneralLedger.StartDate=$('#txtStartDate').datebox('getValue');
+        oGeneralLedger.EndDate=$('#txtEndDate').datebox('getValue');
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FinancialStatement/SetAHOBSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = _sBaseAddress+ "/FinancialStatement/ViewAHOpeningBreakdowns?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function RefreshObject(startdate, enddate)
+    {
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        
+        var oGeneralLedger = {
+            BusinessUnitIDs:oTempGLMonthlySummary.BusinessUnitIDs,
+            BUName: oTempGLMonthlySummary.BUName,
+            AccountHeadID : parseInt($("#txtAccountHeadName").data('obj').AccountHeadID),
+            StartDate : startdate,
+            EndDate : enddate,
+            CurrencyID : parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0,
+            IsApproved:$('#chkboxApproved').is(':checked'),
+            DisplayModeInInt:1
+        };
+        return oGeneralLedger;
+    }
+
+    function GeneralLedger(startdate, enddate)
+    {
+        debugger;
+        var oGeneralLedger = RefreshObject(startdate, enddate);
+
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = _sBaseAddress+ "/GeneralLedger/ViewGeneralLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function ValidateInput()
+    {
+        if ( $('#txtStartDate').datebox('getValue')=="") {
+            alert("please select Start date!");
+            $('#txtSettingFromDate').focus();
+            return false;
+        }
+
+        if ( $('#txtEndDate').datebox('getValue')=="") {
+            alert("Please select end date!!");
+            $('#txtSettingToDate').focus();
+            return false;
+        }
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+
+        if(dEndDate < dStartDate) {
+            alert("End date must be grater then start date!!");
+            $('#txtSettingToDate').focus();
+            return false;
+        }
+
+        var oCreditChartOfAccount= $('#txtAccountHeadName').data('obj');
+        if(oCreditChartOfAccount==null ||oCreditChartOfAccount.AccountHeadID<=0){
+
+            alert("Please select an account head !");
+            $("#txtAccountHeadName").addClass("errorFieldBorder");
+            $("#txtAccountHeadName").focus();
+            return false;
+        } else {
+            $("#txtAccountHeadName").removeClass("errorFieldBorder");
+        }
+
+
+        return true;
+    }
+
+
+    $("#btnPrint").click(function(){
+
+        if(!ValidateInput())return;
+        var sStartDate= $('#txtStartDate').datebox('getValue');
+        var sEndDate=$('#txtEndDate').datebox('getValue');
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        var sHeader=sessionStorage.getItem("HeaderText");
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+        var nAccountHeadID=$('#txtAccountHeadName').data('obj').AccountHeadID;
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+oTempGLMonthlySummary.BusinessUnitIDs+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+        window.open(_sBaseAddress+'/GeneralLedger/PrintGLMonthlySummary?Params=' +sParam, "_blank");
+    });
+
+
+    
+    function BUClean() 
+    {
+        $("#txtBUName").removeClass("fontColorOfPickItem");
+        $("#txtBUName").val("Group Accounts");
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        oTempGLMonthlySummary.BusinessUnitIDs="0";
+        oTempGLMonthlySummary.BUName="Group Accounts";
+        $('#divMonthlyGL').data('obj',oTempGLMonthlySummary);
+    }
+    function PickBusinessUnit()
+    {
+        //debugger;
+        var oBusinessUnits=  $("#txtBUName").data('BusinessUnits');
+        var tblColums = []; var oColumn = { field: "Code", title: "Code", width:60, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 120, align: "left" }; tblColums.push(oColumn);
+       
+        var oPickerParam = {
+            winid: 'winBusinessUnit',
+            winclass: 'clsBusinessUnit',
+            winwidth: 420,
+            winheight: 460,
+            tableid: 'tblBusinessUnits',
+            tablecolumns: tblColums,
+            datalist: oBusinessUnits,
+            multiplereturn: true,
+            searchingbyfieldName: 'Name',
+            windowTittle: 'Business Unit List'
+        };
+        $.icsPicker(oPickerParam);
+        IntializePickerbutton(oPickerParam);
+        var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+        var aSelectedBU = oTempGLMonthlySummary.BusinessUnitIDs.split(',');
+        var oBUList = $('#tblBusinessUnits').datagrid('getRows');
+        debugger;
+        for(var i =0;i<oBUList.length;i++)
+        {
+            if(ICS_IsExistInArray(oBUList[i].BusinessUnitID,aSelectedBU))
+            {
+                $('#tblBusinessUnits').datagrid('checkRow',i);
+            }
+        }
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winBusinessUnit')
+        {
+            if (oreturnobjs.length>0)
+            {
+                $('#txtBUName').val(ICS_PropertyConcatation(oreturnobjs,'ShortName'));
+                $('#txtBUName').addClass('fontColorOfPickItem');
+                var oTempGLMonthlySummary= $('#divMonthlyGL').data('obj');
+                oTempGLMonthlySummary.BusinessUnitIDs=ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+                $('#divMonthlyGL').data('obj',oTempGLMonthlySummary);
+            }
+        }
+    }
+
+</script>

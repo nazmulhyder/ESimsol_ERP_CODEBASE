@@ -1,0 +1,243 @@
+﻿@{
+    ViewBag.Title = "Employee Activity";
+}
+@model ESimSol.BusinessObjects.EmployeeActivityNote
+
+    <div ng-app="EAModule" ng-controller="EAController">
+
+        <div class="ui-grid-top-panel"><h6><b>Employee Activity Note</b></h6></div>
+        <section>
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Employee Activity Note</h3>
+            </div>
+            <div class="modal-body form-horizontal regionEAN" id="modal-body">
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-2 text-right"><label class="control-label">Employee:</label></div>
+                        <div class="col-md-4 text-left">
+                            <div class="input-group">
+                                <input type="text" class="form-control" ng-keyup="searchEmployeeByKeyUp($event)" ng-model="EAN.Name" />
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="searchEmployee()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right"><label class="control-label">Date:</label></div>
+                        <div class="col-md-4 text-left">
+                            <div class="input-group date date-container">
+                                <input type="text" class="form-control" ng-model="EAN.ActivityDateInStr"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mar">
+                    <div class="col-md-12 ">
+                        <div class="col-md-2 text-right"><label class="control-label">Category:</label></div>
+                        <div class="col-md-4 text-left">
+                            <select ng-model="EAN.EACID" ng-options="obj.EACID as obj.Description for obj in EmployeeActivityCategorys" class="form-control">
+                                <option value="">--Select Category--</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mar">
+                    <div class="col-md-12 ">
+                        <div class="col-md-2 text-right"><label class="control-label">Note:</label></div>
+                        <div class="col-md-10 text-left">
+                            <textarea style="height: 150px; width: 100%;" ng-model="EAN.Note" class="form-control" required></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer mar">
+                <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="save()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+                <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+            </div>
+        </section>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 480px;
+            width: 100%;
+        }
+
+        .angular-grid {
+            height: 480px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+        .mar {
+            margin-top: 8px;
+        }
+        .regionEAN {
+            margin-top:5%;
+        }
+        .ui-grid-top-panel{
+                background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%);
+        }
+    </style>
+
+
+
+
+    <script type="text/javascript">
+        var  _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oEmployeeActivityCategorys =@Html.Raw(Json.Encode(ViewBag.EACs));
+        var oEAN = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+
+        var  vEAModule = angular.module('EAModule', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+        vEAModule.controller('EAController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession) {
+
+
+            $(document).ready(function(){
+                $('.date-container').datepicker({
+                    format: "dd M yyyy",
+                    calendarWeeks: true,
+                    autoclose: true,
+                    todayHighlight: true
+                });
+                $(".number-int").icsNumberField({ min: 0,precision: 0 });
+                $(".number-precision").icsNumberField({ min: 0,precision: 2 });
+            });
+            $scope.EmployeeActivityCategorys =oEmployeeActivityCategorys;
+            debugger;
+            $scope.EAN=oEAN;
+            $scope.EAN.ActivityDateInStr = ($scope.EAN.EANID<=0)? icsdateformat(new Date()) :$scope.EAN.ActivityDateInStr;
+
+            $scope.searchEmployeeByKeyUp=function(keyEvent){
+                if(keyEvent.which==13){
+                    $scope.getsEmployee();
+                }
+                else if(keyEvent.which==08){
+                    $scope.EAN.EmployeeID = 0;
+                }
+            };
+
+            $scope.searchEmployee=function(){
+                $scope.getsEmployee();
+            };
+
+
+            $scope.getsEmployee=function(){
+
+                $scope.EAN.Name =($scope.EAN.Name == undefined || $scope.EAN.Name =="")?"":$scope.EAN.Name ;
+
+                var obj={ Name: $scope.EAN.Name }
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/Employee/GetsEmployee',$.param(obj), config).then(function (response)
+                    { 
+                        var results=jQuery.parseJSON(response.data);
+                        var modalObj={
+                            size:'sm',
+                            title:'Employee List',
+                            url:_sBaseAddress+'/Home/Modal',
+                            modalController:'ModalCtrl', 
+                            appController:'EAController', 
+                            objs:results, 
+                            multiSelect:false,
+                            columns:[{ field: 'Code', name: 'Code' }, { field: 'Name', name: 'Employee Name' }]
+                        }
+                        var modalInstance=msModal.Instance(modalObj);
+                        modalInstance.result.then(function (result) {
+                            debugger;
+                            $scope.EAN.EmployeeID = result.EmployeeID;
+                            $scope.EAN.Name = result.Name;
+
+
+                        }, function () {
+                            $log.info('Modal dismissed at: ' + new Date());
+                        });
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                );
+            }
+
+
+            
+
+            $scope.Validation=function(){
+
+                debugger;
+                if($scope.EAN.EmployeeID <=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select Employee', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                else if(new Date($scope.EAN.ActivityDateInStr)=="Invalid Date"){
+                    msModal.Message({headerTitle : '', bodyText:'Valid date required', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                else if($scope.EAN.EACID==undefined || $scope.EAN.EACID==""){
+                    msModal.Message({headerTitle : '', bodyText:'Select Category', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                else if($scope.EAN.Note==""){
+                    msModal.Message({headerTitle : '', bodyText:'Note required', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                return  true;
+            };
+
+
+
+
+
+            $scope.save = function () {
+              
+                $scope.EAN.ActivityDate=$scope.EAN.ActivityDateInStr;
+
+                if(!$scope.Validation())
+                    return false;
+                debugger;
+
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/EmployeeActivity/SaveNote',$.param($scope.EAN), config).then(function (response){
+                                     debugger;
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.EANID>0)
+                                     {
+                                         debugger;
+                                         userSession.setData('EmployeeActivityNote',result);
+                                         userSession.previousPage();
+                                     }
+                                     else{
+                                         msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+            };
+
+            $scope.cancel= function () {
+                debugger;
+                userSession.previousPage();
+            };
+
+
+
+
+
+        });
+
+
+    </script>
+
+
+
+

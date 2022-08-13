@@ -1,0 +1,103 @@
+USE [ESimSol_ERP]
+GO
+/****** Object:  View [dbo].[View_BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+DROP VIEW [dbo].[View_BUWiseConsumptionUnit]
+GO
+/****** Object:  Table [dbo].[BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+DROP TABLE [dbo].[BUWiseConsumptionUnit]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+DROP PROCEDURE [dbo].[SP_IUD_BUWiseConsumptionUnit]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[SP_IUD_BUWiseConsumptionUnit]
+(
+	@BUWiseConsumptionUnitID int,
+	@BUID int,
+	@ConsumptionUnitID int,
+	@DBUserID int,
+	@DBOperation smallint 
+)
+ As BEGIN TRAN
+	DECLARE
+	@PV_DBServerDateTime as DateTime
+	SET @PV_DBServerDateTime = GETDATE()
+	IF(@DBOperation=1)--insert
+	BEGIN
+		SET @BUWiseConsumptionUnitID=(SELECT ISNULL(MAX(BUWiseConsumptionUnitID),0)+1 FROM BUWiseConsumptionUnit)   
+		INSERT INTO BUWiseConsumptionUnit (	BUWiseConsumptionUnitID,		BUID,			ConsumptionUnitID,			DBUserID,			DBServerDateTime)
+									Values (@BUWiseConsumptionUnitID,	@BUID,	@ConsumptionUnitID,	@DBUserID,	@PV_DBServerDateTime)
+			SELECT * FROM View_BUWiseConsumptionUnit WHERE BUWiseConsumptionUnitID = @BUWiseConsumptionUnitID  
+	END
+	IF(@DBOperation = 2)--Update
+	BEGIN
+	
+		IF(@BUWiseConsumptionUnitID<=0)
+		BEGIN
+			ROLLBACK
+				RAISERROR (N'Your Selected BUWiseConsumptionUnit Is Invalid Please Refresh and try again!!',16,1);
+			RETURN
+		END
+		Update BUWiseConsumptionUnit SET BUID = @BUID,ConsumptionUnitID = @ConsumptionUnitID,DBUserID = @DBUserID,DBServerDateTime = @PV_DBServerDateTime WHERE BUWiseConsumptionUnitID = @BUWiseConsumptionUnitID
+		SELECT * FROM View_BUWiseConsumptionUnit WHERE BUWiseConsumptionUnitID = @BUWiseConsumptionUnitID 
+	END
+	IF(@DBOperation = 3)--Delete
+	BEGIN
+	
+		IF(@ConsumptionUnitID<=0)
+		BEGIN
+			ROLLBACK
+				RAISERROR (N'Your Selected ConsumptionUnit Is Invalid Please Refresh and try again!!',16,1);
+			RETURN
+		END  
+		DELETE FROM BUWiseConsumptionUnit WHERE ConsumptionUnitID = @ConsumptionUnitID--All ConsumptionUnit will be of Deleted of selected ConsumptionUnit
+	END
+ COMMIT TRAN
+
+
+GO
+/****** Object:  Table [dbo].[BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[BUWiseConsumptionUnit](
+	[BUWiseConsumptionUnitID] [int] NOT NULL,
+	[BUID] [int] NOT NULL,
+	[ConsumptionUnitID] [int] NOT NULL,
+	[DBUserID] [int] NOT NULL,
+	[DBServerDateTime] [datetime] NOT NULL,
+ CONSTRAINT [PK_BUWiseConsumptionUnit_BUWiseConsumptionUnitID] PRIMARY KEY CLUSTERED 
+(
+	[BUWiseConsumptionUnitID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  View [dbo].[View_BUWiseConsumptionUnit]    Script Date: 7/25/2017 4:10:24 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+---View
+CREATE VIEW [dbo].[View_BUWiseConsumptionUnit] 
+As SELECT BUWiseConsumptionUnit.BUWiseConsumptionUnitID,
+			BUWiseConsumptionUnit.ConsumptionUnitID,
+			BUWiseConsumptionUnit.BUID,
+			BusinessUnit.Name AS BUName,
+			ConsumptionUnit.Name AS ConsumptionUnitName,
+			ConsumptionUnit.Note AS ConsumptionUnitNote
+
+		 FROM BUWiseConsumptionUnit INNER JOIN BusinessUnit  ON BUWiseConsumptionUnit.BUID = BusinessUnit.BusinessUnitID
+		 INNER JOIN ConsumptionUnit ON BUWiseConsumptionUnit.ConsumptionUnitID  = ConsumptionUnit.ConsumptionUnitID
+
+
+
+GO

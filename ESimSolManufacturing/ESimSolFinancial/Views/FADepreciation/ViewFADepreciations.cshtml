@@ -1,0 +1,381 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.FADepreciation>
+@{
+    ViewBag.Title = "FADepreciations List";
+}
+  
+<div id="winFADepreciation" class="easyui-window" title="FA Depreciation" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+                          <div style="font-family:Tahoma">
+                              <fieldset style="margin-top:3px">
+                                  <table border="0" style="font-size:12px" cellpadding="2" cellspacing="2">
+                                      <tr>
+                                          <td style="width:30%; text-align:right">BU :</td>
+                                          <td style="width:60%; text-align:left">&nbsp;<select id="cboDepBU" style="width:170px;"></select></td>
+                                      </tr>
+                                      <tr>
+                                          <td style="width:30%; text-align:right">Date :</td>
+                                          <td style="width:60%; text-align:left">&nbsp;<input type="text" style="width:170px;" id="txtDepDate" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /></td>
+                                      </tr>
+                                  </table>
+                              </fieldset>
+                              <fieldset style="margin-bottom:3px">
+                                  <legend style="font-weight:bold"> Action : </legend>
+                                  <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; width:400px">
+                                      <tr>
+                                          <td style="width:300px; text-align:right"></td>
+                                          <td style="width:50px">
+                                              <a id="btnProcessDepreciation" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Process</a>
+                                          </td>
+                                          <td style="width:50px">
+                                              <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                                          </td>
+                                      </tr>
+                                  </table>
+                              </fieldset>
+                          </div>
+                      </div>      
+<div class="menuMainCollectionTable" style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblFADepreciations" title="FA Depreciation List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="FADepreciationNo" width="100" align="left">Ref No </th>
+                <th field="BUName" width="150" align="left">Business Unit Name</th>
+                <th field="DepreciationDateInString" width="120" align="left">Issue Date</th>
+                <th field="ApprovedByName" width="150" align="left">Approved By</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <table>
+            <tr>
+                <td>                
+                    <select id="cboBU" style="width:150px;"></select>&nbsp;&nbsp;&nbsp;
+                    <input type="text" style="width:120px;" id="txtStartDepDate" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />&nbsp;To&nbsp;
+                    <input type="text" style="width:120px;" id="txtEndDepDate" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                    <a id="btnDepreciation" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Depreciation</a>
+                    <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                    <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Approve</a>
+                    <a id="btnUndoApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-undo" plain="true">Undo Approve</a>
+                    <a id="btnPriview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Privew</a>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    var _oFADepreciations=[];
+    var _oBusinessUnits = [];
+    var _sBaseAddress = "";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFADepreciations =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oBusinessUnits  = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBU").icsLoadCombo({List: _oBusinessUnits, OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue:"--Select Business Unit--"});
+        var oFADepreciations =sessionStorage.getItem("FADepreciations");
+        if(oFADepreciations!=null)
+        {
+            oFADepreciations = jQuery.parseJSON(oFADepreciations) === null ? _oFADepreciations : jQuery.parseJSON(oFADepreciations);
+        }
+        else
+        {
+            oFADepreciations = _oFADepreciations;
+        }
+        $('#txtStartDepDate,#txtEndDepDate').datebox('setValue',icsdateformat(new Date()));
+        RefreshList(oFADepreciations);
+        RefreshControlLayout(oAURolesMapping);
+    });
+
+
+    function RefreshList(oFADepreciations)
+    {
+        var data=oFADepreciations;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFADepreciations').datagrid('loadData',data);
+        var nIndex =sessionStorage.getItem("SelectedRowIndex");
+        if(nIndex!=null)
+        {
+            $('#tblFADepreciations').datagrid('selectRow', nIndex);
+        }
+    }
+
+    $('#btnSearch').click(function(){
+        var nBUID = parseInt($("#cboBU").val());
+        var oFADepreciation={ Params : $('#txtStartDepDate').datebox('getValue')+'~'+$('#txtEndDepDate').datebox('getValue')  + "~" + nBUID };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+"/FADepreciation/Search",
+            traditional: true,
+            data:  JSON.stringify(oFADepreciation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var  oFADepreciations =jQuery.parseJSON(data);
+                if (oFADepreciations.length>0)
+                {
+                    if((oFADepreciations[0].ErrorMessage==null || oFADepreciations[0].ErrorMessage==""))
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", null);
+                        RefreshList(oFADepreciations);
+                    }
+                    else
+                    {
+                        alert(oFADepreciations[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Data Not found.");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    
+    $("#btnApprove").click(function(){
+        var bIsActive = null;
+        var oFADepreciation = $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || parseInt(oFADepreciation.FADepreciationID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(parseInt(oFADepreciation.ApprovedBy)!=0)
+        {
+            alert("Sorry, Already Approved.");
+            return;
+        }
+        if (!confirm("Confirm to Approve?")) return ;
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        oFADepreciation.bIsApproved=true;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FADepreciation/Approval",
+            traditional: true,
+            data:  JSON.stringify(oFADepreciation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oFADepreciation = jQuery.parseJSON(data);
+                if (parseInt(oFADepreciation.FADepreciationID)>0 && (oFADepreciation.ErrorMessage=="" || oFADepreciation.ErrorMessage==null)) 
+                {
+                    alert("Successfully Approved.");
+                    $('#tblFADepreciations').datagrid('updateRow',{index: SelectedRowIndex,row: oFADepreciation});
+                }
+                else {
+                    alert(oFADepreciation.ErrorMessage);
+                    return;
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    
+    });
+    $("#btnUndoApprove").click(function(){
+        var bIsActive = null;
+        var oFADepreciation = $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || parseInt(oFADepreciation.FADepreciationID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(parseInt(oFADepreciation.ApprovedBy)==0)
+        {
+            alert("Sorry, Selected Item are Not Approved.");
+            return;
+        }
+        if (!confirm("Confirm to Undo Approve?")) return ;
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        oFADepreciation.bIsApproved=false;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FADepreciation/Approval",
+            traditional: true,
+            data:  JSON.stringify(oFADepreciation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oFADepreciation = jQuery.parseJSON(data);
+                if (parseInt(oFADepreciation.FADepreciationID)>0 && (oFADepreciation.ErrorMessage=="" || oFADepreciation.ErrorMessage==null)) 
+                {
+                    alert("Successfully Approved.");
+                    $('#tblFADepreciations').datagrid('updateRow',{index: SelectedRowIndex,row: oFADepreciation});
+                }
+                else {
+                    alert(oFADepreciation.ErrorMessage);
+                    return;
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    
+    });
+
+    $("#btnDepreciation").click(function(){
+        $("#cboDepBU").icsLoadCombo({List: _oBusinessUnits, OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue:"--Select Business Unit--"});
+        $('#txtDepDate').datebox('setValue',icsdateformat(new Date()));
+        $("#winFADepreciation").icsWindow('open', "FA Depreciation");
+
+    });
+
+    $('#btnProcessDepreciation').click(function(){
+        if(parseInt($("#cboDepBU").val())<=0){alert("Please Select Business Unit.");$("#cboDepBU").focus();}
+        var oFADepreciation={BUID:parseInt($("#cboDepBU").val()), DepreciationDate:$('#txtDepDate').datebox('getValue')};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FADepreciation/Save",
+            traditional: true,
+            data:  JSON.stringify(oFADepreciation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oFADepreciation = jQuery.parseJSON(data);
+                if (oFADepreciation.ErrorMessage=="" || oFADepreciation.ErrorMessage==null) 
+                {
+                    alert("Process Done.");
+                    RefreshList(oFADepreciation.FADepreciations);
+                    $("#winFADepreciation").icsWindow('close');
+                }
+                else {
+                    alert(oFADepreciation.ErrorMessage);
+                    return;
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    
+    });
+
+    $('#btnClose').click(function()
+    {
+        $("#winFADepreciation").icsWindow('close');
+    });
+
+    $("#btnConPaymentSetup").click(function(){
+        var oFADepreciation= $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || oFADepreciation.FADepreciationID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        var oFADepreciations= $('#tblFADepreciations').datagrid('getRows');
+        var sURL=window.location.href;
+        sessionStorage.setItem("FADepreciationBackTo", sURL);
+        sessionStorage.setItem("FADepreciations", JSON.stringify(oFADepreciations));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("FADepreciationHeader", "Payment Setup");
+        window.location.href = sessionStorage.getItem("BaseAddress")+  "/FADepreciationPaymentSetup/ViewFADepreciationPaymentSetup?id="+oFADepreciation.FADepreciationID+"&ts="+tsv;
+
+    });
+
+    $("#btnView").click(function(){
+        var oFADepreciation= $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || oFADepreciation.FADepreciationID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        var oFADepreciations= $('#tblFADepreciations').datagrid('getRows');
+        var sURL=window.location.href;
+        sessionStorage.setItem("FADepreciationBackTo", sURL);
+        sessionStorage.setItem("FADepreciations", JSON.stringify(oFADepreciations));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("FADepreciationHeader", "View FADepreciation");
+        window.location.href = sessionStorage.getItem("BaseAddress")+  "/FADepreciation/ViewFADepreciation?id="+oFADepreciation.FADepreciationID+"&ts="+tsv;
+    });
+
+    $("#btnDelete").click(function(){
+        var oFADepreciation= $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || oFADepreciation.FADepreciationID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if(parseInt(oFADepreciation.ApprovedBy)!=0)
+        {
+            alert("Sorry, Already Approved.");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblFADepreciations').datagrid('getRowIndex',oFADepreciation);
+        if (oFADepreciation.FADepreciationID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+"/FADepreciation/Delete",
+                traditional: true,
+                data:  JSON.stringify(oFADepreciation),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblFADepreciations').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+    $("#btnPriview").click(function() {
+        var oFADepreciation= $('#tblFADepreciations').datagrid('getSelected');
+        if(oFADepreciation==null || oFADepreciation.FADepreciationID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        window.open(_sBaseAddress+ '/FADepreciation/PrintFADepreciation?id=' + oFADepreciation.FADepreciationID, "_blank");
+
+    });
+     function RefreshControlLayout(oAURolesMapping)
+    {
+        $("#btnSearch").hide();
+        $("#btnDepreciation").hide();
+        $("#btnView").hide();
+        $("#btnDelete").hide();
+        $("#btnApprove").hide();
+        $("#btnUndoApprove").hide();
+        $("#btnPriview").hide();
+       
+
+        if(PermissionChecker('AdvSearch','FADepreciation',oAURolesMapping)){$("#btnSearch").show();}
+        if(PermissionChecker('Add','FADepreciation',oAURolesMapping)){$("#btnDepreciation").show();}
+        if(PermissionChecker('Edit','FADepreciation',oAURolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','FADepreciation',oAURolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','FADepreciation', oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('Approve','FADepreciation',oAURolesMapping)){$("#btnApprove").show();}
+        if(PermissionChecker('Undo','FADepreciation',oAURolesMapping)){$("#btnUndoApprove").show();}
+        if(PermissionChecker('Print','FADepreciation',oAURolesMapping)){$("#btnPriview").show();}
+    }
+
+ 
+</script>
+

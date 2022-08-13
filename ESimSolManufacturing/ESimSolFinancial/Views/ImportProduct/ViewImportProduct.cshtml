@@ -1,0 +1,340 @@
+﻿<html>
+<head>
+
+</head>
+<body>
+    @model ESimSol.BusinessObjects.ImportProduct
+    <div class="menuMainCollectionTable" style="margin-left: 0px; height:98%; width:99.5%">
+        <div style="margin-left: 2px; height:88%; width:100%">
+            <fieldset style="margin-top: 10px;">
+                <legend style="font-weight: bold">Import Commercial Setup </legend>
+                <table border="0" style="margin-top: 5px; width:100%;font-size:12px">
+                    <tr>
+                        <td style="width: 20%; text-align: right; font-size:12px;">
+                            Unit Name:
+                        </td>
+                        <td style="width:30%">
+                            <table border="0" cellpadding="0" cellspacing="0" style="font-size:11px; font-weight:bold">
+                                <tr>
+                                    <td style="width:200px">
+                                        <select id="cboBU" style="width:80%"></select>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td style="width: 20%; text-align: right; font-size:12px;">
+                            Product Type
+                        </td>
+                        <td style="width:30%">
+                            <select id="cboProductType" style="width:80%"></select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%; text-align: right; font-size:12px;">
+                            Name
+                        </td>
+                        <td style="width:30%">
+                            <input type="text" style="width:100%; float: left;" id="txtName" placeholder="Name" />
+                        </td>
+                        <td style="width:20%; text-align: right; font-size:12px;">
+                            File Name
+                        </td>
+                        <td style="width:30%">
+                            <input type="text" style="width:100%; float: left;" id="txtFileName" placeholder="File Short Name" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%; text-align: right; font-size:12px;">
+                           Note
+                        </td>
+                        <td colspan="3" style="width:30%">
+                            <input type="text" style="width:100%; float: left;" id="txtPrintName" placeholder="Note" />
+                        </td>
+                       
+                    </tr>
+                  
+                    
+                </table>
+            </fieldset>
+            <table id="tblImportProductDetails" title="Import PI Details" style="width:100%;height:275px" class="easyui-datagrid"
+                   data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbar',">
+                <thead>
+                    <tr>
+                        <th field="ProductCategoryName" width="50%" align="left">ProductCategoryName/th>
+
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Product Category : <select id="cboProductCategory" class="easyui-combotree" style="width:180px;"></select>
+                <a id="btnAddDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" onclick="AddDetail()" plain="true">Add</a>
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="DeleteDetail()" id="btnRemove">Remove</a>
+            </div>
+          
+        </div>
+        <div style="margin-left: 2px; height:10%; width:100%">
+            <fieldset >
+                <legend style="font-weight: bold">Action </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width: 100%;font-weight: bold; font-size: 12px;">
+                    <tr>
+                        <td style="width: 80%; text-align: right"></td>
+                        <td style="width: 10%; font-size: 13px">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        </td>
+                        <td style="width: 10%; font-size: 13px">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel"
+                               plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+    
+</body>
+</html>
+<script type="text/javascript">
+    var _oImportProduct=null;
+    var _sBaseAddress="";
+    var _oBusinessUnits = [];
+    var _oImportFileTyps=[];
+    var _oProductNature=[];
+    var _nBUID=0;
+    var _sBackLink="";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oImportProduct =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        _oProductNature=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductNature));
+        Initialization(_oImportProduct,((sessionStorage.length>0)?sessionStorage.getItem('Operation'):'New'));
+        _sBackLink=sessionStorage.getItem("BackLink");
+        RefreshProductCategory();
+        var oImportProductDetails=_oImportProduct.ImportProductDetails;
+       
+        if(oImportProductDetails!=null)
+        {
+            DynamicRefreshList(oImportProductDetails, "tblImportProductDetails");
+        }
+        else{
+            
+            DynamicRefreshList([], "tblImportProductDetails");
+        }
+    });
+
+    function RefreshProductCategory()
+    {
+        var oProductCategory ={  ProductCategoryID: 0 };
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ProductCategory/GetsProductCategoryForCombo",
+            data:  JSON.stringify(oProductCategory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oProductCategorys = jQuery.parseJSON(data);
+                if(oProductCategorys!=null)
+                {
+                    $('#cboProductCategory').combotree('loadData', oProductCategorys);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+
+    function RefreshCBO()
+    {
+        $("#cboBU").icsLoadCombo({
+            List: _oBusinessUnits,
+            OptionValue: "BusinessUnitID",
+            DisplayText: "BUTypeSt"
+        });
+        $("#cboProductType").icsLoadCombo({List: _oProductNature,OptionValue: "id",DisplayText: "Value"});
+
+    }
+
+    function Initialization(oImportProduct, sOperation)
+    {
+        //ResetControll();
+        RefreshCBO();
+        RefreshControl(oImportProduct);
+        if(sOperation=="View")
+        {
+            $('#btnSave').hide();
+            $('input,select').prop('disabled',true);
+        }
+
+        else{
+            $('btnSave').show();
+            $('input,select').prop('disabled',false);
+        }
+    }
+
+    function RefreshControl(oImportProduct)
+    {
+        _oImportProduct=oImportProduct;
+        $("#cboBU").val(_oImportProduct.BUID);
+        $("#cboProductType").val(_oImportProduct.ProductTypeInt);
+        $('#txtName').val(_oImportProduct.Name);
+        $('#txtFileName').val(_oImportProduct.FileName);
+        $('#txtPrintName').val(_oImportProduct.PrintName);
+
+    }
+
+    function ValidateInput() {
+
+        if (!$.trim($('#txtName').val()).length) {
+            alert("Please enter  Name.");
+            $('#txtName').focus();
+            $("#txtName").addClass("errorFieldBorder");
+            return false;
+        } else { $('#txtName').removeClass("errorFieldBorder"); }
+
+    
+       
+        if ($("#cboProductType").val() < 0) {
+            
+            alert("Please select Product Type!"); $('#cboProductType').focus();
+            $("#cboProductType").addClass("errorFieldBorder");
+            return false;
+        } else { $("#cboProductType").removeClass("errorFieldBorder"); }
+
+      
+        return true;
+    }
+function Save()
+    {
+    if (!ValidateInput()) return;
+   var oImportProduct=RefreshObject();
+
+       $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/ImportProduct/Save",
+                traditional: true,
+                data:  JSON.stringify(oImportProduct),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+               debugger;
+                var oImportProduct= jQuery.parseJSON(data);
+                if (oImportProduct.ErrorMessage=="" || oImportProduct.ErrorMessage==null)
+                    {
+                    _oImportProduct=oImportProduct;
+                    alert("Data Saved successfully");
+                    var oImportProducts =sessionStorage.getItem("ImportProducts");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oImportProducts!=null)
+                    {
+                        oImportProducts = jQuery.parseJSON(oImportProducts);
+                    }
+                    else
+                    {
+                        oImportProducts=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oImportProducts[nIndex]=oImportProduct;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oImportProducts.length);
+                        oImportProducts.push(oImportProduct);
+                    }
+                    sessionStorage.setItem("ImportProducts", JSON.stringify(oImportProducts));
+                    window.location.href = sessionStorage.getItem("BackLink");
+
+                    }
+                else
+                    {
+                        alert(oImportProduct.ErrorMessage);
+                    }
+                 },
+            error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+
+}
+
+function RefreshObject()
+{
+    var oImportProductDetails=$('#tblImportProductDetails').datagrid('getRows');
+    if(oImportProductDetails.length==0 || oImportProductDetails==null)
+    {
+        alert("Please, Entry at least one Product Category");
+        return ;
+    }
+
+    debugger;
+    var oImportProduct= {
+        ImportProductID: (_oImportProduct != null) ? _oImportProduct.ImportProductID : 0,
+        ProductTypeInt:$("#cboProductType").val(),
+        BUID:$("#cboBU").val(),
+        Name : $('#txtName').val(),
+        FileName: $('#txtFileName').val(),
+        PrintName : $('#txtPrintName').val(),
+        ImportProductDetails:oImportProductDetails
+    };
+    return oImportProduct;
+}
+
+
+function AddDetail()
+{
+    
+    if (parseInt($('#cboProductCategory').combotree('getValue')) <= 0)
+    {
+            
+        alert("Please select Product Category!"); $('#cboProductCategory').focus();
+        $("#cboProductCategory").addClass("errorFieldBorder");
+        return false;
+    } else { $("#cboProductCategory").removeClass("errorFieldBorder"); }
+    
+    var t = $('#cboProductCategory').combotree('tree');	// get the tree object
+    var n = t.tree('getSelected');		// get selected node
+   
+    debugger;
+    var oImportProductDetails =  $('#tblImportProductDetails').datagrid('getRows');
+    var oImportProductDetail =
+        {
+            ImportProductDetailID:0,
+            ImportProductID:_oImportProduct.ImportProductID,
+            ProductCategoryID : parseInt($('#cboProductCategory').combotree('getValue')),
+            ProductCategoryName:n.text
+
+        };
+    $('#tblImportProductDetails').datagrid('appendRow',oImportProductDetail);
+
+}
+
+
+function DeleteDetail()
+{
+    var oImportProductDetail= $('#tblImportProductDetails').datagrid('getSelected');
+    var nSelectedIndex = $('#tblImportProductDetails').datagrid('getRowIndex', oImportProductDetail);
+    if (oImportProductDetail == null ) {
+
+        $('#tblImportProductDetails').datagrid('deleteRow',nSelectedIndex);
+       
+    }
+    else
+    {
+        if (!confirm("Confirm to Delete?")) return;
+        $('#tblImportProductDetails').datagrid('deleteRow',nSelectedIndex);
+        alert("Delete sucessfully");
+    }
+}
+
+function Close()
+{
+
+    window.location.href = sessionStorage.getItem("BackLink");
+}
+</script>

@@ -1,0 +1,194 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "LC Contact";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.LCContact>
+        <div id="divLCContact" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">
+            <div style="width:100%; height:100%; text-align:center">
+                <table id="tblLCContact" title="LC Contract" class="easyui-datagrid" style="height:100%; width:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="onClickRow : onClickRow, showFooter:true">
+                    <thead>
+                        <tr>
+                            <th field="BUSName" width="150" align="left"> Business Unit</th>
+                            <th field="BalanceDateSt" width="80" align="center"> Date</th>
+                            <th field="LCInHand" width="70" align="right" data-options="editor:{type:'numberbox',options:{precision:1}}">LC in Hand</th>
+                            <th field="ContactInHand" width="90" align="right" data-options="editor:{type:'numberbox',options:{precision:1}}"> Customer in Hand</th>
+                            <th field="Total" width="100" align="right"> Total</th>
+                            <th field="Remarks" width="400" align="left" data-options="editor:'textbox'">Remarks</th>
+                            <th field="abc" width="60" align="left" formatter="updateIcon">Operation</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div style="text-align:left" id="toolbar">
+                    Date : <input id="txtDate" name="txtDate" type="text" style="width: 95px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+                    <a id="btnUndo" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-undo" plain="true"></a>
+                    From: <input id="txtBetweenDate" name="txtBetweenDate" type="text" style="width: 95px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    To: <input id="txtBetweenDateTo" name="txtBetweenDateTo" type="text" style="width: 95px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <a id="btnPrintHistory" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">History</a>
+                    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                </div>
+            </div>
+
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oLCContact=null;    
+    $(document).ready(function () {        
+        _oLCContact =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        RefreshList(_oLCContact);
+        $('#txtDate').datebox('setValue', icsdateformat(new Date()));
+        var dt = new Date();
+        var yr = dt.getFullYear();
+        var mon = dt.getMonth();
+        var day = dt.getDate();
+        $('#txtBetweenDate').datebox('setValue', icsdateformat(new Date(yr,mon-1,day)));
+        $('#txtBetweenDateTo').datebox('setValue', icsdateformat(new Date()));
+    });
+    function RefreshList(oLCContacts) {            
+        var data=oLCContacts;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblLCContact').datagrid('loadData',data);
+        RefreshFooter();
+    }
+
+    function RefreshFooter()
+    {
+        var oFooterFields=[];
+        var oFooterField=new Object();        
+        var nLCInHand=0, nContactInHand =0, nTotal =0;
+        var oLCContacts= $('#tblLCContact').datagrid('getRows');
+        for(var i=0; i<oLCContacts.length; i++)
+        {
+            nLCInHand = nLCInHand + parseFloat(oLCContacts[i].LCInHand);
+            nContactInHand = nContactInHand + parseFloat(oLCContacts[i].ContactInHand);
+            nTotal = nTotal + parseFloat(oLCContacts[i].Total);
+        }
+        oFooterField['BUSName'] = "";
+        oFooterField['BalanceDateSt'] = "Grand Total: ";
+        oFooterField['LCInHand'] = formatPrice(nLCInHand);
+        oFooterField['ContactInHand'] = formatPrice(nContactInHand);
+        oFooterField['Total'] = formatPrice(nTotal);
+        oFooterField['Remarks'] = "";        
+        oFooterFields.push(oFooterField);
+        $('#tblLCContact').datagrid('reloadFooter',oFooterFields);
+    }
+
+    function updateIcon() {
+        return '<button onclick="Commit()" class="glyphicon glyphicon-ok"></button>';
+    }
+
+    var editIndex = undefined;
+    function endEditing() {        
+        if (editIndex == undefined){return true}
+        if ($('#tblLCContact').datagrid('validateRow', editIndex)){
+            $('#tblLCContact').datagrid('endEdit', editIndex);
+            $('#tblLCContact').datagrid('selectRow', editIndex);
+            var oLCContact = $('#tblLCContact').datagrid('getSelected');   
+            oLCContact.Total = (parseFloat(oLCContact.LCInHand) + parseFloat(oLCContact.ContactInHand));
+            $('#tblLCContact').datagrid('updateRow', { index: editIndex, row: oLCContact });
+            editIndex = undefined;
+            RefreshFooter();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    function onClickRow(index) {
+        if (editIndex != index) {
+            if (endEditing()) {
+                $('#tblLCContact').datagrid('selectRow', index).datagrid('beginEdit', index);
+                var oPurchaseInvoiceDetail= $('#tblLCContact').datagrid('getSelected');
+                editIndex = index;               
+            }
+            else {
+                $('#tblLCContact').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function Commit() {        
+        endEditing();        
+        var oLCContact=$('#tblLCContact').datagrid('getSelected');        
+        var SelectedRowIndex=$('#tblLCContact').datagrid('getRowIndex',oLCContact);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/LCContact/Save",
+            traditional: true,
+            data:  JSON.stringify(oLCContact),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLCContact = jQuery.parseJSON(data);
+                if(parseInt(oLCContact.LCContactID)>0)
+                {
+                    alert("Data Saved sucessfully");
+                    oLCContact.Total = oLCContact.LCInHand + oLCContact.ContactInHand;
+                    $('#tblLCContact').datagrid('updateRow',{ index: SelectedRowIndex, row: oLCContact });
+                    RefreshFooter();
+                }
+                else {
+                    alert(oLCContact.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    };
+
+    $('#btnRefresh').click(function() {        
+        var oLCContact = {
+            BalanceDate: $('#txtDate').datetimebox('getValue')
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/LCContact/GetLCContacts",
+            traditional: true,
+            data:  JSON.stringify(oLCContact),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLCContacts = jQuery.parseJSON(data);
+                RefreshList(oLCContacts);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+        
+    $('#btnUndo').click(function() {
+        var oLCContact = {
+            BalanceDate: icsdateformat(new Date())
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/LCContact/GetLCContacts",
+            traditional: true,
+            data:  JSON.stringify(oLCContact),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLCContacts = jQuery.parseJSON(data);
+                RefreshList(oLCContacts);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    
+    $('#btnPrint').click(function(){        
+        window.open (sessionStorage.getItem("BaseAddress")+ "/LCContact/PrintLCContacts?Date="+icsdateformat(new Date($('#txtDate').datetimebox('getValue'))),"_blank");          
+    });
+    
+    $('#btnPrintHistory').click(function(){        
+        window.open (sessionStorage.getItem("BaseAddress") + "/LCContact/PrintLCContactLogs?FromDate="+icsdateformat(new Date($('#txtBetweenDate').datetimebox('getValue'))) + "&ToDate="+icsdateformat(new Date($('#txtBetweenDateTo').datetimebox('getValue'))),"_blank");          
+    });
+</script>

@@ -1,0 +1,185 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ImportSetup>
+@{
+    ViewBag.Title = "View Import PI";
+}
+<div class="menuMainCollectionTable" id="divImportSetups" style="margin-left: 0px; height:100%; width:100%">
+    <table id="tblImportSetups" title="Import PI List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="BUName" width="120" align="left">Unit Name</th>
+                <th field="ActivitySt" width="180" align="left">Activity</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">        
+        
+        
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()" id="btnAdd">New</a>
+        <a href="javascript:void(0)" id="btnEdit" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+        <a href="javascript:void(0)" id="btnEdit" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+        <a href="javascript:void(0)" id="btnDelete" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        <a id="btnActivate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Activate</a>
+        
+    </div>
+</div>
+
+  <script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oImportSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nBUID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+        var oTempImportSetups =sessionStorage.getItem("ImportSetups");
+        if(oTempImportSetups!=null )
+        {
+            oTempImportSetups = jQuery.parseJSON(oTempImportSetups );
+        }
+        else
+        {
+            oTempImportSetups =oImportSetups;
+        }
+       
+        LoadintoGrid(oTempImportSetups);
+       
+  });
+
+
+        function Add()
+        {
+            var oImportSetups= $('#tblImportSetups').datagrid('getRows');
+            sessionStorage.setItem("ImportSetups", JSON.stringify(oImportSetups));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ImportSetupHeader", "Add Import PI");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportSetup/ViewImportSetup?id=0";
+        }
+
+        function View() {
+            var oImportSetup = $('#tblImportSetups').datagrid('getSelected');
+            var nSelectedIndex = $('#tblImportSetups').datagrid('getRowIndex', oImportSetup);
+
+            if (oImportSetup == null || oImportSetup.ImportSetupID <= 0) {
+                alert("Please select an item from list!");
+                return;
+            }
+            var oImportSetups= $('#tblImportSetups').datagrid('getRows');
+            sessionStorage.setItem("ImportSetups", JSON.stringify(oImportSetups));
+            sessionStorage.setItem("SelectedRowIndex", nSelectedIndex);
+            sessionStorage.setItem("ImportSetupHeader", "View ImportSetup");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportSetup/ViewImportSetup?id="+oImportSetup.ImportSetupID;
+        }
+        function Edit() {
+            var oImportSetup = $('#tblImportSetups').datagrid('getSelected');
+            var nSelectedIndex = $('#tblImportSetups').datagrid('getRowIndex', oImportSetup);
+
+            if (oImportSetup == null || oImportSetup.ImportSetupID <= 0) {
+                alert("Please select an item from list!");
+                return;
+            }
+            if (parseInt(oImportSetup.ApprovedBy)>0) {
+                alert("Already Approved!");
+                return;
+            }
+            var oImportSetups= $('#tblImportSetups').datagrid('getRows');
+            sessionStorage.setItem("ImportSetups", JSON.stringify(oImportSetups));
+            sessionStorage.setItem("SelectedRowIndex", nSelectedIndex);
+            sessionStorage.setItem("ImportSetupHeader", "Edit ImportSetup");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportSetup/ViewImportSetup?id="+oImportSetup.ImportSetupID;
+        }
+
+       
+        $("#btnActivate").click(function () {
+            debugger;
+            var oImportSetup = $("#tblImportSetups").datagrid("getSelected");
+            if (!confirm("Confirm to Active?")) return false;
+            if (oImportSetup == null || oImportSetup.ImportSetupID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oImportSetup,
+                ObjectId: oImportSetup.ImportSetupID,
+                ControllerName: "ImportSetup",
+                ActionName: "Activate_Setup",
+                TableId: "tblImportSetups",
+                IsWinClose: false
+            };
+            $.icsSave(obj);
+            var SelectedRowIndex = $('#tblImportSetups').datagrid('getRowIndex', oImportSetup);
+            $('#tblImportSetups').datagrid('updateRow', { index: SelectedRowIndex, row: oImportSetup });
+        });
+
+
+    
+        function Delete() {
+
+            var oImportSetup = $('#tblImportSetups').datagrid('getSelected');
+            if (oImportSetup == null || oImportSetup.ImportSetupID <= 0) {
+                alert("Please select a item from list!");
+                return false;
+            }
+            if (parseInt(oImportSetup.ImportSetupStatusInt)== 1) {
+                alert("Sorry, Can't delete an Approved ImportSetup!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return;
+
+            var SelectedRowIndex = $('#tblImportSetups').datagrid('getRowIndex', oImportSetup);
+
+            if (oImportSetup.ImportSetupID > 0) {
+
+                $.ajax
+                ({
+                    type: "POST",
+                    dataType: "json",
+                    url: _sBaseAddress + "/ImportSetup/Delete",
+                    traditional: true,
+                    data: JSON.stringify(oImportSetup),
+                    contentType: "application/json; charset=utf-8",
+                    success: function(data) {
+
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted") {
+                            $('#tblImportSetups').datagrid('deleteRow', SelectedRowIndex);
+                            alert("Delete sucessfully");
+
+                        } else {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert(error);
+                    }
+
+                });
+
+            }
+        }
+        function LoadintoGrid(oImportSetups) {
+            data = oImportSetups;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblImportSetups').datagrid('loadData', data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if(nIndex!=null)
+            {
+                $('#tblImportSetups').datagrid('selectRow',nIndex);
+            }
+        }
+
+        $(document).keydown(function (e) {
+            //debugger;
+            if (e.which == 27)//escape=27
+            {
+                //debugger;
+                $("#winAdvSearchImportSetup").icsWindow('close');
+            }
+        });
+
+    </script>
+
+

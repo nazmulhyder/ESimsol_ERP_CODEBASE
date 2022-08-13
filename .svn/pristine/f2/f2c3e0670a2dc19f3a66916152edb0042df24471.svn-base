@@ -1,0 +1,292 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ITaxAssessmentYear>
+    @{
+        ViewBag.Title = "View_ITaxAssessmentYear";
+    }
+
+    <div style="margin-left:0px; height:550px">
+        <table id="tblITaxAssessmentYear" title="Tax Assesment Year" class="easyui-datagrid" style="width:1030px;height:548px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="AssessmentYear" width="150" align="left">Assesment Year</th>
+                    <th field="Session" width="150" align="left">Session</th>
+                    <th field="Activity" width="150" align="left">Activity</th>
+
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:55px;">
+
+            <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnInactive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Freeze</a>
+            <a id="btnRateAndRebate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="RateAndRebate()">Rate & Rebate </a>
+            <br />
+            <div id="DivNew">
+                @*<input id="txtDescription" type="text" style="width:200px;" placeholder="Description" />*@
+                Session : <input id="dtDateFrom" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                &nbsp; To &nbsp; <input id="dtDateTo" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var _oITaxAssessmentYears=null;
+        var _sBaseAddress="";
+        var _nITaxAssessmentYearID = 0;
+        var _FlagForEdit = false;
+
+        $(document).ready(function ()
+        {
+            _oITaxAssessmentYears =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            $('#dtDateFrom').datebox('setValue', icsdateformat(new Date()));
+            $('#dtDateTo').datebox('setValue', icsdateformat(new Date()));
+            RefreshList(_oITaxAssessmentYears);
+            document.getElementById("DivNew").style.display= 'none';
+
+            $('#tblITaxRebateScheme').datagrid('selectRow', sessionStorage.getItem("SelectedRowIndex"));
+        });
+
+        function RefreshList(oITaxAssessmentYears )
+        {
+            data = oITaxAssessmentYears ;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblITaxAssessmentYear').datagrid('loadData', data);
+
+        }
+
+        function  icsdateformat(date)
+        {
+            var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            var y = date.getFullYear();
+            var m = date.getMonth();
+            var d = date.getDate();
+            var result= d +' '+ mthNames[m]+' '+ y;
+            return result;
+        }
+
+        $('#btnNew').click(function (e)
+        {
+            document.getElementById("DivNew").style.display= '';
+            //document.getElementById("txtDescription") == "";
+            $('#dtDateFrom').datebox('setValue', icsdateformat(new Date()));
+            $('#dtDateTo').datebox('setValue', icsdateformat(new Date()));
+            _FlagForEdit == false;
+        });
+
+        function ValidateInput()
+        {
+            if(document.getElementById("txtDescription") == "")
+            {
+                alert("Please enter description !!");
+                document.getElementById("txtDescription").focus();
+                return false;
+            }
+            return true;
+        }
+
+        function RefreshObject()
+        {
+            var oITaxAssessmentYear = {
+
+                ITaxAssessmentYearID : _nITaxAssessmentYearID,
+                //Description : document.getElementById("txtDescription").value,
+                StartDate :  $('#dtDateFrom').datebox('getValue'),
+                EndDate :  $('#dtDateTo').datebox('getValue')
+
+            }
+            return oITaxAssessmentYear;
+
+        }
+
+        $('#btnSave').click(function (e)
+        {
+
+            //if (!ValidateInput()) return;
+            var oITaxAssessmentYear = RefreshObject();
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/IncomeTaxBasicSetup/ITaxAssessmentYear_IU",
+                traditional: true,
+                data: JSON.stringify(oITaxAssessmentYear),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    oITaxAssessmentYear = jQuery.parseJSON(data);
+                    if (oITaxAssessmentYear.ErrorMessage == "")
+                    {
+
+                        if(_FlagForEdit == true)
+                        {
+                            alert("Data edited sucessfully");
+                            var oITaxAYear = $('#tblITaxAssessmentYear').datagrid('getSelected');
+                            var SelectedRowIndex=$('#tblITaxAssessmentYear').datagrid('getRowIndex',oITaxAYear);
+                            $('#tblITaxAssessmentYear').datagrid('updateRow',{index: SelectedRowIndex,row: oITaxAssessmentYear});
+                        }
+                        else
+                        {
+                            alert("Data Saved sucessfully");
+                            $('#tblITaxAssessmentYear').datagrid('appendRow',oITaxAssessmentYear);
+                        }
+                    }
+                    else
+                    {
+                        alert(oITaxAssessmentYear.ErrorMessage);
+                    }
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        });
+
+        $('#btnEdit').click(function (e)
+        {
+            document.getElementById("DivNew").style.display= '';
+            var oITaxAssessmentYear = $('#tblITaxAssessmentYear').datagrid('getSelected');
+            if (oITaxAssessmentYear == null || oITaxAssessmentYear.ITaxAssessmentYearID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblITaxAssessmentYear').datagrid('getRowIndex',oITaxAssessmentYear);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/IncomeTaxBasicSetup/ITaxAssessmentYear_GetForEdit",
+                traditional: true,
+                data: JSON.stringify({nITaxAssessmentYearID : oITaxAssessmentYear.ITaxAssessmentYearID}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    oITaxAssessmentYear = jQuery.parseJSON(data);
+                    if (oITaxAssessmentYear.ErrorMessage == "")
+                    {
+
+                        _FlagForEdit = true;
+                        _nITaxAssessmentYearID = oITaxAssessmentYear.ITaxAssessmentYearID;
+                        //document.getElementById("txtDescription").value = oITaxAssessmentYear.Description ;
+                        $('#dtDateFrom').datebox('setValue', oITaxAssessmentYear.StartDateInString);
+                        $('#dtDateTo').datebox('setValue',oITaxAssessmentYear.EndDateInString);
+
+                    }
+                    else
+                    {
+                        alert(oITaxAssessmentYear.ErrorMessage);
+                    }
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        });
+
+        $('#btnDelete').click(function (e)
+        {
+            var oITaxAssessmentYear = $('#tblITaxAssessmentYear').datagrid('getSelected');
+            if (oITaxAssessmentYear == null || oITaxAssessmentYear.ITaxAssessmentYearID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+
+            if (!confirm("Confirm to Delete?")) return;
+            var SelectedRowIndex = $('#tblITaxAssessmentYear').datagrid('getRowIndex', oITaxAssessmentYear);
+            var tsv = ((new Date()).getTime()) / 1000;
+            if (oITaxAssessmentYear.ITaxAssessmentYearID > 0)
+            {
+                $.ajax({
+                    type: "GET",
+                    dataType: "json",
+                    url: _sBaseAddress + "/IncomeTaxBasicSetup/ITaxAssessmentYear_Delete",
+                    data: { nITaxAssessmentYearID : oITaxAssessmentYear.ITaxAssessmentYearID,ts: tsv},
+                    contentType: "application/json; charset=utf-8",
+                    success: function(data)
+                    {
+
+                        var feedbackmessage = jQuery.parseJSON(data);
+
+                        if (feedbackmessage == "")
+                        {
+                            alert("Delete sucessfully");
+                            $('#tblITaxAssessmentYear').datagrid('deleteRow', SelectedRowIndex);
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function(xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+
+        $('#btnInactive').click(function (e)
+        {
+            debugger
+            var oITaxAssessmentYear = $('#tblITaxAssessmentYear').datagrid('getSelected');
+            if (oITaxAssessmentYear == null || oITaxAssessmentYear.ITaxAssessmentYearID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+
+            if (!confirm("Confirm to freeze?")) return;
+            var SelectedRowIndex = $('#tblITaxAssessmentYear').datagrid('getRowIndex', oITaxAssessmentYear);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/IncomeTaxBasicSetup/ITaxAssessmentYear_Inactive",
+                traditional: true,
+                data: JSON.stringify({oITaxAssessmentYear:oITaxAssessmentYear}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data) {
+
+                    oITaxAssessmentYear = jQuery.parseJSON(data);
+                    if (oITaxAssessmentYear.ITaxAssessmentYearID > 0)
+                    {
+
+                        alert("Freezed Successfully!");
+                        $('#tblITaxAssessmentYear').datagrid('updateRow', { index: SelectedRowIndex, row: oITaxAssessmentYear });
+
+                    }
+                    else
+                    {
+                        alert(oITaxAssessmentYear.ErrorMessage);
+                    }
+                }
+
+            });
+
+        });
+
+        function RateAndRebate()
+        {
+            var oITaxAssessmentYear = $('#tblITaxAssessmentYear').datagrid('getSelected');
+            if (oITaxAssessmentYear == null || oITaxAssessmentYear.ITaxAssessmentYearID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+
+            var oITaxAssessmentYears= $('#tblITaxAssessmentYear').datagrid('getRows');
+            sessionStorage.setItem("ITaxAssessmentYears", JSON.stringify(oITaxAssessmentYears));
+
+            var SelectedRowIndex=$('#tblITaxAssessmentYear').datagrid('getRowIndex',oITaxAssessmentYears);
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("ITaxAssessmentYearID", oITaxAssessmentYear.ITaxAssessmentYearID);
+            window.location.href = _sBaseAddress+ "/IncomeTaxBasicSetup/View_RateAndRebates?ITaxAssessmentYearID="+oITaxAssessmentYear.ITaxAssessmentYearID;
+        }
+
+    </script>

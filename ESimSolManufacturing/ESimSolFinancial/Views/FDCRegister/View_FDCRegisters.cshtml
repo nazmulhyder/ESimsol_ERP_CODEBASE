@@ -1,0 +1,352 @@
+﻿@{
+    ViewBag.Title = "Challan Register";
+}
+@model ESimSol.BusinessObjects.FDCRegister
+<div ng-app="FDCRegisterApp" style="height:100%">
+    <div ng-controller="FDCRegisterController" style="overflow-x:hidden">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <input type="text" ng-model="txtDCNo" ng-keydown="SearchByNo($event)" placeholder="Search by Challan No" />
+                    <button type="button" class="btn btn-primary btn-sm" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"></span> Advance Search</button>
+                    @*<button type="button" class="btn btn-primary btn-sm" ng-click="PrintPDF()"><span class="glyphicon glyphicon-print"></span> Print Preview</button>*@
+                    <label>Print Layout :</label>
+                    <select style="height:25px" ng-model="PrintType">
+                        <option value="0">--select--</option>
+                        <option value="1">Party Wise</option>
+                        <option value="2">PI Wise</option>
+                    </select>
+                    <button type="button" class="btn btn-primary btn-sm" ng-click="PrintExel()"><span class="glyphicon glyphicon-print"></span> Print Exel</button>
+                    <button type="button" class="btn btn-primary btn-sm" ng-click="PrintExel2()"><span class="glyphicon glyphicon-print"></span> Print Exel2</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewDC()"><span class="glyphicon glyphicon-print" aria-hidden="true">Preview(Challan)</span></button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewPO()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview(PO)</button>
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="StepSetup()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Step Setup</button>*@
+                </div>
+            </div>
+        </div>
+     
+        <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable" style="width:99%; height:510px"></div>
+    </div>
+</div>
+<style type="text/css">
+    .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+    .grid {
+        height: 525px;
+        width: 100%;
+    }
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+<script type="text/javascript">
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFDCRegisters =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oDOTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DOTypes));
+    var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+
+    _sBaseAddress=(_sBaseAddress==null?"" : _sBaseAddress);
+    sessionStorage.setItem("BaseAddress",_sBaseAddress);
+
+    var  FDCRegister = angular.module('FDCRegisterApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection',  'ui.grid.edit','ui.grid.cellNav','ms.service','ui.grid.resizeColumns']);
+    FDCRegister.controller('FDCRegisterController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch) {
+        debugger;
+
+        oFDCRegisters= (userSession.getData('FDCRegisters').length>0)? userSession.getData('FDCRegisters'):oFDCRegisters;
+        $scope.PrintType = 0;
+      
+        $scope.gridOptions ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableColumnResizing: true,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'ChallanNo', name: 'ChallanNo', width:'10%', enableCellEdit: false },
+                { field: 'ChallanDateSt', name: 'Challan Date', width: '12%' },
+                { field: 'DONo', name: 'DONo', width:'10%', enableCellEdit: false },
+                { field: 'DODateSt', name: 'DO Date', width: '12%' },
+                { field: 'DOTypeStr', name: 'DO Type', width: '12%' },
+                { field: 'ContractorName', name: 'CustomerName', width: '18%' },
+                { field: 'BuyerName', name: ' BuyerName', width: '18%' },
+                { field: 'Construction', name: 'Construction', width: '15%' },
+                { field: 'ProductName', name: 'Compsition', width: '15%' },
+                { field: 'ColorInfo', name: 'Color', width: '10%' },
+                { field: 'MUName', name: 'MUnit', width: '8%' },
+                { field: 'QtyOrder', name: 'PO Qty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },//,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' 
+                { field: 'QtyDelivery', name: 'Total Delivery', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },//,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' 
+                { field: 'YetToDelivery', name: 'Yet To Delivery', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },//,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' 
+                { field: 'Qty', name: 'Delivered Qty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'UnitPrice', name: 'UnitPrice', width: '10%', cellFilter:"number:2", cellClass:'text-right' },
+                { field: 'Amount', name: 'Amount', width: '10%', cellFilter:"number:2", cellClass:'text-right'  ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'FabricNo', name: 'MktRefNo', width: '10%' },
+                { field: 'SCNoFull', name: 'PONo', width: '10%' },
+                { field: 'ExeNo', name: 'DispoNo', width: '12%' },
+                { field: 'PINo', name: 'PINo', width: '10%' },
+                { field: 'FabricWeave', name: 'FabricWeave', width: '12%' },
+                { field: 'FinishTypeName', name: 'FinishType', width: '12%' },
+                { field: 'FinishWidth', name: 'FinishWidth', width: '12%' },
+                { field: 'ProcessTypeName', name: 'Process', width: '12%' },
+                { field: 'MKTPerson', name: 'Acc. Holder', width: '18%' },
+                { field: 'LCNo', name: 'LC No', width: '18%' },
+                
+            ],
+            data:oFDCRegisters,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFDCRegisters.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFDCRegisters);
+                    $scope.gridApi.selection.selectRow(oFDCRegisters[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFDCRegisters[userSession.getRowIndex()]);
+                  
+                }
+                userSession.clear();
+                $scope.gridOptions.columnDefs[15].visible = false;
+                $scope.gridOptions.columnDefs[16].visible = false;
+            }
+        };
+        $scope.AdvanceSearch = function()
+        {
+            oColumns = [];
+          
+            debugger;
+            var oColumn = { field: 'Name', name: 'Marketing Account Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_MKTP={
+                obj:{
+                    Name : '@@MarketingAccountID',
+                    BUID : _nBUID
+                },
+                objName:'Name',
+                objField:'MarketingAccountID',
+                url:_sBaseAddress+'/MarketingAccount/GetsMktByUser',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroupForExportPIReport',
+                title:'Marketing Person List',
+                multiSelect:true,
+                columns:oColumns
+            }
+
+            oColumns3 = [];
+            var oColumn3 = { field: 'Name', name: 'Marketing Account Name',width: '70%', enableSorting: false  };oColumns3.push(oColumn3);
+            oColumn3 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns3.push(oColumn3);
+
+            var paramObj_MKTA={
+                obj:{
+                    Name : '@@MarketingAccountID',
+                    BUID : _nBUID
+                },
+                objName:'Name',
+                objField:'MarketingAccountID',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroup',
+                url:_sBaseAddress+'/MarketingAccount/GetsAllGroup',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroupForExportPIReport',
+                title:'Marketing Person List',
+                multiSelect:true,
+                columns:oColumns3
+            }
+
+            var oFDCRegister = [
+                               { DisplayName: "Challan No",         BOField: "ChallanNo",           InputType: 'text' },
+                               { DisplayName: "DO No",              BOField: "DONo",                InputType: 'text' },
+                               { DisplayName: "PO No",              BOField: "SCNoFull",            InputType: 'text' },
+                               { DisplayName: "DisPo No",           BOField: "EXeNo",               InputType: 'text' },
+                               { DisplayName: "PI No",              BOField: "PINo",                InputType: 'text' },
+                               { DisplayName: "LC No",              BOField: "LCNo",                InputType: 'text' },
+                               //{ DisplayName: "Contractor Name",  BOField: "CustomerName",        InputType: 'picker', PickerObject:paramObj_Contractor },
+                               //{ DisplayName: "Buyer Name",       BOField: "BuyerName",           InputType: 'picker', PickerObject:paramObj_Buyer },
+                               { DisplayName: "Construction",      BOField: "Construction",                InputType: 'text' },
+                               { DisplayName: "DO Type",            BOField: "DOType",              InputType: 'select', OptionList:oDOTypes},
+                               { DisplayName: "Challan Date",       BOField: "DCDateSearchString",  InputType: 'date' },
+
+                               { DisplayName: "DO Date",            BOField: "DODateSearchString",  InputType: 'date' },
+                               { BOField:     "BUID",               Value:_nBUID,                   InputType: 'hidden'},
+                               { DisplayName: "Marketing Group",    BOField: "MKTGroup",             InputType: 'picker', PickerObject:paramObj_MKTA },
+                               { DisplayName: "Marketing Person",   BOField: "MKTPerson",               InputType: 'picker', PickerObject:paramObj_MKTP },
+            ];
+
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oFDCRegister,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/FDCRegister/AdvSearch_DC'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+                $scope.gridOptions.columnDefs[15].visible = false;
+                $scope.gridOptions.columnDefs[16].visible = false;
+                if (PermissionChecker('RateView', 'FabricDeliveryChallan', oAuthorizationRolesMapping))
+                {
+                    $scope.gridOptions.columnDefs[15].visible = true;
+                    $scope.gridOptions.columnDefs[16].visible = true;
+                }
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        }
+        $scope.SearchByNo = function (e,nid) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var oFDCRegister ={};
+                if (nid!=0)
+                {
+                    oFDCRegister = {
+                        SCNo:"",
+                        ChallanNo:$.trim($scope.txtDCNo),
+                        BUID:_nBUID
+                    };
+                }
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/FDCRegister/AdvSearch_DC',$.param(oFDCRegister), config).then(
+                            function (response)
+                            {        debugger;
+                                var oResults = (response.data);
+                                if(oResults.length>0)
+                                {
+                                    sessionStorage.setItem("AdvSearchObject",JSON.stringify(oFDCRegister));
+                                    
+                                    $scope.gridOptions.data = (response.data);
+
+
+                                    
+                                }else{
+                                    alert("Data Not found.");
+                                }
+                            },
+                                function (response) { alert((response.statusText)); }
+                        );
+            }
+        };
+        $scope.PrintPDF = function(){
+            debugger;
+            var string = sessionStorage.getItem("AdvSearchString");
+            if(string=="" || string==null)
+            {
+                alert("No Data Found!");
+                return;
+            }
+            var obj= JSON.parse(sessionStorage.getItem("AdvSearchObject"));
+            $http.post(_sBaseAddress+'/FDCRegister/SetSessionSearchCriteria',JSON.stringify(obj)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    debugger;
+                                    if(result=="Successful")
+                                        window.open(_sBaseAddress + '/FDCRegister/PrintFDCRegister?ts=' + Math.random(420));
+                                },
+                                function (response) { alert(response.data);}
+                        );
+
+        };
+        $scope.PrintExel = function(){
+            debugger;
+            var obj= JSON.parse(sessionStorage.getItem("AdvSearchObject"));
+            var sPrintFunction = "";
+            if(obj==null)
+            {
+                alert("No Data Found!");
+                return;
+            }
+            if($scope.PrintType==0)
+            {
+                sPrintFunction = _sBaseAddress + '/FDCRegister/ExportToExcelFDCRegister?ts=' + Math.random(420);
+            }
+            if($scope.PrintType==1) //------Party Wise
+            {
+                sPrintFunction = _sBaseAddress + '/FDCRegister/ExportToExcelFDCRegisterPartyWise?ts=' + Math.random(420);
+            }
+            if($scope.PrintType==2) //------PI Wise
+            {
+                sPrintFunction = _sBaseAddress + '/FDCRegister/ExportToExcelFDCRegisterPIWise?ts=' + Math.random(420);
+            }
+            $http.post(_sBaseAddress+'/FDCRegister/SetSessionSearchCriteria',JSON.stringify(obj)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    debugger;
+                                    if(result=="Successful")
+                                        window.location.href= sPrintFunction;
+                                },
+                                function (response) { alert(response.statusText);}
+                        );
+
+        };
+
+        $scope.PrintExel2 = function(){
+            debugger;
+            var obj= JSON.parse(sessionStorage.getItem("AdvSearchObject"));
+            var sPrintFunction = "";
+            if(obj==null)
+            {
+                alert("No Data Found!");
+                return;
+            }
+            
+            $http.post(_sBaseAddress+'/FDCRegister/SetSessionSearchCriteria',JSON.stringify(obj)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    debugger;
+                                    if(result=="Successful")
+                                        window.location.href= _sBaseAddress + '/FDCRegister/ExportToExcel_RPT_FDCTwo?ts=' + Math.random(420);;
+                                },
+                                function (response) { alert(response.statusText);}
+                        );
+
+        };
+        $scope.PrintPreviewDC = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oFabricDeliveryChallan = data[0];
+            if(oFabricDeliveryChallan==null || oFabricDeliveryChallan.FDCID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/FabricDeliveryChallan/PrintFDC?id='+oFabricDeliveryChallan.FDCID+'&nBUID='+_nBUID+"&bIsMeter="+false+"&nFormat="+1);
+        };
+        $scope.PrintPreviewPO = function ()
+        {
+            var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FEOSID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            // window.open(_sBaseAddress + '/FabricExecutionOrderSpecification/PrintFabricSpecification?nId='+oFabricLotAssign.FEOSID+"&nBUID="+_nBUID);
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress+ "/FabricSalesContract/PrintPreview?nID="+oRPT_Dispo.FSCID+"&bIsRnd=false&nts="+nts+"&bPrintFormat=true&nTitleTypeInImg=1", "_blank");
+        };
+    });
+
+</script>

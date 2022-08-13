@@ -1,0 +1,253 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.sp_Rpt_ProductReconciliation
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="text-align: center; width: 790px; color: white; padding-top: 5px;">
+                    <div style="width: 100%; background-color: #CFB53B;">
+                        <center>
+                            <label id="lblHeaderName" style="font-size: 15px; color: Yellow; font-weight: bold;
+                                color: white">
+                                @ViewBag.Title
+                            </label>
+                        </center>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div style="width: 785px; padding-left: 5px; padding-top: 10px;">
+        <fieldset style="font-size: 14px;">
+            <center>
+                Location:<span style="padding-left: 5px;"><label id="lblLocationName"></label></span><span>
+                    <span style="padding-left: 10px;">Report Type:<span>
+                        <label id="lblReportType">
+                        </label>
+                    </span></span></span>
+            </center>
+            <center>
+                Date:<span style="padding-left: 5px;"><label id="lblDate"></label></span>
+            </center>
+        </fieldset>
+        <div>
+            <table id="tblSPR" class="easyui-datagrid" style="width: 785px; height: 460px;" fitcolumns="false"
+                rownumbers="true" pagination="false" singleselect="true" autorowheight="false"
+                toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th width="180" field="ProductName" align="left">
+                            Product Name
+                        </th>
+                        <th data-options="field:'DisburseFromRawYarnStore',width:120,align:'right',formatter:formatPrice"
+                            align="right">
+                            Raw Yarn Issue
+                        </th>
+                        <th data-options="field:'FreshDyedYarn',width:120,align:'right',formatter:formatPrice"
+                            align="right">
+                            Fresh Dyed Yarn
+                        </th>
+                        <th data-options="field:'ColorMisMatch',width:120,align:'right',formatter:formatPrice"
+                            align="right">
+                            Color Mismatch
+                        </th>
+                        <th data-options="field:'Uneven',width:120,align:'right',formatter:formatPrice" align="right">
+                            Uneven
+                        </th>
+                        <th data-options="field:'Jott',width:120,align:'right',formatter:formatPrice" align="right">
+                            Jott
+                        </th>
+                        <th data-options="field:'Wastage',width:120,align:'right',formatter:formatPrice"
+                            align="right">
+                            Wastage
+                        </th>
+                        <th data-options="field:'Loss',width:120,align:'right',formatter:formatPrice" align="right">
+                            Loss
+                        </th>
+                        <th data-options="field:'Gain',width:120,align:'right',formatter:formatPrice" align="right">
+                            Gain
+                        </th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <a href="javascript:void(0)" id="btnPrint" class="easyui-linkbutton" iconcls="icon-print"
+                    plain="true">Print</a>
+            </div>
+        </div>
+        <div style="width: 100%;">
+            <span style="float: right; padding-top: 5px;">
+                <input id="btnCancel" type="button" value="Cancel" />
+            </span>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+
+var _sBaseAddress="";
+var _oColumns=[];
+var _nLocationID=0;
+var _sDate="";
+var _eDate="";
+var _nReportType=0;
+var _sHeader="";
+
+$(document).ready(function () 
+{
+   var obj=window.dialogArguments;
+   debugger;   
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+   if(obj!=null)
+    {
+       document.getElementById('lblLocationName').innerHTML=obj.LocationName; 
+       document.getElementById('lblReportType').innerHTML=obj.Header;
+       document.getElementById('lblDate').innerHTML=obj.sDate+" 08:00"+" - "+obj.eDate+" 08:00"; 
+       _nReportType=obj.ReportType;
+       _nLocationID=obj.LocationID;
+       _sDate=obj.sDate;
+       _eDate=obj.eDate;
+       _sHeader=obj.Header;
+
+       GetSPS();
+
+    }
+});
+
+function GetSPS()
+{
+    if( validation()==false)
+    {
+        return;
+    }
+    var sData= validation();
+    var nts = (new Date()).getTime() / 1000;
+    $.ajax
+    ({
+        type: "GET",
+        dataType: "json",
+        url: _sBaseAddress+ "/ProductionTracking/ProductWiseSearch",
+        data: { sData: sData, nts: nts},
+        contentType: "application/json; charset=utf-8",
+        success: function (data)
+        {
+            debugger;
+            oSPRs= jQuery.parseJSON(data);
+            if (oSPRs.length>0)
+            {
+                LoadIntoGrid(oSPRs); 
+            }
+            else
+            {
+                LoadIntoGrid([]); 
+            }
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    }); 
+}
+
+function LoadIntoGrid(oSPRs)
+{
+    data = oSPRs;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblSPR').datagrid('loadData', data);
+}
+
+function validation()
+{
+   if(_nReportType<=0)
+   {
+     alert("Invalid report.");
+     return false;
+   }
+   else if(_nLocationID<=0)
+   {
+     alert("There is no such type of location available.");
+     return false;
+   }
+   else if(!new Date(_sDate))
+   {
+     alert("Invalid date selection.");
+     return false;
+   }
+   else if(!new Date(_eDate))
+   {
+     alert("Invalid date selection.");
+     return false;
+   }
+
+   var sData = _nReportType+'~'+_nLocationID+'~'+_sDate+'~'+_eDate+'~'+_sHeader;
+   return sData;
+}
+
+$('#btnPrint').click(function(e)
+{
+    if( validation()==false)
+    {
+        return;
+    }
+    var sStr= validation();
+    window.open(_sBaseAddress + "/ProductionTracking/PrintProductwise?sData="+sStr, "_blank");
+});
+
+function formatPrice(val)
+{
+   
+    if(parseFloat(val))
+    {
+        val=parseFloat(val);
+        var test = val.toFixed(2);
+        if (val < 0)
+        {
+        test=(-1*test);
+        }
+        var tests = addComma(test);
+        if (val < 0)
+        {
+        return tests;
+        }
+        else 
+        {
+        return tests;
+        }
+    }
+    else
+    {
+    return '0.00'
+    }
+
+}
+
+function addComma(nStr)
+{
+
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var rgx = /(\d+)(\d{3})/;
+	while (rgx.test(x1)) {
+		x1 = x1.replace(rgx, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
+}
+
+$("#btnCancel").click(function(e)
+{
+   window.close();
+});
+
+</script>

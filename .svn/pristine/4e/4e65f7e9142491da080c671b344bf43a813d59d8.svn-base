@@ -1,0 +1,286 @@
+﻿@{
+    ViewBag.Title = "Statement";
+}
+@model ESimSol.BusinessObjects.Statement
+<div style="margin-left: 0px; height: 10%; width:100%;">
+    <table id="tblStatements" title="Statement of Cash Flow" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar"></table>
+    <div id="toolbar">
+        <select id="cboBusinessUnit" style="width:200px"></select> <select id="cboStatementSetup" style="width:180px"></select>
+        Date  <select id="cboDateSearch" style="width:100px;font-size:12px;margin-right:10px;" class="_select_changeA" />
+        <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        To
+        <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Excel</a>
+        <a id="btnConfig" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-setting" plain="true"></a>
+        <a id="btnYetToConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-filter" plain="true"></a>
+    </div>
+</div>
+<div style="width:100%;overflow-y:scroll;height:500px;">
+    <div style="text-align:center">
+        <label id="lblCompanyName" style="text-align:center;font-weight:900;font-size:15px;"></label><br />
+        <label id="lblStatement" style="text-align:center;font-weight: 700;font-size:15px;"></label><br />        
+        <label id="lblDate" style="text-align:center;font-weight:bold;font-size:12px; text-decoration:underline"></label><br />
+    </div>
+    <div style="margin-top:5px">
+        <table id="tblDisplayStatement" style="border:1px solid #000;margin: 0 auto;width:60%;"></table>
+    </div>
+    @*<div style="text-align:right; width:60%;margin: 0 auto">
+        <label id="lblOpeningBalance" style="text-align:right;font-weight:bold;font-size:12px;"></label><br />
+    </div>
+    <div style="text-align:right; width:60%;margin: 0 auto; margin-top:2px">        
+        <label id="lblEndingBalance" style="text-align:right;font-weight:bold;font-size:12px"></label><br />        
+    </div>*@
+</div>
+<style>
+    #tblDisplayStatement tr:hover td,
+    #tblGeneralLedger tr:hover td.highlight {
+        background: #D6DAD5;
+    }
+
+        /*#tblDisplayStatement tr:hover td,
+        #tblDisplayStatement tr:hover td.highlight {
+            background: #40FF00;
+        }*/
+</style>
+
+<script type="text/javascript">
+    var _oStatement=[];
+    var _sBaseAddress="";
+    var _oStatementSetups = [];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oStatement =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        _oStatementSetups = _oStatement.StatementSetups;
+        $("#cboStatementSetup").data('objs',_oStatementSetups);
+        $("#cboStatementSetup").icsLoadCombo({List: _oStatementSetups,OptionValue: "StatementSetupID",DisplayText: "StatementSetupName", InitialValue : "--Select Statement--"});
+
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").data('objs',oBusinessUnits);
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "--Select Business Unit--"});
+        RefreshDateSearch();
+
+        $('#cboStatementSetup').val(_oStatement.StatementSetupID);
+        $('#cboBusinessUnit').val(_oStatement.BUID);
+        $('#cboDateSearch').val(_oStatement.DCO);
+        $('#txtStartDate').datebox('setValue', _oStatement.StartDateInString);
+        $('#txtEndDate').datebox('setValue', _oStatement.EndDateInString);
+        RefreshData(_oStatement);
+    });
+
+    $("#btnPrint").click(function(){
+        var oStatement = RefreshObject();
+        if(parseInt(oStatement.StatementSetupID) == 0)
+        {
+            alert("Please select a statement.");
+            return;
+        }
+        var sParam= parseInt(oStatement.StatementSetupID)+'~'+parseInt(oStatement.DateSearch)+'~'+oStatement.StartDate+'~'+oStatement.EndDate+'~'+oStatement.BUID;
+        window.open(_sBaseAddress + '/Statement/PrintStatement?param='+sParam, "_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+        var oStatement = RefreshObject();
+        if(parseInt(oStatement.StatementSetupID) == 0)
+        {
+            alert("Please select a statement.");
+            return;
+        }
+        var sParam= parseInt(oStatement.StatementSetupID)+'~'+parseInt(oStatement.DateSearch)+'~'+oStatement.StartDate+'~'+oStatement.EndDate+'~'+oStatement.BUID;
+        window.open(_sBaseAddress + '/Statement/ExportStatementToExcel?param='+sParam, "_blank");
+    });
+
+    function RefreshData(oStatement)
+    {
+        $("#tblDisplayStatement").empty();
+        LoadTable(oStatement);
+        $("#lblCompanyName").text(oStatement.Company.Name);
+        var selectedCbo =document.getElementById("cboStatementSetup");
+        var cboStatementSetupText = selectedCbo.options[selectedCbo.selectedIndex].text;
+        $("#lblStatement").text(cboStatementSetupText);
+        var date = 'For the period of ' + oStatement.StartDateInString + ' To '+oStatement.EndDateInString;
+        $("#lblDate").text(date);
+        //$("#lblOpeningBalance").text('Cash at Beginning of Period: '+ oStatement.OpeningBalnceInstring);
+        //$("#lblEndingBalance").text('Cash at Ending of Period : '+ oStatement.ClosingBalanceInstring);
+    }
+
+    $("#btnConfig").click(function(){
+        var smid = parseInt($('#cboStatementSetup').val());
+        if(smid == null || parseInt(smid) <=0 )
+        {
+            alert("Please select an statement!");
+            $('#cboStatementSetup').focus();
+            return;
+        }
+        var oParameter = new Object();
+        oParameter.Name = "Edit Statement Setup";
+        var url =_sBaseAddress+ "/StatementSetup/ViewStatementSetup?id="+ smid;
+        var oStatementSetup = window.showModalDialog(url, oParameter, 'dialogHeight:570px;dialogWidth:830px;dialogLeft:280;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+        if(oStatementSetup.StatementSetupID>0)
+        {
+            var buid = parseInt($('#cboBusinessUnit').val());
+            var smid = parseInt($('#cboStatementSetup').val());
+            var dct = parseInt($('#cboDateSearch').val());
+            var sdt =$('#txtStartDate').datebox('getValue');
+            var edt =$('#txtEndDate').datebox('getValue');
+            var menuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+            if(parseInt(smid)<=0)
+            {
+                alert("Invalid Statement!");
+                return;
+            }
+            window.location.href = _sBaseAddress+ "/Statement/ViewStatements?buid="+buid+"&smid="+smid+"&dct="+dct+"&sdt="+sdt+"&edt="+edt+"&menuid="+menuid;
+        }
+    });
+
+    $("#btnYetToConfigure").click(function(){
+        var buid = parseInt($('#cboBusinessUnit').val());
+        var smid = parseInt($('#cboStatementSetup').val());
+        var dct = parseInt($('#cboDateSearch').val());
+        var sdt =$('#txtStartDate').datebox('getValue');
+        var edt =$('#txtEndDate').datebox('getValue');        
+        if(parseInt(smid)<=0)
+        {
+            alert("Invalid Statement!");
+            return;
+        }
+        if(sdt===null || sdt==="")
+        {
+            alert("Please select start date!");
+            return;
+        }
+        if(edt===null || edt==="")
+        {
+            alert("Please select End date!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var oParameter = new Object();        
+        var url =_sBaseAddress+ "/StatementSetup/ViewYetToAccountConfigure?smid="+ smid+"&sdt="+sdt+"&edt="+edt+"&buid="+buid+"&ts="+tsv;
+        var oStatementSetup = window.showModalDialog(url, oParameter, 'dialogHeight:465px;dialogWidth:805px;dialogLeft:350;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    $("#btnRefresh").click(function(){
+        var buid = parseInt($('#cboBusinessUnit').val());
+        var smid = parseInt($('#cboStatementSetup').val());
+        var dct = parseInt($('#cboDateSearch').val());
+        var sdt =$('#txtStartDate').datebox('getValue');
+        var edt =$('#txtEndDate').datebox('getValue');
+        var menuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        if(parseInt(smid)<=0)
+        {
+            alert("Invalid Statement!");
+            return;
+        }
+        window.location.href = _sBaseAddress+ "/Statement/ViewStatements?buid="+buid+"&smid="+smid+"&dct="+dct+"&sdt="+sdt+"&edt="+edt+"&menuid="+menuid;
+    });
+
+    function LoadTable(oStatement)
+    {
+        var oStatements=oStatement.Statements;
+        for(var i=0;i<oStatements.length;i++)
+        {
+            if(parseInt(oStatements[i].GroupType) == 1)
+            {
+                $("#tblDisplayStatement").append("<tr style='height:30px;'><td style='width:400px;font-size:14px;font-weight: 900;'>"+oStatements[i].GroupName+"</td><td></td><td></td></tr>");
+            }
+            else if(parseInt(oStatements[i].GroupType) == 2)
+            {
+                $("#tblDisplayStatement").append("<tr><td style='width:400px;'>"+oStatements[i].GroupName+"</td><td style='width:200px; text-align:right'><label id='label"+oStatements[i].LedgerGroupSetupID+"' onclick='NoteWiseDetails("+ oStatements[i].LedgerGroupSetupID +","+ oStatements[i].IsDr +");' style='color:#0000FF;cursor:pointer;text-decoration: underline'>"+oStatements[i].BalanceAmountInString+"</label></td><td></td></tr>");
+            }
+            else if(parseInt(oStatements[i].GroupType) == 3)
+            {
+                $("#tblDisplayStatement").append("<tr style='height:30px;'><td style='width:400px;font-style: italic;'>"+oStatements[i].GroupName+"</td><td style='width:200px'></td><td>"+oStatements[i].BalanceAmountInString+"</td></tr>");
+            }
+        }
+        $("#tblDisplayStatement").append("<tr><td style='text-align:right;font-weight:bold;width:400px;font-style: italic;'>"+oStatement.NetIncreaseDecreaseText+"</td><td style='width:200px'></td><td style='text-align:right'>"+ oStatement.PeriodClosingBalanceInstring +"</td></tr>");
+        $("#tblDisplayStatement").append("<tr><td style='text-align:right;font-weight:bold;width:400px;font-style: italic;'>Cash and Cash Equivalents at Beginning of Period :</td><td style='width:200px'></td><td style='border-bottom:1px solid black; text-align:right'>"+ oStatement.OpeningBalnceInstring +"</td></tr>");
+        $("#tblDisplayStatement").append("<tr><td style='text-align:right;font-weight:bold;width:400px;font-style: italic;'>Cash and Cash Equivalents at Ending of Period :</td><td style='width:200px'></td><td style='border-bottom:1px solid black; text-align:right'>"+ oStatement.ClosingBalanceInstring +"</td></tr>");
+        $("#tblDisplayStatement").append("<tr style='height:1px'><td style='text-align:right;font-weight:bold;width:400px;font-style: italic;'></td><td style='width:200px'></td><td style='border-bottom:1px solid black'></td></tr>");
+    }
+
+
+    function NoteWiseDetails(nLGSID, bIsDebit)
+    {
+        if(parseInt(nLGSID)<=0)
+        {
+            alert("Invalid Ledger Group!");
+            return;
+        }
+        var buid = parseInt($('#cboBusinessUnit').val());
+        var smid = parseInt($('#cboStatementSetup').val());
+        var dct = parseInt($('#cboDateSearch').val());
+        var sdt =$('#txtStartDate').datebox('getValue');
+        var edt =$('#txtEndDate').datebox('getValue');
+        var menuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        window.location.href = _sBaseAddress+ "/Statement/ViewStatementNotes?buid="+buid+"&smid="+smid+"&dct="+dct+"&sdt="+sdt+"&edt="+edt+"&ahid="+parseInt(nLGSID)+"&isdr="+bIsDebit+"&menuid="+menuid;
+    }
+
+    function LoadCboItems(Items)
+    {
+        var listItems="";
+        listItems += "<option value=0>" +"--Select One--" +"</option>";
+        for (i = 0; i < Items.length; i++)
+        {
+            listItems += "<option value='" + Items[i].StatementSetupID+"'>" + Items[i].StatementSetupName+"</option>";
+        }
+        $("#cboStatementSetup").html(listItems);
+    }
+
+    function RefreshDateSearch()
+    {
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+    }
+
+    function RefreshObject()
+    {
+        var cboDateSearch =document.getElementById("cboDateSearch");
+        var cboDateSearchVal = cboDateSearch.options[cboDateSearch.selectedIndex].value;
+        var selectedCbo = document.getElementById("cboStatementSetup");
+        var cboStatementSetupVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var oStatement = {
+            StatementSetupID : parseInt(cboStatementSetupVal),
+            StartDate : $('#txtStartDate').datebox('getValue'),
+            EndDate : $('#txtEndDate').datebox('getValue'),
+            DateSearch : parseInt(cboDateSearchVal),
+            BUID:parseInt($("#cboBusinessUnit").val())?parseInt($("#cboBusinessUnit").val()):0
+        };
+        return oStatement;
+    }
+
+    $('._select_changeA').change(function () {
+        ChangeDateSearch();
+    });
+
+    function ChangeDateSearch()
+    {
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    }
+</script>

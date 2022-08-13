@@ -1,0 +1,250 @@
+﻿@{
+    ViewBag.Title = "Cash flow Setup List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.CashFlowDmSetup>
+                      <div class="menuMainCollectionTable">
+                          <table id="tblCashFlowDmSetups" title="Cash flow List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+                              <thead>
+                                  <tr>
+                                      <th field="CashFlowHeadTypeSt" width="200">Head Type</th>
+                                      <th field="DisplayCaption" width="200">Cash Flow Head</th>
+                                      <th field="SubGroupName" width="200">Sub Group Name</th>
+                                      <th field="IsDebitSt" width="80">A/C Effect</th>
+                                      <th field="Remarks" width="200">Remarks</th>
+                                  </tr>
+                              </thead>
+                          </table>
+                          <div id="toolbar">
+                              <select id="cboCashFlowHead" style="width:200px;"></select>
+                              <select id="cboAccountEffect" style="width:100px;"><option value="0">--Select One--</option> <option value="1">Debit</option><option value="2">Credit</option> </select>
+                              <input type="text" id="txtSubGroup" placeholder="Type Sub Group" style="width:200px" /><input type="button" onclick="PickSubGroup()" value="Pick" />
+                              <input type="text" id="txtRemarks" placeholder="Type Remarks" style="width:150px" />
+                              <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+                              <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+                          </div>
+                      </div>
+
+<script type="text/javascript">
+    var _oCashFlowDmSetups=[];
+    var _sBaseAddress="";
+    var _oCashFlowHeads = [];
+    $(document).ready(function () {
+        //debugger;
+        _oCashFlowDmSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCashFlowHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CashFlowHeads));
+        $("#cboCashFlowHead").icsLoadCombo({List: _oCashFlowHeads,OptionValue:"CashFlowHeadID", DisplayText: "DisplayCaption"});
+        $("#txtSubGroup").data("SubGroupID",0);
+        //$('#CashFlowHead').val(0);//select none
+        RefreshList(_oCashFlowDmSetups);
+    });
+
+    
+    $('#txtSubGroup').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) //Enter
+        {
+            PickSubGroup();
+        }
+        if (code == 8) //backspace=8
+        {
+            $('#txtSubGroup').removeClass('fontColorOfPickItem');
+            $('#txtSubGroup').data('SubGroupID',0);
+        }
+    });
+    function PickSubGroup()
+    {
+        debugger;
+        var oChartsOfAccount = {AccountHeadName:$.trim($('#txtSubGroup').val()), AccountTypeInInt:4};
+        var obj = {
+            BaseAddress:sessionStorage.getItem("BaseAddress"),
+            Object:oChartsOfAccount,
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsByAccountType",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].AccountHeadID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "AccountCode", title: "Code", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "AccountHeadName", title: "AccountHead Name", width:180, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ComponentType", title: "Component Type", width:140, align: "left" }; tblColums.push(oColumn);
+                    
+                    var oPickerParam = {
+                        winid: 'winChartsOfAccountPicker',
+                        winclass: 'clsChartsOfAccountPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblChartsOfAccountPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'AccountHeadName',
+                        windowTittle: 'Account Head List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+
+            }else{
+                alert("Data Not Found.");
+            }
+        });
+    }
+
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj) {
+
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winChartsOfAccountPicker')
+        {
+            if (oreturnObj != null && oreturnObj.AccountHeadID > 0)
+            {
+                $('#txtSubGroup').addClass('fontColorOfPickItem');
+                $('#txtSubGroup').val(oreturnObj.AccountHeadName);
+                $('#txtSubGroup').data('SubGroupID',oreturnObj.AccountHeadID);
+                $('#txtSubGroup').focus();
+             
+            }
+        }
+
+    }   
+
+    function Add()
+    {
+        if($('#cboCashFlowHead').val()<=0)
+        {
+            alert("Select Transaction Group");
+            $('#cboCashFlowHead').focus();
+            return;
+        }
+        if(parseInt($("#txtSubGroup").data("SubGroupID"))<=0)
+        {
+            alert("Plese Select Sub Group");
+            $('#txtSubGroup').focus();
+            return;
+        }
+        if($('#cboAccountEffect').val()<=0)
+        {
+            alert("Select Data Type");
+            $('#cboAccountEffect').focus();
+            return;
+        }
+
+        //debugger;
+        var oCashFlowDmSetup = {
+            CashFlowDmSetupID:0,
+            CashFlowHeadID :$('#cboCashFlowHead').val(),
+            SubGroupID :$("#txtSubGroup").data("SubGroupID"),
+            IsDebit : parseInt($('#cboAccountEffect').val())==1?true:false,
+            Remarks: $('#txtRemarks').val()
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CashFlowDmSetup/Save",
+            traditional: true,
+            data:  JSON.stringify(oCashFlowDmSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oCashFlowDmSetup = jQuery.parseJSON(data);
+                if (_oCashFlowDmSetup.ErrorMessage=="" || _oCashFlowDmSetup.ErrorMessage==null) {
+                    alert("Data Saved sucessfully");
+                    $('#tblCashFlowDmSetups').datagrid('appendRow',_oCashFlowDmSetup);
+                    $('#cboCashFlowHead').val(0);
+                    $('#cboAccountEffect').val(0);
+                    $('#txtSubGroup').val('');
+                    $("#txtSubGroup").data("SubGroupID",0);
+                    $('#txtSubGroup').removeClass('fontColorOfPickItem');
+                    $('#txtRemarks').val('');$('#cboCashFlowHead').focus();
+                }
+                else {
+                    alert(_oCashFlowDmSetup.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    
+    function Delete()
+    {
+        //debugger;
+        var oCashFlowDmSetup= $('#tblCashFlowDmSetups').datagrid('getSelected');
+        if(oCashFlowDmSetup==null || oCashFlowDmSetup.CashFlowDmSetupID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblCashFlowDmSetups').datagrid('getRowIndex',oCashFlowDmSetup);
+        if (parseInt(oCashFlowDmSetup.CashFlowDmSetupID) > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/CashFlowDmSetup/Delete",
+                data: { id: oCashFlowDmSetup.CashFlowDmSetupID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCashFlowDmSetups').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    function RefreshList(oCashFlowDmSetups)
+    {
+        data=oCashFlowDmSetups;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCashFlowDmSetups').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblCashFlowDmSetups').datagrid('selectRow',nIndex);
+    }
+
+</script>

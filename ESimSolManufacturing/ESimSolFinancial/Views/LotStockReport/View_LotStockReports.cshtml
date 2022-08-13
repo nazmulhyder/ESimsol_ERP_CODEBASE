@@ -1,0 +1,291 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ReportingObject.LotStockReport>
+    @{
+        ViewBag.Title = "Lot Stock Report";
+    }
+
+    <div ng-app="LotStockApp" class="form-horizontal menuMainCollectionTable" style="height:90%">
+        <div ng-controller="LotStockCntrl" style="height:90%">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline" style="margin-left:5px">
+                        <label>BU :</label>
+                        <div class="input-group">
+                            <select id="cboUnit" ng-model="BusinessUnitID" style="width:220px; margin:0 5px 0 0px" ng-options="obj.BusinessUnitID as obj.Name for obj in BusinessUnits" ng-disabled="ExportBusinessUnitID > 0" class="form-control">
+                                <option value="">--Select One--</option>
+                            </select>
+                        </div>
+                        <label>  Store :</label>
+                        <div class="input-group">
+                            <input id="txtStore" type="text" class="form-control" ng-keydown="PickStore()" style="width:180px" ng-model="IssueStore" disabled>
+                            <span class="input-group-addon"><button class="btn-group-lg btn-primary" ng-click="PickStore()">PICK</button></span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="RefreshAll()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Refresh</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="View()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> View</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printView(1)"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Category Wise</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printView(2)"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Base Wise</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printExcel()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> Excel</span></button>
+                    </div>
+                </div>
+            </div>
+            <section>
+                <ul class="nav nav-tabs" style="background:#d6dbdf; color:white;">
+                    <li>
+                        <a href="" ng-click="SetTab(1)" style="color:black;">Detail View</a>
+                    </li>
+                    <li>
+                        <a href="" ng-click="SetTab(2)" style="color:black;">Product View</a>
+                    </li>
+                </ul>
+
+                <div ng-if="IsSet==1" style="height:90%">
+                    <div style="height:480px" ui-grid="gridOptionsDetail" ui-grid-cellnav ui-grid-pinning ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable"></div>
+                </div>
+                <div ng-if="IsSet==2" style="height:90%">
+                    <div style="height:480px"  ui-grid="gridOptionsProduct" ui-grid-pinning ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid-angular {
+            height: 500px;
+            width: 99%;
+        }
+
+        .btn-sm {
+            padding: 3px 10px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var _oLotStockLists =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+    sessionStorage.setItem('BUID',_nBUID);
+    var  LotStockApp = angular.module('LotStockApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.cellNav', 'ui.grid.pinning','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+    LotStockApp.controller('LotStockCntrl', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod)
+    {
+        $scope.BusinessUnits=oBusinessUnits;
+        $scope.BusinessUnitID=_nBUID;
+        $scope.ExportBusinessUnitID=_nBUID; //ForDisable CBO_BusinessUnit
+        $scope.WorkingUnitIds=sessionStorage.getItem("WorkingUnitIds");
+        if($scope.WorkingUnitIds!=null && $scope.WorkingUnitIds.length>0)
+            $scope.IssueStore=" "+$scope.WorkingUnitIds.length+" Stores Selected ";
+
+        var oDetailColumns = [];
+        var oColumn = { name: '#', width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true};oDetailColumns.push(oColumn);
+      
+        oColumn = { field: 'ProductName', name: 'Product', width: '17%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'LCNo', name: 'L/C No', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'LotNo', name: 'Lot No', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'InvoiceNo', name: 'Invoice No', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'Qty_Total', name: 'Total Qty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'Qty_Out', name: 'Issue Qty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'Balance', name: 'Balance', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'ContractorName', name: 'Contractor', width: '14%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'OperationUnitName', name: 'Store', width: '15%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn=    { field:'ProductCode', name: 'Code', width:'8%',  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'CategoryName', name: 'Category', width: '10%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'ProductName_Base', name: 'Base Product', width: '12%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+
+        var oLotStockReports=userSession.getData('LotStockList');
+        $scope.gridOptionsDetail ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            columnDefs: oDetailColumns,
+            data:oLotStockReports,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.grid.modifyRows(oLotStockReports);
+                $scope.gridApi.selection.selectRow(oLotStockReports[userSession.getRowIndex()]);
+                userSession.clear();
+                debugger;
+
+                $scope.gridApi.cellNav.on.navigate($scope,function(newRowCol, oldRowCol){
+                    $scope.gridApi.selection.selectRow(newRowCol.row.entity);
+                })
+            }
+        };
+
+        var oProductColumns = [];
+        var oColumn = { name: '#', width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true};oProductColumns.push(oColumn);
+       
+        oColumn = { field: 'ProductName', name: 'Product', width: '20%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'Qty_Total', name: 'Total Qty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' };oProductColumns.push(oColumn);
+        oColumn = { field: 'Balance', name: 'Balance', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'};oProductColumns.push(oColumn);
+        oColumn = { field: 'OperationUnitName', name: 'Store', width: '10%' ,  cellClass: 'text-left'};oProductColumns.push(oColumn);
+        oColumn =  { field:'ProductCode', name: 'Code', width:'10%',  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'CategoryName', name: 'Category', width: '10%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        //oColumn = { field: 'ProductName_Base', name: 'Base Product', width: '12%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        
+        $scope.gridOptionsProduct ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            columnDefs: oProductColumns,
+            data:[],
+            onRegisterApi:function(gridApi) {
+                $scope.gridProductApi = gridApi;
+            }
+        };
+
+
+        $scope.PickStore= function ()
+        {
+            var oLotStockReport= { 
+                BUID:$scope.BusinessUnitID
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/LotStockReport/GetsIssueStore',$.param(oLotStockReport), config).then(
+                                function (response)
+                                { 
+                                    debugger;
+                                    var oColumns = [];
+                                    var oColumn = { field: 'OperationUnitName', name: 'Store',width: '30%'  };oColumns.push(oColumn);
+                                    oColumn = { field: 'WorkingUnitNameWithBU', name: 'Unit',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+                                    var results=response.data;
+                                    var modalObj={
+                                        size:'md',
+                                        modalcontroller:'ModalCommonListCtrl',
+                                        appcontroller:'LotStockCntrl',
+                                        objs:results,
+                                        multiSelect:true,
+                                        pickertitle:'Applicant List',
+                                        searchingbyfieldName:'Name',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        if(result.length>0)
+                                        {
+                                            $scope.WorkingUnitIds=result[0].WorkingUnitID;
+                                            $scope.IssueStore=result[0].OperationUnitName;
+                                            for(var i=1;i<result.length;i++)
+                                            {
+                                                $scope.WorkingUnitIds+=","+result[i].WorkingUnitID;
+                                                $scope.IssueStore=" "+(i+1)+" Stores Selected "
+                                            }
+                                            $scope.RefreshAll();
+                                        }
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+
+        };
+        $scope.RefreshAll = function () 
+        {
+            if($scope.WorkingUnitIds==null || $scope.WorkingUnitIds=='')
+            {
+                alert("Please Pick Store!!");
+                angular.element('#txtStore').trigger('focus');
+                return;
+            }
+
+            $scope.oLotStockReport= {
+                SearchingCriteria: $scope.WorkingUnitIds,
+                BUID:$scope.BusinessUnitID
+            }
+            debugger;
+            $http.post(_sBaseAddress + '/LotStockReport/GetsLotStockReport',JSON.stringify($scope.oLotStockReport)).then(
+                  function (response) {
+                      debugger;
+                      $scope.results = response.data;
+                      if ($scope.results.Item1.length > 0 && $scope.results.Item1[0].ProductID > 0) {
+                          $scope.gridOptionsDetail.data=$scope.results.Item1;
+                          $scope.gridOptionsProduct.data=$scope.results.Item2;
+                      }
+                      else {
+                          alert($scope.results.Item1[0].ErrorMessage);
+                          msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                          return;
+                      }
+                  },
+                  function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage); }
+            );
+        };
+        $scope.printView = function(nLayout)
+        {
+            if($scope.BusinessUnitID<=0)
+            {
+                alert("Please Select a Unit!!");
+                angular.element('#cboUnit').trigger('focus');
+                return;
+            }
+            var  sTemp =  "";
+            debugger;
+            sTemp =$scope.BusinessUnitID+'~'+$scope.WorkingUnitIds+'~'+nLayout+'~'+$scope.tab;
+            window.open(_sBaseAddress + '/LotStockReport/PrintLotStockReport?sTemp='+sTemp, "_blank");
+        };
+        $scope.printExcel = function(nLayout)
+        {
+            if($scope.BusinessUnitID<=0)
+            {
+                alert("Please Select a Unit!!");
+                angular.element('#cboUnit').trigger('focus');
+                return;
+            }
+            var  sTemp =  "";
+            debugger;
+            sTemp =$scope.BusinessUnitID+'~'+$scope.WorkingUnitIds+'~'+0+'~'+$scope.tab;
+            window.open(_sBaseAddress + '/LotStockReport/PrintToExcel?sTempString='+sTemp, "_blank");
+        };
+        $scope.View =  function ()
+        {
+            debugger;
+            var oLotStock = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oLotStock==null || oLotStock.LotID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptionsDetail.data, function (value, index) {
+                if (value.LotID == oLotStock.LotID)
+                {
+                    sessionStorage.setItem("LotStockList", JSON.stringify($scope.gridOptionsDetail.data));
+                    sessionStorage.setItem("WorkingUnitIds", $scope.WorkingUnitIds);
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("LotStockHeader", "View Lot Stock");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    debugger;
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/LotStockReport/View_LotStockReportDetails?id="+oLotStock.LotID;
+                }
+            }, $scope.gridOptionsDetail.data);
+        }
+
+        $scope.tab = 1;
+        $scope.IsSet=1;
+        $scope.SetTab = function (tabId)
+        {
+            $scope.tab = tabId;
+            $scope.IsSet=tabId;
+        }
+    });
+    </script>

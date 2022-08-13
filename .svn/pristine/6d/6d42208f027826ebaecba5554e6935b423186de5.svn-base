@@ -1,0 +1,274 @@
+﻿<html>
+@{
+    ViewBag.Title = "Service Report";
+}
+
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.ServiceOrder>
+<div class="menuMainCollectionTable" ng-app="ServiceOrderApp">
+    <div ng-controller="ServiceOrderController" title="Recycle Process">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel">
+            @*<input class="easyui-datetimebox" label="Select DateTime:" labelposition="top" style="width:100%;">*@
+            <input type="text" class="form-control" ng-model="RegNo" ng-keydown="searchByRegNo($event)" ng-keyup="searchByRegNo($event)" placeholder="Type Reg No & Press Enter">
+            
+             <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>
+            <button type="button" ng-show="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+        </div>
+        <div class="grid" ui-grid="gridOptions" ui-grid-pinning ui-grid-selection ui-grid-resize-columns ui-grid-selectable style=" width: 99%; height: 485px;"></div>
+    </div>
+</div>
+<style type="text/css">
+     .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+     .grid .ui-grid-row, .ui-grid-cell {
+        height: auto!important;
+    }
+
+      .grid .ui-grid-row div[role=row] {
+        display: flex;
+        align-content: stretch;
+    }
+
+</style>
+<script src="~/Views/ServiceOrder/AdvSearch.js"></script>
+<script type="text/javascript">
+    var oServiceOrderList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var oOrderTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUOrderSetups));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+    debugger;
+    var CInvoiceapp= angular.module('ServiceOrderApp',   ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.cellNav','ms.service','ui.grid.pinning','ServiceOrder.service']);
+    CInvoiceapp.controller('ServiceOrderController',  function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession,ServiceOrderservice, advanceSearch)  {
+        oServiceOrderList= (userSession.getData('ServiceOrderList').length>0)? userSession.getData('ServiceOrderList'):oServiceOrderList;
+        
+        sessionStorage.setItem("BackLink", window.location.href);
+        $scope.gridOptions = 
+            {
+                enableRowHeaderSelection: false,
+                //rowHeight:80,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                showColumnFooter: true,
+                enableGridMenu: true,     
+            //enableRowSelection: true,
+            //enableSelectAll: true,
+            //multiSelect: false,
+            //rowHeight:80,
+            //enableColumnResizing: true,
+            //enableFullRowSelection: true,
+            columnDefs: [
+                { field: 'ServiceOrderNo', name:'Order No', width:'12%' }, //pinnedLeft:true
+                { field: 'ServiceOrderDateSt', name:'Order Date', width:'10%' },
+                { field: 'OrderStatusSt', name:'Status', width:'10%' },
+                { field: 'CustomerName', name:'Customer', width:'25%' },
+                { field: 'VehicleRegNo', name:'Reg No', width:'15%' },
+                { field: 'CustomerVoiceList', name:'CustomerVoice', width:'15%', cellTemplate:'<div ng-repeat="item in row.entity[col.field] track by $index">{{item}}</div>'  },
+                { field: 'TechnicalVoiceList', name:'TechnicalVoice', width:'15%', cellTemplate:'<div ng-repeat="item in row.entity[col.field] track by $index">{{item}}</div>' },
+                { field: 'VehicleModelNo', name:'Model No', width:'14%'},
+                { field: 'ChassisNo', name:'Chassis No', width:'14%' },
+                { field: 'EngineNo', name:'Engine No', width:'14%' },
+                { field: 'ServiceOrderTypeSt', name:'Type', width:'10%' },
+                { field: 'VehicleTypeName', name:'Vehicle TypeName', width:'12%' },
+                { field: 'Remarks', name: 'Remarks', width: '10%' }
+            ],
+            data: oServiceOrderList,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+              
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oServiceOrderList.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oServiceOrderList);
+                    $scope.gridApi.selection.selectRow(oServiceOrderList[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        
+        $scope.AdvanceSearch=function()
+        { 
+            oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Contractor List',
+                multiSelect:true,
+                columns:oColumns
+            }
+
+            var oElementList = [
+                                { DisplayName: "Order No",           BOField: "OrderNo",          InputType: 'text' },
+                                { DisplayName: "Issue Date",    BOField: "IssueDate",   InputType: 'date' },
+                                { DisplayName: "Service Date",    BOField: "ServiceDate",   InputType: 'date' },
+                                //{ DisplayName: "Model No",          BOField: "VehicleModelID",  InputType: 'picker', PickerObject:paramObj_Model },
+                                { DisplayName: "Customer ",         BOField: "ContractorID",    InputType: 'picker', PickerObject:paramObj_Contractor }
+                                //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+                                //{ DisplayName: "SomeType",    BOField: "SomeType",       InputType: 'select', OptionList:[{id:2,Value:"KisuNai"}]},
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/ServiceOrder/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result) 
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function () 
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.GetsByRegNoOrOrderNo = function(sServiceOrderNo)
+        {
+            var oServiceOrder = {
+                ServiceOrderNo:sServiceOrderNo
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/ServiceOrder/GetsByRegOrVIN',$.param(oServiceOrder), config).then(
+                                function (response) {
+                                    debugger;
+                                   
+                                    result=jQuery.parseJSON(response.data);
+
+                                    for(var i=0; i<result.length;i++)
+                                    {
+                                        result[i].CustomerVoiceList=[];
+                                        result[i].TechnicalVoiceList=[];
+                                   
+                                        result[i].CustomerVoiceList= result[i].CustomerVoice.split('~');
+                                        result[i].TechnicalVoiceList= result[i].TechincalVoice.split('~');
+
+                                        console.log(result[i].CustomerVoiceList);
+                                        console.log(result[i].TechnicalVoiceList);
+                                        //result[i].CustomerVoiceList.push(oCVoice);
+                                        //result[i].TechnicalVoiceList.push(oTVoice);
+                                    }
+
+                             
+                                    $scope.gridOptions.data=[];
+                                    $scope.gridOptions.data=(result);
+                                }, function () {
+                                    $log.info('GetServiceOrder Dismissed at: ' + new Date());
+                                });
+        }
+        $scope.searchByRegNo = function(e)
+        {
+            debugger;
+            var RegNo="";
+            RegNo = $scope.RegNo;
+            var oServiceOrders = oServiceOrderList;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oServiceOrders;
+            }
+            if(e.which==13)
+            {
+                $scope.GetsByRegNoOrOrderNo(RegNo);
+            }
+        }
+      
+        $scope.PrintPreview = function ()
+        {
+            debugger;
+            var oServiceOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oServiceOrder==null || oServiceOrder.ServiceOrderID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/ServiceOrder/PrintServiceOrderPreview?id='+oServiceOrder.ServiceOrderID);
+        };
+        $scope.PrintList = function ()
+        {
+            var oServiceOrders=  $scope.gridOptions.data;//$('#tblServiceOrder').datagrid('getRows');
+            var ids ="";
+            if(oServiceOrders.length >0)
+            {
+                for(var i =0;i<oServiceOrders.length;i++)
+                {
+                    ids =ids+oServiceOrders[i].ServiceOrderID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/ServiceOrder/PrintListService?ids='+ids+'&buid='+ _nBUID );
+        };
+      
+        //button hide
+        $scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnImage=  $scope.btnPrintList= $scope.btnPriview = $scope.btnApprove =false;
+        
+        //button show
+        $scope.CheckControll=function ()
+        {
+            debugger;
+            if($scope.btnAdd == true  && !PermissionChecker('Add','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnAdd = false; } 
+            if($scope.btnEdit == true && !PermissionChecker('Edit','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnEdit = false;$scope.btnUpdate = true;}  
+            if($scope.btnView == true && !PermissionChecker('View','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnView = false;}  
+            if($scope.btnApprove == true && !PermissionChecker('Approved','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnApprove = false;}  
+            if($scope.btnDelete == true && !PermissionChecker('Delete','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnDelete = false;}  
+            if($scope.btnIssue == true && !PermissionChecker('Issued','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnIssue = false;} 
+            if($scope.btnReceive == true && !PermissionChecker('Received','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnReceive = false;}  
+            if($scope.btnDeliver == true && !PermissionChecker('Received','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnReceive = false;}  
+            if($scope.btnUndoApprove == true && !PermissionChecker('UndoRequest','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnUndoApprove = false;}  
+            if($scope.btnCancel == true && !PermissionChecker('Cancel','ServiceOrder',oAuthorizationRolesMapping))
+            {$scope.btnCancel = false;} 
+
+            if(PermissionChecker('Add','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+            if(PermissionChecker('Preview','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+            if(PermissionChecker('Print','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+        }
+        
+        if(PermissionChecker('Add','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+        if(PermissionChecker('Edit','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Delete','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Preview','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+        if(PermissionChecker('Print','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+        if(PermissionChecker('Print','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnXLList = true;}
+        if(PermissionChecker('Edit','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnAttachment = true;}
+        if(PermissionChecker('Approve','ServiceOrder',oAuthorizationRolesMapping)){$scope.btnApprove = true;}
+    });
+
+    </script>

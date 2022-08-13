@@ -1,0 +1,372 @@
+﻿@{
+    ViewBag.Title = "Sale Commission LC";
+}
+@model IEnumerable <ESimSol.BusinessObjects.SalesCommissionLC>
+ <script src="~/Views/SalesCommissionLC/AdvSearchSCLC.js"></script>
+<div ng-app="SCLCApp" class="form-horizontal">
+        <div ng-controller="SCLCController">
+            <div class="row ui-grid-top-panel regionSCLC">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" ng-model="PINo" ng-change="filter()" class="form-control" style="width:200px" placeholder="Search PI No " ng-keyup="searchPINoKeyUp($event)" />
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search " aria-hidden="true"> Search</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="CreateDistribution()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">Distribution</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="requestForApproval()" ng-hide="btnRqforAppvoval"> <span class="glyphicon glyphicon glyphicon-ok" aria-hidden="true"> Req. For Approval</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="approve()" ng-hide="btnApproval"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approved</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="CreatePayable()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Process</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printPDFView()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> Preview Memo</span></button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PrintOrderDetails()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> Order Details</span></button>
+                        
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printExcel()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> ExportXL</span></button>
+                    </div>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid-angular ui-grid-selectable"></div>
+        </div>
+    <script type="text/ng-template" id="SalesComLC.html">
+        <div class="modal-header">
+            <h4 class="modal-title" id="modal-title">Preview Memo</h4>
+        </div>
+        <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+            <div class="row">
+                <div class="col-md-12 ">
+                    <div class="col-md-3 text-right"><label class="control-label"> Type:</label></div>
+                    <div class="col-md-7 text-left">
+                        <select ng-model="SalesComLC.PrintType" class="form-control" ng-options="oItem.id as oItem.Value for oItem in PrintTypes"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="PrintMemo()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Print</button>
+            <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+        </div>
+    </script>
+ </div>
+
+    <style type="text/css">
+        .regionSCLC .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid-angular {
+            height: 520px;
+            width: 100%;
+        }
+
+        .regionSCLC .btn-sm {
+            padding: 3px 10px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        var pager =[];
+        debugger;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oSCLCs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+        debugger;
+        var  SCLCApp = angular.module('SCLCApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service','SCLC.service']);
+   
+        SCLCApp.controller('SCLCController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession, SCLCservice)
+        {
+            oSCLCs= (userSession.getData('CreateDistribution').length>0)? userSession.getData('CreateDistribution'):oSCLCs;
+            oSCLCs= (userSession.getData('CreateApproval').length>0)? userSession.getData('CreateApproval'):oSCLCs;
+            oSCLCs= (userSession.getData('CreateReqForApproval').length>0)? userSession.getData('CreateReqForApproval'):oSCLCs;
+            $scope.CompareOperators= oCompareOperators;
+            $scope.gridOptions ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                showColumnFooter: true,
+                enableGridMenu: true,
+
+
+                columnDefs: [
+                     {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'PINo', name: 'PI No', width:'10%', enableCellEdit: false },
+                    { field: 'PIDateStr', name: 'PI Date', width: '8%', enableCellEdit: false },
+                    { field: 'LCNo',  name: 'LC No', width:'15%' },
+                    { field: 'VersionNoStr', name: 'A.No',  cellClass: 'text-left', width: '6%'  },
+                    { field: 'AmendmentDateStr', name: 'LC Date', cellClass: 'text-right', width: '8%' },
+                    { field: 'ContractorName', name: 'Contractor Name', cellClass: 'text-right', width: '12%'},
+                    { field: 'BuyerName', name: 'Buyer Name', cellClass: 'text-right', width: '12%' },
+                    { field: 'Amount', name: 'LC Amount($)',  cellClass: 'text-right', width: '12%', cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'InvoiceValue', name: 'InvoiceValue',  cellClass: 'text-right', cellFilter: 'number: 2', width: '13%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'Com_PI', name: 'Comission PI',  cellClass: 'text-right', cellFilter: 'number: 2', width: '13%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'Com_Dis', name: 'Comission Distribution',  cellClass: 'text-right', cellFilter: 'number: 2', width: '15%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'Com_Payable', name: 'Comission Payable',  cellClass: 'text-right', cellFilter: 'number: 2', width: '13%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'Com_Paid', name: 'Comission Paid',  cellClass: 'text-right', cellFilter: 'number: 2', width: '13%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                     { field: 'StatusStr', name: 'Status', cellClass: 'text-right', width: '12%'},
+
+                ],
+                data:oSCLCs,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+                    if(oSCLCs.length>0 && userSession.getRowIndex()>=0){
+                        $scope.gridApi.grid.modifyRows(oSCLCs);
+                        $scope.gridApi.selection.selectRow(oSCLCs[userSession.getRowIndex()]);
+                        $scope.RowSelect(oSCLCs[userSession.getRowIndex()] );
+                    }
+                    $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                        $scope.RowSelect(row.entity );
+                    });
+                    userSession.clear();
+                }
+            };
+            $scope.RowSelect =  function (entity){
+                debugger;  
+                if(entity.Status==1){
+                    $scope.btnApproval=true;
+                    $scope.btnRqforAppvoval =false;
+                }
+                else if(entity.Status==2){
+                    $scope.btnApproval=false;
+                    $scope.btnRqforAppvoval =false;
+                }
+                else if(entity.Status==3){
+                    $scope.btnApproval=false;
+                    $scope.btnRqforAppvoval =true;
+                }
+                
+            }
+            $scope.PrintOrderDetails= function() {
+                var oExportSCDO= $scope.gridApi.selection.getSelectedRows()[0];
+
+                console.log(oExportSCDO);
+                if(oExportSCDO==null || oExportSCDO.ExportPIID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+                //PrintStatement_DOBalanceByPI(int nExportPIID, int nDOID, int nProductID, double nts)
+                var nts = ((new Date()).getTime()) / 1000;
+                window.open(_sBaseAddress + '/ExportSCDO/PrintStatement_DOBalanceByPI?nExportPIID=' + parseInt(oExportSCDO.ExportPIID) + "&nDOID=" + parseInt(0) + "&nProductID=" + parseInt(0) + "&nts=" + nts, "_blank");
+            }
+
+            $scope.AdvanceSearch = function ()
+            {
+                debugger;
+                $scope.PINo ="";
+
+                var modalObj={
+                    modalcontroller:'ModalSCLCAdvanceSearchCtrl',
+                    appcontroller:'SCLCController',
+                    CompareOperators:$scope.CompareOperators
+
+                }
+                var modalInstance=SCLCservice.Instance(modalObj);
+                modalInstance.result.then(function (result)
+                {
+                    debugger;
+                    $scope.gridOptions.data = result;
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+
+            $scope.searchPINoKeyUp=function(keyEvent){
+                if(keyEvent.which==13 ||keyEvent.which ==8){
+                    debugger;
+                    $scope.PIsearch();
+                }
+            };
+
+            $scope.PIsearch = function () {
+                debugger;
+              
+                var sTempString = ($scope.cboPIDate == undefined ? 0 : $scope.cboPIDate) + '~' + ($scope.PIDateStart == undefined ? icsdateformat(new Date()): $scope.PIDateStart) + '~' + ($scope.PIDateEnd == undefined ?  icsdateformat(new Date()) : $scope.PIDateEnd) + '~' + ($scope.cboLCOpenDate == undefined ? 0: $scope.cboLCOpenDate) + '~' + ($scope.LCOpenDateStart == undefined ?  icsdateformat(new Date()) : $scope.LCOpenDateStart) + '~' + ($scope.LCOpenDateEnd == undefined ?  icsdateformat(new Date()) : $scope.LCOpenDateEnd)+ '~' + ($scope.cboAmendmentDate == undefined ? 0: $scope.cboAmendmentDate)+ '~' +($scope.AmendmentDateStart == undefined ?  icsdateformat(new Date()): $scope.AmendmentDateStart) + '~' + ($scope.AmendmentDateEnd == undefined ?icsdateformat(new Date()): $scope.AmendmentDateEnd) + '~' + ($scope.PINo == undefined ? "" : $scope.PINo) + '~' + ($scope.LCNo == undefined ? "" : $scope.LCNo) + '~' + ($scope.BuyerIDs == undefined ? "" : $scope.BuyerIDs) + '~' + ($scope.ContractorIDs == undefined ? "" : $scope.ContractorIDs) + '~' + ($scope.chkYetToDistribute == undefined ? false : $scope.chkYetToDistribute) + '~' + ($scope.chkYetToPayable == undefined ? false : $scope.chkYetToPayable) + '~' +  ($scope.chkYetToPaid == undefined ? false : $scope.chkYetToPaid) + '~' +  ($scope.chkMaturityReceived == undefined ? false : $scope.chkMaturityReceived)+ '~' + ($scope.chkPaymentReceived == undefined ? false : $scope.chkPaymentReceived)+'~'+ sessionStorage.getItem('BUID');
+                sessionStorage.setItem("sTempString", sTempString);
+              
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.get(_sBaseAddress + '/SalesCommissionLC/AdvSearch', { params: { sTemp: sTempString } }, config).then(
+                      function (response) {
+                             var results = jQuery.parseJSON(response.data);
+                          if (results.length > 0) {
+                              $scope.gridOptions.data=results;
+                          } else {
+                              msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                              return;
+                          }
+
+                      },
+                      function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+                );
+            };
+            $scope.printExcel = function(){
+                debugger;
+                if(sessionStorage.getItem("sTempString")!=null){
+                    var sParams=sessionStorage.getItem("sTempString");
+                }
+             window.open(_sBaseAddress + '/SalesCommissionLC/Print_ReportXL?sTempString=' + sParams+'&BUID='+sessionStorage.getItem("BUID"), "_blank");
+      
+            }
+
+            $scope.CreatePayable = function () {
+              
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'No item Selected ', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+               
+                msModal.Message({headerTitle : '', bodyText:'Are you Want to Create Payable?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                    if(result){
+                      
+                        $http.post(_sBaseAddress+'/SalesCommissionLC/CreatePayable',JSON.stringify(data[0])).then(
+                                    function (response) {
+                                        debugger;
+                                        var results = jQuery.parseJSON(response.data);
+                                        if (results.length > 0 && results[0].ExportPIID>0) {
+                                            $scope.gridOptions.data=results;
+                                        } else {
+                                            msModal.Message({ headerTitle: '', bodyText: ''+results[0].ErrorMessage, sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                                            
+                                            return;
+                                        }
+                                    },
+                                    function (response) {
+                                        
+                                        alert((jQuery.parseJSON(response.data))[0].ErrorMessage);}
+                                );
+                    }
+                });
+
+            };
+
+            $scope.CreateDistribution = function () {
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.ExportPIID==data[0].ExportPIID){
+                        sessionStorage.setItem("Operation", "CreateDistribution");
+                        sessionStorage.removeItem("SelectedRowIndex");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("SalesComDistributionHeader", "Create Sales Commission Distribution");
+                        sessionStorage.setItem("CreateDistribution", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/SalesCommissionLC/ViewSalesComDistribution?nId="+value.ExportPIID+"&ts="+tsv+"&buid="+sessionStorage.getItem('BUID');
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.approve = function()
+            {
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                sessionStorage.setItem("Operation", "CreateApproval");
+                sessionStorage.removeItem("SelectedRowIndex");
+                sessionStorage.setItem("SelectedRowIndex", $scope.gridOptions.data.indexOf(data[0]));
+                sessionStorage.setItem("SalesComApprovalHeader", "Create Sales Commission Approval");
+                sessionStorage.setItem("CreateApproval", JSON.stringify($scope.gridOptions.data));
+                sessionStorage.setItem("BackLink", window.location.href);
+                var tsv=((new Date()).getTime())/1000;
+                window.location.href = _sBaseAddress+ "/SalesCommissionLC/ViewSalesComApproval?nId="+data[0].ExportPIID+"&ts="+tsv+"&buid="+sessionStorage.getItem('BUID');
+            }
+            $scope.requestForApproval = function()
+            {
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                sessionStorage.setItem("Operation", "Req.ForApproval");
+                sessionStorage.removeItem("SelectedRowIndex");
+                sessionStorage.setItem("SelectedRowIndex", $scope.gridOptions.data.indexOf(data[0]));
+                sessionStorage.setItem("SalesComApprovalHeader", "Create Req. For Approval");
+                sessionStorage.setItem("CreateReqForApproval", JSON.stringify($scope.gridOptions.data));
+                sessionStorage.setItem("BackLink", window.location.href);
+                var tsv=((new Date()).getTime())/1000;
+                window.location.href = _sBaseAddress+ "/SalesCommissionLC/ViewSalesComReqForApproval?nId="+data[0].ExportPIID+"&ts="+tsv+"&buid="+sessionStorage.getItem('BUID');
+            }
+
+            $scope.printPDFView=function ()
+            {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+               
+                $scope.Modal(data[0], 'Print');
+            }
+
+            $scope.Modal = function (objSQ, operation) {
+                debugger;
+                var modalInstance = $uibModal.open({
+                    ariaLabelledBy: 'modal-title',
+                    ariaDescribedBy: 'modal-body',
+                    size: 'md',
+                    templateUrl: 'SalesComLC.html',
+                    controller: 'ModalInstanceCtrl',
+                    controllerAs: 'SCLCController',
+                    resolve: {
+                        obj: function () {
+                            return { SalesComLC:objSQ, Operation: operation  };
+                        }
+                    }
+                });
+
+                modalInstance.result.then(function (result) {
+                    debugger;
+                    if(result.SalesComLCID>0)
+                    {
+                        debugger;
+                        var index=sessionStorage.getItem('SelectedRowIndex');
+                        //alert(index);
+                        //alert(result.SalesStatusInString);
+                        $scope.gridOptions.data[index]=result;
+                        $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                        $scope.gridApi.selection.selectRow($scope.gridOptions.data[index]);
+                    }
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+
+ });
+        SCLCApp.controller('ModalInstanceCtrl', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+            $scope.Operation=obj.Operation;
+        
+            $scope.SalesComLC = obj.SalesComLC;
+            $scope.PrintTypes=[{ id:1, Value: 'Preview All'},{ id:2, Value: 'Customer Memo'},{ id:3, Value: 'Buyer Memo'}];
+            $scope.SalesComLC.PrintType=1;
+
+            $scope.PrintMemo = function(){
+                debugger;
+                if($scope.SalesComLC.PrintType==undefined){
+                    alert("Please Selecr A Report Type !!"); return;
+                }
+
+                $scope.cancel();
+                var nts = ((new Date()).getTime()) / 1000;
+                window.open(_sBaseAddress + '/SalesCommissionLC/PrintCommissionMemoReportByPI?nId='+$scope.SalesComLC.ExportPIID+"&nType="+$scope.SalesComLC.PrintType+"&nts=" + nts, "_blank");
+            }
+
+            $scope.cancel= function () {
+                $uibModalInstance.close($scope.SalesComLC);
+            };
+
+        });
+</script>
+
+
+
+

@@ -1,0 +1,407 @@
+﻿@{
+    ViewBag.Title = "Raw Material Consumption";
+}
+<html>
+<body>
+    @model ESimSol.BusinessObjects.RMConsumption
+    <div id="divRMConsumption" class="easyui-panel menuMainCollectionTable" title="Add Raw Material Consumption" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <fieldset id="fldRMConsumption" class="bodyfieldsetstyle" style="height:20%">
+                <legend style="text-align:left; font-weight:bold;"> Raw Material Consumption Informations : </legend>
+                <table border="0" cellpadding="2" cellspacing="2" style="width:100%;">
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Consumption No :
+                        </td>
+                        <td style="width:20%; text-align:center">
+                            <input type="text" style="width:100%" id="txtConsumptionNo" disabled="disabled" />                            
+                        </td>
+                         <td style="width:10%; text-align:right">
+                            BU Name :
+                        </td>
+                        <td style="width:20%; text-align:center">
+                            <select style="width:100%" id="cboBU"></select>
+                        </td>
+                        <td style="width:15%; text-align:right">
+                            Consumption Date :
+                        </td>
+                        <td style="width:20%; text-align:left">
+                            <input id="txtConsumptionDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100%" />
+                        </td>                       
+                    </tr>                    
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Remarks :
+                        </td>
+                        <td style="width:85%; text-align:left" colspan="5">
+                            <input type="text" style="width:100%" id="txtRemarks" />   
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div style="height:80%; width:100%">
+                <table id="tblRMConsumptionDetail" title="Item Descriptions" class="easyui-datagrid" style="width:100%; height:350px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">                    
+                    <thead data-options="frozen:true">
+                        <tr>
+                            <th field="ProductCode" width="8%" align="left"> Item Code</th>
+                            <th field="ProductName" width="20%" align="left">Item Name</th>
+                            <th field='RefNo' align="left" width="10%">Ref No</th>
+                        </tr>
+                    </thead>
+                    <thead>
+                        <tr>
+                            <th field='WUName' align="left" width="20%">Store Name</th>
+                            <th field='LotNo' align="left" width="15%">Lot No</th>
+                            <th field="MUName" width="5%" align="left">Unit</th>
+                            <th field='Qty' formatter="formatPriceFor3digit" width="10%" align="right">Qty</th>
+                            <th field='UnitPrice' formatter="formatPriceFor3digit" width="10%" align="right">Unit Price</th>
+                            <th field='Amount' formatter="formatPriceFor3digit" width="10%" align="right">Amount</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbar"> 
+                    <select style="width:200px" id="cboTriggeType"></select>                                       
+                    <a id="btnProcess" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-setting" plain="false">Process</a>                    
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+                    <a id="btnYetToEffectDate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="false">Yet To Effect Date</a>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:70%; text-align:right"></td>
+                        <td style="width: 20%; text-align:right;">                                                    
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="false">Save</a>
+                        </td>
+                        <td style="width: 10%; text-align:right;">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oRMConsumption =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));        
+        var oTriggerTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TriggerTypes));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $('#txtConsumptionDate').datebox('setValue',icsdateformat(new Date()));
+        $('#divRMConsumption').data('RMConsumption', oRMConsumption);        
+        $('#cboBU').data('BusinessUnits', oBusinessUnits);
+        $('#cboTriggeType').data('TriggerTypes', oTriggerTypes);
+        var sRMConsumptionHeader=sessionStorage.getItem("RMConsumptionHeader");
+        $('#divRMConsumption').panel({ title:sRMConsumptionHeader});
+        RefreshControl(oRMConsumption);
+        if(sRMConsumptionHeader=="View RM Consumption")
+        {
+            $('#fldRMConsumption input,select').prop('disabled',true);
+            $('#txtConsumptionDate').datebox({disabled:true});
+            $('#txtConsumptionDate').datebox('setValue', oRMConsumption.ConsumptionDateST);
+            $('#btnSave,#btnProcess').hide();
+        }
+        else {
+            $('#btnSave').show();
+        }
+    });
+
+    $('#cboTriggeType,#cboBU').change(function(){
+        var nBusinessUnitID = parseInt($('#cboBU').val());
+        var nTriggerType = parseInt($('#cboTriggeType').val());
+        if(nBusinessUnitID === 0 || nTriggerType === 0)
+        {
+            return;
+        }
+
+        var oRMConsumption  ={
+            BUID : parseInt(nBusinessUnitID),
+            TriggeTypeInt : parseInt(nTriggerType)
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/RMConsumption/GetSuggestMaterialConsumptionDate",
+            traditional: true,
+            data:  JSON.stringify(oRMConsumption),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oRMConsumption = jQuery.parseJSON(data);           
+                if (oRMConsumption.ErrorMessage == null || oRMConsumption.ErrorMessage == '')
+                {
+                    $('#txtConsumptionDate').datebox('setValue', oRMConsumption.ConsumptionDateST);
+                }
+                else
+                {
+                    alert(oRMConsumption.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(xhr+'~' +status+'~'+error);
+            }
+        });
+    });
+
+    $("#btnYetToEffectDate").click(function(){        
+        var nBusinessUnitID = parseInt($('#cboBU').val());
+        var nTriggerType = parseInt($('#cboTriggeType').val());
+        if(nBusinessUnitID === 0 || nTriggerType === 0)
+        {
+            alert("Please select Business Unit & Material Type")
+            return;
+        }
+        
+        var oRMConsumption  ={
+            BUID : parseInt(nBusinessUnitID),
+            TriggeTypeInt : parseInt(nTriggerType)
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/RMConsumption/YetToMaterialConsumptionDate",
+            traditional: true,
+            data:  JSON.stringify(oRMConsumption),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sYetToEffectDate = jQuery.parseJSON(data);           
+                alert(sYetToEffectDate);
+            },
+            error: function (xhr, status, error)
+            {
+                alert(xhr+'~' +status+'~'+error);
+            }
+        });
+    });
+
+    function RefreshControl(oRMConsumption)
+    {
+        RefreshComboBoxes();
+        $('#txtConsumptionNo').val(oRMConsumption.ConsumptionNo);
+        $('#cboBU').val(parseInt(oRMConsumption.BUID));
+        $('#txtConsumptionDate').datebox('setValue', oRMConsumption.ConsumptionDateST);
+        $('#txtRemarks').val(oRMConsumption.Remarks);
+        RefreshList(oRMConsumption.RMConsumptionDetails);
+    }
+
+    function RefreshComboBoxes()
+    {        
+        var oBusinessUnits= $('#cboBU').data('BusinessUnits');
+        var oTriggerTypes = $('#cboTriggeType').data('TriggerTypes');
+        $("#cboBU").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortName",InitialValue:'--Business Unit--'});
+        $("#cboTriggeType").icsLoadCombo({List: oTriggerTypes, OptionValue: "id", DisplayText: "Value",InitialValue:'--Material Type--'});
+    }
+
+    $('#txtConsumptionDate').datebox({
+        onSelect: function(date){
+            RefreshList([]);
+        }
+    });
+
+    $('#cboBU,#cboTriggeType').change(function(){
+        RefreshList([]);
+    });
+
+    $("#btnProcess").click(function(){
+        if (parseInt($("#cboBU").val()) === 0) 
+        {
+            alert("Please slect Business Unit!");            
+            $("#cboBU").focus();
+            return;
+        }
+
+        var txtConsumptionDate = $('#txtConsumptionDate').datebox('getValue');
+        if(txtConsumptionDate === null || txtConsumptionDate === "")
+        {
+            alert("Please Select Consumption Date!");
+            return;
+        }
+
+        if (parseInt($("#cboTriggeType").val()) === 0) 
+        {
+            alert("Please Slect Material Type!");            
+            $("#cboTriggeType").focus();
+            return;
+        }
+        
+        var oRMConsumption= {
+            BUID : parseInt($("#cboBU").val()),
+            TriggeTypeInt : parseInt($("#cboTriggeType").val()),
+            ConsumptionDate : $('#txtConsumptionDate').datebox('getValue')
+        };
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/RMConsumption/GetsRawMaterial",
+            traditional: true,
+            data:  JSON.stringify(oRMConsumption),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oRMConsumptionDetails = data;
+                if (oRMConsumptionDetails != null && oRMConsumptionDetails.length>0)
+                {
+                    if (oRMConsumptionDetails[0].ErrorMessage == '' || oRMConsumptionDetails[0].ErrorMessage == null)
+                    {
+                        RefreshList(oRMConsumptionDetails);
+                    }
+                    else
+                    {
+                        alert(oRMConsumptionDetails[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Data Not Found!");
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(xhr+'~' +status+'~'+error);
+            }
+        });
+    });
+
+    function ValidateInput()
+    {
+        if (parseInt($("#cboBU").val()) === 0) 
+        {
+            alert("Please slect Business Unit!");            
+            $("#cboBU").focus();
+            return false;
+        }
+
+        var txtConsumptionDate = $('#txtConsumptionDate').datebox('getValue');
+        if(txtConsumptionDate === null || txtConsumptionDate === "")
+        {
+            alert("Please Select Consumption Date!");
+            return false;
+        }
+
+        if (parseInt($("#cboTriggeType").val()) === 0) 
+        {
+            alert("Please Slect Material Type!");            
+            $("#cboTriggeType").focus();
+            return false;
+        }
+        
+        if($('#txtRemarks').val() === null || $('#txtRemarks').val() === "")
+        {
+            alert("Please Enter Remarks!");
+            return false;
+        }
+
+        var oRMConsumptionDetails = $('#tblRMConsumptionDetail').datagrid('getRows');
+        if(oRMConsumptionDetails === null || oRMConsumptionDetails.length<=0 )
+        {
+            alert("Invalid Operation! There is No Consumption!");
+            return false;
+        }
+
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oTempRMConsumption=$('#divRMConsumption').data('RMConsumption');
+        var oRMConsumption= {
+            RMConsumptionID : parseInt(oTempRMConsumption.RMConsumptionID),
+            ConsumptionNo : $.trim($('#txtConsumptionNo').val()), 
+            ConsumptionDate : $('#txtConsumptionDate').datebox('getValue'),
+            BUID : parseInt($("#cboBU").val()), 
+            Remarks : $.trim($('#txtRemarks').val()),
+            ApprovedBy : parseInt(oTempRMConsumption.ApprovedBy),
+            RMConsumptionDetails : $('#tblRMConsumptionDetail').datagrid('getRows')
+        };
+        return oRMConsumption;
+    }
+
+    $("#btnSave").click(function(){        
+        if(!ValidateInput()) return;        
+        var oRMConsumption=RefreshObject();
+        $('#btnSave').hide();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/RMConsumption/Save",
+            traditional: true,
+            data:  JSON.stringify(oRMConsumption),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oRMConsumption = jQuery.parseJSON(data);
+                $('#btnSave').show();
+                if (oRMConsumption.ErrorMessage == null || oRMConsumption.ErrorMessage == '')
+                {
+                    if(oRMConsumption.RMConsumptionID>0)
+                    {
+                        alert("Data Save Successfully");
+                        $('#txtConsumptionNo').val(oRMConsumption.ConsumptionNo);
+                        var oRMConsumptions =sessionStorage.getItem("RMConsumptions");
+                        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if(oRMConsumptions!=null)
+                        {
+                            oRMConsumptions = jQuery.parseJSON(oRMConsumptions);
+                        }
+                        else
+                        {
+                            oRMConsumptions=[];
+                        }
+                        if(nIndex!=-1)
+                        {
+                            oRMConsumptions[nIndex]=oRMConsumption;
+                        }
+                        else
+                        {
+                            sessionStorage.setItem("SelectedRowIndex", oRMConsumptions.length);
+                            oRMConsumptions.push(oRMConsumption);
+                        }
+                        sessionStorage.setItem("RMConsumptions", JSON.stringify(oRMConsumptions));
+                        window.location.href = sessionStorage.getItem('BackLink');
+                    }
+                    else
+                    {
+                        alert("Invalid Operation!");
+                    }
+                }
+                else
+                {
+                    alert(oRMConsumption.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(xhr+'~' +status+'~'+error);
+            }
+        });
+    });
+
+    
+
+    
+    $("#btnClose").click(function(){
+        window.location.href = sessionStorage.getItem('BackLink');
+    });
+
+    $('#btnRefresh').click(function(e){
+        var oRMConsumptionDetails = $('#tblRMConsumptionDetail').datagrid('getRows');
+        RefreshList(oRMConsumptionDetails);
+    });
+
+    function RefreshList(oRMConsumptionDetails)
+    {
+        DynamicRefreshList(oRMConsumptionDetails, 'tblRMConsumptionDetail');
+    }
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = sessionStorage.getItem('BaseAddress')+ "/RMConsumption/ViewRMConsumptions?menuid="+sessionStorage.getItem('MenuID');
+        }
+    });
+</script>

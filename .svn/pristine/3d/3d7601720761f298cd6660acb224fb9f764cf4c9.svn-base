@@ -1,0 +1,366 @@
+﻿<html>
+<head>
+  <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" /> 
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />  
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>            
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>  
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>    
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script> 
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script> 
+</head>
+<body>
+    @model ESimSol.BusinessObjects.DevelopmentRecap
+<div style="font-family: Tahoma;">
+    <table border="0" style="width: 755px;" cellspacing="2" cellpadding="2">
+        <tr>
+            <td align="center" style="background-color: #CFB53B; text-align: center; width: 450px;
+                color: White">
+                <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline;
+                    width: 450px">
+                    Send To Buyer
+                </label>
+            </td>
+        </tr>
+    </table>
+    <table id="tblDevelopmentHistory" title="Yarn/Fabric Options(s)" class="easyui-datagrid"
+        style="width: 750px; height: 250px" fitcolumns="false" rownumbers="true" pagination="false"
+        singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="Note" width="457" align="left">
+                    Comments
+                </th>
+                <th field="MarchandiserName" width="150" align="left">
+                    Merchandiser
+                </th>
+                <th field="OperationDateInString" width="100" align="left">
+                    Send Date
+                </th>
+            </tr>
+        </thead>
+    </table>
+    ​
+    <div id="toolbar" style="text-align: left">
+        Comments :<input type="text" style="width: 210px" id="txtComments" />
+        Merchandiser :<input id="txtMerchandiser" type="text" style="width: 100px;" disabled="disabled" />
+        @* <a id="btnMerchandiser" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search"
+            plain="true">*@
+        <input type="button" id="btnMerchandiser" value="Pick" style="width: 40px;" />
+        <input id="txtDate" type="text" style="width: 100px;" class="easyui-datebox" required="required"
+            data-options="formatter:icsdateformat,parser:icsdateparser" />
+        </a><a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true"
+            onclick="AddDRH()">Add</a> <a href="javascript:void(0)" class="easyui-linkbutton"
+                iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+    </div>
+    <fieldset>
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+            <tr>
+                <td style="width: 575px; text-align: right">
+                    <input id="txtMerchandiserID" type="hidden" />
+                </td>
+                <td style="width: 50px">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"
+                        onclick="OK()">OK</a>
+                </td>
+                <td style="width: 50px">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true"
+                        onclick="Close()">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript"> 
+    var _sBaseAddress="";
+    var _obj = window.dialogArguments;
+    var _oDevelopmentRecap=null;
+    var oDevelopmentRecap= null;
+    $(document).ready(function () {    
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+       _oDevelopmentRecap = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+        $('#txtDate').datebox('setValue', icsdateformat(new Date()));
+
+         RefreshData();
+    }); 
+
+
+
+$('#btnMerchandiser').click(function (e) {
+
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = false;
+    oParameter.ContractorType="Merchandiser";
+    var url =_sBaseAddress+"/Employee/ViewEmployeePicker";
+     
+    var oSelectedContractor = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:360px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+ 
+    if(oSelectedContractor!=null)
+    {
+        if(oSelectedContractor.EmployeeID>0)
+        {
+            document.getElementById("txtMerchandiser").value=  oSelectedContractor.Name;
+            document.getElementById("txtMerchandiserID").value=  oSelectedContractor.EmployeeID;
+        }
+        else
+        {
+            document.getElementById("txtMerchandiser").value=  "";
+            document.getElementById("txtMerchandiserID").value=  "";
+        }
+    }
+    else
+    {
+            document.getElementById("txtMerchandiser").value=  "";
+            document.getElementById("txtMerchandiserID").value=  "";
+    }    
+}); 
+
+
+function ValidateForOkay()
+{
+    debugger;
+    var data =0;
+    var oDevelopmentRecapHistory=$('#tblDevelopmentHistory').datagrid('getRows');   
+    for(var i=0; i<oDevelopmentRecapHistory.length; i++)
+    {
+        if(oDevelopmentRecapHistory[i].DevelopmentRecapHistoryID ==0)        
+        {     
+            data= parseInt(data) +1;
+        }
+    }
+    if (data ==0)
+    {
+        alert(" Without new comments you could not Ok !!!");        
+        return false;
+    }
+    if ( parseInt(data)>1)
+    {
+        alert(" You can not insert multiple Commenst at a time!!!");        
+        return false;
+    }
+        
+    return true;
+}
+
+function StatusChange(oDevelopmentRecap,sParamIdentifier)
+{
+       
+   var oDevlopmentRecap =SetOrderStatusExtra (oDevelopmentRecap);
+         $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/DevelopmentRecap/ChangeStatus",
+                traditional: true,
+                data:  JSON.stringify(oDevlopmentRecap),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                debugger;
+                var oDevlopmentRecap= jQuery.parseJSON(data);
+                if (oDevlopmentRecap.ErrorMessage=="") 
+                {                    
+                      if(sParamIdentifier=="ReceiveFromFactory")
+                      {
+                         alert("Successfully Receive From Factory Done.");
+                      
+                      }
+                        else  if(sParamIdentifier=="SendtoBuyer")
+                      {
+                         alert("Successfully Send to Buyer  Done.");
+                      
+                      }
+                 }
+                 else
+                 {
+                       alert(oDevlopmentRecap.ErrorMessage);
+                 }
+               },
+               error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+            });
+
+    
+}
+function SetOrderStatusExtra (oDevlopmentRecap)
+{   
+    switch (oDevlopmentRecap.Status)
+    {
+        case 1 :{
+            oDevlopmentRecap.StatusExtra =1;
+            break;
+        }
+        case 2 :{
+             oDevlopmentRecap.StatusExtra =2;
+             break;
+        }
+        case 3 :{
+             oDevlopmentRecap.StatusExtra =3;
+             break;
+        }
+        case 4 :{
+             oDevlopmentRecap.StatusExtra =4;
+             break;
+        }
+        case 5 :{
+             oDevlopmentRecap.StatusExtra =5;
+             break;
+        }
+        case 6 :{
+             oDevlopmentRecap.StatusExtra =6;
+             break;
+        }
+        case 7 :{
+             oDevlopmentRecap.StatusExtra =7;
+             break;
+        }
+        case 8 :{
+             oDevlopmentRecap.StatusExtra =8;
+        }
+        case 9 :{
+             oDevlopmentRecap.StatusExtra =9;
+        }
+        case 10 :{
+             oDevlopmentRecap.StatusExtra =10;
+        }
+
+        case 11:{
+             oDevlopmentRecap.StatusExtra =11;
+        }
+        case 12 :{
+             oDevlopmentRecap.StatusExtra =12;
+        }
+    }    
+    return oDevlopmentRecap;
+}
+
+function OK()
+{
+   debugger;
+   if(!ValidateForOkay()) return;
+   //StatusChange(oDevelopmentRecap,"SendtoBuyer");
+   window.returnValue = oDevelopmentRecap;
+   window.close();
+ }
+
+function Close() 
+{
+   window.close();
+}
+
+function ValidateInputFODRH()
+{
+    if(document.getElementById("txtMerchandiserID").value==null || document.getElementById("txtMerchandiserID").value=="")
+    {
+        alert("Please Search Merchandiser!.");        
+        return false;
+    }
+    if(document.getElementById("txtComments").value==null || document.getElementById("txtComments").value=="")
+    {
+        alert("Please Inset Comments.");        
+        return false;
+    }
+    var data=0;
+    var oDevelopmentRecapHistory=$('#tblDevelopmentHistory').datagrid('getRows'); 
+  
+    for(var i=0; i<oDevelopmentRecapHistory.length; i++)
+    {
+        if(oDevelopmentRecapHistory[i].DevelopmentRecapHistoryID ==0)        
+        {     
+           data= parseInt(data) +1;
+        }
+    }
+    if ( parseInt(data)>=1)
+    {
+        alert(" You can not insert multiple Commenst at a time!!!");        
+        return false;
+    }
+
+return true;
+}
+function RefreshObjectForDRH()
+{
+    oDevelopmentRecap={
+                        DevelopmentRecapHistoryID : 0,
+                        DevelopmentRecapID : _oDevelopmentRecap.DevelopmentRecapID,
+                        MarchandiserName : $("#txtMerchandiser").val(),
+                        Note: $("#txtComments").val(),                                        
+                        OperationBy :$("#txtMerchandiserID").val(),
+                        OperationDate: $('#txtDate').datebox('getValue'),
+                        ActionTypeExtra:'SendtoBuyer',
+                        OperationDateInString:$('#txtDate').datebox('getValue')     
+                       }
+        
+    return oDevelopmentRecap;
+}
+
+function AddDRH()
+{
+    if(!ValidateInputFODRH()) return;
+    oDevelopmentRecap=null;
+    
+    var oDevelopmentRecapHistory=RefreshObjectForDRH();
+    $('#tblDevelopmentHistory').datagrid('appendRow',oDevelopmentRecapHistory);  
+    document.getElementById( "txtMerchandiser").value="";
+    document.getElementById( "txtMerchandiserID").value="";
+    document.getElementById( "txtComments").value="";
+   
+}
+
+function Delete()
+{
+    var ODRHDelete= $('#tblDevelopmentHistory').datagrid('getSelected');
+  
+    if(ODRHDelete==null )
+    {
+        alert("Invalid Selection!!! please select a valid Item!");                  
+        return false;
+    }
+    if ( ODRHDelete.DevelopmentRecapHistoryID !=0 )
+    {
+        alert(" You can delete Only Current Entry.");                  
+        return false;
+    }
+    if (!confirm("Confirm to Delete?")) return ;
+    var SelectedRowIndex=$('#tblDevelopmentHistory').datagrid('getRowIndex',ODRHDelete);
+    $('#tblDevelopmentHistory').datagrid('deleteRow',SelectedRowIndex);    
+}
+function RefreshData()
+{
+         $.ajax
+         ({
+            type: "GET",
+            dataType: "json",            
+            url : _sBaseAddress+  "/DevelopmentRecap/DevelopmentRecapHistory",
+            data: {nDevelopmentRecapID:_oDevelopmentRecap.DevelopmentRecapID, nCurrentStatus:7},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+            var oDevlopmentReapHistory = jQuery.parseJSON(data);
+                  
+            var  data=oDevlopmentReapHistory.DevelopmentRecapHistorys;
+                
+            data={"total":""+data.length+"","rows":data};
+            $('#tblDevelopmentHistory').datagrid('loadData',data);                  
+          },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+}
+
+
+$(document).keydown(function(e) {    
+    //debugger;
+    if(e.which == 27)//escape=27
+    {
+        //debugger;        
+        window.close();
+    }
+});
+</script>

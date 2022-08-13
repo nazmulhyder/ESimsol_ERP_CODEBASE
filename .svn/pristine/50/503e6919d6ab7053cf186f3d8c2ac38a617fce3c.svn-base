@@ -1,0 +1,151 @@
+
+
+
+ALTER VIEW [dbo].[View_PurchaseOrder]
+AS
+SELECT	PO.*,  
+		Contractor.Name AS ContractorName,   
+		Contractor.ShortName AS ContractorShortName,  
+		ApprovedUser.UserName AS ApprovedByName,  
+		PreparedUser.UserName AS PrepareByName,  
+		MarketingAccount.Name as ConcernPersonName,
+		ContactPersonnel.Name as ContactPersonName,
+		Currency.Symbol as CurrencySymbol,
+		Currency.CurrencyName as CurrencyBFDP,
+		Currency.SmallerUnit as CurrencyBADP,
+		BusinessUnit.Code AS BUCode,
+		BusinessUnit.Name as BUName,
+		DeliveryTo.Name as DeliveryToName,
+		DCP.Name as DeliveryToContactPersonName,
+		BillTo.Name as BillToName,
+		BCP.Name as BIllToContactPersonName,
+		PaymentTerm.TermText AS PaymentTermText,
+		CASE WHEN PO.RefType=1 THEN ''
+			 WHEN PO.RefType=2 THEN (SELECT HH.NOANo FROM NOA AS HH WHERE HH.NOAID=PO.RefID)
+			 WHEN PO.RefType=3 THEN (SELECT HH.PRNo FROM PurchaseRequisition AS HH WHERE HH.PRID=PO.RefID)
+		END AS RefNo,
+		CASE WHEN PO.RefType=1 THEN GETDATE()
+			 WHEN PO.RefType=2 THEN (SELECT HH.NOADate FROM NOA AS HH WHERE HH.NOAID=PO.RefID)
+			 WHEN PO.RefType=3 THEN (SELECT HH.PRDate FROM PurchaseRequisition AS HH WHERE HH.PRID=PO.RefID)
+		END AS RefDate,
+		CASE WHEN PO.RefType=1 THEN ''
+			 WHEN PO.RefType=2 THEN (SELECT HH.ApprovedByName FROM View_NOA AS HH WHERE HH.NOAID=PO.RefID)
+			 WHEN PO.RefType=3 THEN (SELECT HH.PrepareByName FROM View_PurchaseRequisition AS HH WHERE HH.PRID=PO.RefID)
+		END AS RefBy,
+		ISNULL((SELECT SUM(ISNULL(Qty,0) * ISNULL(UnitPrice,0)) FROM PurchaseOrderDetail WHERE POID = PO.POID),0) AS Amount,
+		(ISNULL((SELECT SUM(HH.Qty) FROM PurchaseOrderDetail AS HH WHERE HH.POID = PO.POID),0) - ISNULL((SELECT SUM(TT.ReceivedQty) FROM GRNDetail AS TT WHERE TT.GRNID IN (SELECT GRN.GRNID FROM GRN WHERE GRN.RefObjectID=PO.POID AND GRN.GRNType=8)),0)) AS YetToGRNQty,
+
+		(ISNULL((SELECT SUM(HH.Qty) FROM PurchaseOrderDetail AS HH WHERE HH.POID = PO.POID),0) - ISNULL((SELECT SUM(TT.ReturnQty) FROM PurchaseReturnDetail AS TT WHERE TT.PurchaseReturnID IN (SELECT PurchaseReturn.PurchaseReturnID FROM PurchaseReturn WHERE PurchaseReturn.RefObjectID=PO.POID AND PurchaseReturn.RefType=5)),0)) AS YetToPurchaseReturnQty,
+         ISNULL((SELECT SUM(Balance) FROM Lot WHERE ParentType = 103 AND ParentID In(SELECT TT.GRNDetailID FROM GRNDetail AS TT WHERE TT.GRNID IN (SELECT GRN.GRNID FROM GRN WHERE GRN.RefObjectID=PO.POID AND GRN.GRNType=8))),0)  AS LotBalance, 
+
+		--(ISNULL((SELECT SUM(HH.Qty) FROM PurchaseOrderDetail AS HH WHERE HH.POID = PO.POID),0) - ISNULL((SELECT SUM(TT.ReceivedQty) FROM GRNDetail AS TT WHERE TT.GRNID IN (SELECT GRN.GRNID FROM GRN WHERE GRN.RefObjectID=PO.POID AND GRN.GRNType=2)),0)) AS YetToGRNQty,
+		(ISNULL((SELECT SUM(HH.Qty) FROM PurchaseOrderDetail AS HH WHERE HH.POID = PO.POID),0) - ISNULL((SELECT SUM(TT.Qty) FROM PurchaseInvoiceDetail AS TT WHERE TT.PurchaseInvoiceID IN (SELECT HH.PurchaseInvoiceID FROM PurchaseInvoice AS HH WHERE HH.RefID=PO.POID)),0)) AS YetToInvocieQty
+
+		, ISNULL((SELECT top 1 Sequence From ApprovalHead AS APH WHERE APH.ModuleID = 31 ORDER BY Sequence DESC),0) AS LastApprovalSequence 
+		, ISNULL((SELECT top 1 ApprovalSequence From View_ApprovalHistory AS APH WHERE APH.ObjectRefID = PO.POID AND APH.ModuleID = 31 Order By ApprovalSequence DESC),0) AS ApprovalSequence
+		, ISNULL((SELECT top 1 'In '+ApprovalHeadName From View_ApprovalHistory AS APH WHERE APH.ObjectRefID = PO.POID AND APH.ModuleID = 31 Order By ApprovalHistoryID DESC),'Initialize') AS ApprovalStatus
+			
+FROM	PurchaseOrder AS PO
+LEFT OUTER JOIN Contractor ON  PO.ContractorID =  Contractor.ContractorID
+LEFT OUTER JOIN  Users as PreparedUser ON  PO.DBUserID =  PreparedUser.UserID 
+LEFT OUTER JOIN  Users AS ApprovedUser ON  PO.ApproveBy = ApprovedUser.UserID 
+LEFT OUTER JOIN  MarketingAccount  ON  PO.ConcernPersonID = MarketingAccount.MarketingAccountID --MARKET PERSON
+LEFT OUTER JOIN  ContactPersonnel ON  PO.ContactPersonnelID =  ContactPersonnel.ContactPersonnelID
+LEFT OUTER JOIN  Currency ON  PO.CurrencyID =  Currency.CurrencyID
+LEFT OUTER JOIN PaymentTerm on PaymentTerm.PaymentTermID=PO.PaymentTermID
+LEFT OUTER JOIN	BusinessUnit ON PO.BUID =  BusinessUnit.BusinessUnitID
+LEFT OUTER JOIN Contractor AS DeliveryTo ON  PO.DeliveryTo =  DeliveryTo.ContractorID
+LEFT OUTER JOIN  ContactPersonnel as DCP ON  PO.DeliveryToContactPerson =  DCP.ContactPersonnelID
+LEFT OUTER JOIN Contractor AS BillTo ON  PO.BillTo =  BillTo.ContractorID
+LEFT OUTER JOIN  ContactPersonnel as BCP ON  PO.BIllToContactPerson =  BCP.ContactPersonnelID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+
+
+
+ALTER VIEW [dbo].[View_PurchaseInvoice]
+AS    
+SELECT	PurchaseInvoice.*,
+		Contractor.Name  AS ContractorName,			
+		Currency.Symbol as CurrencySymbol,
+		Currency.CurrencyName,		
+		Currency.CurrencyName as CurrencyBFDP,
+		Currency.IssueFigure as CurrencyBADP,	
+		DeliveryTo.Name as DeliveryToName,
+		DCP.Name as DeliveryToContactPersonName,
+		BillTo.Name as BillToName,
+		BCP.Name as BIllToContactPersonName,
+		CASE
+			WHEN PurchaseInvoice.RefType=2 then PO.PONo
+			WHEN PurchaseInvoice.RefType=5 then WO.WorkOrderNo
+		END AS RefNo,
+		CASE
+			WHEN PurchaseInvoice.RefType=2 then PO.PODate
+			WHEN PurchaseInvoice.RefType=5 then WO.WorkOrderDate
+		END AS RefDate,
+
+		CASE
+			WHEN PurchaseInvoice.RefType=2 then PO.Amount
+			WHEN PurchaseInvoice.RefType=5 then WO.Amount
+		ELSE 0 END  AS RefAmount,
+		PO.PONo,
+		PO.PODate,
+		PO.Amount AS POAmount,			
+		BU.Name AS BUName,
+		BU.Code AS BUCode,			
+		CP.Name AS ContrctorPersonalName,
+		PrepareUser.UserName AS PrepareUserName,
+		ApprovedUser.UserName AS ApprovedUserName,
+		PaymentTerm.TermText AS PaymentTermText,
+		--Bill
+		(ISNULL((SELECT SUM(HH.Qty) FROM PurchaseInvoiceDetail AS HH WHERE HH.PurchaseInvoiceID = PurchaseInvoice.PurchaseInvoiceID),0) - ISNULL((SELECT SUM(TT.ReturnQty) FROM PurchaseReturnDetail AS TT WHERE TT.PurchaseReturnID IN (SELECT PurchaseReturn.PurchaseReturnID FROM PurchaseReturn WHERE PurchaseReturn.RefObjectID=PurchaseInvoice.PurchaseInvoiceID AND PurchaseReturn.RefType=1)),0)) AS YetToPurchaseReturnQty,
+         ISNULL((SELECT SUM(Balance) FROM Lot WHERE ParentType = 103 AND ParentID In(SELECT TT.GRNDetailID FROM GRNDetail AS TT WHERE TT.GRNID IN (SELECT GRN.GRNID FROM GRN WHERE GRN.RefObjectID=PurchaseInvoice.PurchaseInvoiceID AND GRN.GRNType=1))),0)  AS LotBalance, 
+		PurchaseInvoice.Amount - ISNULL((SELECT SUM(ISNULL(PIRef.Amount,0)) FROM View_ImportPIReference AS PIRef WHERE PIRef.RefType = 1 AND PIRef.ReferenceID=PurchaseInvoice.PurchaseInvoiceID),0) as YeToBillAmount,
+		ISNULL((SELECT SUM(PD.AdvanceSettle) FROM PurchaseInvoiceDetail AS PD WHERE PD.PurchaseInvoiceID=PurchaseInvoice.PurchaseInvoiceID),0) AS AdvanceSettle,
+		ISNULL((SELECT SUM(ISNULL(PID.Qty,0)) FROM PurchaseInvoiceDetail AS PID WHERE PID.PurchaseInvoiceID = PurchaseInvoice.PurchaseInvoiceID),0)- ISNULL((SELECT SUM(ISNULL(ReceivedQty,0)) FROM GRNDetail WHERE RefType = 1 AND RefObjectID IN (SELECT PurchaseInvoiceDetailID FROM PurchaseInvoiceDetail WHERE PurchaseInvoiceID = PurchaseInvoice.PurchaseInvoiceID) ),0) AS YetToGRNQty
+
+		, ISNULL((SELECT top 1 Sequence From ApprovalHead AS APH WHERE APH.ModuleID = 33 ORDER BY Sequence DESC),0) AS LastApprovalSequence 
+		, ISNULL((SELECT top 1 ApprovalSequence From View_ApprovalHistory AS APH WHERE APH.ObjectRefID = PurchaseInvoice.PurchaseInvoiceID AND APH.ModuleID = 33 Order By ApprovalSequence DESC),0) AS ApprovalSequence
+		, ISNULL((SELECT top 1 'In '+ApprovalHeadName From View_ApprovalHistory AS APH WHERE APH.ObjectRefID = PurchaseInvoice.PurchaseInvoiceID AND APH.ModuleID = 33 Order By ApprovalHistoryID DESC),'Initialize') AS ApprovalStatus
+			
+
+FROM	PurchaseInvoice
+LEFT OUTER JOIN Currency on Currency.CurrencyID=PurchaseInvoice.CurrencyID
+LEFT OUTER JOIN Contractor on Contractor.ContractorID=PurchaseInvoice.ContractorID
+LEFT OUTER JOIN ContactPersonnel AS CP on CP.ContactPersonnelID=PurchaseInvoice.ContractorPersonalID
+LEFT OUTER JOIN BusinessUnit AS BU on BU.BusinessUnitID=PurchaseInvoice.BUID
+LEFT OUTER JOIN View_PurchaseOrder AS PO on PO.POID=PurchaseInvoice.RefID
+LEFT OUTER JOIN View_WorkOrder AS WO on WO.WorkOrderID=PurchaseInvoice.RefID
+LEFT OUTER JOIN Users AS ApprovedUser on ApprovedUser.UserID=PurchaseInvoice.ApprovedBy
+LEFT OUTER JOIN Users AS PrepareUser on PrepareUser.UserID=PurchaseInvoice.DBUserID
+LEFT OUTER JOIN PaymentTerm on PaymentTerm.PaymentTermID=PurchaseInvoice.PaymentTermID
+LEFT OUTER JOIN Contractor AS DeliveryTo ON  PurchaseInvoice.DeliveryTo =  DeliveryTo.ContractorID
+LEFT OUTER JOIN  ContactPersonnel as DCP ON  PurchaseInvoice.DeliveryToContactPerson =  DCP.ContactPersonnelID
+LEFT OUTER JOIN Contractor AS BillTo ON  PurchaseInvoice.BillTo =  BillTo.ContractorID
+LEFT OUTER JOIN  ContactPersonnel as BCP ON  PurchaseInvoice.BIllToContactPerson =  BCP.ContactPersonnelID
+
+
+GO
+
+

@@ -1,0 +1,151 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Multiple Increment</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.plugins.js")" type="text/javascript"></script>
+    <link href="@Url.Content("~/Content/CSS/mainstyle.css")" rel="stylesheet" type="text/css" />  
+</head>
+<body>
+    @model ESimSol.BusinessObjects.EmployeeSalaryStructure
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 450px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                        Multiple Increment
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Multiple Increment </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; margin-left:-10px;">
+                <tr>
+                    <td style="width: 100px; text-align: right;">
+                        Salary Scheme :
+                    </td>
+                    <td>
+                        <input id="txtISalaryScheme" type="text" style="width:250px" disabled="disabled" /><input id="btnISalaryScheme" type="button" value="Pick" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100px; text-align: right;">
+                        Gross/Percent :
+                    </td>
+                    <td>
+                        <input id="isPercent" type="checkbox" />Percent &nbsp;
+                        <input id="txtGrossSalary" type="text" style="width:190px" placeholder="Amount" class="number" />(BDT)
+                        
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100px; text-align: right;">
+                        
+                    </td>
+                    <td style="text-align: right;">
+                        <a id="btnEffect" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                           plain="true">Process</a> <a id="btnCancel" href="javascript:void(0)" class="easyui-linkbutton"
+                                                      iconcls="icon-cancel" plain="true">Cencel</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+var _oEmployeeSalaryStructure=null;
+var _sBaseAddress="";
+var _obj = null;
+var _nISalarySchemeID=0;
+$(document).ready(function ()
+{
+    _oEmployeeSalaryStructure = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _obj = window.dialogArguments;
+    
+    LoadBasicEventsFromLayout();
+});
+
+$('#btnISalaryScheme').click(function (e) 
+{
+    var oParameter = new Object();
+    oParameter.Name = " Search salary Scheme ";
+    oParameter.MultipleItemReturn=false;
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/SalaryScheme/AdvanceSearch?ts=" + tsv;
+    oSalaryScheme = window.showModalDialog(url, oParameter, 'dialogHeight:380px;dialogWidth:890px;dialogLeft:50;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+    if(oSalaryScheme.SalarySchemeID>0)
+    {
+        $("#txtISalaryScheme")[0].value=oSalaryScheme.Name;
+        _nISalarySchemeID=oSalaryScheme.SalarySchemeID;
+    }
+});
+
+$('#btnEffect').click(function (e)
+{
+    if(document.getElementById("txtGrossSalary").value == "")
+    {
+        alert("Please enter Gross Salary !");
+        return;
+    }
+    if(_nISalarySchemeID>0)
+    {
+        _obj.SalarySchemeID = 0;
+        _obj.SalarySchemeID = _nISalarySchemeID;
+    }
+    //var IsPercent =0
+    //if($("#isPercent").is(':checked'))
+    //{
+    //    IsPercent =1;
+    //}
+    var IsPercent =$("#isPercent").is(':checked');
+    var oEmployeeSalaryStructure={ErrorMessage : _obj.ESSIDs+"~"+_obj.EmployeeIDs+"~"+_obj.SalarySchemeID+"~"+document.getElementById("txtGrossSalary").value+"~"+IsPercent};
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/TransferPromotionIncrement/MultipleIncrement",
+            traditional: true,
+            data: JSON.stringify({oEmployeeSalaryStructure:oEmployeeSalaryStructure}),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                var oEmployeeSalaryStructures = [];
+                oEmployeeSalaryStructures = jQuery.parseJSON(data);
+                if (oEmployeeSalaryStructures[0].ErrorMessage == "")
+                {
+                    alert("Processed sucessfully");
+                    window.returnValue = oEmployeeSalaryStructures;
+                    window.close();
+                }
+                else
+                {
+                    alert(oEmployeeSalaryStructures[0].ErrorMessage);
+                }
+             },
+
+          });
+});
+
+$('#btnCancel').click(function (e)
+{
+    window.close();
+});
+$(document).keydown(function (e)
+{
+    var keyCode = e.keyCode || e.which;
+    if (keyCode == 27)
+    {
+        window.close();
+    }
+});
+</script>

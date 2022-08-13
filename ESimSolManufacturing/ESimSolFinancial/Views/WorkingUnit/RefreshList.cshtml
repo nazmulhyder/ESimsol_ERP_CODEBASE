@@ -1,0 +1,300 @@
+﻿@{
+    ViewBag.Title = "Working Unit List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.WorkingUnit>
+    @*<div class="PageHeading">*@
+
+
+    <div style="margin-left:0px; height:100%;width:100%" id="divWU">
+        <table id="tblWorkingUnit" title="Working Unit" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="WorkingUnitCode" width="20%">Working Unit Code</th>
+                    <th field="LocationName" width="20%">Location Name</th>
+                    <th field="OperationUnitName" width="20%">Operation Unit Name</th>
+                    <th field="Store" width="20%">Store Type</th>
+                    <th field="IsActiveInString" width="150px">Activity</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+            <input type="text" id="txtSearchByName" value="Search by name" style="width:150px" onclick="ClearNamefield()" />
+            <a id="btnSearchByStore" href="javascript:void(0)" class="easyui-linkbutton" iconcls:"icon-search" plain="true" onclick="SearchByStore()">Search By Store</a>
+            <a id="btnStore" href="javascript:void(0)" class="easyui-linkbutton" iconcls:"icon-search" plain="true" onclick="SearchStore()">Store</a>
+            <a id="btnNotStore" href="javascript:void(0)" class="easyui-linkbutton" iconcls:"icon-search" plain="true" onclick="SearchNotStore()">Not Store</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Activity()">Activity</a>
+            <a id="btnContaingProduct" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Containg Product</a>
+            @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+            @{var BUID = @ViewBag.BUID;}
+            @Html.ActionLink("Location", "ViewLocations", "Location", new {buid=@BUID, menuid = @MenuID }, null)   ||  @Html.ActionLink("Operation Unit", "RefreshList", "OperationUnit", new {buid=@BUID, menuid = @MenuID }, null) ||  @Html.ActionLink("Working Unit", "RefreshList", "WorkingUnit", new { buid = @BUID, menuid = @MenuID }, null)
+        </div>
+
+   <script type="text/javascript">
+    $(document).ready(function () {
+        var oTempWorkingUnits =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        document.getElementById("btnStore").style.display = 'none';
+        document.getElementById("btnNotStore").style.display = 'none';
+        var oWorkingUnits =sessionStorage.getItem("WorkingUnits");
+        if(oWorkingUnits!=null)
+        {
+            oWorkingUnits = jQuery.parseJSON(oWorkingUnits);
+        }
+        else
+        {
+            oWorkingUnits=oTempWorkingUnits;
+        }
+        RefreshList(oWorkingUnits);
+        $('#divWU').data('WorkingUnits',oWorkingUnits);
+
+    });
+
+    $('#btnContaingProduct').click(function(e){
+        var oWorkingUnit= $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblWorkingUnit').datagrid('getRowIndex',oWorkingUnit);
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem("BaseAddress")+  "/UserPermission/ViewContaingProduct?id="+oWorkingUnit.WorkingUnitID+"&ts="+tsv;
+    });
+
+    function Refresh()
+    {
+        document.getElementById("btnStore").style.display = 'none';
+        document.getElementById("btnNotStore").style.display = 'none';
+        document.getElementById("btnSearchByStore").style.display = '';
+        RefreshList($('#divWU').data('WorkingUnits'));
+    }
+    function SearchByStore()
+    {
+        document.getElementById("btnStore").style.display = '';
+        document.getElementById("btnNotStore").style.display = '';
+        document.getElementById("btnSearchByStore").style.display = 'none';
+    }
+
+    function SearchStore()
+    {
+        document.getElementById("btnNotStore").style.display = 'none';
+        var oAll = $('#tblWorkingUnit').datagrid('getRows');
+        var oSearchedData = [];
+        for (var i = 0; i < oAll.length; i++) {
+            if (oAll[i].Store == "Store") {
+                oSearchedData.push(oAll[i]);
+            }
+        }
+        $('#tblWorkingUnit').empty();
+        var data = oSearchedData;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblWorkingUnit').datagrid('loadData',data);
+        document.getElementById("btnStore").style.display = 'none';
+    }
+    function SearchNotStore()
+    {
+        document.getElementById("btnStore").style.display = 'none';
+        var oAll = $('#tblWorkingUnit').datagrid('getRows');
+        var oSearchedData = [];
+        for (var i = 0; i < oAll.length; i++)
+        {
+            if (oAll[i].Store == "Not Store") 
+            {
+                oSearchedData.push(oAll[i]);
+            }
+        }
+        $('#tblWorkingUnit').empty();
+        var data = oSearchedData;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblWorkingUnit').datagrid('loadData',data);
+        document.getElementById("btnNotStore").style.display = 'none';
+    }
+
+    function ClearNamefield()
+    {
+        $("#txtSearchByName")[0].value='';
+    }
+    $('#txtSearchByName').keydown(function (e) {
+        var oWorkingUnits = $('#divWU').data('WorkingUnits');
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13)//Enter key
+        {
+            if (oWorkingUnits.length <= 0) {
+                alert("There are no data for searching!!!!");
+                return;
+            }
+            var txtSearchByName = document.getElementById('txtSearchByUN').value;
+            var sName = "";
+            var oSearchedData = [];
+            var n = 0;
+            for (i = 0; i < oWorkingUnits.length; ++i) {
+                sName = oWorkingUnits[i].LocationName;
+                n = 0;
+                n = sName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if (n != -1) {
+                    oSearchedData.push(oWorkingUnits[i]);
+                }
+            }
+            RefreshList(oSearchedData);
+        }
+    });
+
+
+
+    function RefreshList(oWorkingUnits)
+    {
+        var data=oWorkingUnits;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblWorkingUnit').datagrid('loadData',data);
+        var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(nID!=-1)
+        {
+            $('#tblWorkingUnit').datagrid('selectRow', nID);
+        }
+    }
+
+    function Add()
+    {
+
+        var oWorkingUnits= $('#tblWorkingUnit').datagrid('getRows');
+        sessionStorage.setItem("WorkingUnits", JSON.stringify(oWorkingUnits));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem('OperationName','Add Working Unit');
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/WorkingUnit/ViewWorkingUnit?id=0";
+
+    }
+
+    function Edit()
+    {
+        var oWorkingUnit = $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblWorkingUnit').datagrid('getRowIndex',oWorkingUnit);
+        var oWorkingUnits= $('#tblWorkingUnit').datagrid('getRows');
+        sessionStorage.setItem("WorkingUnits", JSON.stringify(oWorkingUnits));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem('OperationName','Edit Working Unit');
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/WorkingUnit/ViewWorkingUnit?id="+oWorkingUnit.WorkingUnitID;
+    }
+
+    function Details()
+    {
+        var oWorkingUnit = $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblWorkingUnit').datagrid('getRowIndex',oWorkingUnit);
+        var oWorkingUnits= $('#tblWorkingUnit').datagrid('getRows');
+        sessionStorage.setItem("WorkingUnits", JSON.stringify(oWorkingUnits));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem('OperationName','View Working Unit');
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/WorkingUnit/ViewWorkingUnit?id="+oWorkingUnit.WorkingUnitID;
+    }
+
+    function Delete()
+    {
+
+        var oWorkingUnit = $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblWorkingUnit').datagrid('getRowIndex',oWorkingUnit);
+
+        if (oWorkingUnit.WorkingUnitID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/WorkingUnit/Delete",
+                data: { id: oWorkingUnit.WorkingUnitID },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Delete sucessfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblWorkingUnit').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    function Functionality()
+    {
+        var oWorkingUnit = $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var oParameter = new Object();
+        oParameter.Name = "Functionality";
+        var url =sessionStorage.getItem('BaseAddress')+ "/WUFunctionality/Funtionality?id="+oWorkingUnit.WorkingUnitID;
+        var ounctionality = window.showModalDialog(url, oParameter, 'dialogHeight:395px;dialogWidth:800px;dialogLeft:370;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    function Activity()
+    {
+        var oWorkingUnit = $('#tblWorkingUnit').datagrid('getSelected');
+        if(oWorkingUnit==null || oWorkingUnit.WorkingUnitID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to " + (oWorkingUnit.IsActive==true?" Inactive ?":" Active ?" ))) return ;
+        var SelectedRowIndex=$('#tblWorkingUnit').datagrid('getRowIndex',oWorkingUnit);
+
+
+        if (oWorkingUnit.WorkingUnitID > 0)
+        {
+            $.ajax
+               ({
+                   type: "POST",
+                   dataType: "json",
+                   url: '@Url.Action("UpdateForAcitivity", "WorkingUnit")',
+                   data:  JSON.stringify(oWorkingUnit),
+                   contentType: "application/json; charset=utf-8",
+                   success: function (data)
+                   {
+                       var oWorkingUnit = jQuery.parseJSON(data);
+                       $('#tblWorkingUnit').datagrid('updateRow',{index: SelectedRowIndex,	row: oWorkingUnit});
+                       alert("Updated sucessfully");
+
+                   },
+                   error: function (xhr, status, error)
+                   {
+                       alert(error);
+                   }
+               });
+        }
+    }
+</script>

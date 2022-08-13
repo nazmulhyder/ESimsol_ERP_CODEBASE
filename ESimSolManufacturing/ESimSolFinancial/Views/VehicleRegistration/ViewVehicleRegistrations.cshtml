@@ -1,0 +1,293 @@
+﻿@{
+    ViewBag.Title = "VehicleRegistration List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VehicleRegistration>
+    <script src="~/Views/VehicleRegistration/AdvanceSearch.js"></script>
+    <script src="~/Views/VehicleRegistration/VehicleRegistrations.js"></script>
+    <script src="~/Views/VehicleChassis/VehicleChassiss.js"></script>
+    <script src="~/Views/VehicleEngine/VehicleEngine.js"></script>
+
+    <div class="menuMainCollectionTable" ng-app="VehicleRegistrationApp" >
+        <div ng-controller="VehicleRegistrationController" style="height:100%; width:100%">
+            <div style="margin-bottom:2px; display:block" title="VehicleRegistration List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Registration No" style="width:190px" />
+                @*<button type="button" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>*@
+
+                <button type="button" id="btnAdd" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnDetails" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                @*<button type="button" id="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>*@
+                @*<button type="button" id="btnExportToExcel" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>*@
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style="width:99%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oVehicleRegistrations =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var oFuelTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FuelTypes));
+    var oSessions = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Sessions));
+    var oVehicleTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.VehicleTypes));
+    var oVehicleRegistrationTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.VehicleRegistrationTypes));
+    //$('#btnExportToExcel,#btnPrintList').hide();
+    debugger;
+    var CCapp= angular.module('VehicleRegistrationApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ms.service','vregistration.service','advanceSearch.service','chassis.service','engine.service']);//
+    CCapp.controller('VehicleRegistrationController',function ($scope,$http,$log,$uibModal,msModal,uiGridConstants,userSession,vregistrationservice,advanceSearchservice, chassisservice, engineservice) {                                                ///$scope,,,,uiGridConstants,msModal,userSession,engineservice
+       // oVehicleRegistrations= (userSession.getData('VehicleRegistrations').length>0)? userSession.getData('VehicleRegistrations'):oVehicleRegistrations;
+        debugger;
+        $scope.FuelTypes= oFuelTypes;
+        $scope.Sessions= oSessions;
+
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+               {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+              { field: 'FileNo', name:'File No', width:'10%' },
+              { field: 'VehicleRegNo', name:'Registration No', width:'15%' },
+              { field: 'VehicleTypeName', name:'Type', width:'12%' },
+              { field: 'VehicleModelNo', name:'Model', width:'15%' },
+              { field: 'CustomerName', name:'Customer', width:'17%' },
+              { field: 'EngineNo', name:'Engine No', width:'15%' },
+              { field: 'ChassisNo', name:'ChassisNo', width:'13%' , enableSorting: false},
+
+            ],
+
+            data: oVehicleRegistrations,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                //userSession.clear();
+            }
+        };
+        $scope.SearchByName = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oVehicleRegistrations;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].VehicleRegNo;
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+
+        $scope.OpenViewVehicleRegistration= function(nVehicleRegistrationID,index)
+        {
+            debugger;
+            var result=null;
+            var oVehicleRegistration={
+                VehicleRegistrationID: nVehicleRegistrationID
+            };
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/VehicleRegistration/GetByID', $.param(oVehicleRegistration), config).then(
+                                function (response) {
+                                    debugger;
+                                    result=jQuery.parseJSON(response.data);
+
+                                    var modalObj={
+                                        modalcontroller:'CCategoryapp',
+                                        appcontroller:'VehicleRegistrationController',
+                                        VehicleRegistration: result,
+                                        VehicleTypes:oVehicleTypes,
+                                        FuelTypes:  $scope.FuelTypes,
+                                        Sessions: $scope.Sessions,
+                                        VehicleRegistrationTypes: oVehicleRegistrationTypes
+                                    }
+                                    var modalInstance=vregistrationservice.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        $scope.gridApi.selection.clearSelectedRows();
+                                        if(result.VehicleRegistrationID>0){
+                                            if(index>=0)
+                                                $scope.gridOptions.data[index]=result;
+                                            else
+                                                $scope.gridOptions.data.push(result);
+                                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                            $scope.gridApi.selection.selectRow(result);
+                                        }
+                                        userSession.clear();
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                }
+                            );
+        }
+
+        $scope.Add=function()
+        {
+            debugger;
+            sessionStorage.setItem("VehicleRegistrations", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("VehicleRegistrationHeader", "Add Vehicle Registration");
+            $scope.OpenViewVehicleRegistration(0,-1);
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleRegistration= data[0];//get selected index
+            if(oVehicleRegistration==null || oVehicleRegistration.VehicleRegistrationID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleRegistration);
+            sessionStorage.setItem("VehicleRegistrations", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("VehicleRegistrationHeader", "Edit Vehicle Registration");
+            $scope.OpenViewVehicleRegistration(oVehicleRegistration.VehicleRegistrationID,SelectedRowIndex);
+        }
+
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleRegistration= data[0];//get selected index
+            if(oVehicleRegistration==null || oVehicleRegistration.VehicleRegistrationID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleRegistration);
+            sessionStorage.setItem("VehicleRegistrations", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("VehicleRegistrationHeader", "View Vehicle Registration");
+            $scope.OpenViewVehicleRegistration(oVehicleRegistration.VehicleRegistrationID,SelectedRowIndex);
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oVehicleRegistration= data[0];//get selected index
+            if(oVehicleRegistration==null || oVehicleRegistration.VehicleRegistrationID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oVehicleRegistration);
+            if (oVehicleRegistration.VehicleRegistrationID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/VehicleRegistration/Delete",
+                    data: { id: oVehicleRegistration.VehicleRegistrationID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'VehicleRegistrationController',
+                CompareOperators:$scope.CompareOperators,
+                BussinessSessions:$scope.BussinessSessions
+            }
+            var modalInstance=advanceSearchservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.PrintList = function()
+        {
+            var oVehicleRegistrations= $scope.gridOptions.data;
+            var ids ="";
+            if(oVehicleRegistrations.length >0)
+            {
+                for(var i =0;i<oVehicleRegistrations.length;i++)
+                {
+                    ids =ids+oVehicleRegistrations[i].VehicleRegistrationID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/VehicleRegistration/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oVehicleRegistrations=  $scope.gridOptions.data;
+            var ids ="";
+            if(oVehicleRegistrations.length >0)
+            {
+                for(var i =0;i<oVehicleRegistrations.length;i++)
+                {
+                    ids =ids+oVehicleRegistrations[i].VehicleRegistrationID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/VehicleRegistration/VehicleRegistrationExportToExcel?sIDs='+ids);
+        }
+
+        //button hide unhide
+        $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide();
+        if(PermissionChecker('Add','VehicleRegistration',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','VehicleRegistration',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','VehicleRegistration',oAuthorizationRolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','VehicleRegistration',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+        //if(PermissionChecker('PrintList','VehicleRegistration',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

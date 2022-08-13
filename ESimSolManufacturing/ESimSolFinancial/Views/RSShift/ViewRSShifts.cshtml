@@ -1,0 +1,212 @@
+﻿@{
+    ViewBag.Title = "RS Shift List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RSShift>
+
+    <div class="menuMainCollectionTable" ng-app="RSShiftApp" style="height:520px">
+        <div ng-controller="RSShiftController">
+            <div style="margin-bottom:2px; display:block" title="RSShift List" class="ui-grid-top-panel">
+                @*<input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Name" style="width:190px" />*@
+                    @*<button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printIt()"></button>*@
+                    <button type="button" id="btnAdd" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                    <button type="button" id="btnEdit" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                    <button type="button" id="btnDetails" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                    <button type="button" id="btnToggleActivity" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ToggleActivity()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Activity</span></button>
+                    <button type="button" id="btnDelete" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                    <button type="button" id="btnPrintList" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                    <button type="button" id="btnExportToExcel" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>
+                </div>
+            <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style="width:100%" ></div>@*id="printArea"*@
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oRSShifts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var nBUID=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    $('#btnExportToExcel,#btnPrintList').hide();
+    debugger;
+    var CCapp= angular.module('RSShiftApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('RSShiftController',function ($scope,$http,$window,uiGridConstants,userSession)
+    {
+        oRSShifts= (userSession.getData('RSShifts').length>0)? userSession.getData('RSShifts'):oRSShifts;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'Name', name:'Name', width:'20%' },
+              { field: 'StartTimeSt', name:'Start Time', width:'20%' },
+              { field: 'EndTimeSt', name:'End Time', width:'20%' },
+              { field: 'Name', name:'Name', width:'20%' },
+              { field: 'Note', name:'Note', width:'15%' , enableSorting: false},
+              { field: 'ActivitySt', name:'Active', width:'10%' }
+            ],
+            data: oRSShifts,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                if(oRSShifts.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oRSShifts);
+                    $scope.gridApi.selection.selectRow(oRSShifts[userSession.getRowIndex()]);
+                    $scope.RowSelect(oRSShifts[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        //$scope.printIt = function(){
+        //    var table = document.getElementById('printArea').innerHTML;
+        //    var myWindow = $window.open('', '', 'width=800, height=600');
+        //    myWindow.document.write(table);
+        //    myWindow.print();
+        //};
+
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("RSShifts", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("RSShiftHeader", "Add RSShift Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/RSShift/ViewRSShift?id=0&buid="+nBUID;
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRSShift= data[0];//get selected index
+            if(oRSShift==null || oRSShift.RSShiftID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRSShift);
+            sessionStorage.setItem("RSShifts", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RSShiftHeader", "Edit RSShift Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RSShift/ViewRSShift?id="+oRSShift.RSShiftID+"&buid="+nBUID;
+        }
+        $scope.ToggleActivity= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRSShift= data[0];//get selected index
+            if(oRSShift==null || oRSShift.RSShiftID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+
+            if(oRSShift.Activity){
+                if (!confirm("Confirm to Inactivate?")) return ;
+            }
+            else
+            {
+                if (!confirm("Confirm to Activate?")) return ;
+            }
+
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRSShift);
+          
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RSShift/ToggleActivity',oRSShift).then(
+                   function (response)
+                   {
+                       var oRSShift= jQuery.parseJSON(response.data);
+                       if (oRSShift.ErrorMessage=="" || oRSShift.ErrorMessage==null)
+                       {
+                           if(oRSShift.Activity)
+                               alert("Sift Is Activated!!");
+                           else
+                               alert("Sift Is Inactivated!!");
+                           $scope.gridOptions.data[SelectedRowIndex]=oRSShift;
+                       }
+                       else
+                       {
+                           alert(oRSShift.ErrorMessage);
+                       }
+
+                   },
+                       function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+               );
+        }
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRSShift= data[0];//get selected index
+            if(oRSShift==null || oRSShift.RSShiftID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRSShift);
+            sessionStorage.setItem("RSShifts", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RSShiftHeader", "View RSShift Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RSShift/ViewRSShift?id="+oRSShift.RSShiftID+"&buid="+nBUID;;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRSShift= data[0];//get selected index
+            if(oRSShift==null || oRSShift.RSShiftID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRSShift);
+            if (oRSShift.RSShiftID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/RSShift/Delete",
+                    data: { id: oRSShift.RSShiftID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+       
+        //button hide unhide
+            $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide();
+            if(PermissionChecker('Add','RSShift',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            if(PermissionChecker('Edit','RSShift',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            if(PermissionChecker('Edit','RSShift',oAuthorizationRolesMapping)){$("#btnToggleActivity").show();}
+            if(PermissionChecker('View','RSShift',oAuthorizationRolesMapping)){$("#btnView").show();}
+            if(PermissionChecker('Delete','RSShift',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            //if(PermissionChecker('PrintList','RSShift',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

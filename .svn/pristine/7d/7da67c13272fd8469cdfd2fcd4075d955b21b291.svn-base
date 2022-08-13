@@ -1,0 +1,292 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ReportingObject.ExportLCReport>
+
+    @{
+        ViewBag.Title = "Production Report";
+    }
+
+<div ng-app="DUPStatusApp" class="form-horizontal">
+    <div ng-controller="DUPStatusCntrl">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <label>Type :</label>
+                    <div class="input-group">
+                        <select id="cboReportType" class="form-control" ng-change="cboReportType()" style="width:120px" ng-model="ReportType">
+                            <option value="? number:0 ?"> --Select One--</option>
+                            <option value="1">Product Wise</option>
+                            <option value="2">MKTP Wise</option>
+                        </select>
+                    </div>
+                    <label>Layout :</label>
+                    <div class="input-group">
+                        <select id="cboReportLayout" class="form-control" ng-change="cboReportLayout()" style="width:120px" ng-model="ReportLayout">
+                            <option value="? number:0 ?"> --Select One--</option>
+                            <option value="1">Month Wise</option>
+                            <option value="2">Year Wise</option>
+                        </select>
+                    </div>
+                    <label>Year :</label>
+                    <div class="input-group date date-containerYear">
+                        <input id="dateDateYear" type="text" class="form-control" ng-init="initializeDatepickerYear()" style="width:100px" ng-model="DateYear" ng-disabled="YearDisabled">
+                        <span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                    </div>
+                    @*<label>Month :</label>
+                    <div class="input-group date date-containerMonth">
+                        <input id="dateDateMonth" type="text" class="form-control" ng-init="initializeDatepickerMonth()" style="width:100px" ng-model="DateMonth" ng-disabled="MonthDisabled">
+                        <span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                    </div>*@
+                    <label>BU :</label>
+                    <div class="input-group">
+                        <select id="cboUnit" ng-model="BusinessUnitID" ng-options="obj.BusinessUnitID as obj.BUTypeSt for obj in BusinessUnits" ng-disabled="ExportBusinessUnitID > 0" class="form-control">
+                            <option value="">--Select One--</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="RefreshAll()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Refresh</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printView()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+                </div>
+            </div>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable"></div>
+    </div>
+</div>
+
+<style type="text/css">
+    .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .grid-angular {
+        height: 500px;
+        width: 99%;
+    }
+
+    .btn-sm {
+        padding: 3px 10px;
+    }
+
+    .ui-grid-top-panel .btn-sm, .input-group-addon {
+        padding: 3px 10px;
+    }
+</style>
+
+<script type="text/javascript">
+
+var month = new Array();
+month[0] = "January";
+month[1] = "February";
+month[2] = "March";
+month[3] = "April";
+month[4] = "May";
+month[5] = "June";
+month[6] = "July";
+month[7] = "August";
+month[8] = "September";
+month[9] = "October";
+month[10] = "November";
+month[11] = "December";
+
+_sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+var _oDUPSs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+var _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+sessionStorage.setItem('BUID',_nBUID);
+var  DUPStatusApp = angular.module('DUPStatusApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+DUPStatusApp.controller('DUPStatusCntrl', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod)
+{
+    $scope.initializeDatepickerYear  =function(){
+        $('.date-containerYear').datepicker({
+            autoclose: true,
+            format: "yyyy",
+            viewMode: "years",
+            minViewMode: "years",
+            startDate: '2000',
+            endDate: new Date(),
+        });
+    };
+    $scope.BusinessUnits=oBusinessUnits;
+    $scope.BusinessUnitID=_nBUID;
+    $scope.ExportBusinessUnitID=_nBUID; //ForDisable CBO_BusinessUnit
+    $scope.YearDisabled=true;
+    $scope.ReportLayout=0;
+    $scope.ReportType=0;
+
+    $scope.cboReportLayout = function ()
+    {
+        $scope.YearDisabled=true;
+        if( $scope.ReportLayout>=1)
+        {
+            $scope.YearDisabled=false;
+            $scope.DateYear=new Date().getFullYear();
+        }
+    }
+
+    function GetDynamicColumnData(nRef)
+    {
+        var nRefID=0; var oExportLCReports=[];
+        debugger;
+        _oExportLCReport_Dist= $scope.results.Item2;
+        $scope.results=$scope.results.Item1;
+
+        if(_oExportLCReport_Dist==null)
+        {
+            alert("No Data Found!!"); return;
+        }
+        for(var i=0; i<_oExportLCReport_Dist.length ;i++ )
+        {
+            var nTotal=0.00;
+            var oExportLCReport= new Object();
+            oExportLCReport.ProductCode=_oExportLCReport_Dist[i].ProductCode;
+            oExportLCReport.ProductName=_oExportLCReport_Dist[i].ProductName;
+            oExportLCReport.MKTPName=_oExportLCReport_Dist[i].MKTPName;
+            
+            for(var k=0; k<$scope.results.length ;k++ )
+            {
+                if($scope.results[k][nRef]==_oExportLCReport_Dist[i][nRef])
+                {
+                    nTotal+=$scope.results[k].Qty;
+                    if($scope.ReportLayout==1)
+                        oExportLCReport[month[$scope.results[k].DateMonth-1]]=$scope.results[k].Qty;
+                    else
+                        oExportLCReport[$scope.results[k].Year]=$scope.results[k].Qty;
+                }
+            }
+            oExportLCReport.Total=nTotal;
+            oExportLCReports.push(oExportLCReport);
+        }
+        debugger;
+        $scope.gridOptions.data=oExportLCReports;
+    }
+    function GetDynamicColumn()
+    {
+        var oDetailColumns = [];
+        var oColumn = "";
+
+        if($scope.ReportType==1)
+        {
+            oColumn =  { field:'ProductCode', name: 'Code', width:'5%',  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+            oColumn = { field: 'ProductName', name: 'Product', width: '20%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        }
+        else
+        {
+            oColumn =  { field:'MKTPName', name: 'MKTP Name', width:'25%',  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        }
+
+        if($scope.ReportLayout==2 && $scope.DateYear!=null)//YearWise
+        {
+            for(var i=11; i>=0;i--)
+            {
+                oColumn = { field: (parseInt($scope.DateYear)-i), name: (parseInt($scope.DateYear)-i), width: '10%' , cellFilter:'number:2', cellClass: 'text-right',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' };oDetailColumns.push(oColumn);
+            }
+        }
+        else if($scope.ReportLayout==1)//MonthWise
+        {
+            var sYear=$scope.DateYear+"";
+            for(var i=0; i<12;i++)
+            {
+                oColumn = { field: month[i], name: month[i]+" "+sYear.substring(2, 4), width: '10%' , cellFilter:'number:2', cellClass: 'text-right',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' };oDetailColumns.push(oColumn);
+            }
+        }
+        oColumn = { field: 'Total', name: 'Total', width: '10%' ,  cellFilter:'number:2', cellClass: 'text-right',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' };oDetailColumns.push(oColumn);
+
+        debugger;
+        $scope.gridOptions ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.ALWAYS,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            columnDefs: oDetailColumns,
+            data:[],
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+            }
+        };
+    }
+
+    $scope.gridOptions ={
+        enableRowSelection: true,
+        enableRowHeaderSelection: false,
+        multiSelect: false,
+        enableColumnResizing: true,
+        showColumnFooter: true,
+        enableHorizontalScrollbar: uiGridConstants.scrollbars.ALWAYS,
+        enableHorizontalScrollbar : 2,
+        enableVerticalScrollbar : 2,
+        columnDefs: [],
+        data:[],
+        onRegisterApi:function(gridApi) {
+            $scope.gridApi = gridApi;
+        }
+    };
+
+    $scope.RefreshAll = function () {
+
+        if($scope.DateYear==null || $scope.DateYear.length<4)
+        {
+            alert("Please Select Month/Year And Try Again!!");
+            return;
+        }
+
+        $scope.oExportLCReport= {
+            DateYear:  $scope.DateYear,
+            LCReportTypeInt: $scope.ReportType,
+            LCReportLevelInt: $scope.ReportLayout, //LCReportLevelInt Used As ReportLayout
+            BUID:$scope.BusinessUnitID
+        }
+        debugger;
+        $http.post(_sBaseAddress + '/ExportLCReport/GetsProductReport',JSON.stringify($scope.oExportLCReport)).then(
+                function (response) {
+                    debugger;
+                    $scope.results = response.data;
+                    if ($scope.results.Item1.length > 0) {
+                        //$scope.gridOptions.data=$scope.results;
+                        GetDynamicColumn();
+                        if($scope.ReportType==1)
+                            GetDynamicColumnData('ProductID');
+                        else
+                            GetDynamicColumnData('MKTEmpID');
+                    }
+                    else {
+                        msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                        return;
+                    }
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+        );
+    };
+
+    $scope.printView = function()
+    {
+        if($scope.ReportLayout<=0)
+        {
+            alert("Please Select a Layout!!");
+            angular.element('#cboReportLayout').trigger('focus');
+            return;
+        }
+        if($scope.BusinessUnitID<=0)
+        {
+            alert("Please Select a Unit!!");
+            angular.element('#cboUnit').trigger('focus');
+            return;
+        }
+        var  sTemp =  "";
+        debugger;
+        if($scope.DateYear==undefined || $scope.DateYear=="")
+        {
+            angular.element('#dateDateYear').trigger('focus');
+            alert("Please Select a Year!!"); return;
+        }
+        sTemp =$scope.ReportType+'~'+$scope.ReportLayout+'~'+$scope.DateYear+'~'+$scope.BusinessUnitID;
+
+        window.open(_sBaseAddress + '/ExportLCReport/PrintExportLCReportProduct?sTemp='+sTemp, "_blank");
+    };
+
+});
+
+
+</script>

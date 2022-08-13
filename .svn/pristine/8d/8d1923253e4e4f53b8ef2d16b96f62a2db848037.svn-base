@@ -1,0 +1,239 @@
+﻿@{
+    ViewBag.Title = "DUOrderSetup";
+}
+@model IEnumerable <ESimSol.BusinessObjects.FabricDeliveryOrderDetail>
+    <div ng-app="FabricDeliveryOrderDetail" style="height:100%">
+        <div ng-controller="DUOrderSetupController" style="overflow-x:hidden">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" class="form-control" ng-model="PINo" ng-keydown="SearchByNo($event,1)" placeholder="Search by PI No" />
+                        <input type="text" class="form-control" ng-model="StyleNo" ng-keydown="SearchByNo($event,2)" placeholder="Search by Style No" />
+                        <input type="text" class="form-control" ng-model="ExeNo" ng-keydown="SearchByNo($event,3)" placeholder="Search by DisPo No" />
+                        <button type="button" class="btn btn-primary btn-sm" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"></span> Advance Search</button>
+                        <button type="button" class="btn btn-primary btn-sm" ng-click="PrintExel()"><span class="glyphicon glyphicon-print"></span> Print Exel</button>
+                    </div>
+                </div>
+            </div>
+            <div style="width:100%;" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        </div>
+    </div>
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .grid {
+            height: 520px;
+            width: 100%;
+        }
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+<script type="text/javascript">
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFabricDeliveryOrderDetails =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var  FabricDeliveryOrderDetail = angular.module('FabricDeliveryOrderDetail', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    FabricDeliveryOrderDetail.controller('DUOrderSetupController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch) {
+        debugger;
+        oFabricDeliveryOrderDetails= (userSession.getData('FabricDeliveryOrderDetails').length>0)? userSession.getData('FabricDeliveryOrderDetails'):oFabricDeliveryOrderDetails;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'PINo', name: 'PINo', width:'15%', enableCellEdit: false },
+                { field: 'ContractorName', name: 'ContractorName', width: '18%' },
+                { field: 'BuyerName', name: ' BuyerName', width: '18%' },
+                { field: 'MKTPerson', name: 'MKTPName', width: '15%' },
+                { field: 'ProductName', name: 'Compossion', width: '15%' },
+                { field: 'FabricNo', name: ' MKTRef', width: '15%' },
+                { field: 'DONo', name: 'DO No', width: '10%' },
+                { field: 'SCNoFull', name: 'SCNo', width: '10%' },
+                { field: 'Construction', name: 'Construction', width: '15%' },
+
+                
+                              //ColorInfo, ProcessTypeName, FinishTypeName, SCNoFull 
+                //{ field: 'FabricType', name: 'Fabric Type', width: '10%' },
+                { field: 'FabricWeaveName', name: 'Wave', width: '10%' },
+                { field: 'ColorInfo', name: 'Color', width: '8%'},
+                { field: 'StyleNo', name: 'Style No', width: '8%' },
+                { field: 'BuyerReference', name: 'Buyer Ref', width: '10%' },
+                { field: 'FinishType', name: 'Finish Type', width: '10%' },
+                { field: 'ProcessType', name: 'Process Type', width: '10%' },
+                { field: 'Qty.toFixed(2)', name: 'Qty', width: '8%' ,cellClass :'text-right'},
+                //{ field: 'UnitPrice.toFixed(2)', name: 'UnitPrice', width: '8%' ,cellClass :'text-right'},
+                //{ field: 'Amount.toFixed(2)', name: 'Amount', width: '8%' ,cellClass :'text-right'},
+                { field: 'Qty_PO.toFixed(2)', name: ' Qty PO', width: '8%',cellClass :'text-right' },
+                //{ field: 'Qty_DO.toFixed(2)', name: 'Qty DO', width: '8%' ,cellClass :'text-right'},
+                { field: 'Qty_DC.toFixed(2)', name: 'Qty DC', width: '8%' ,cellClass :'text-right'},
+                //{ field: 'YetToDo.toFixed(2)', name: 'Yet To DO', width: '8%' ,cellClass :'text-right'},
+                //{ field: 'YetToDelivery.toFixed(2)', name: 'Yet To delivery', width: '8%' ,cellClass :'text-right'},
+            ],
+            data:oFabricDeliveryOrderDetails,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFabricDeliveryOrderDetails.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFabricDeliveryOrderDetails);
+                    $scope.gridApi.selection.selectRow(oFabricDeliveryOrderDetails[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFabricDeliveryOrderDetails[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        $scope.AdvanceSearch = function()
+        {
+
+            oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Contractor List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            oColumns1 = [];
+            var oColumn1 = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns1.push(oColumn1);
+            oColumn1 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns1.push(oColumn1);
+
+            var paramObj_Buyer={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Buyer List',
+                multiSelect:true,
+                columns:oColumns1
+            }
+            oColumns2 = [];
+            var oColumn2 = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns2.push(oColumn2);
+            oColumn2 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns2.push(oColumn2);
+
+            var paramObj_MKTP={
+                obj:{
+                    Name : '@@MarketingAccountID',
+                    BUID : sessionStorage.getItem('BUID')
+                },
+                objName:'Name',
+                objField:'MarketingAccountID',
+                url:_sBaseAddress+'/MarketingAccount/MarketingAccountSearchByName',
+                title:'Marketing Person List',
+                multiSelect:true,
+                columns:oColumns2
+            }
+            var status = [
+                {ID:"0", Value:"Defult"},
+                {ID:"1", Value:"Open"},
+                {ID:"2", Value:"PO Issue"}
+            ];
+            var oFabricDeliveryOrderDetail = [
+                               { DisplayName: "PINo",       BOField: "PINo",        InputType: 'text' },
+                               { DisplayName: "DO No",      BOField: "DONo",        InputType: 'text' },
+                               { DisplayName: "DisPo No",   BOField: "ExeNo",        InputType: 'text' },
+                               { DisplayName: "Style No",   BOField: "StyleNo",        InputType: 'text' },
+                               { DisplayName: "Fabric No",  BOField: "FabricNo",        InputType: 'text' },
+                               { DisplayName: "Contractor Name",    BOField: "ContractorName",      InputType: 'picker', PickerObject:paramObj_Contractor },
+                               { DisplayName: "Buyer Name",         BOField: "BuyerName",           InputType: 'picker', PickerObject:paramObj_Buyer },
+                               { DisplayName: "Marketing Person",   BOField: "MKTPerson",  InputType: 'picker', PickerObject:paramObj_MKTP },
+                               //{ DisplayName: "Issue Date",         BOField: "IssueDate",           InputType: 'date' },
+                               //{ DisplayName: "Order Sheet Status", BOField: "OrderSheetDetailID",  InputType: 'select', OptionList:status, OptionValue:{id:'ID', Value:'Value'}},
+                               { BOField:     "BUID",               Value:_nBUID,                   InputType: 'hidden'},
+                               { DisplayName: "Issue Date",         BOField: "IssueDate",           InputType: 'date' },
+            ];
+
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oFabricDeliveryOrderDetail,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/FabricDeliveryOrder/AdvSearch_Report'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        }
+        $scope.SearchByNo = function (e,nid) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var oFabricDeliveryOrderDetail ={};
+                if (nid!=0)
+                {
+                    oFabricDeliveryOrderDetail = {
+                        PINo:$.trim($scope.PINo),
+                       // StyleNo:$.trim($scope.StyleNo),
+                       // ExeNo:$.trim($scope.ExeNo),
+                        //BUID:_nBUID
+                    };
+                }
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/FabricDeliveryOrder/AdvSearch_Report',$.param(oFabricDeliveryOrderDetail), config).then(
+                            function (response)
+                            {        debugger;
+                                var oResults = (response.data);
+                                if(oResults.length>0)
+                                {
+                                    sessionStorage.removeItem("AdvSearchObject");
+                                    sessionStorage.setItem("AdvSearchObject", JSON.stringify(oFabricDeliveryOrderDetail));
+                                    $scope.gridOptions.data = (response.data);
+                                }else{
+                                    alert("Data Not found.");
+                                }
+                            },
+                                function (response) { alert(response.statusText); }
+                        );
+            }
+        };
+        $scope.PrintExel = function(){
+            debugger;
+            var string = (sessionStorage.getItem("AdvSearchObject"));
+            if(string=="" || string==null)
+            {
+                alert("Please First Advance Search");
+                return;
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FabricDeliveryOrder/SetSessionSearchCriteria',$.param(JSON.parse(string)), config).then(
+                        function (response)
+                        { 
+                            window.open(_sBaseAddress + '/FabricDeliveryOrder/ExportToExcel_FDO?ts=' + Math.random());
+                        },
+                            function (response) { alert(response.statusText); }
+                    );
+        };
+       
+    });
+
+</script>

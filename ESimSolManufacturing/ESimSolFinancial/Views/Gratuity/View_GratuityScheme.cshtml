@@ -1,0 +1,367 @@
+﻿@{
+    ViewBag.Title = "Gratuity";
+}
+<html>
+<head>
+    <title>Gratuity Scheme</title>
+</head>
+<body>
+    @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+    @model ESimSol.BusinessObjects.GratuityScheme
+    <div style="font-family:Tahoma; width:100%; margin-left:0%;margin-top:0%;margin-left:0%;">
+        <fieldset style="width:98%">
+            <legend style="font-weight:bold"> Gratuity Scheme </legend>
+         
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight: bold; width:100%">
+                    <tr style="width:100%">
+                        <td style=" text-align:right;width:10%;">
+                            Name :
+                        </td>
+                        <td style=" text-align:left;width:90%;">
+                            <input id="txtName" type="text" style="width:96.5%;" />
+                        </td>
+                    </tr>
+                    <tr style="width:100%">
+                        <td style=" text-align:right;width:10%;">
+                            Description :
+                        </td>
+                        <td style=" text-align:left;width:90%;">
+                            <textarea style="width:96.5%;" id="txtDescription"></textarea>
+                        </td>
+                    </tr>
+                    <tr style="width:100%">
+                        <td></td>
+                        <td>
+                            Maturity Duration
+                            <select id="cboMaturity_Year_Start"></select>
+                            To
+                            <select id="cboMaturity_Year_End"></select>
+                            Years of
+                            <select id="cboActivationAfter"></select>
+                            Benifits
+                            <input id="txtValue_In_Percent" type="text" style="width:50px;" class="number" />
+                            % of last
+                            <select id="cboGratuityApplyOn"></select>
+                            After maturity at the time of employee resignation, <br /> rest of the fraction year will be considered as one year if
+                            <select id="cbomonthscross"></select>
+                            months cross
+                        </td>
+                    </tr>
+                </table>
+                <a id="btnAddDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnRemoveDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <div style="margin-left:0px;width:97%;">
+                    <table id="tblGratuitySchemeDetail" title="Gratuity Scheme Detail" class="easyui-datagrid" style="width:100%; height:280px; fitcolumns=" false" rownumbers="true" pagination="fasle" singleselect="true" autorowheight="false">
+                        <thead>
+                            <tr>
+                                <th field="MaturityInString" width="30%" align="left">Maturity</th>
+                                <th field="BenefitInString" width="32%" align="left">Benefit</th>
+                                <th field="FractionMonthInString" width="35%" align="left">fraction Month As Year</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+        </fieldset>
+        <fieldset style="width:98%">
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:98%">
+                <tr style="width:100%;">
+                    <td style="width:85%; text-align:right"></td>
+
+                    <td style="width:15%;">
+
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="true">Back</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oGratuityScheme = {GSID:0};
+    var _sBaseAddress = "";
+    var _nMenuid=0;
+    var _sGratuitySchemeHeader="";
+    var _oActivationAfter=[];
+    var _oPayrollApplyOn=[];
+
+    $(document).ready(function() {
+        debugger
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oGratuityScheme = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(MenuID));
+        _oActivationAfter= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.ActivationAfter));
+        _oPayrollApplyOn= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.PayrollApplyOn));
+        _sGratuitySchemeHeader=sessionStorage.getItem("GratuitySchemeHeader");
+        $("#txtName").focus()
+        $('#cboActivationAfter').icsLoadCombo({
+            List: _oActivationAfter,
+            OptionValue: "Value",
+            DisplayText: "Text",
+            InitialValue: ""
+        });
+
+        $('#cboGratuityApplyOn').icsLoadCombo({
+            List: _oPayrollApplyOn,
+            OptionValue: "Value",
+            DisplayText: "Text",
+            InitialValue: ""
+        });
+
+        LoadYear();
+        LoadMonth();
+        if(_oGratuityScheme.ErrorMessage!="")
+        {
+            alert(_oGratuityScheme.ErrorMessage);
+            _oGratuityScheme.ErrorMessage=="";
+        }
+        $("#lblHeaderName").html(_sGratuitySchemeHeader);
+
+        if (_sGratuitySchemeHeader == "Edit GratuityScheme")
+        {
+            $("#txtName").val(_oGratuityScheme.Name);
+            $("#txtDescription").val(_oGratuityScheme.Description);
+            if(_oGratuityScheme.GratuitySchemeDetails.length>0){DynamicRefreshList(_oGratuityScheme.GratuitySchemeDetails, "tblGratuitySchemeDetail");}
+            
+        }
+
+        if (_sGratuitySchemeHeader == "View GratuityScheme")
+        {
+            $("#txtName").val(_oGratuityScheme.Name);
+            $("#txtDescription").val(_oGratuityScheme.Description);
+            if(_oGratuityScheme.GratuitySchemeDetails.length>0){DynamicRefreshList(_oGratuityScheme.GratuitySchemeDetails, "tblGratuitySchemeDetail");}
+
+            $("#txtName").prop("disabled", true);
+            $("#txtDescription").prop("disabled", true);
+            $("#btnSave").hide();
+            $("#btnAddDetail").hide();
+            $("#btnRemoveDetail").hide();
+        }
+
+    } );
+
+    function ValidateDetailInput() 
+    {
+        if ($("#txtValue_In_Percent").val() == null || $("#txtValue_In_Percent").val() == "" || $("#txtValue_In_Percent").val()<=0)
+        {
+            alert("Please enter Benefit In Percent!");
+            $('#txtValue_In_Percent').focus();
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnAddDetail").click(function () {
+        
+        if (!ValidateInput()) return;
+        if (!ValidateDetailInput()) return;
+
+        oDetail={ 
+            GSDID:0,
+            GSID :_oGratuityScheme.GSID,
+            MaturityYearStart:$("#cboMaturity_Year_Start").val(),
+            MaturityYearEnd:$("#cboMaturity_Year_End").val(),
+            ActivationAfter:$("#cboActivationAfter").val(),
+            ValueInPercent:$("#txtValue_In_Percent").val(),
+            GratuityApplyOn:$("#cboGratuityApplyOn").val(),
+            NoOfMonthCountOneYear:$("#cbomonthscross").val(),
+        }
+
+        oDetail.GratuityScheme = RefreshObject();
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oDetail,
+            ObjectId: oDetail.GSDID,
+            ControllerName: "Gratuity",
+            ActionName: "GratuitySchemeDetail_IU",
+            TableId: "tblGratuitySchemeDetail",
+            IsWinClose: false,
+        };
+
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if (response.obj.GSDID > 0 && response.obj.GSID > 0) {
+                    debugger
+                    if(_oGratuityScheme.GSID<=0)
+                    {
+                        _oGratuityScheme=response.obj.GratuityScheme;
+                        var oGratuitySchemes =sessionStorage.getItem("GratuitySchemes");
+                        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if(oGratuitySchemes!=null)
+                        {
+                            oGratuitySchemes = jQuery.parseJSON(oGratuitySchemes);
+                        }
+                        else
+                        {
+                            oGratuitySchemes=[];
+                        }
+                        sessionStorage.setItem("SelectedRowIndex", oGratuitySchemes.length);
+                        oGratuitySchemes.push(_oGratuityScheme);
+                        sessionStorage.setItem("GratuitySchemes", JSON.stringify(oGratuitySchemes));
+                        
+                    }
+                }
+            }
+        });
+
+        $("#cboMaturity_Year_Start").focus();
+        
+    });
+
+    function ValidateInput() {
+        if ($("#txtName").val() == null || $("#txtName").val() == "") {
+            alert("Please enter a name!");
+            $('#txtName').focus();
+            return false;
+        }
+
+        if ($("#txtDescription").val() == null || $("#txtDescription").val() == "") {
+            alert("Please enter a description!");
+            $('#txtDescription').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject() {
+        var oGratuityScheme = {
+            GSID: _oGratuityScheme.GSID,
+            Name: $("#txtName").val(),
+            Description: $("#txtDescription").val(),
+        };
+        return oGratuityScheme;
+    }
+
+    function Save() {
+        if (!ValidateInput()) return;
+        var oGratuityScheme = RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Gratuity/GratuityScheme_IU",
+            traditional: true,
+            data: JSON.stringify(oGratuityScheme),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                _oGratuityScheme = jQuery.parseJSON(data);
+                if (_oGratuityScheme.ErrorMessage == "" && _oGratuityScheme.GSID>0)
+                {
+                    alert("Data Saved sucessfully");
+                    var oGratuitySchemes =sessionStorage.getItem("GratuitySchemes");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oGratuitySchemes!=null)
+                    {
+                        oGratuitySchemes = jQuery.parseJSON(oGratuitySchemes);
+                    }
+                    else
+                    {
+                        oGratuitySchemes=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oGratuitySchemes[nIndex]=_oGratuityScheme;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oGratuitySchemes.length);
+                        oGratuitySchemes.push(_oGratuityScheme);
+                    }
+                    sessionStorage.setItem("GratuitySchemes", JSON.stringify(oGratuitySchemes));
+                    window.location.href = _sBaseAddress+ "/Gratuity/View_GratuitySchemes?menuid="+_nMenuid;
+
+                }
+                else
+                {
+                    alert(_oGratuityScheme.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnRemoveDetail").click(function () {
+        var oDetail = $('#tblGratuitySchemeDetail').datagrid('getSelected');
+        if (oDetail == null || oDetail.GSDID <= 0) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+
+        var SelectedRowIndex = $('#tblGratuitySchemeDetail').datagrid('getRowIndex', oDetail);
+        $('#tblGratuitySchemeDetail').datagrid('deleteRow', SelectedRowIndex);
+        if (oDetail.GSDID > 0) {
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oDetail,
+                ControllerName: "Gratuity",
+                ActionName: "GratuitySchemeDetail_Delete",
+                TableId: "tblGratuitySchemeDetail",
+                IsWinClose: false
+            };
+            $.icsDelete(obj);
+        }
+    });
+
+    $("#btnClose").click(function () {
+        window.location.href = _sBaseAddress+ "/Gratuity/View_GratuitySchemes?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function (e)
+    {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 27)
+        {
+            window.location.href = _sBaseAddress+ "/Gratuity/View_GratuitySchemes?menuid="+_nMenuid;
+        }
+    });
+
+    function LoadYear()
+    {
+        var oObj= new Object();
+        var oItems=[];
+
+        for(var i=1; i<41;i++)
+        {
+            oObj= new Object();
+            oObj.Value=i;
+            oObj.Text=i;
+            oItems.push(oObj);
+        }
+
+        $("#cboMaturity_Year_Start,#cboMaturity_Year_End").icsLoadCombo({
+            List: oItems,
+            OptionValue: "Value",
+            DisplayText: "Text",
+            InitialValue: ""
+        });
+    }
+
+    function LoadMonth()
+    {
+        var oObj= new Object();
+        var oItems=[];
+
+        for(var i=1; i<13;i++)
+        {
+            oObj= new Object();
+            oObj.Value=i;
+            oObj.Text=i;
+            oItems.push(oObj);
+        }
+
+        $("#cbomonthscross").icsLoadCombo({
+            List: oItems,
+            OptionValue: "Value",
+            DisplayText: "Text",
+            InitialValue: ""
+        });
+    }
+</script>

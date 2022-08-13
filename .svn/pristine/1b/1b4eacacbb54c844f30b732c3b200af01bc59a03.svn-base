@@ -1,0 +1,699 @@
+﻿<html>
+@{
+    ViewBag.Title = "Import Payment Request";
+}
+<body>
+    @model ESimSol.BusinessObjects.ImportPaymentRequest
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable">
+        <div id="divPIPR" class="easyui-panel" title="Import Payment Request" style="font-family:Tahoma; text-align:center; height:90%;">
+            <div style="width:100%">
+                <fieldset>
+                    <legend>Invoice Bill Purchase Info :</legend>
+                    <table border="0" style="width:100%;" cellpadding="2" cellspacing="2">
+                        <tr>
+                            <td style="width: 12%; text-align: right; font-size:12px;"> Ref No: </td>
+                            <td style="width: 20%; text-align:left;">
+                                @Html.TextBoxFor(model => model.RefNo, new { style = "width: 100%; font-size:12", id = "txtRefNo", disabled = "disabled" })
+                            </td>
+                            <td style="width:15%"></td>
+                            <td style="width:20%"></td>
+                            <td style="width: 13%; text-align: right; font-size:12px;">Issue Date:</td>
+                            <td style="width: 20%; text-align:left;">
+                                <input id="txtIssueDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 100%;" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 12%; text-align: right; font-size:12px;"> Liability Type :</td>
+                            <td style="width: 20%; text-align:left;">
+                                <select id="cboLiabilityType" style="width: 100%" onchange="ChangeLiabilityType();">  </select>
+                            </td>
+                            <td style="width:15%; text-align:right">Currency Type :</td>
+                            <td style="width:20%">
+                                <select id="cboCurrencyType" onchange="ChangeCurrency();" style="width: 100%">  </select>
+                            </td>
+                            <td style="width: 13%; text-align: right; font-size:12px;">Through :</td>
+                            <td style="width: 20%; text-align:left;">
+                                <select id="cboPaymentthrough" style="width: 100%">  </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 12%; text-align: right; font-size:12px;"> Bank :</td>
+                            <td colspan="3" style="width: 55%; text-align:left;">
+                                <table border="0" style="width:100%">
+                                    <tr>
+                                        <td style="width:90%">
+                                            <input type="text" style="width:100%; float: left;" id="txtBranchName" placeholder="Type part Name then press enter" />
+                                        </td>
+                                        <td style="width:10%">
+                                            <input type="button" id="btnPickBranch" value="Pick" style="width:100%; text-align:center; font-weight:bold" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td style="width: 13%; text-align: right; font-size:12px;">Account No :</td>
+                            <td style="width: 20%; text-align:left;">
+                                <table border="0" style="width:100%">
+                                    <tr>
+                                        <td style="width:80%">
+                                            <select id="cboBankAccount" style="width:100%">  </select>
+                                        </td>
+                                        <td style="width:20%">
+                                            <input type="button" value=".." id="btnloadBankAccount" style="width:100%; text-align:center; font-weight:bold" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 12%; text-align: right; font-size:12px;"> Remarks :</td>
+                            <td colspan="5" style="width: 88%; text-align:left;">
+                                @Html.TextBoxFor(model => model.Note, new { style = "width: 100%; font-size:12", id = "txtNote" })
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+
+            <div title="Requested Invoices" style="margin-left:2px;">
+                <table id="tbPIPRDetail" title="Requested Invoices" class="easyui-datagrid" style="width:100%; height: 280px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#DetailtoolBar">
+                    <thead>
+                        <tr>
+                            <th field="ImportInvoiceNo" width="25%" align="left">Invoice No</th>
+                            <th field="ImportLCNo" width="25%" align="left">Import LCNo</th>
+                            <th field="AmountSt" width="15%" align="right"> Amount </th>
+                            <th field="DateofMaturityST" width="15%" align="left">Maturity Date</th>
+                            <th field="AmountBCSt" width="15%" align="right"> Amount(BDT) </th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="DetailtoolBar">
+                    <input type="button" id="btnPickInvoice" value="Pick Invoices" style="width: 100px; font-size: 12px" />
+                    <input type="button" id="btnRemoveInvoiceDetail" value="Remove" onclick="RemoveDetail()" style="width: 100px; font-size: 12px" />
+                    <input type="button" id="btnRefreshInvoiceDetail" value="Refresh" onclick="RefreshPIDetail()" style="width: 100px; font-size: 12px" />
+                    <label id="lblCRate" style="text-align: right; font-size:12px">Convertion Rate</label>
+                    <input type="text" id="txtCRate" value="0" style="width: 80px; font-size: 12px" />
+                </div>
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                    <tr>
+                        <td style="width:50%;  text-align:right;font-weight:bold;">Total:</td>
+                        <td style="width:15%;  text-align:right;font-weight:bold;"><label id="lblTotalValue">0.00</label> </td>
+                        <td style="width:15%;  text-align:right;font-weight:bold;"> </td>
+                        <td style="width:15%; text-align:right; font-weight:bold;"><label id="lblTotalValueBC">0.00</label> </td>
+                        <td style="width:5%;  text-align:right;font-weight:bold;"> </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:83%; text-align:right"></td>
+                    <td style="width:17%;text-align:right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-closed" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oImportPaymentRequest=null;    
+    var _oBankAccounts =[];
+    var _sBackLink ="";
+    var _sPCHeader="";
+    var _oCurrencyTypes="";
+    var _oLiabilityTypeObj="";
+    var _nBUID=0;    
+    $(document).ready(function () {        
+        _oImportPaymentRequest =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        _oCurrencyTypes= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CurrencyTypes));
+        _oLiabilityTypeObj= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LiabilityTypeObj));
+        _oImportPaymentRequestDetails = _oImportPaymentRequest.ImportPaymentRequestDetails;
+        _oBankAccounts=_oImportPaymentRequest.BankAccounts;
+        RefreshCbo();
+        $('#txtIssueDate').datebox('setValue',_oImportPaymentRequest.LetterIssueDateInString);
+
+        if(_oImportPaymentRequest.ImportPaymentRequestID>0)
+        {
+            document.getElementById('txtBranchName').value=_oImportPaymentRequest.BankName;
+        }
+
+        _sBackLink=sessionStorage.getItem("BackLink");
+        _sPCHeader= sessionStorage.getItem("ImportPaymentRequestHeader");
+        $('#divPIPR').panel({ title:_sPCHeader});
+
+        RefreshListDetails(_oImportPaymentRequestDetails);
+        if(_sPCHeader=="View Payment request Letter")
+        {
+            document.getElementById('btnSave').style.display = 'none';
+            document.getElementById('txtRefNo').disabled = true;
+            document.getElementById('txtIssueDate').disabled = true;            
+            document.getElementById('btnPickBranch').disabled = true;
+            document.getElementById('txtNote').disabled = true;
+            document.getElementById('btnPickInvoice').disabled = true;
+            document.getElementById('btnRemoveInvoiceDetail').disabled = true;
+            document.getElementById('btnRefreshInvoiceDetail').disabled = true;            
+            $("#divPIPR :input").prop('disabled', true);
+        }
+        if(_oBankAccounts.length>0)
+        {
+            RefreshBankAccount(_oBankAccounts)
+        }
+        RefreshControl();
+        ChangeLiabilityType();
+        $('#txtCRate').icsCurrencyBox();
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+    
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+    
+    function RefreshControl()
+    {
+        $('#cboCurrencyType').val(_oImportPaymentRequest.CurrencyType);
+        $('#cboPaymentthrough').val(_oImportPaymentRequest.Paymentthrough);
+        $('#txtCRate').val(_oImportPaymentRequest.Paymentthrough);
+        $('#txtCRate').val(_oImportPaymentRequest.CRate);
+        $('#cboLiabilityType').val(_oImportPaymentRequest.LiabilityTypeInt);
+    }
+
+    function ChangeCurrency()
+    {
+        var nCurrencyType=parseInt($("#cboCurrencyType").val());
+        if( nCurrencyType===1)
+        {
+            $("#lblTotalValueBC" ).show();
+            $("#txtCRate" ).show();
+            $("#lblCRate" ).show();
+            $("#tbPIPRDetail").datagrid("showColumn", "AmountBCSt");
+        }
+        else
+        {
+            $("#lblTotalValueBC" ).hide();
+            $("#txtCRate" ).hide();
+            $("#lblCRate" ).hide();
+            $("#tbPIPRDetail").datagrid("hideColumn", "AmountBCSt");
+        }
+    }
+
+    function ChangeLiabilityType()
+    {
+        var nCurrencyType=parseInt($("#cboLiabilityType").val());
+        if( nCurrencyType===3)
+        {
+            $("#cboCurrencyType").prop("disabled", true);
+            $("#cboPaymentthrough").prop("disabled", true);
+            $("#cboCurrencyType").val(0);
+            $("#cboPaymentthrough").val(0);
+            ChangeCurrency();
+        }
+        else
+        {
+            $("#cboCurrencyType").prop("disabled", false);
+            $("#cboPaymentthrough").prop("disabled", false);  
+            ChangeCurrency();
+        }
+    }
+
+    function IsExists(nImportInvoiceID)
+    {
+        var oImportPaymentRequestDetails = $('#tbPIPRDetail').datagrid('getRows');
+        for(var i =0;i<oImportPaymentRequestDetails.length;i++)
+        {
+            if(oImportPaymentRequestDetails[i].ImportInvoiceID==nImportInvoiceID)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function RefreshCbo()
+    {
+        $("#cboCurrencyType").icsLoadCombo({      List: _oCurrencyTypes,    OptionValue: "id",       DisplayText: "Value"     });
+        $("#cboLiabilityType").icsLoadCombo({      List: _oLiabilityTypeObj,    OptionValue: "id",       DisplayText: "Value"     });
+        $("#cboPaymentthrough").empty();
+        var listLCTerms="";
+        listLCTerms +="<option value='0'>"+'---Select --'+"</option>";
+        listLCTerms +="<option value='1'>"+'BBK cheque'+"</option>";
+        listLCTerms +="<option value='2'>"+'Account debit'+"</option>";
+        $("#cboPaymentthrough").html(listLCTerms);
+
+    }
+
+    function RemoveDetail()
+    {
+        var oImportPaymentRequestDetail =$('#tbPIPRDetail').datagrid('getSelected');
+        if(oImportPaymentRequestDetail ==null)
+        {
+            alert("Select At least One item !");
+            return;
+        }
+        var SelectedRowIndex=$('#tbPIPRDetail').datagrid('getRowIndex',oImportPaymentRequestDetail);
+        if (!confirm("Confirm to Delete?")) return ;
+        $('#tbPIPRDetail').datagrid('deleteRow',SelectedRowIndex);
+        SetTotal();
+    }
+
+    function SetTotal()
+    {
+        var oImportPaymentRequestDetails = $('#tbPIPRDetail').datagrid('getRows');
+        var nTotalValue = 0;
+        var nTotalValueBC = 0;
+        var sCurrency = 0;
+        if(oImportPaymentRequestDetails.length>0)
+        {
+            for(var i =0;i<oImportPaymentRequestDetails.length;i++)
+            {
+                nTotalValue = nTotalValue+ parseFloat(oImportPaymentRequestDetails[i].Amount);
+                nTotalValueBC = nTotalValueBC+ parseFloat(oImportPaymentRequestDetails[i].Amount*oImportPaymentRequestDetails[i].CCRate);
+                sCurrency=oImportPaymentRequestDetails[i].Currency;
+            }
+        }
+        document.getElementById('lblTotalValue').innerHTML =sCurrency+''+formatPrice(parseFloat(nTotalValue),null);
+        document.getElementById('lblTotalValueBC').innerHTML ='BDT '+''+formatPrice(parseFloat(nTotalValueBC),null);
+
+    }
+
+    $("#txtCRate").keyup(function (e){        
+        var sCrate =  $('#txtCRate').val();
+        var nCrate = icsRemoveComma(sCrate);
+        var oPIDetails = $('#tbPIPRDetail').datagrid('getRows');
+        if(oPIDetails.length>0)
+        {
+            for(var i =0;i<oPIDetails.length;i++)
+            {
+                oPIDetails[i].CCRate=nCrate;
+                oPIDetails[i].AmountBCSt= 'BDT'+formatPrice(parseFloat(oPIDetails[i].Amount*nCrate));
+            }
+            RefreshListDetails(oPIDetails);
+        }
+
+    });
+
+    function RefreshListDetails(oImportPaymentRequestDetails)
+    {
+        data=oImportPaymentRequestDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tbPIPRDetail').datagrid('loadData',data);
+        SetTotal();
+    }
+
+    function RefreshObject()
+    {        
+        var cboBankAccount = document.getElementById("cboBankAccount");
+        var nBankAccountID=0;
+        if(cboBankAccount.selectedIndex<=0)
+        {
+            nBankAccountID=0;
+        }
+        else
+        {
+            nBankAccountID=cboBankAccount.options[cboBankAccount.selectedIndex].value;
+        }
+
+        var scboLiabilityType=document.getElementById("cboLiabilityType");
+
+        var oImportPaymentRequest=   {
+            ImportPaymentRequestID : _oImportPaymentRequest.ImportPaymentRequestID,
+            BUID:_nBUID,
+            RefNo : document.getElementById("txtRefNo").value,
+            BankAccountID : parseInt(nBankAccountID),
+            LetterIssueDate : $('#txtIssueDate').datebox('getValue'),
+            RequestBy : _oImportPaymentRequest.RequestBy,
+            ApprovedBy : _oImportPaymentRequest.ApprovedBy,
+            LiabilityTypeInt: scboLiabilityType.options[scboLiabilityType.selectedIndex].value,
+            Note : document.getElementById("txtNote").value,
+            CurrencyType:$('#cboCurrencyType').val(),
+            Paymentthrough:$('#cboPaymentthrough').val(),
+            CRate:$('#txtCRate').val(),
+            ImportPaymentRequestDetails : $('#tbPIPRDetail').datagrid('getRows')
+        };
+        return oImportPaymentRequest;
+    }
+
+    function Save()
+    {        
+        if(!ValidateInput()) return;
+        var oImportPaymentRequest=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/ImportPaymentRequest/Save",
+            traditional: true,
+            data:  JSON.stringify(oImportPaymentRequest),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var oPIPR= jQuery.parseJSON(data);
+                if (oPIPR.ErrorMessage=="" || oPIPR.ErrorMessage==null)
+                {
+                    alert("Data Save Succesfully!!");                    
+                    _oImportPaymentRequest=oPIPR;
+                    var oPIPRs =sessionStorage.getItem("ImportPaymentRequests");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));                    
+                    if(oPIPRs!=null)
+                    {
+                        oPIPRs = jQuery.parseJSON(oPIPRs);
+                    }
+                    else
+                    {
+                        oPIPRs=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oPIPRs[nIndex]=_oImportPaymentRequest;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oPIPRs.length);
+                        oPIPRs.push(_oImportPaymentRequest);
+                    }
+                    sessionStorage.setItem("ImportPaymentRequests", JSON.stringify(oPIPRs));
+
+                    window.location.href = _sBackLink;
+                }
+                else
+                {
+                    alert(oPIPR.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    function ValidateInput()
+    {        
+        var sIssueDate =$('#txtIssueDate').datebox('getValue');
+        if(sIssueDate==null || sIssueDate=="")
+        {
+            alert("Select Select Issue Date!");
+            return false;
+        }
+        if(_oImportPaymentRequest==null)
+        {
+            alert("Select Advice Bank!");
+            return false;
+        }
+        if(parseInt(_oImportPaymentRequest.BankBranchID)<=0)
+        {
+            alert('Please Select a Bank!');
+            $('#txtBranchName').focus();
+            return false;
+        }
+        if(parseInt(_oImportPaymentRequest.BankBranchID)>0)
+        {
+            if($('#cboBankAccount').val()==0)
+            {
+                alert('Please Select a Bank Account!');
+                $('#cboBankAccount').focus();
+                return false;
+            }
+        }
+
+        var oImportPaymentRequestDetails = $('#tbPIPRDetail').datagrid('getRows');
+        if(oImportPaymentRequestDetails.length <=0)
+        {
+            alert("Please add at least one Invoice!");
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnloadBankAccount").click(function(){
+        if(_oImportPaymentRequest.BankBranchID>0)
+        {
+            RefreshBankAccounts(_oImportPaymentRequest.BankBranchID)
+        }
+    });
+    
+    function RefreshBankAccounts(nBankBranchID)
+    {
+        if(parseInt(nBankBranchID)<=0) return;
+        var oBankAccount= {
+            BankBranchID : nBankBranchID
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/BankAccount/GetsByBranchAndAccount",            
+            traditional: true,
+            data:  JSON.stringify(oBankAccount),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {                
+                var oBankAccounts;
+                oBankAccounts = jQuery.parseJSON(data);
+                $('#cboBankAccount').empty();
+                var listItems= "<option value='0'>--Select Bank Account--</option>";
+                for (var i = 0; i < oBankAccounts.length; i++)
+                {
+                    listItems+= "<option value='" + oBankAccounts[i].BankAccountID + "'>" + oBankAccounts[i].AccountNo+" </option>";
+                }
+                $("#cboBankAccount").html(listItems);
+                $("#cboBankAccount").val(_oImportPaymentRequest.BankAccountID);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function RefreshBankAccount(oBankAccounts)
+    {
+        $('#cboBankAccount').empty();
+        var listItems= "<option value='0'>--Select Bank Account--</option>";
+        for (var i = 0; i < oBankAccounts.length; i++)
+        {
+            listItems+= "<option value='" + oBankAccounts[i].BankAccountID + "'>" + oBankAccounts[i].AccountNo+" </option>";
+        }
+        $("#cboBankAccount").html(listItems);
+        $("#cboBankAccount").val(_oImportPaymentRequest.BankAccountID);
+    }
+
+    $("#txtBranchName").keydown(function (e) {
+        if (e.keyCode === 13) // Enter Press
+        {
+            if($("#txtBranchName").val()=="" || $("#txtBranchName").val()==null)
+            {
+                $("#txtBranchName").removeClass("fontColorOfPickItem");
+                alert("Please, Type name or Name Part ")
+                return;
+            }
+        
+            var oBankBranch = {
+                BUID: _nBUID,
+                DeptIDs: '2',//EnumOperationalDept : Export_Party=5
+                BankName: $.trim($("#txtBranchName").val())
+            };
+            PickBanksBranch(oBankBranch);
+        }
+        else if(nkeyCode==8){
+            $("#txtBranchName").removeClass("fontColorOfPickItem");
+            _oImportPaymentRequest.BankBranchID=0;
+        }
+    });
+
+    $("#btnClrBankBranch_Issue").click(function () {
+        $("#txtBranchName").removeClass("fontColorOfPickItem");
+        $("#txtBranchName").val("");
+        _oImportPaymentRequest.BankBranchID=0;
+    });
+
+    $("#btnPickBranch").click(function () {
+        var oBankBranch = {
+            BUID: _nBUID,
+            DeptIDs: '2',//EnumOperationalDept : Export_Party=5, Import_Own=2
+            BankName: $.trim($("#txtBranchName").val())
+        };
+        PickBanksBranch(oBankBranch);
+    });
+    
+    function PickBanksBranch(oBankBranch) {
+
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oBankBranch,
+            ControllerName: "BankBranch",
+            ActionName: "GetsBankBranchSearchByBankName",
+            IsWinClose: false
+        };
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+
+        $.icsDataGets(obj, function (response) {
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].BankBranchID > 0) {
+                    var tblColums = []; var oColumn = { field: "BankName", title: "Bank Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BranchName", title: "Branch Name", width: 280, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Address", title: "Address", width: 280, align: "left" }; tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winBankBranch_IssuePicker',
+                        winclass: 'clsBankBranch_Issue',
+                        winwidth: 500,
+                        winheight: 460,
+                        tableid: 'tblBankBranch_Issues',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'BranchName',
+                        windowTittle: 'Bank List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else {
+                alert("Sorry, No Contactor Found.");
+            }
+        });
+    }
+
+    $('#btnPickInvoice').click(function (e){
+        var oImportPaymentRequestDetail = {
+            BUID : _nBUID,
+            BankBranchID : parseInt(_oImportPaymentRequest.BankBranchID)
+        };
+
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oImportPaymentRequestDetail,
+            ControllerName: "ImportPaymentRequest",
+            ActionName: "GetsImportInvoice",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (parseInt(response.objs[0].ImportInvoiceID) > 0) {
+                    var tblColums = []; var oColumn = { field: "ImportInvoiceNo", title: "Invoice No", width: 150, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ImportLCNo", title: "ImportLC No", width: 120, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "AmountSt", title: "Amount", width: 100, align: "right" }; tblColums.push(oColumn);
+                    oColumn = { field: "DateofMaturityST", title: "Maturity Date", width: 120, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winImportInvoice',
+                        winclass: 'clsPurchaseInvoice',
+                        winwidth: 550,
+                        winheight: 420,
+                        tableid: 'tblPurchaseInvoice',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'InvoiceNoWithLCNo',
+                        placeholder:'Search By Invoice No OR LC No',
+                        windowTittle: 'Invoice List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else
+            {
+                alert("Data Not Found!");
+            }
+        });
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    
+    function SetPickerValueAssign(oPickerobj)
+    {
+
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid === 'winBankBranch_IssuePicker') {
+            if (oreturnObj != null && parseInt(oreturnObj.BankBranchID) > 0) {
+
+                $('#txtBranchName').val(oreturnObj.BankName);
+                _oImportPaymentRequest.BankBranchID =oreturnObj.BankBranchID;
+                _oImportPaymentRequest.BankID =oreturnObj.BankID;
+                RefreshBankAccounts(oreturnObj.BankBranchID);
+            }
+        }
+        else if (oPickerobj.winid === 'winImportInvoice') {
+            if (oreturnobjs != null && parseInt(oreturnobjs.length) > 0)
+            {
+                RefreshDetails(oreturnobjs);
+            }
+            else
+            {
+                alert("Data not Found");
+            }
+        }
+    }
+
+    function  RefreshDetails(oPIPRDetails)
+    {
+        if(oPIPRDetails.length>0)
+        {
+            for(var i=0; i< oPIPRDetails.length; i++)
+            {
+                if(!IsExists(oPIPRDetails[i].ImportInvoiceID))
+                {
+
+                    $('#tbPIPRDetail').datagrid('appendRow',oPIPRDetails[i]);
+                }
+            }
+        }
+        SetTotal();
+    }
+
+    $("#btnClose").click(function () {
+
+        window.location.href = _sBackLink;
+    });
+</script>

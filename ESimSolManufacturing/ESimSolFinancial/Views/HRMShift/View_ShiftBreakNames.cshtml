@@ -1,0 +1,147 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ShiftBreakName>
+@{
+    ViewBag.Title = "Shift Break Name";
+}
+
+<div style="margin-left:0px; height:550px">
+    <table id="tblShiftBreakName" title="Shift Break Name" class="easyui-datagrid" style="width:1030px;height:548px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="Name" width="350" align="left">Name</th>
+                <th field="Activity" width="150" align="left">Activity</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar" style="height:30px;">
+        <input id="txtName" type="text"  style="width:180px;" placeholder="Name"/>
+        <input id="btnSave" type="button" value="+" />
+        <input id="btnDelete" type="button" value="-" />
+        <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Activity</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var _oShiftBreakNames=[];
+    var _sBaseAddress="";
+    var _nShiftBNID = 0;
+  
+    $(document).ready(function ()
+    {
+        _oShiftBreakNames =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        DynamicRefreshList(_oShiftBreakNames, "tblShiftBreakName");
+    });
+
+    function ValidateInput()
+    {
+        if(document.getElementById("#txtName") == "")
+        {
+            alert("Please enter Name !");
+            document.getElementById("#txtName").focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oShiftBreakName = {
+            ShiftBNID : _nShiftBNID,
+            Name : $("#txtName").val()
+        }
+        return oShiftBreakName;
+    }
+
+    $('#btnSave').click(function (e)
+    {
+        debugger
+        if (!ValidateInput()) return;
+        var oShiftBreakName = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/HRMShift/ShiftBreakName_IU",
+            traditional: true,
+            data: JSON.stringify(oShiftBreakName),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                oShiftBreakName = jQuery.parseJSON(data);
+                if (oShiftBreakName.ErrorMessage == "")
+                {
+                    alert("Data Saved sucessfully");
+                    var oShiftBreakNames = $('#tblShiftBreakName').datagrid('getRows');
+                    var nIndex = oShiftBreakNames.length;
+                    $('#tblShiftBreakName').datagrid('appendRow',oShiftBreakName);
+                    $('#tblShiftBreakName').datagrid('selectRow', nIndex);
+                    $("#txtName").val("");
+                }
+                else
+                {
+                    alert(oShiftBreakName.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+
+    $('#btnDelete').click(function (e)
+    {
+        var oShiftBreakName = $('#tblShiftBreakName').datagrid('getSelected');
+        if (oShiftBreakName == null || oShiftBreakName.ShiftBNID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return;
+        var SelectedRowIndex = $('#tblShiftBreakName').datagrid('getRowIndex', oShiftBreakName);
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oShiftBreakName,
+            ControllerName: "HRMShift",
+            ActionName: "ShiftBreakName_Delete",
+            TableId: "tblShiftBreakName",
+            IsWinClose: false
+        };
+        $.icsDelete(obj)
+    });
+
+    $('#btnActivity').click(function (e)
+    {
+        debugger
+        var oShiftBreakName = $('#tblShiftBreakName').datagrid('getSelected');
+        if (oShiftBreakName == null || oShiftBreakName.ShiftBNID <= 0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+
+        var SelectedRowIndex = $('#tblShiftBreakName').datagrid('getRowIndex', oShiftBreakName);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/HRMShift/ShiftBreakName_Activity",
+            traditional: true,
+            data: JSON.stringify(oShiftBreakName),
+            contentType: "application/json; charset=utf-8",
+            success: function(data) {
+                oShiftBreakName = jQuery.parseJSON(data);
+                if (oShiftBreakName.ShiftBNID > 0)
+                {
+                    alert("Saved Successfully!");
+                    $('#tblShiftBreakName').datagrid('updateRow', { index: SelectedRowIndex, row: oShiftBreakName });
+                }
+                else
+                {
+                    alert(oShiftBreakName.ErrorMessage);
+                }
+            }
+        });
+    });
+
+</script>

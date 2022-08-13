@@ -1,0 +1,586 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "Reproduction Request";
+    }
+</head>
+<body>
+    @model ESimSol.BusinessObjects.FNReProRequest
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable">
+        <div id="divPanel" class="ics-panel-header" title="FN Batch" style="font-family:Tahoma;text-align:left; width:100%;height:40px;">
+            <label> Treatment </label>
+            <select id="cboFNTreatment" class="cbo-styler" style="width:150px; height:22px; background-color:#EFF5FF; font-size:12px; font-weight:bold" ></select>
+        </div>
+        <div id="MainDiv" class="easyui-panel" title="" style="font-family:Tahoma;height:80%">
+            <fieldset>
+                <legend>Reproduction Request Info</legend>
+                <table style="width:100%;">
+                    <tr>
+                        <td class="align-right" style="width:15%">Request No</td>
+                        <td style="width:35%">
+                            @Html.TextBoxFor(model => model.ReqNo, new { style = "width: 100%;", id = "txtReqNo", @placeholder = "System Generated", disabled = "true" })
+                        </td>
+                        <td class="align-right" style="width:15%">Request Date</td>
+                        <td style="width:35%">
+                            <input type="text" style="width:100%;" id="txtRequestDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                        @*<td class="align-right" style="width:15%">Type</td>
+                        <td style="width:25%">
+                            <select id="cboType" style="width:99%;height:22px;"></select>
+                        </td>*@
+                    </tr>
+
+                    <tr>
+                        <td class="align-right" style="width:15%">Note:</td>
+                        <td width="85%" colspan="3">
+                            @Html.TextBoxFor(model => model.Note, new { style = "width: 100%;", id = "txtNote", @placeholder = "Enter Note", @class = "cls-txt" })
+
+                        </td>
+                    </tr>
+
+                </table>
+            </fieldset>
+            <table id="tblFNReProRequestDetail" title="Reproduction Request Details" class="easyui-datagrid" style="height:367px; width:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="onClickRow:onClickRow,onEndEdit: onEndEdit">
+                <thead>
+                    <tr>
+                        <th field="BatchNo" width="20%" align="left">Batch No</th>
+                        <th field="FNProcess" width="15%" align="left">Process</th>
+                        <th data-options="field:'Qty',align:'right',editor:{type:'numberbox',options:{precision:8}}" formatter="formatPrice8digit" width="20%">Qty(Y)</th>
+                        <th data-options="field:'Qty_M',align:'right',editor:{type:'numberbox',options:{precision:8}}" formatter="formatPrice8digit" width="20%">Qty(M)</th>
+                        @*<th field="Qty" width="20%" align="right">Qty(Y)</th>
+                        <th field="Qty_M" width="20%" align="right">Qty(M)</th>*@
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Batch No : <input type="text" id="txtBatchNo" style="width:130px;" onkeydown="BatchNoKeyDown(event)" />
+                <input type="button" id="btnBatchNo" style="width:45px;" onclick="PickBatchNo()" value="Pick" />
+                @*<a id="btnAddDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>*@
+                <a id="btnRemoveDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefreshDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+
+            </div>
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right">
+                        <label id="lblNote">Note : </label>
+                        @Html.TextBoxFor(model => model.Note_Approve, new { style = "width: 350px;", id = "txtNote_Approve", @placeholder = "Enter Note", @class = "cls-txt" })
+                    </td>
+                    <td style="width:20%;text-align:right;">
+                        <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Approve</a>
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" onclick="Close()" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    td, th {
+        padding: 2px;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oFNReProRequest = [];
+    var TypeList = [];
+    var Units = [];
+    var _oFNReProRequestDetails = [];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFNReProRequest =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oFNTreatments =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNTreatments));
+        $('#txtNote_Approve, #lblNote, #btnApprove').hide();
+        if(sessionStorage.getItem('Action')=='View')
+        {
+            $('#tblFNReProRequestDetail').data("GridEditable",false);
+            $('#btnSave, #toolbar').hide();
+        }
+        if(sessionStorage.getItem('Action')=='Approve'){
+            $('#txtNote_Approve, #lblNote,#btnApprove').show();
+            $('#btnSave').hide();
+        }
+        debugger;
+        if(parseInt(_oFNReProRequest.FNReProRequestID)>0)
+        {
+            $('#txtPINo, #txtContractorName').addClass('fontColorOfPickItem');
+            _oFNReProRequestDetails = _oFNReProRequest.FNReProRequestDetails;
+            RefreshList(_oFNReProRequestDetails);
+        }
+        $("#cboFNTreatment").icsLoadCombo({ List: oFNTreatments, OptionValue: "id", DisplayText: "Value", InitialValue:"Default" });
+        $("#cboFNTreatment").val(1);
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+
+        $('#txtRequestDate').datebox('setValue',_oFNReProRequest.RequestDateInString);
+    });
+
+    function BatchNoKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtBatchNo").val();
+            if (oTxtName != null) {
+                PickBatchNo(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            txtBatchNo.style.color="Black";
+        }
+    }
+
+    function PickBatchNo(oTxtName)
+    {
+        debugger;
+        var oStyleSearch = {
+            FNBatchNo: (typeof(oTxtName) != 'undefined'?oTxtName:""),
+            FNTreatment : $("#cboFNTreatment").val()
+        };
+
+        console.log(oStyleSearch);
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch) ,
+            ControllerName: "FNReProRequest",
+            ActionName: "GetsFNBatchCardByNo",
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = { field: "FNBatchNo", title: "Batch No", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Code", title: "Code", width: 80, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "FNProcess", title: "Process", width: 120, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "PlannedDateSt", title: "Plan Date", width: 80, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Qty_FNBatch", title: "Batch Qty(y)", width: 90, align: "right"}; tblColums.push(oColumn);
+        oColumn = { field: "Qty_Prod", title: "Prod Qty(y)", width: 90, align: "right"}; tblColums.push(oColumn);
+        oColumn = { field: "Qty_YetTo", title: "Yet To Qty(y)", width: 90, align: "right"}; tblColums.push(oColumn);
+        oColumn = { field: "Qty_ReProd", title: "Re. Pro Qty(y)", width: 90, align: "right"}; tblColums.push(oColumn);
+        oColumn = { field: "FNTreatmentSt", title: "Treatment", width: 90, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('BatchNo',obj,tblColums,true,'FNBatchNo','FNBatchCardID',800); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+
+    function SetBatchNo(oSelectedStyle) {
+        debugger;
+        if(oSelectedStyle.length>0)
+        {
+            var oFBCs = $('#tblFNReProRequestDetail').datagrid('getRows');
+            for(var i=0; i < oSelectedStyle.length; i++)
+            {
+                var isNotExist = true;
+                //oSelectedStyle[i].BatchNo = oSelectedStyle[i].FNBatchNo;
+                //oSelectedStyle[i].StartQty = oSelectedStyle[i].Qty_YetTo;
+                for(var j=0; j < oFBCs.length; j++)
+                {
+                    if(oSelectedStyle[i].FNBatchCardID == oFBCs[j].FNBatchCardID) { isNotExist =false; break; }
+                }
+                if(isNotExist){
+                    var oDetail = {
+                        FNReProRequestDetailID: 0,
+                        FNReProRequestID: _oFNReProRequest.FNReProRequestID,
+                        FNBatchCardID: oSelectedStyle[i].FNBatchCardID,
+                        BatchNo: oSelectedStyle[i].FNBatchNo,
+                        FNProcess: oSelectedStyle[i].FNProcess,
+                        Qty: oSelectedStyle[i].Qty_Prod,
+                        Qty_M: (parseFloat(oSelectedStyle[i].Qty_Prod)*0.9144)
+                    }
+                    $('#tblFNReProRequestDetail').datagrid('appendRow',oDetail);
+                }
+            }
+            $('#txtBatchNo').val('');
+        }
+    }
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        debugger;
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+
+        if (oPickerobj.winid == 'winBatchNo')
+        {
+            SetBatchNo(oResult);
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,nWidth)
+    {
+        debugger;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        setInterval(updateProgress,250);
+
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: nWidth,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                }
+            }
+            else{
+                alert("Data Not Found.");
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                return;
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+
+    function RefreshList(oFNReProRequestDetails)
+    {
+        debugger;
+        var data=oFNReProRequestDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFNReProRequestDetail').datagrid('loadData',data);
+    }
+
+
+    function Validation(){
+
+
+        var oRows=$('#tblFNReProRequestDetail').datagrid('getRows');
+        if(oRows.length<=0){
+            alert("Atleast onen Reproduction Request detail required!!");
+            return false;
+        }
+
+        for(var i = 0; i < oRows.length; i++){
+            if(parseFloat(oRows[i].Qty) <= 0){
+                alert("Please enter Qty(Y) for Batch No: "+ oRows[i].BatchNo +"!!");
+                return false;
+            }
+            if(parseFloat(oRows[i].Qty_M) <= 0){
+                alert("Please enter Qty(M) for Batch No: "+ oRows[i].BatchNo +"!!");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oFNReProRequest={
+            FNReProRequestID : _oFNReProRequest.FNReProRequestID,
+            RequestDate:$('#txtRequestDate').datebox('getValue'),
+            Note:$("#txtNote").val(),
+            Note_Approve: $("#txtNote_Approve").val(),
+            FNReProRequestDetails: $('#tblFNReProRequestDetail').datagrid('getRows')
+        };
+
+        return oFNReProRequest;
+    }
+
+    $("#btnSave").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oFNReProRequest=RefreshObject();
+        //return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FNReProRequest/Save",
+            traditional: true,
+            data:  JSON.stringify(oFNReProRequest),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oFNReProRequest = jQuery.parseJSON(data);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (oFNReProRequest.ErrorMessage==null || oFNReProRequest.ErrorMessage=="") {
+                    alert("Data Saved successfully");
+                    var oFNReProRequests = sessionStorage.getItem("FNReProRequests");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oFNReProRequests != null) {
+                        oFNReProRequests = jQuery.parseJSON(oFNReProRequests);
+                    }
+                    else
+                    {
+                        oFNReProRequests = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oFNReProRequests[nIndex] = oFNReProRequest;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oFNReProRequests.length);
+                        oFNReProRequests.push(oFNReProRequest);
+                    }
+                    sessionStorage.setItem("FNReProRequests", JSON.stringify(oFNReProRequests));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oFNReProRequest.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $("#btnApprove").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oFNReProRequest=RefreshObject();
+        //return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FNReProRequest/Approve",
+            traditional: true,
+            data:  JSON.stringify(oFNReProRequest),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oFNReProRequest = jQuery.parseJSON(data);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (oFNReProRequest.ErrorMessage==null || oFNReProRequest.ErrorMessage=="") {
+                    alert("Data Saved successfully");
+                    var oFNReProRequests = sessionStorage.getItem("FNReProRequests");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oFNReProRequests != null) {
+                        oFNReProRequests = jQuery.parseJSON(oFNReProRequests);
+                    }
+                    else
+                    {
+                        oFNReProRequests = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oFNReProRequests[nIndex] = oFNReProRequest;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oFNReProRequests.length);
+                        oFNReProRequests.push(oFNReProRequest);
+                    }
+                    sessionStorage.setItem("FNReProRequests", JSON.stringify(oFNReProRequests));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oFNReProRequest.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $("#btnAddDetail").click(function ()
+    {
+        var oDCDetail={
+            FNReProRequestDetailID: _oFNReProRequestDetails.FNReProRequestDetailID,
+            ProductID: $("#MainDiv").data("ProductID"),
+            ProductName:$('#txtProduct').val(),
+            ProductCode:$("#MainDiv").data("ProductCode"),
+            ColorCategoryID: $("#MainDiv").data("ColorID"),
+            ColorName:$('#txtColor').val(),
+            MUnitID:parseInt($("#cboUnit").val()),
+            MUnitName: $("#cboUnit option:selected").text(),
+            Quantity: parseInt($('#txtQty').val())
+        };
+        if(oDCDetail==null || oDCDetail.ProductID<=0)
+        {
+            alert("Please select a Product!!");
+            return;
+        }
+        $('#tblFNReProRequestDetail').datagrid('appendRow',oDCDetail);
+
+        $("#MainDiv").data("ProductID",0);
+        $('#txtProduct').val('');
+        $("#MainDiv").data("ColorID",0);
+        $('#txtColor').val('');
+        $("#cboUnit").val('');
+        $('#txtQty').val('');
+    });
+
+    $("#btnRemoveDetail").click(function ()
+    {
+        endEditing();
+        var oDCDetail=$('#tblFNReProRequestDetail').datagrid('getSelected');
+        if(oDCDetail==null || oDCDetail.ProductID<=0)
+        {
+            alert("Please select a valid item from list.");
+            return;
+        }
+        var nIndex= $('#tblFNReProRequestDetail').datagrid('getRowIndex',oDCDetail);
+        $('#tblFNReProRequestDetail').datagrid('deleteRow',nIndex);
+    });
+
+    $("#btnRefreshDetail").click(function ()
+    {
+        debugger;
+        endEditing();
+        var data= $('#tblFNReProRequestDetail').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFNReProRequestDetail').datagrid('loadData',data);
+
+        //var oFNReProRequest = [];
+        //var oFNReProRequestDetail = {
+        //    FNReProRequestID: _oFNReProRequest.FNReProRequestID
+        //}
+        //$.ajax({
+        //    type: "POST",
+        //    dataType: "json",
+        //    url : _sBaseAddress+"/FNReProRequest/GetsDetailsByID",
+        //    traditional: true,
+        //    data:  JSON.stringify(oFNReProRequestDetail),
+        //    contentType: "application/json; charset=utf-8",
+        //    success: function (data) {
+        //        //debugger;
+        //        oFNReProRequest = jQuery.parseJSON(data);
+        //        if (oFNReProRequest.ErrorMessage==null || oFNReProRequest.ErrorMessage=="") {
+        //            RefreshList(oFNReProRequest.FNReProRequestDetails);
+        //        }
+        //        else {
+        //            alert(oFNReProRequestDetail.ErrorMessage);
+        //        }
+        //    },
+        //    error: function (xhr, status, error) {
+        //        alert(error);
+        //    }
+
+        //});
+    });
+
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLink");
+    })
+
+    var editIndex = undefined;
+    function endEditing() {
+        //debugger;
+        if (editIndex == undefined) { return true }
+        if ($('#tblFNReProRequestDetail').datagrid('validateRow', editIndex)) {
+            $('#tblFNReProRequestDetail').datagrid('endEdit', editIndex);
+            //RefreshSummery();
+
+            //$.icsMakeFooterColumn('tblFNReProRequestDetail',['CostHeadName','FOBDTMCost','FOBRawCost','CNFAirDTMCost','CNFAirRawCost','CNFCTGDTMCost','CNFCTGRawCost','EXWorkDTMCost','EXWorkRawCost']);
+
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onClickRow(index) {
+        debugger;
+        if (editIndex != index) {
+            if (endEditing()) {
+                $('#tblFNReProRequestDetail').datagrid('selectRow', index).datagrid('beginEdit', index);
+                editIndex = index;
+
+                var oDetail = $('#tblFNReProRequestDetail').datagrid('getSelected');
+                _nQty=oDetail.Qty;
+                _nQty_M=oDetail.Qty_M;
+            }
+            else {
+                $('#tblFNReProRequestDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function onEndEdit(index, row) {
+        debugger;
+        if(_nQty != row.Qty){
+            row.Qty_M = (parseFloat(row.Qty)*0.9144);
+            
+        }else if(_nQty_M != row.Qty_M){
+            row.Qty = (parseFloat(row.Qty_M)/0.9144);
+        }
+
+        $('#tblFNReProRequestDetail').datagrid('updateRow',{
+            index: index,
+            row: row
+        });
+    }
+
+</script>

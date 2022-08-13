@@ -1,0 +1,270 @@
+﻿
+<html>
+<body>
+
+@model ESimSol.BusinessObjects.ConsumptionChallan
+
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+    <tr>
+        <td style="text-align:center; width:460px; color:White">
+            <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline; width:460px;text-color:black;"> Search Product Cost</label>
+        </td>
+    </tr>
+</table>    
+<fieldset style="width:350px; text-align:center; height:120px;margin-left:250px; border:0"> 
+  <div style="height:120px; overflow:auto; width:350px; text-align:center; ">
+  <table>
+@*    <tr>
+        <td>Machine:</td>
+        <td>
+            @Html.TextBox("txtCCName", "",new { style = "width: 200px;", id = "txtCCName" })
+            @Html.Hidden("txtCCID", new { style = "width: 200px;", id = "txtCCID" })
+        </td>
+    </tr>*@
+    <tr>
+        <td>Disburse Date:</td>
+        <td>
+            @Html.DropDownList("cboOpenDate", new SelectList(Enum.GetValues(typeof(ICS.Base.Client.Utility.EnumCompareOperator))), new { id = "cboOpenDate", style = "width: 206px;", @class = "_select_changeA" })
+        </td>
+    </tr>
+    <tr id="trDateFrom">
+        <td id="fromDate">Date From:</td>
+        <td>
+            <input id="txtOpenStartDate" type="text" class="easyui-datebox" style="width: 206px;"
+            data-options="formatter:icsdateformat" />
+        </td>
+    </tr>
+    <tr id="trDateTo">
+        <td id= "enddateT">To:</td>
+        <td>
+            <input id="txtOpenEndDate" type="text" class="easyui-datebox" style="width: 206px;"
+            data-options="formatter:icsdateformat" />
+        </td>
+    </tr>
+    <tr>
+        <td></td>
+        <td style="text-align:right">
+            <input  type="button" value="Search" id="btnOk" style="width:60px;"/> 
+        </td>
+    </tr>
+  </table>
+     
+ </div>
+</fieldset>
+
+ <div id="PageBody" style="width:900px; height:350px; margin-left:0px;margin-right:0px"> 
+
+<table id="tblPCosts" title="Product wise issue report"  
+class="easyui-datagrid" style="width:895px;height:350px" 
+fitColumns="false" rownumbers="true" toolbar="#toolbar" 
+pagination="false" singleSelect="true", 
+autoRowHeight="false",autoRowWidth="false">        
+                <thead>                   
+                    <tr>  
+                        @*<th field="ck" checkbox="true"></th>*@
+                        <th field="ProductNameCode"  width="150">Product Name</th>
+                        <th field="MUName" width="70">Unit</th>
+                        <th field="Quantity" width="100">Issue Qty</th>
+                        <th field="Value" width="100">Value (BDT)</th>
+                    </tr>  
+                </thead>        
+ </table>​ 
+ <div id="toolbar">                                 
+                <a id="btnDetail" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="Detail()">Details </a>
+                <a id="btnReset" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true" onclick="Print()">Print </a>
+                @*<label id="lblProject"></label>*@
+                        
+            </div>   
+</div>         
+</div>
+</body>
+</html>
+<script type="text/javascript">
+var _oReturnObject = new Object();
+var _ROWS = [];
+var _sBaseAddress ='';
+var _sCCName="";
+var _nCCID=0;
+var oSelectedProducts="";
+ $(document).ready(function () {
+     debugger;
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+     _ROWS =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+     $('#txtOpenStartDate').datebox('setValue', icsdateformat(new Date()));
+     $('#txtOpenEndDate').datebox('setValue', icsdateformat(new Date()));
+     HideUnhideDatePiker(); 
+});
+
+function HideUnhideDatePiker()
+{
+    var DateType = $("#cboOpenDate").val();
+    if (DateType == "None" ) 
+    {              
+          document.getElementById("trDateFrom").style.display = 'none';
+          document.getElementById("trDateTo").style.display = 'none';   
+     
+    }
+}
+
+$('._select_changeA').change(function () {
+        debugger
+        var DateType = $("#cboOpenDate").val();
+        if (DateType == "EqualTo" || DateType == "NotEqualTo" || DateType == "GreaterThen" || DateType == "SmallerThen") {            
+              document.getElementById("trDateTo").style.display = 'none'; 
+              document.getElementById("trDateFrom").style.display = '';      
+        }
+        if (DateType == "None" ) 
+        {            
+          document.getElementById("trDateFrom").style.display = 'none';
+          document.getElementById("trDateTo").style.display = 'none';        
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  ) 
+        {
+          document.getElementById("trDateFrom").style.display = '';
+          document.getElementById("trDateTo").style.display = ''; 
+        }
+});
+
+function RefreshList(oReturnObject)
+{ 
+    data=oReturnObject;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblPCosts').datagrid('loadData',data);   
+}
+
+
+function Print()
+{
+    //debugger;
+    var Date = document.getElementById("cboOpenDate");
+    var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var sDateopen = $('#txtOpenStartDate').datebox('getValue');
+    var sDateclose = $('#txtOpenEndDate').datebox('getValue');
+
+    var nWU="";
+    var nWUID=0;
+   
+    if(oSelectedProducts!=null)
+    {
+        if(oSelectedProducts.length>0)
+        {
+           var sProductIDs = "";
+           for (i = 0; i < oSelectedProducts.length; ++i) 
+           {
+                var ProductID = oSelectedProducts[i].ProductID;
+                sProductIDs = sProductIDs + ProductID + ',';
+           }
+
+           sProductIDs = sProductIDs.substring(0, sProductIDs.length - 1);
+           var sParam = sProductIDs+'~'+ dDateType+'~'+ sDateopen+'~'+ sDateclose+'~'+nWUID.toString()+"~"+nWU;
+
+           window.open(_sBaseAddress + '/Report/PrintConsumptionReport?sParam='+sParam);   
+        }
+     }    
+}
+
+
+
+function icsdateformat(date) {
+    //debugger;
+    var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    var d = date.getDate();
+    //return m+'/'+d+'/'+y;
+    var result = d + ' ' + mthNames[m] + ' ' + y;
+    return result
+}
+
+function Detail()
+{
+    var oRow= $('#tblPCosts').datagrid('getSelected'); 
+    if(oRow==null || oRow.ProductID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var Date = document.getElementById("cboOpenDate");
+    var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var sDateopen = $('#txtOpenStartDate').datebox('getValue');
+    var sDateclose = $('#txtOpenEndDate').datebox('getValue');
+    var nWUID=0;
+    var sParam = oRow.ProductID.toString() 
+                              +'~'+ dDateType 
+                              +'~'+ sDateopen 
+                              +'~'+ sDateclose
+                              +'~'+ nWUID.toString();
+    var oPName = $('#tblPCosts').datagrid('getSelected');
+    var oParameter = new Object();
+    oParameter.Param=sParam+"~"+oPName.ProductNameCode;
+    var url =_sBaseAddress+ "/ConsumptionChallan/ViewCCDetailsForProject?sParam="+sParam;
+    var oCCDs = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:740px;dialogLeft:375;dialogTop:130;center:yes;resizable:no;status:no;scroll:no');
+}
+
+$('#btnOk').click( function()
+{   
+    var Date = document.getElementById("cboOpenDate");
+    var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var sDateopen = $('#txtOpenStartDate').datebox('getValue');
+    var sDateclose = $('#txtOpenEndDate').datebox('getValue');
+
+    var nWUID=0;
+    debugger;
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = true;
+    
+//    var tsv = ((new Date()).getTime()) / 1000;
+    var tsv = 0.1253;
+    var url = _sBaseAddress+"/Product/ProductSearching?ts="+tsv;
+    
+    oSelectedProducts = window.showModalDialog(url, oParameter, 'dialogHeight:615px;dialogWidth:652px;dialogLeft:450;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no');
+
+    if(oSelectedProducts!=null)
+    {
+        if(oSelectedProducts.length>0)
+        {
+           var sProductIDs = "";
+           for (i = 0; i < oSelectedProducts.length; ++i) {
+                var ProductID = oSelectedProducts[i].ProductID;
+                sProductIDs = sProductIDs + ProductID + ',';
+           }
+
+            sProductIDs = sProductIDs.substring(0, sProductIDs.length - 1);
+            var sParam = sProductIDs+'~'+ dDateType+'~'+ sDateopen+'~'+ sDateclose+'~'+nWUID.toString();
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",            
+                url: _sBaseAddress+ "/Report/GetConsumptionReport",
+                traditional: true,
+                data: JSON.stringify({sParam:sParam}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                debugger;
+                    var oCCDs = jQuery.parseJSON(data);
+                    if (oCCDs != null) {
+                        if (oCCDs.length > 0){
+                            if (oCCDs[0].ProductID > 0){
+                                RefreshList(oCCDs);
+                            }
+                            else{
+                                    alert('Nothing Found by this Product');
+                                }
+                        }else {
+                                alert('Nothing Found by this Product');                       
+                              }
+                   }
+                
+                },
+                    error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+         }
+      }
+        
+});
+
+</script>

@@ -1,0 +1,327 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ImportOutstanding>
+
+    @{
+        ViewBag.Title = "Import Outstanding Report";
+    }
+
+    <div ng-app="ImportOSApp" class="form-horizontal">
+        <div ng-controller="ImportOSCntrl">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                      <label>Date:</label>
+                        <select class="form-control" ng-model="cboDate" ng-change="DateChange()" ng-options="item.id as item.Value for item in CompareOperators">
+                            @*<option value="0">Current</option>*@
+                        </select>
+                        <div class="input-group date date-container" style="width:12%">
+                            <input type="text" class="form-control" ng-model="DateStart"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                        <span>to</span>
+                        <div class="input-group date date-container" style="width:12%">
+                            <input type="text" class="form-control" ng-model="DateEnd" ng-disabled="DateEndDisabled"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                        <div class="input-group" style="width:15%; padding-left:3px">
+                            <span>Currency: </span>
+                            <select ng-model="CurrencyID" ng-options="oItem.CurrencyID as oItem.CurrencyName for oItem in CurrencyList" style="width:50%">
+                                <option value="">--Select One--</option>
+                            </select>
+                        </div>
+                        @*<input type="checkbox" ng-model="IsBaseCurrency" class="form-control"/>*@
+                        
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="RefreshAll()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Refresh</button>
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="ShowDetail()"> <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span> Show Detail</button>
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="printView()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PrintAll()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>Print</button>
+</div>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-pinning ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable"></div>
+        </div>
+    </div>
+
+    <style type="text/css">
+       .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .grid-angular {
+            height: 500px;
+            width: 99%;
+        }
+        .ui-grid-cell.lightGreen {
+            background-color:  #B5DA69!important ;   /*90EE90*/ /*8ab92d*/ /*cce698*/
+            color: #000 !important;
+            font-size:12px;
+            font-weight:bold;
+        }
+        .ui-grid-cell.lightGrey {
+           background-color: #DCDCDC !important ;  
+           color: #000 !important;
+            font-size:12px;
+            font-weight:bold;
+        }
+        .ui-grid-cell.lightGreyE6 {
+           background-color: #e6e6e6 !important ;  
+           color: #000 !important;
+           font-size:12px;
+           font-weight:normal;
+        }
+      .btn-sm {
+            padding: 3px 10px;
+        }
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        /*.my-button {
+            padding-top:-5px;
+            background:#B5DA69;
+            display: none;
+        }
+        .ui-grid-row:hover .my-button {
+            display: block;
+
+            padding-top:-5px;
+        }*/
+
+        .my-button {
+            padding-top:-25px;
+            background:#B5DA69;
+            display: none;
+            position: relative;
+
+        }
+        .ui-grid-row:hover .my-button {
+            display: block;
+            padding-top:-5px;
+            width: 95%;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: static;
+            z-index: 1;
+            bottom: 2%;
+            left: 1%;
+            margin-top: 5px;
+            opacity: 10;
+            transition: opacity 2s;
+            overflow:visible;
+            visibility:visible;
+            font-size:10px;
+        }
+
+    </style>
+   
+    <script type="text/javascript">
+        debugger;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+    var oImos =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+    var oImportSetups = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ImportSetups));
+
+    sessionStorage.setItem('BUID',nBUID);
+
+    var  ImportOSApp = angular.module('ImportOSApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.pinning','ui.grid.resizeColumns','ms.service']);
+    sessionStorage.setItem('BUID',nBUID);
+    ImportOSApp.controller('ImportOSCntrl', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod)
+    {
+        oImos= (userSession.getData('oImportOutstandings').length>0)? userSession.getData('oImportOutstandings'):oImos;
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        })
+        oCompareOperators[0].Value = "--Current--";
+        $scope.CompareOperators= oCompareOperators;
+        $scope.BusinessUnits =oBusinessUnits;
+        $scope.CurrencyList =oImportSetups;
+        $scope.CurrencyID=2;
+        if(sessionStorage.getItem('ImportOSR')!=null)
+        {
+            debugger;
+            var data = jQuery.parseJSON(sessionStorage.getItem('ImportOSR'));
+            $scope.cboDate =parseInt(data.ErrorMessage);
+            $scope.DateStart = data.StartDate;
+            $scope.DateEnd = data.EndDate;
+            $scope.IsBaseCurrency = data.IsBaseCurrency;
+        }
+        else{
+
+            $scope.cboDate = $scope.CompareOperators[0].id;
+            $scope.DateEndDisabled = true;
+            $scope.DateStart = $scope.DateEnd = icsdateformat(new Date());
+
+            $scope.IsBaseCurrency = true;
+        }
+        $scope.DateChange = function ()
+        {
+
+            $scope.DateEndDisabled = icsMethod.IsDateBoxdisabled($scope.cboDate);
+        }
+
+
+        $scope.gridOptions ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.ALWAYS,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            rowHeight:44,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,enableCellEdit:false },
+                {   field: 'BUName', name: 'Unit Name', width:'15%',  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-left',true); },
+                //cellTemplate:'<div ng-mouseover="testing testing" ng-dblclick="grid.appScope.ShowDetail()" style="padding-top:5px;">{{row.entity.BUName}} </div>',
+                    //cellTooltip:"test test test"
+                cellTemplate:  '<div ng-dblclick="grid.appScope.ShowDetail_Cell(row.entity)"click="grid.appScope.ShowDetail()">{{row.entity.BUName}} <span class="my-button">Double Click To View Details </span></div>' ,
+                },
+                { field: 'BankName', name: 'Bank Name', width: '15%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-left'); }},
+                { field: 'LCPaymentTypeSt', name: 'L/C Payment Type', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-left'); }},
+                { field: 'CurrencyName', name: 'Currency', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-left'); }
+                    ,cellTooltip: function(row, col) {
+                       // alert("testing");
+                        return 'Name: ' + row.entity.BUName + ' Bank: ' + row.entity.BankName;
+                    }
+                },
+                { field: 'LCOpen', name: 'LC Open', width:'10%',  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'ShipmenmentInTransit', name: 'Copy Doc Recd', width: '10%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'ShipmenDone', name: 'Shipmen Done', width: '10%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'DocInBank', name: 'Doc in Bank', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'DocInHand', name: 'Doc In Hand', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'DocInCnF', name: 'Doc In CnF',  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2', width: '10%' },
+                { field: 'GoodsInTransit', name: 'Goods In Transit', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'Total', name: 'Total', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2'},
+                { field: 'Accpt_WithoutStockIn', name: 'Accpt_Without StockIn', width: '10%' ,   cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2'},
+                { field: 'Accpt_WithStockIn', name: 'Accpt_With StockIn', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2' },
+                { field: 'ABP_WithStockIn', name: 'ABP_WithStockIn', width: '10%' ,  cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2'},
+                { field: 'TotalABP', name: 'Total ABP', width: '10%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return grid.appScope.GetClass(row.entity,' text-right');}, cellFilter: 'number: 2'}
+            ],
+            data:oImos,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                if(oImos.length>0 && sessionStorage.getItem('SelectedRowIndex_WU')>=0){
+                    $scope.gridApi.grid.modifyRows(oImos);
+                    $scope.gridApi.selection.selectRow(oImos[sessionStorage.getItem('SelectedRowIndex_WU')]);
+                    $scope.RowSelect(oImos[sessionStorage.getItem('SelectedRowIndex_WU')]);
+                }
+                userSession.clear();
+            }
+        };
+       
+        $scope.GetClass=function(row, algin, isBlank)
+        {
+            if(row.LCPaymentType==0 && row.BankName=="GRAND TOTAL: ")
+                return 'lightGrey'+algin;
+            else if(row.LCPaymentType==0)
+                return 'lightGreen'+algin;
+            else if(isBlank==true)
+                return ''+algin;
+            else
+                return 'lightGreyE6'+algin;
+        }
+
+        $scope.RefreshAll = function () {
+
+            if($scope.cboDate ==1)
+            {
+                $scope.DateStart = $scope.DateEnd;
+            }
+
+            $scope.oImportOutstanding= {
+                StartDate:  $scope.DateStart,
+                EndDate: $scope.DateEnd,
+                BUID:nBUID,
+                CurrencyID : $scope.CurrencyID,
+                nReportType:$scope.cboDate,
+            }
+            debugger;
+            $http.post(_sBaseAddress + '/ImportOutstanding/GetsReport',JSON.stringify( $scope.oImportOutstanding)).then(
+                  function (response) {
+                      debugger;
+                      $scope.results = response.data;
+                      if ($scope.results.length > 0) {
+                          $scope.gridOptions.data=$scope.results;
+                      }
+                      else {
+                          msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                          return;
+                      }
+                  },
+                  function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+            );
+        };
+
+        $scope.ShowDetail = function(){
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item Selected.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            sessionStorage.setItem("SelectedRowIndex_WU", $scope.gridOptions.data.indexOf(data[0]));
+            if($scope.cboDate ==1)
+            {
+                $scope.DateStart = $scope.DateEnd;
+            }
+
+            data[0].StartDate=$scope.DateStart;
+            data[0].EndDate=$scope.DateEnd;
+            data[0].IsBaseCurrency = $scope.IsBaseCurrency;
+            data[0].ErrorMessage = $scope.cboDate;
+            sessionStorage.setItem("oImportOutstandings", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("ImportOSR",JSON.stringify(data[0]));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+"/ImportOutstanding/ViewImportOutstandingDetail?buid="+nBUID;
+
+
+        };
+        $scope.ShowDetail_Cell = function(data){
+            sessionStorage.setItem("SelectedRowIndex_WU", $scope.gridOptions.data.indexOf(data));
+            if($scope.cboDate ==1)
+            {
+                $scope.DateStart = $scope.DateEnd;
+            }
+
+            data.StartDate=$scope.DateStart;
+            data.EndDate=$scope.DateEnd;
+            data.IsBaseCurrency = $scope.IsBaseCurrency;
+            data.ErrorMessage = $scope.cboDate;
+            sessionStorage.setItem("oImportOutstandings", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("ImportOSR",JSON.stringify(data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+"/ImportOutstanding/ViewImportOutstandingDetail?buid="+nBUID;
+        };
+        $scope.printView = function(){
+
+            var  sTempString =  "";
+            var  sTempString =nBUID+'~'+$scope.cboDate+ '~'+ $scope.DateStart+'~'+$scope.DateEnd+'~'+$scope.IsBaseCurrency+'~'+$scope.cboDate;
+
+            window.open(_sBaseAddress + '/ImportOutstanding/PrintPriview?sTempString='+sTempString, "_blank");
+        };
+        $scope.PrintAll = function(){
+            var  sTempString = nBUID+'~'+$scope.CurrencyID;
+            window.open(_sBaseAddress + '/ImportOutstanding/PrintAll?sTempString='+sTempString, "_blank");
+        };
+
+
+
+
+
+
+
+
+        
+    });
+    </script>

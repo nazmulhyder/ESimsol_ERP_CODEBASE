@@ -1,0 +1,397 @@
+﻿@{
+    ViewBag.Title = "IssueFigure List";
+}
+<html>
+
+<body>
+    @model ESimSol.BusinessObjects.Contractor
+    <div id="divIssueFigures" class="easyui-panel" title="IssueFigures List" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblIssueFigures" class="easyui-datagrid" fitcolumns="false" fit="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="ChequeIssueTo" style="width:30%;">Cheque IssueTo</th>
+                        <th field="SecondLineIssueTo" style="width:30%;">SecondLine IssueTo</th>
+                        <th field="IsActiveInString" style="width:30%;">Activity</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" placeholder="Search by IssueTo Name" id="txtName" style="width:200px" onclick="ClearNamefield()" />
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddIssueFigure()">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="EditIssueFigure()">Edit</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+                <a id="btnActive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Active()">Active/In-Active</a>
+                <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintIssueFigure()">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintIssueFigureInXL()">Print in XL</a>
+            </div>
+        </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight:bold"> Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; width:100%; font-weight:bold">
+                        <tr>
+                            <td style="width:90%; text-align:right"></td>
+
+                            <td style="width:10%; text-align:right">
+                                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false" onclick="Close()">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _nMenuid=null;    
+    var _oIssueFigures=[];
+    var _oIssueFigure={ErrorMessage:''};
+    var _oSelectedContractor=null;
+    var _sIssueFigureHeader=null;
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oSelectedContractor =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oIssueFigures=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.IssueFigures));
+        _sIssueFigureHeader=sessionStorage.getItem("IssueFiguresHeader");
+        $('#divIssueFigures').panel({ title:_sIssueFigureHeader});
+        var oIssueFigures =sessionStorage.getItem("IssueFigures");
+        var nIndex =sessionStorage.getItem("SelectedRowIndex");
+        if(oIssueFigures!=null)
+        {
+            oIssueFigures = jQuery.parseJSON(oIssueFigures)===null?_oIssueFigures:jQuery.parseJSON(oIssueFigures);
+        }
+        else
+        {
+            oIssueFigures=_oIssueFigures;
+        }
+        DynamicRefreshList(_oIssueFigures, 'tblIssueFigures');
+        if(nIndex!=null)
+        {
+            $('#tblIssueFigures').datagrid('selectRow', nIndex);
+        }        
+        RefreshControlLayout(oAURolesMapping);
+    });
+    function PrintIssueFigure()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/IssueFigure/PrintIssueFigures?arguments='+_oIssueFigure.ErrorMessage, "_blank");
+    }
+    function PrintIssueFigureInXL()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/IssueFigure/PrintIssueFiguresInXL?arguments='+_oIssueFigure.ErrorMessage, "_blank");
+    }
+    function RefreshArguments()
+    {
+        var arg='Arguments;';
+        var txtName=$("#txtName").val();
+        if(txtName!=null)
+        {
+            arg=arg+txtName+'~';
+        }
+        var oCurrentList = $('#tblIssueFigures').datagrid('getRows'),sIssueFigureIDs="";
+        if(oCurrentList!=null&&oCurrentList.length>0){
+            for(var i=0;i<oCurrentList.length;++i){
+                sIssueFigureIDs=sIssueFigureIDs+oCurrentList[i].IssueFigureID+",";
+            }
+            arg=arg+sIssueFigureIDs.substr(0,sIssueFigureIDs.length-1)+'~';
+        }
+        _oIssueFigure.ErrorMessage=arg;
+    }
+    function RefreshData()
+    {
+        RefreshArguments();
+        _oIssueFigure.ContractorID=_oIssueFigures[0].ContractorID;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/IssueFigure/Refresh",
+            traditional: true,
+            data:  JSON.stringify(_oIssueFigure),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oIssueFigures = jQuery.parseJSON(data);
+                RefreshList(_oIssueFigures);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    function Active()
+    {
+        debugger;
+        _oIssueFigure = $('#tblIssueFigures').datagrid('getSelected');
+        if(_oIssueFigure==null || _oIssueFigure.IssueFigureID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(parseInt(_oIssueFigure.IsActiveInInt)==1)
+        {
+            if (!confirm("Confirm to In-Active?")) return ;
+            _oIssueFigure.IsActive=false;
+        }else
+        {
+            if (!confirm("Confirm to Active?")) return ;
+            _oIssueFigure.IsActive=true;
+        }
+
+
+
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',_oIssueFigure);
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/IssueFigure/Save",
+            traditional: true,
+            data:  JSON.stringify(_oIssueFigure),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                _oIssueFigure = jQuery.parseJSON(data);
+                if (_oIssueFigure.ErrorMessage=="") {
+                    _oIssueFigure.IsActive ? alert("IssueFigure Activated sucessfully!") : alert("IssueFigure De-Activated sucessfully!");
+                    $('#tblIssueFigures').datagrid('updateRow',{index: SelectedRowIndex,	row: _oIssueFigure});
+                }
+                else {
+                    alert(_oIssueFigure.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+    function ClearNamefield()
+    {
+        $("#txtName")[0].value='';
+    }
+
+    $('#txtName').keyup(function (e) {
+        debugger;
+        var c = String.fromCharCode(e.which);
+        var txtName = document.getElementById('txtName').value;
+
+        var oSearchedIssueFigures = [];  var sTempName="";
+        var oCurrentList = $('#tblIssueFigures').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oCurrentList = _oIssueFigures;
+        }
+        for(i=0;i<oCurrentList.length;++i){
+            sTempName=oCurrentList[i].ChequeIssueTo;
+            n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedIssueFigures.push(oCurrentList[i]);
+            }
+        }
+        RefreshList(oSearchedIssueFigures);
+    });
+
+    function RefreshList(oIssueFigures)
+    {
+        data = oIssueFigures;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblIssueFigures').datagrid('loadData',data);
+    }
+
+    //function PrintIssueFigures()
+    //{
+    //    window.open(_sBaseAddress+'/IssueFigure/PrintIssueFigures', "_blank");
+    //}
+
+    function AddIssueFigure()
+    {
+        var oIssueFigures= $('#tblIssueFigures').datagrid('getRows');
+        sessionStorage.setItem("IssueFigures", JSON.stringify(oIssueFigures));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("IssueFigureHeader", "Add IssueFigure");
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/IssueFigure/ViewIssueFigure?id=0&nid="+_oSelectedContractor.ContractorID;
+
+        //var tsv=((new Date()).getTime())/1000;
+        //var oParameter = new Object();
+        //oParameter.Name = "Add IssueFigure";
+        //var url =_sBaseAddress+ "/IssueFigure/ViewIssueFigure?id=0&nid="+_oSelectedContractor.ContractorID;
+        //var oIssueFigure = window.showModalDialog(url, oParameter, 'dialogHeight:295px;dialogWidth:465px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+        ////debugger
+        //if(oIssueFigure!=null)
+        //{
+        //    if(oIssueFigure.IssueFigureID>0)
+        //    {
+        //        var oIssueFigures = $('#tblIssueFigures').datagrid('getRows');
+        //        var nIndex=oIssueFigures.length;
+
+        //        $('#tblIssueFigures').datagrid('appendRow',oIssueFigure);
+        //        $('#tblIssueFigures').datagrid('selectRow', nIndex);
+        //    }
+        //}
+    }
+
+    function EditIssueFigure()
+    {
+        debugger;
+
+        var oIssueFigure= $('#tblIssueFigures').datagrid('getSelected');
+        if(oIssueFigure==null || oIssueFigure.IssueFigureID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+        var oIssueFigures= $('#tblIssueFigures').datagrid('getRows');
+        sessionStorage.setItem("IssueFigures", JSON.stringify(oIssueFigures));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("IssueFigureHeader", "Edit IssueFigure");
+        window.location.href = _sBaseAddress+  "/IssueFigure/ViewIssueFigure?id="+oIssueFigure.IssueFigureID+"&nid="+_oSelectedContractor.ContractorID;
+
+        //var oIssueFigure= $('#tblIssueFigures').datagrid('getSelected');
+        //if(oIssueFigure==null || oIssueFigure.IssueFigureID<=0)
+        //{
+        //    alert("Please select a item from list!");
+        //    return;
+        //}
+        //var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+
+        //var tsv=((new Date()).getTime())/1000;
+        //var oParameter = new Object();
+        //oParameter.Name = "Edit IssueFigure";
+        //var url =_sBaseAddress+ "/IssueFigure/ViewIssueFigure?id="+oIssueFigure.IssueFigureID+"&nid="+_oSelectedContractor.ContractorID;
+        //var oIssueFigure = window.showModalDialog(url, oParameter, 'dialogHeight:295px;dialogWidth:465px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+        ////debugger
+        //if(oIssueFigure!=null)
+        //{
+        //    if(oIssueFigure.IssueFigureID>0)
+        //    {
+        //        $('#tblIssueFigures').datagrid('updateRow',{index: SelectedRowIndex,	row: oIssueFigure});
+        //    }
+        //}
+    }
+
+    function Delete()
+    {
+        debugger;
+        var oIssueFigure= $('#tblIssueFigures').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+
+        if(oIssueFigure==null || oIssueFigure.IssueFigureID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+
+        var tsv = ((new Date()).getTime()) / 1000;
+        if (oIssueFigure.IssueFigureID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/IssueFigure/Delete",
+                traditional: true,
+                data:{id:oIssueFigure.IssueFigureID,ts:tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage === "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblIssueFigures').datagrid('deleteRow',SelectedRowIndex);
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+    function Details()
+    {
+        //debugger;
+
+        var oIssueFigure= $('#tblIssueFigures').datagrid('getSelected');
+        if(oIssueFigure==null || oIssueFigure.IssueFigureID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblIssueFigures').datagrid('getRowIndex',oIssueFigure);
+        var oIssueFigures= $('#tblIssueFigures').datagrid('getRows');
+        sessionStorage.setItem("IssueFigures", JSON.stringify(oIssueFigures));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("IssueFigureHeader", "View IssueFigure");
+        window.location.href = _sBaseAddress+  "/IssueFigure/ViewIssueFigure?id="+oIssueFigure.IssueFigureID+"&nid="+_oSelectedContractor.ContractorID;
+
+
+        //var oIssueFigure= $('#tblIssueFigures').datagrid('getSelected');
+        //if(oIssueFigure==null || oIssueFigure.IssueFigureID<=0)
+        //{
+        //    alert("Please select an item from the list!");
+        //    return;
+        //}
+        //var oParameter = new Object();
+        //oParameter.Name = "View IssueFigure";
+
+        //var url =_sBaseAddress+  "/IssueFigure/ViewIssueFigure?id="+oIssueFigure.IssueFigureID+"&nid="+_oSelectedContractor.ContractorID;
+        //oIssueFigure = window.showModalDialog(url, oParameter, 'dialogHeight:295px;dialogWidth:465px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+
+    }
+
+
+    function RefreshControlLayout(oAURolesMapping)
+    {        
+        $("#btnAdd").hide();
+        $("#btnEdit").hide();
+        $("#btnView").hide();
+        $("#btnDelete").hide();
+        $("#btnActive").hide();
+        $("#btnPrintList").hide();
+        $("#btnPrintXL").hide();
+                
+        if(PermissionChecker('Add','IssueFigure',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','IssueFigure',oAURolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','IssueFigure',oAURolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','IssueFigure', oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('Add','IssueFigure',oAURolesMapping)){$("#btnActive").show();}
+        if(PermissionChecker('PrintList','IssueFigure',oAURolesMapping)){$("#btnPrintList").show();}        
+        if(PermissionChecker('PrintList','IssueFigure',oAURolesMapping)){$("#btnPrintXL").show();}
+    }
+        
+    function Close()
+    {
+        window.location.href = _sBaseAddress+ "/Contractor/ViewContractors?menuid="+_nMenuid;
+    }
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/Contractor/ViewContractors?menuid="+_nMenuid;
+        }
+    });
+</script>
+        

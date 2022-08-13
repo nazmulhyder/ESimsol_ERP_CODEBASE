@@ -1,0 +1,198 @@
+﻿@{
+    ViewBag.Title = "Shelf";
+}
+
+<html>
+
+<body>
+    @model ESimSol.BusinessObjects.Shelf
+    <div id="divShelf" class="easyui-panel" title="Add Shelf" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <fieldset class="bodyfieldsetstyle" style="height:97%">
+                <legend style="text-align:left; font-weight:bold;"> Shelf Informations : </legend>
+                <div class="winViewFieldContainer">
+                    <table style="width:100%;height:100%;margin-top: 50px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="width:40%;text-align:right;">
+                                <label >
+                                    Shelf No :
+                                </label>
+                            </td>
+                            <td style="width:60%;text-align:left;">
+                                @Html.TextBoxFor(model => model.ShelfNo, new { id = "txtShelfNo", style = "width: 350px;" })
+                            </td>
+
+                        </tr>
+                        <tr>
+                            <td style="width:40%;text-align:right;">
+                                <label >
+                                    Shelf Name :
+                                </label>
+                            </td>
+                            <td style="width:60%;text-align:left;">
+                                @Html.TextBoxFor(model => model.ShelfName, new { id = "txtShelfName", style = "width: 350px;" })
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="width:40%;text-align:right;">
+                                <label >
+                                    Remarks :
+                                </label>
+                            </td>
+                            <td style="width:60%;text-align:left;">
+                                @Html.TextBoxFor(model => model.Remarks, new { id = "txtRemarks", style = "width: 350px;" })
+                            </td>
+
+                        </tr>
+                    </table>
+
+                </div>
+            </fieldset>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        </td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+ var _oShelf=null;
+ var _sBaseAddress="";
+ var _sShelfHeader="";
+ var _nBUID = 0;
+ var _lBackLink = "";
+ $(document).ready(function () {
+     debugger;    
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+     _oShelf =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     _sShelfHeader=sessionStorage.getItem("ShelfHeader");
+     _nBUID=sessionStorage.getItem("BUID");
+     _lBackLink = sessionStorage.getItem("BackLink");
+     $('#divShelf').panel({ title:_sShelfHeader});
+     if(_sShelfHeader=="View Shelf")
+     {
+         $('#btnSave').hide();
+     }
+
+     history.pushState(null, document.title, location.href);
+     window.addEventListener('popstate', function (event)
+     {
+         history.pushState(null, document.title, location.href);
+     });
+    
+ });
+    function RefreshShelfLayout(buttonId) {
+        if (buttonId === "btnViewShelf") {
+            $("input").prop("disabled", true);
+            $("#btnSave").hide();
+        }
+        else {
+            $("input").not('#txtShelfNo').prop("disabled", false);
+            $("#btnSave").show();
+        }
+        $(".disabled input").prop("disabled", true);
+        $(".number").icsNumberField();
+    }
+ function ValidateInput()
+ {
+     if($("#txtShelfNo").val()==null ||$("#txtShelfNo").val()=="")
+     {
+         alert("Please enter Shelf No!");
+         $('#txtShelfNo').focus();
+         return false;
+     }
+     if($("#txtShelfName").val()==null ||$("#txtShelfName").val()=="")
+     {
+         alert("Please enter Shelf name!");
+         $('#txtShelfName').focus();
+         return false;
+     }
+    
+     return true;
+ }
+
+ function RefreshObject()
+ {
+    
+     var oShelf= {
+         ShelfID :_oShelf==null?0: _oShelf.ShelfID,
+         ShelfNo : $("#txtShelfNo").val(),
+         ShelfName : $("#txtShelfName").val(),
+         BUID: _nBUID,
+         Remarks: $("#txtRemarks").val()
+     };
+     return oShelf;
+ }
+
+ $("#btnSave").click(function(){
+     if(!ValidateInput()) return;
+     var oShelf=RefreshObject();
+     $.ajax({
+         type: "POST",
+         dataType: "json",
+         url : _sBaseAddress+  "/Shelf/Save",
+         traditional: true,
+         data:  JSON.stringify(oShelf),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             debugger;
+             var oShelf = jQuery.parseJSON(data);
+             if (oShelf.ShelfID>0) {
+                 alert("Data Saved sucessfully");
+                 var oShelfs =sessionStorage.getItem("Shelfs");
+                 var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                 if(oShelfs!=null)
+                 {
+                     oShelfs = jQuery.parseJSON(oShelfs);
+                 }
+                 else
+                 {
+                     oShelfs=[];
+                 }
+                 if(nIndex!=-1)
+                 {
+                     oShelfs[nIndex]=oShelf;
+                 }
+                 else
+                 {
+                     sessionStorage.setItem("SelectedRowIndex", oShelfs.length);
+                     oShelfs.push(oShelf);
+                 }
+                 sessionStorage.setItem("Shelfs", JSON.stringify(oShelfs));
+                 window.location.href = _lBackLink;
+             }
+             else {
+                 alert(oShelf.ErrorMessage);
+             }
+         },
+         error: function (xhr, status, error) {
+             alert(error);
+         }
+     });
+ });
+
+ $("#btnClose").click(function(){
+     window.location.href = _lBackLink;
+ });
+
+ $(document).keydown(function(e) {
+     if(e.which == 27)//escape=27
+     {
+         window.location.href = _lBackLink;
+     }
+ });
+</script>

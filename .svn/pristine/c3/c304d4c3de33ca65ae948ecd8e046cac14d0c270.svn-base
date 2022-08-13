@@ -1,0 +1,214 @@
+﻿    @{
+        ViewBag.Title = "Exe Order Status";
+    }
+
+    @model IEnumerable <ESimSol.BusinessObjects.FNOrderUpdateStatus>
+    <div ng-app="FNExeApp" class="form-horizontal">
+        <div ng-controller="FNExeController" style="overflow-x:hidden">
+            <div class="row ui-grid-top-panel regionFENO">
+                <div class="container">
+                    <div class="form-inline" style="padding:5px">
+                        @*<div class="input-group date date-container">
+                            <input type="text" class="form-control" ng-model="dtFrom" ng-disabled="disabled"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+                        <span>to</span>
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" ng-model="dtTo" ng-disabled="disabled"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                        </div>
+
+                        <div class="input-group" style="width:17%">
+                            <input ng-model="SCNo" ng-keydown="searchExeByKeyUp($event)" class="form-control" placeholder="Search PO No...." required />
+                            <span class="input-group-btn">
+                                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="searchExe()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>
+                            </span>
+                        </div>
+                        <div class="input-group" style="width:17%">
+                            <input ng-model="ContractorName" ng-keydown="searchContractorByKeyUp($event)" class="form-control" placeholder="Search Contractor...." required />
+                            <span class="input-group-btn">
+                                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="searchContractor()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>
+                            </span>
+                        </div>*@
+                        <div class="input-group" style="width:17%">
+                            @*<input ng-model="DispoNo" ng-keydown="searchDispoByKeyUp($event)" class="form-control" placeholder="Search by Dispo No" required />*@
+                            <input ng-model="DispoNo" ng-keyup="search($event)" class="form-control" placeholder="Search by Dispo No" required />
+
+                        </div>
+                        @*<button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="search()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"> Search</span></button>*@
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+                        <button type="button" class="btn btn-sm btn-info" aria-label="Left Align" ng-click="Excel()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Excel</span></button>
+                        @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="ClientExcel()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Client Excel</span></button>*@
+                    </div>
+                </div>
+            </div>
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-exporter ui-grid-edit class="grid grid ui-grid-selectable"></div>
+        </div>
+    </div>
+
+    <style type="text/css">
+
+        .regionFENO .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .grid {
+            height: 530px;
+            width: 100%;
+        }
+        .regionFENO .btn-sm{
+         padding:3px 10px;
+        }
+        .regionFENO .input-group-addon{
+         padding: 4px 8px;
+        }
+        .regionFENO .date-container{
+            width:140px;
+        }
+       
+    </style>
+
+    <script type="text/javascript">
+
+    var pager =[];
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFNEOs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _nBuid =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var _oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+        var  FNExeApp = angular.module('FNExeApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service','ui.grid.exporter']);
+
+        FNExeApp.controller('FNExeController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, advanceSearch)
+        {
+            $scope.DispoNo = "";
+            sessionStorage.setItem("AdvSearchString", "");
+            $('.date-container').datepicker({
+                format: "dd M yyyy",
+                calendarWeeks: true,
+                autoclose: true,
+                todayHighlight: true
+            });
+
+            $scope.gridOptions ={
+                enableSorting: true,
+                showColumnFooter: true,
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableColumnResizing: true,
+                //enableGridMenu: true,
+
+               // enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'SCNo', name: 'PO NO', width:'10%', enableCellEdit: false },
+                    { field: 'BuyerName', name: 'Buyer', width: '15%', enableCellEdit: false },
+                    { field: 'ContractorName', name: 'Garments Name', width: '15%', enableCellEdit: false },
+                    { field: 'ExeNo',  name: 'Dispo No', width:'15%' },
+                    { field: 'Construction',  name: 'Construction', width:'15%' },
+                    { field: 'ColorInfo', name: 'Color', width: '12%' },
+                    { field: 'OrderQty', name: 'Order Qty', cellClass: 'text-right', width: '10%', cellFilter: 'number: 2',  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'GradeAQty', name: 'Grade-A', cellClass: 'text-right', width: '10%', cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'GradeBQty', name: 'Grade-B', cellClass: 'text-right', width: '10%', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'GradeCQty', name: 'Grade-C',  cellClass: 'text-right', width: '10%', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'TotalReject', name: 'Grade-D(Reject + Cut Pcs)',  cellClass: 'text-right', cellFilter: 'number: 2', width: '15%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'TotalQty', name: 'Total Qty',  cellClass: 'text-right', width: '10%', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'DeliveryQty', name: 'Delivery Qty',  cellClass: 'text-right', width: '10%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'BalanceQty', name: 'BalanceQty', cellClass: 'text-right',  width: '10%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' }
+
+                ],
+                data:oFNEOs,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                }
+            };
+            $scope.search=function(e){
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code != 13) 
+                {
+                    return;
+                }
+                var oFNOrderUpdateStatus = {
+                    ErrorMessage: "1~0~07 Nov 2018~07 Nov 2018~0~07 Nov 2018~07 Nov 2018~0~07 Nov 2018~07 Nov 2018~~~" + $scope.DispoNo
+                }
+                sessionStorage.setItem("AdvSearchString", oFNOrderUpdateStatus.ErrorMessage);
+                $http.post(_sBaseAddress+'/RptExecutionOrderUpdateStatus/AdvanceSearch', oFNOrderUpdateStatus).then(
+                                      function (response)
+                                      {
+                                          debugger;
+                                          var results=response.data;
+                                          //if(results.length>0 && results[0].FSCDetailID>0){
+                                          if(results.length>0){
+                                              $scope.gridOptions.data=results;
+                                          }
+                                          else{
+                                              alert("No data found.");
+                                              $scope.gridOptions.data=[];
+                                          }
+
+                                      },
+                                      function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                                );
+            };
+
+            $scope.Excel=function(){
+                var sParam = "";
+                sParam = sessionStorage.getItem("AdvSearchString");
+                if(sParam == "")
+                {
+                    alert("Please Search Any Data");
+                    return;
+                }
+                window.open(_sBaseAddress+ "/RptExecutionOrderUpdateStatus/ExcelFNOrderUpdateStatus?sParam="+sParam, "_blank");
+            }
+            $scope.AdvanceSearch=function()
+            {
+                debugger;
+                oColumns = [];
+                var oColumn = { field: 'Name', name: 'Party Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+                oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+                var paramObj_Contractor={
+                    obj:{Params: '1' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                    objName:'Params',
+                    objField:'ContractorID',
+                    url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                    title:'Contractor List',
+                    multiSelect:true,
+                    columns:oColumns
+                }
+                var oRptExecutionOrderUpdateStatus = [
+                                    { BOField:     "BUID",              Value:    _nBuid,             InputType: 'hidden'},
+                                    { DisplayName: "Stock Recd Date",   BOField: "QCDate",            InputType: 'date' },
+                                    { DisplayName: "Batch Issue Date",  BOField: "BatchIssue",        InputType: 'date' },
+                                    { DisplayName: "PO Date",           BOField: "PODate",            InputType: 'date' },
+                                    { DisplayName: "PO No",             BOField: "PONo",              InputType: 'text' },
+                                    { DisplayName: "Party Name",        BOField: "SupplierName",      InputType: 'picker', PickerObject:paramObj_Contractor },
+                ];
+                var modalObj={
+                    size:'md',
+                    title:"Advance Search",
+                    CompareOperators:_oCompareOperators,
+                    HtmlElements:oRptExecutionOrderUpdateStatus,
+                    isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                    urlAdvanceSearch:_sBaseAddress + '/RptExecutionOrderUpdateStatus/AdvanceSearch'
+                }
+                var modalInstance=advanceSearch.Instance(modalObj);
+                modalInstance.result.then(function (result)
+                {
+                    console.log(result);
+                    sSearchString = sessionStorage.getItem('AdvSearchString');
+                    $scope.gridOptions.data=result;
+                }, function ()
+                {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+       });
+
+    </script>
+
+
+
+

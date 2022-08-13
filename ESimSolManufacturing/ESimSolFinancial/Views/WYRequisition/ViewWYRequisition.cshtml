@@ -1,0 +1,1205 @@
+﻿<html>
+@{
+    ViewBag.Title = "Weaving Yarn Requistion";
+}
+<body>
+    @model ESimSol.BusinessObjects.WYRequisition
+    <div class="menuMainCollectionTable" ng-app="WYRequisitionApp"  id="divWYRequisition">
+        <div style="font-family:Tahoma;text-align:center;height:88%;" ng-controller="WYRequisitionController" class="regionWYR">
+            <fieldset>
+                <legend>Ref No : <label class="text-primary"> {{WYRequisition.RequisitionNo}} </label> </legend>
+                <div class="row col-md-12">
+                    <div class="col-md-1 text-right"><label class="control-label">Yarn Type:</label></div>
+                    <div class="col-md-2 text-left">
+                        <select id="cboYarnType" ng-model="WYRequisition.WYarnTypeInt" ng-options="obj.id as obj.Value for obj in WYarnTypes" ng-disabled="LayoutType!=0" ng-change="CboYarnType()" class="form-control">
+                            <option value="">--Select Type--</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 text-right"><label class="control-label"> Date:</label></div>
+                    <div class="col-md-2 text-left">
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" ng-model="WYRequisition.IssueDateSt" ics-tab="2"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-md-1 text-right"><label class="control-label">{{IssueStore_Label}} Store:</label></div>
+                    <div class="col-md-2 text-left">
+                        <select ng-model="WYRequisition.IssueStoreID" class="form-control" ics-tab="3" ng-class="ChangeIssueStore()" ng-options="oItem.WorkingUnitID as oItem.StoreName for oItem in IssueStores">
+                            <option value="">--Select Store--</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 text-right"><label class="control-label">{{ReceiveStore_Label}} Store:</label></div>
+                    <div class="col-md-2 text-left">
+                        <select ng-model="WYRequisition.ReceiveStoreID" class="form-control" ics-tab="4" ng-options="oItem.WorkingUnitID as oItem.StoreName for oItem in ReceiveStores">
+                            <option value="">--Select Store--</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row col-md-12">
+                    <div class="col-md-1 text-right"><label class="control-label">Requisition :</label></div>
+                    <div class="col-md-2 text-left">
+                        <select ng-model="WYRequisition.RequisitionTypeInt" class="form-control" ics-tab="5" ng-change="cboRequsitionType()" ng-options="obj.id as obj.Value for obj in RequsitionTypes">
+                           
+                        </select>
+                    </div>
+                    <div class="col-md-1 text-right"><label class="control-label">Note:</label></div>
+                    <div class="col-md-8 text-left">
+                        <input ng-model="WYRequisition.Note" class="form-control" ics-tab="6" />
+                    </div>
+                </div>
+
+            </fieldset>
+            <div class="ui-grid-top-panel" style="text-align:left;">
+                
+                <div class="col-md-2 text-left">
+                    <select id="cboYarnType" ng-model="WYRequisition.WarpWeftTypeInt" ng-options="obj.id as obj.Value for obj in WarpWeftTypes" class="form-control">
+                        <option value="">Warp/Weft Type</option>
+                    </select>
+                </div>
+
+                <input ng-model="txtDispoNo" ics-tab="6" placeholder="Type Dispo No & Press Enter" ng-keydown="SearchKeyDispoNo($event)" style="width:150px; height:24px;" required />
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickDispo()"><span class="glyphicon glyphicon-ok" aria-hidden="true"> Pick</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RemoveDetail()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Remove</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RefreshDetail()"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
+            </div>
+            <div style="width: 99%; height:365px;" ui-grid="gridOptionsRPDetail" ui-grid-selection ui-grid-cellnav ui-grid-edit></div>
+            <fieldset>
+                <legend>Action</legend>
+                <div class="row col-md-12 text-right">
+                    <button type="button" id="btnApprove" class="btn btn-sm" aria-label="Left Align" ng-show="btnApprove" ng-click="Approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"> Approve</span> </button>
+                    <button type="button" id="btnDisburse" class="btn btn-sm" aria-label="Left Align" ng-show="btnDisburse" ng-click="Disburse()"> <span class="glyphicon glyphicon-minus-sign" aria-hidden="true"> Disburse</span> </button>
+                    <button type="button" id="btnReceive" class="btn btn-sm" aria-label="Left Align" ng-show="btnReceive" ng-click="Receive()"> <span class="glyphicon glyphicon-adjust" aria-hidden="true"> Receive</span> </button>
+                    <button type="button" id="btnSave" class="btn btn-sm" aria-label="Left Align" ng-hide="btnSave" ng-click="Save()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Save</span> </button>
+                    <button type="button" id="btnclose" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+                </div>
+            </fieldset>
+        </div>
+
+        <script type="text/ng-template" id="WYRequisition.html">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modal-title">Lot No :</h4>
+            </div>
+            <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Order Product:</label></div>
+                        <div class="col-md-7 text-left">
+                            <input ng-model="WYRequisitionDetail.OrderProduct" class="form-control" disabled>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Store:</label></div>
+                        <div class="col-md-7 text-left">
+                            <select ng-model="WYRequisitionDetail.WorkingUnitID" class="form-control" ics-tab="3" ng-class="ChangeIssueStore()" ng-options="oItem.WorkingUnitID as oItem.StoreName for oItem in IssueStores">
+                                <option value="">--Select Store--</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Product:</label></div>
+                        <div class="col-md-7 text-left">
+                            <div class="form-inline">
+                                <input class="form-control" ng-model="txtProductName" placeholder="Type Name & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownProduct($event)" style="width:80%;" required />
+                                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickProduct()" ng-disabled="disabled"><span aria-hidden="true"> Pick </span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">LotNo:</label></div>
+                        <div class="col-md-7 text-left">
+                            <div class="form-inline">
+                                <input class="form-control" ng-model="txtLotNo" placeholder="Type Lot No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownLot($event)" style="width:80%;" required />
+                                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickLot()" ng-disabled="disabled"><span aria-hidden="true"> Pick </span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="UpdateLot()" ng-disabled="disabled" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> OK</button>
+                <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+            </div>
+        </script>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    .regionWYR .form-horizontal .control-label {
+        padding-top: 1px;
+    }
+
+    .regionWYR .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .regionWYR .col-md-12 {
+        width: 100%;
+        padding-right: 5px;
+        padding-left: 5px;
+        margin-bottom: 3px;
+    }
+      .regionWYR .col-md-1 {
+        width: 9.86%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+    .regionWYR .col-md-2 {
+        width: 14.46%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .regionWYR .col-md-6 {
+        width: 50.02%;
+        padding-right: 5px;
+        padding-left: 5px;
+    } 
+    .regionWYR .col-md-7 {
+        width: 63.02%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+    .regionWYR .col-md-8 {
+        width: 63.02%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+     .regionWYR .col-md-11 {
+        width: 87.5%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+    .regionWYR .btn-sm {
+        padding: 3px 10px;
+    }
+
+    .regionWYR .input-group-addon {
+        padding: 4px 8px;
+    }
+</style>
+<script type="text/javascript">
+    //debugger;
+    var oWYRequisition =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oIssueStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.IssueStores));
+    var oReceiveStores =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReceiveStores));
+    var _nLayoutType =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LayoutType));
+    var oFabricExecutionOrderYarnReceives= oWYRequisition.FEOYSList;
+    var oWYarnTypes =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WYarnTypes));
+
+    var WYRequisitionApp = angular.module('WYRequisitionApp', ['ngAnimate', 'ui.bootstrap','ui.grid', 'ui.grid.selection','ui.grid.edit', 'ms.service']);
+    WYRequisitionApp.controller('WYRequisitionController', function ($scope,$http,$uibModal,$log,$filter, uiGridConstants,msModal,userSession,icsMethod,msGridControl) {
+        debugger;
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+        debugger;
+        oWYRequisition.BUID = sessionStorage.getItem('BUID');
+        $scope.FabricExecutionOrderYarnReceives=oFabricExecutionOrderYarnReceives;
+        $scope.IssueStores = oIssueStores;
+        $scope.ReceiveStores = oReceiveStores;
+
+        $scope.WYarnTypes = oWYarnTypes;
+        $scope.FEOYRs =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FEOYRs));
+        
+        $scope.WarpWeftTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WarpWeftTypes));
+        $scope.LayoutType = _nLayoutType;
+
+        $scope.WYRequisition=oWYRequisition;
+
+        $scope.RequsitionTypes=[{id:102,Value:"SRS (Issue)"},{id:101,Value:"SRM (Receive)"}];
+
+        $scope.IssueStore_Label ="Issue";
+        $scope.ReceiveStore_Label ="Receive";
+        $scope.cboRequsitionType= function()
+        {
+            debugger;
+            if($scope.WYRequisition.RequisitionTypeInt==101)
+            {
+                $scope.IssueStore_Label ="Receive";
+                $scope.ReceiveStore_Label ="Issue";
+            }
+            else  if($scope.WYRequisition.RequisitionTypeInt==102)
+            {
+                $scope.IssueStore_Label ="Issue";
+                $scope.ReceiveStore_Label ="Receive";
+            }
+        }
+        $scope.cboRequsitionType();
+
+        if($scope.WYRequisition.WYRequisitionID<=0)
+        {
+            $scope.WYRequisition.IssueStoreID=(oIssueStores.length>0? oIssueStores[0].WorkingUnitID :0 );
+            $scope.WYRequisition.ReceiveStoreID=(oReceiveStores.length>0? oReceiveStores[0].WorkingUnitID :0 );
+        }
+
+        var oDetailColumns = [];
+        var oColumn ={ field: 'DispoNo', name: 'Dsipo No', width: '8%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ProductName', name: 'Count', width: '12%',align:'left',cellClass: 'text-left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        //oColumn ={ field: 'LotNo', name: 'Batch', width: '10%',align:'left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn = { field: 'LotNo', name:'Batch/Lot No', width:'12%',cellClass: 'text-right', enableCellEdit:false,
+        cellTemplate:'<div>' +'<span> {{row.entity.LotNo}} </span><button style="align:right" ng-click="grid.appScope.OpenLotModal(row.entity)">Pick</button>' +'</div>'};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ColorName', name: 'Colour', width: '9%',align:'left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'WarpWeftTypeSt', name: 'Warp/Weft', width: '9%',align:'left', enableSorting: false ,enableCellEdit:true};oDetailColumns.push(oColumn);
+       
+        oColumn ={ field: 'ReqQty', name: 'Req Qty(kg)',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ReceiveQty', name: 'Issue Qty(kg)',cellClass: 'text-right',enableCellEdit:true, width: '10%',align:'left',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+       
+        oColumn ={ field: 'ReqCones', name: 'Need Pcs',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'NumberOfCone', name: 'T/F Pcs',cellClass: 'text-right',enableCellEdit:true, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'BeamNo', name: 'BeamNo', width: '9%',align:'right', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+       
+        oColumn ={ field: 'Dia', name: 'Dia', width: '10%',align:'left', enableSorting: false ,enableCellEdit:true};oDetailColumns.push(oColumn);
+
+        //oColumn ={ field: 'Dia', name: 'Dia',cellClass: 'text-left',enableCellEdit:true, width: '10%',align:'left'};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'BagQty', name: 'Bag',cellClass: 'text-right',enableCellEdit:true, width: '8%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+       
+        oColumn ={ field: 'RequiredWarpLength', name: 'Req Length (Mtr)',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'IssuedLength', name: 'Issued Length',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'TFLength', name: 'TFLength',cellClass: 'text-right',enableCellEdit:true, width: '10%',align:'left',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+        
+        //oColumn ={ field: 'BagQty', name: 'Bag',cellClass: 'text-right',enableCellEdit:true, width: '8%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+       oColumn ={ field: 'Remarks', name: 'Remarks', width: '10%',align:'left', enableSorting: false ,enableCellEdit:true};oDetailColumns.push(oColumn);
+
+        ////Commercial invoice LC Detail
+        $scope.gridOptionsRPDetail = {
+            showColumnFooter: true,
+            multiSelect: false,
+            enableFullRowSelection: true,
+            enableSelectAll: false,
+            columnDefs:oDetailColumns,
+            data:oFabricExecutionOrderYarnReceives,
+            onRegisterApi: function (gridApi) {
+                $scope.gridDetailApi = gridApi;
+                gridApi.edit.on.afterCellEdit($scope,
+                  function (rowEntity, colDef, newValue, oldValue)
+                  {
+                      debugger;
+                      var sTotal_TFMeter = 0;
+
+                      var oFEOYRs = $filter('filter')($scope.gridOptionsRPDetail.data, { FSCDID: rowEntity.FSCDID });
+                      
+                      var sConeSet = Math.ceil(oFEOYRs.select('NumberOfCone').sum() / oFEOYRs.select('ReqCones').sum());
+
+                      console.log(sConeSet);
+                      if(sConeSet == 0 || isNaN(sConeSet) || sConeSet=='Infinity')
+                      {
+                        return rowEntity;
+                      }
+
+                      if(colDef.field=="NumberOfCone")
+                      {
+                          var isNotFound = true;
+                          for(var i=0; i< $scope.FEOYRs.length; i++)
+                          {
+                            if($scope.FEOYRs[i].FSCDID == rowEntity.FSCDID)
+                            {
+                                if(sConeSet <= 1) 
+                                    rowEntity.BeamNo =  parseInt($scope.FEOYRs[i].BeamCount);
+                                else if(sConeSet > 1) 
+                                    rowEntity.BeamNo =  parseInt($scope.FEOYRs[i].BeamCount) + " - " +  (parseInt($scope.FEOYRs[i].BeamCount) +  parseInt(sConeSet) - 1);
+                                      
+                                //sTotal_TFMeter = parseFloat(sTotal_TFMeter) + parseFloat($scope.FEOYRs[i].TFLength);
+                                isNotFound = false;
+                            }
+                          }
+                          
+                          if(isNotFound)
+                          {
+                              if(sConeSet <= 1) 
+                                  rowEntity.BeamNo =  1;
+                              else if(sConeSet > 1) 
+                                  rowEntity.BeamNo =  1 + " - " +  (parseInt(sConeSet));
+                          }
+
+                          //sTotal_TFMeter += parseFloat(rowEntity.TFLength);
+
+                          //rowEntity.BeamNo = rowEntity.BeamNo+"";
+
+                          //if(rowEntity.RequiredWarpLength==sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") < 0)) 
+                          //    rowEntity.BeamNo = rowEntity.BeamNo + " (last)";
+                          //else 
+                          //    if (rowEntity.RequiredWarpLength!=sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") > 0)) 
+                          //        rowEntity.BeamNo = rowEntity.BeamNo.replace('(last)','');
+                      }
+
+                      //if(colDef.field=="TFLength")
+                      //{
+                         
+                          
+                         //sTotal_TFMeter += parseFloat(rowEntity.TFLength * 2);
+
+                         //if( (rowEntity.RequiredWarpLength * 2) == sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") < 0)) 
+                         //    rowEntity.BeamNo = rowEntity.BeamNo + " (last)";
+                         //else 
+                         //    if( (rowEntity.RequiredWarpLength*2) != sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") > 0))  
+                         //        rowEntity.BeamNo = rowEntity.BeamNo.replace('(last)','');
+                      //}
+
+                      for(var i=0; i< $scope.FEOYRs.length; i++)
+                      {
+                          if($scope.FEOYRs[i].FSCDID == rowEntity.FSCDID)
+                          {
+                              sTotal_TFMeter = parseFloat(sTotal_TFMeter) + parseFloat($scope.FEOYRs[i].TFLength);
+                          }
+                      }
+
+                      for(var i=0; i < $scope.gridOptionsRPDetail.data.length; i++)
+                      {
+                          if($scope.gridOptionsRPDetail.data[i].FSCDID == rowEntity.FSCDID)
+                          {
+                              $scope.gridOptionsRPDetail.data[i].TFLength = rowEntity.TFLength;
+                          }
+                      }
+                      rowEntity.BeamNo = rowEntity.BeamNo + "";
+
+                      sTotal_TFMeter += parseFloat($scope.gridOptionsRPDetail.data.select('TFLength').sum());
+                      var sRequiredWarpLength = parseFloat($scope.gridOptionsRPDetail.data.select('RequiredWarpLength').sum());
+
+                      if( sRequiredWarpLength == sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") < 0)) 
+                          rowEntity.BeamNo = rowEntity.BeamNo + " (last)";
+                      else 
+                          if( sRequiredWarpLength != sTotal_TFMeter && (rowEntity.BeamNo.indexOf("last") > 0))  
+                              rowEntity.BeamNo = rowEntity.BeamNo.replace('(last)','');
+
+                      for(var i=0; i < $scope.gridOptionsRPDetail.data.length; i++)
+                      {
+                          if($scope.gridOptionsRPDetail.data[i].FSCDID == rowEntity.FSCDID)
+                          {
+                              $scope.gridOptionsRPDetail.data[i].BeamNo = rowEntity.BeamNo;
+                          }
+                      }
+
+                      return rowEntity;
+                  });
+            }
+        };
+
+
+        $scope.CboYarnType=function()
+        {
+            if( _nLayoutType!=0)return;
+
+            debugger;
+            if($scope.WYRequisition.WYarnTypeInt==0)
+            {
+                $scope.IssueStores= [];  $scope.ReceiveStores= [];
+            }else
+            {
+                $scope.IssueStores= $filter('filter')(oIssueStores, { WYarnTypeInt : $scope.WYRequisition.WYarnTypeInt});
+                $scope.ReceiveStores= $filter('filter')(oReceiveStores, { WYarnTypeInt : $scope.WYRequisition.WYarnTypeInt});
+            }
+        };
+        $scope.CboYarnType();
+
+        $scope.RefreshDetail = function ()
+        {
+            $scope.gridOptionsRPDetail.data =  $scope.gridOptionsRPDetail.data;
+        };
+
+        $scope.PickDispo=   function ()
+        {
+            debugger;
+            if(_nLayoutType==1)
+                sActionName="GetDyed_YarnlList";
+            else if(_nLayoutType==2)
+                sActionName="GetYarnlList";
+
+            var oFabricSalesContractDetail = {
+                WorkingUnitID: $scope.WYRequisition.IssueStoreID,
+                WarpWeftTypeInt: $scope.WYRequisition.WarpWeftTypeInt,
+                Params:$scope.WYRequisition.IssueStoreID+"~"+_nLayoutType,
+                ExeNo: $.trim($scope.txtDispoNo)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/'+sActionName, $.param(oFabricSalesContractDetail), config).then(
+                        function (response)
+                        {
+                            var oDetailColumns = [];
+
+                            var oColumn ={ field: 'DispoNo', name: 'Dsipo No', width: '10%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'ProductName', name: 'Count', width: '10%',align:'left',cellClass: 'text-left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+                            oColumn = { field: 'LotNo', name:'Batch', width:'10%',cellClass: 'text-right', enableCellEdit:false};oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'ColorName', name: 'Colour', width: '15%',align:'left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'WarpWeftTypeSt', name: 'Warp/Weft', width: '8%',align:'left', enableSorting: false ,enableCellEdit:true};oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'ReqQty', name: 'Req Qty',cellClass: 'text-right',enableCellEdit:false, width: '8%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'BalanceQty', name: 'StockInHand',cellClass: 'text-right',enableCellEdit:false, width: '10%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'BeamFinish', name: 'Beam Com',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'IssuedLength', name: 'Already Transfer',cellClass: 'text-right',enableCellEdit:false, width: '9%',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'TFLength', name: 'Due Length',cellClass: 'text-right',enableCellEdit:true, width: '10%',align:'left',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:0' };oDetailColumns.push(oColumn);
+      
+                            var results=jQuery.parseJSON(response.data);
+
+                            if(results.length<=0){ alert("No Data Found!"); return; }
+                            if(results[0].ErrorMessage.length>0){ alert(results[0].ErrorMessage); return; }
+
+                            var modalObj={
+                                size:'lg',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:true,
+                                pickertitle:'Dispo List',
+                                searchingbyfieldName:'DispoNo',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                debugger;
+                                for(var i = 0;i<result.length;i++)
+                                {
+                                    $scope.gridOptionsRPDetail.data.push(result[i]);
+                                }
+                                //$scope.LoadLotDistribution(result);
+                                $scope.LoadFEOYR();
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+
+        };
+
+
+        $scope.PickDispo_Dyed=   function ()
+        {
+            var oFabricSalesContractDetail = {
+                WorkingUnitID: $scope.WYRequisition.IssueStoreID,
+                ExeNo: $.trim($scope.txtDispoNo)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/GetDispoList',$.param(oFabricSalesContractDetail), config).then(
+                        function (response)
+                        {
+                            var oColumns = [];
+                            var oColumn = { field: 'ExeNo', name: 'Dispo No',width: '20%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'FabricNo', name: 'Fabric',width: '30%'  };oColumns.push(oColumn);
+                            oColumn = { field: 'Construction', name: 'Construction',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Dispo List',
+                                searchingbyfieldName:'ExeNo',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                debugger;
+
+                                $scope.LoadLotDistribution(result);
+                                $scope.LoadFEOYR();
+
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+
+        };
+        $scope.PickDispo_Gray=   function ()
+        {
+            var oFabricSalesContractDetail = {
+                WorkingUnitID: $scope.WYRequisition.IssueStoreID,
+                ExeNo: $.trim($scope.txtDispoNo)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/GetDispoList_Gray',$.param(oFabricSalesContractDetail), config).then(
+                        function (response)
+                        {
+                            var oColumns = [];
+                            var oColumn = { field: 'ExeNo', name: 'Dispo No',width: '12%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'SCNoFull', name: 'PO No',width: '20%'  };oColumns.push(oColumn);
+                            oColumn = { field: 'ProductName', name: 'Construction',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'ColorInfo', name: 'Color',width: '15%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'FabricWeaveName', name: 'FabricWeaveName',width: '12%', enableSorting: false  };oColumns.push(oColumn);
+
+                            /*
+                                ColorInfo=oFEOD.ColorName,
+                                ProductName = oFEOD.ProductName,
+                                Qty = oFEOD.Qty,
+                                Amount = oFEOD.Value,
+                                FabricWeaveName=(oFEOD.IsWarp)?"Warp":"Weft"
+                            */
+
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'lg',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                showVerticalScroll:uiGridConstants.scrollbars.ALWAYS,
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Dispo List',
+                                searchingbyfieldName:'ExeNo',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                debugger;
+                                if(_nLayoutType==1)
+                                    $scope.LoadLotDistribution(result);
+                                else if(_nLayoutType==2)
+                                    $scope.LoadLotDistribution_Dyed(result);
+
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+
+        };
+        $scope.LoadFEOYR = function()
+        {
+            var oWYR = {WYRequisitionID: $scope.WYRequisition.WYRequisitionID, Params: $scope.gridOptionsRPDetail.data.select("FSCDID").separator(",")}; console.log(oWYR);
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/GetFEYRs',$.param(oWYR), config).then(
+                        function (response)
+                        {
+                            var results=jQuery.parseJSON(response.data);
+                            if(results.length>0)
+                            {
+                                $scope.FEOYRs = results
+                            }
+                        }
+                      );
+        }
+
+        $scope.LoadLotDistribution = function(oFabricSalesContractDetail)
+        {
+            var oDULotDistribution = {FSCDetailID:oFabricSalesContractDetail.FabricSalesContractDetailID, DispoNo:oFabricSalesContractDetail.ExeNo};
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/GetYarnlList',$.param(oDULotDistribution), config).then(
+                        function (response)
+                        {
+                            var results=jQuery.parseJSON(response.data);
+                            if(results.length>0)
+                            {
+                                $scope.gridOptionsRPDetail.data = results
+                            }else{
+                                alert("Data Not Found");
+                            }
+                        }
+                      );
+        }
+
+        $scope.LoadLotDistribution_Dyed = function(oFabricSalesContractDetail)
+        {
+            var oDULotDistribution = {FSCDetailID:oFabricSalesContractDetail.FabricSalesContractDetailID, DispoNo:oFabricSalesContractDetail.ExeNo};
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/GetDyed_YarnlList',$.param(oDULotDistribution), config).then(
+                        function (response)
+                        {
+                            var results=jQuery.parseJSON(response.data);
+                            if(results.length>0)
+                            {
+                                $scope.gridOptionsRPDetail.data = results
+                            }else{
+                                alert("Data Not Found");
+                            }
+                        }
+                      );
+        }
+
+        $scope.SearchKeyDispoNo = function (e) {
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var txtDispoNo = $.trim($scope.txtDispoNo);
+                if(txtDispoNo=="" || txtDispoNo==null)
+                {
+                    alert("Type Sheet No and Press Enter");
+                    return;
+                }
+                $scope.PickDispo();
+                //if(_nLayoutType==1)
+                //    $scope.PickDispo();
+                //else if(_nLayoutType==2)
+                //    $scope.PickDispo_Gray();
+            }
+            else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtDispoNo='';
+            }
+        };
+        $scope.RemoveDetail = function ()
+        {
+            debugger;
+            var oMLCDetail = $scope.gridDetailApi.selection.getSelectedRows()[0];
+            if(oMLCDetail==null)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var SelectedRowIndex=$scope.gridOptionsRPDetail.data.indexOf(oMLCDetail);
+            if (!confirm("Confirm to Delete?")) return ;
+            $scope.gridOptionsRPDetail.data.splice(SelectedRowIndex,1);
+            $scope.ResetBeamNo(oMLCDetail.FSCDID);
+            //$scope.SetTotal();
+        };
+
+        $scope.ResetBeamNo = function(nFSCDID)
+        {
+            var oReturnDataList = [];
+            var oDataList = $scope.gridOptionsRPDetail.data;
+
+            var sTotal_TFMeter = 0;
+            var isNotFound = true;
+            var sBeamNo = "";
+
+            var oFEOYRs = $filter('filter')($scope.gridOptionsRPDetail.data, { FSCDID: nFSCDID });
+
+            var sConeSet = Math.ceil(oFEOYRs.select('NumberOfCone').sum() / oFEOYRs.select('ReqCones').sum());
+
+            for(var i=0; i< $scope.FEOYRs.length; i++)
+            {
+                if($scope.FEOYRs[i].FSCDID == nFSCDID)
+                {
+                    if(sConeSet <= 1) 
+                        sBeamNo =  parseInt($scope.FEOYRs[i].BeamCount);
+                    else if(sConeSet > 1) 
+                        sBeamNo =  parseInt($scope.FEOYRs[i].BeamCount) + " - " +  (parseInt($scope.FEOYRs[i].BeamCount) +  parseInt(sConeSet) - 1);
+                                      
+                    isNotFound = false;
+                }
+            }
+                          
+            if(isNotFound)
+            {
+                if(sConeSet <= 1) 
+                    sBeamNo =  1;
+                else if(sConeSet > 1) 
+                    sBeamNo =  1 + " - " +  (parseInt(sConeSet));
+            }
+               
+
+            for(var i=0; i< $scope.FEOYRs.length; i++)
+            {
+                if($scope.FEOYRs[i].FSCDID == nFSCDID)
+                {
+                    sTotal_TFMeter = parseFloat(sTotal_TFMeter) + parseFloat($scope.FEOYRs[i].TFLength);
+                }
+            }
+
+
+            sBeamNo = sBeamNo + "";
+
+            sTotal_TFMeter += parseFloat($scope.gridOptionsRPDetail.data.select('TFLength').sum());
+            var sRequiredWarpLength = parseFloat($scope.gridOptionsRPDetail.data.select('RequiredWarpLength').sum());
+
+            if( sRequiredWarpLength == sTotal_TFMeter && (sBeamNo.indexOf("last") < 0)) 
+                sBeamNo = sBeamNo + " (last)";
+            else 
+                if( sRequiredWarpLength != sTotal_TFMeter && (sBeamNo.indexOf("last") > 0))  
+                    sBeamNo = sBeamNo.replace('(last)','');
+
+            for(var i=0; i < $scope.gridOptionsRPDetail.data.length; i++)
+            {
+                if($scope.gridOptionsRPDetail.data[i].FSCDID == nFSCDID)
+                {
+                    $scope.gridOptionsRPDetail.data[i].BeamNo = sBeamNo;
+                }
+            }
+        }
+
+        //-----LOT MODAL OPEN
+        $scope.Modal = function (obj, operation) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'md',
+                templateUrl: 'WYRequisition.html',
+                controller: 'ModalInstanceCtrl',
+                controllerAs: 'WYRequisitionCtrl',
+                resolve: {
+                    obj: function () {
+                        return { WYRequisitionDetail:obj, Operation: operation  };
+                    }
+                }
+            });
+
+            modalInstance.result.then(function (result) {
+                debugger;
+                if(result.ProductID>0) // LotID
+                {
+                    debugger;
+                    var index=sessionStorage.getItem('SelectedLotIndex');
+                    $scope.gridOptionsRPDetail.data[index]=result;
+                    $scope.gridOptionsRPDetail.data[index].IssueLotID=result.LotID;
+                    $scope.gridDetailApi.selection.selectRow($scope.gridOptionsRPDetail.data[index]);
+
+                    //$scope.WYRequisition.IssueStoreID=result.IssueStoreID;
+                    //$scope.WYRequisition.ReceiveStoreID=result.ReceiveStoreID;
+                }
+                angular.element(document.querySelector('.ics-tab-7')).focus();
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        $scope.OpenLotModal = function(oWYRequisition)
+        {
+            sessionStorage.setItem("SelectedLotIndex", $scope.gridOptionsRPDetail.data.indexOf(oWYRequisition));
+            oWYRequisition.BUID=$scope.WYRequisition.BUID;
+            oWYRequisition.RequisitionTypeInt=$scope.WYRequisition.RequisitionTypeInt;
+            oWYRequisition.WorkingUnitID=$scope.WYRequisition.IssueStoreID;
+
+            if(_nLayoutType==1)
+                oWYRequisition.LotActionName='GetsLot_Dyes';
+            else
+                oWYRequisition.LotActionName='GetsLot_Yarn';
+
+            $scope.Modal( oWYRequisition, 'Edit');
+        }
+
+        //$scope.ChangeIssueStore = function()
+        //{
+        //    if(parseInt($scope.WYRequisition.IssueStoreID)>0)
+        //    {
+        //        $scope.gridOptionsRPDetail.data = [];
+        //    }
+        //}
+        $scope.Save = function ()
+        {
+            debugger;
+            if(!$scope.ValidateInput()) return;
+            $scope.WYRequisition.IssueDate = new Date($scope.WYRequisition.IssueDateSt);
+            var oWYRequisition= $scope.WYRequisition; //console.log(oWYRequisition);  return;
+            //oWYRequisition.IssueDate = new Date(oWYRequisition.IssueDateInString);
+            oWYRequisition.FEOYSList = $scope.gridOptionsRPDetail.data;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/Save',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Data Save Successfully!!");
+
+                                if(sessionStorage.getItem("WYRequisitionHeader")!="Disburse WYRequisition")
+                                    $scope.PageReLoad(oWYRequisition);
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+
+        };
+        $scope.Approve = function ()
+        {
+            if(!$scope.ValidateInput()) return;
+            var oWYRequisition= $scope.WYRequisition;
+            if (!confirm("Confirm to Approve?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/Approve',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Successfully Approved!!");
+                                $scope.PageReLoad(oWYRequisition);
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.Disburse = function ()
+        {
+            if(!$scope.ValidateInput()) return;
+            var oWYRequisition= $scope.WYRequisition;
+            if (!confirm("Confirm to Disburse?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/Disburse',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Successfully Disburse!!");
+                                $scope.PageReLoad(oWYRequisition);
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.Receive = function ()
+        {
+            if(!$scope.ValidateInput()) return;
+            var oWYRequisition= $scope.WYRequisition;
+            if (!confirm("Confirm to Receive?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/Receive',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Successfully Receive!!");
+                                $scope.PageReLoad(oWYRequisition);
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.ValidateInput =  function ()
+        {
+            debugger;
+            if($scope.WYRequisition.IssueStoreID==0)
+            {
+                alert('Please Select Store');
+                return false;
+            }
+            if($scope.WYRequisition.ReceiveeStoreID==0)
+            {
+                alert('Please Select Store');
+                return false;
+            }
+            if($scope.gridOptionsRPDetail.data.length <=0){alert("Please Add Dispo.");  return false;}
+            var oRPIDetails = $scope.gridOptionsRPDetail.data;
+            for(var i = 0;i<oRPIDetails.length;i++)
+            {
+                if(parseFloat(oRPIDetails[i].Qty)<=0)
+                {
+                    alert(" Qty Should be greater than 0 For Sheet No: '"+oRPIDetails[i].SheetNo+" AND Product No: "+oRPIDetails[i].ProductName);
+                    return false;
+                }
+            }
+            return true;
+        };
+        $scope.PageReLoad = function(oWYRequisition)
+        {
+            var oWYRequisitions = sessionStorage.getItem("WYRequisitions");
+            var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if (oWYRequisitions != null) {
+                oWYRequisitions = jQuery.parseJSON(oWYRequisitions);
+            }
+            else {
+                oWYRequisitions = [];
+            }
+            if (nIndex != -1) {
+                oWYRequisitions[nIndex] = oWYRequisition;
+            }
+            else {
+                sessionStorage.setItem("SelectedRowIndex", oWYRequisitions.length);
+                oWYRequisitions.push(oWYRequisition);
+            }
+            sessionStorage.setItem("WYRequisitions", JSON.stringify(oWYRequisitions));
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+
+        if(sessionStorage.getItem("WYRequisitionHeader")=="View WYRequisition")
+        {
+            $("#divWYRequisition :input").prop('disabled', true);
+            $('#btnclose').prop('disabled', false);
+        }else if(sessionStorage.getItem("WYRequisitionHeader")=="Approve WYRequisition")
+        {
+            $scope.btnSave = true;
+            $scope.btnDisburse = false;
+            $scope.btnReceive= false;
+            $scope.btnApprove = true;
+            $("#divWYRequisition :input").prop('disabled', true);
+            $('#btnApprove,#btnclose').prop('disabled', false);
+        }else if(sessionStorage.getItem("WYRequisitionHeader")=="Disburse WYRequisition")
+        {
+            $scope.btnSave = false;
+            $scope.btnDisburse = true;
+            $scope.btnReceive= false;
+            $scope.btnApprove = false;
+            $("#divWYRequisition :input").prop('disabled', true);
+            $('#btnDisburse,#btnclose,#btnSave').prop('disabled', false);
+        }else if(sessionStorage.getItem("WYRequisitionHeader")=="Receive WYRequisition")
+        {
+            $scope.btnSave = true;
+            $scope.btnDisburse = false;
+            $scope.btnReceive= true;
+            $scope.btnApprove = false;
+            $("#divWYRequisition :input").prop('disabled', true);
+            $('#btnReceive,#btnclose').prop('disabled', false);
+        }
+        $scope.Close=function ()
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        };
+    });
+
+    WYRequisitionApp.controller('ModalInstanceCtrl', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+
+        var viewType = sessionStorage.getItem("Operation");
+
+        if(sessionStorage.getItem("WYRequisitionHeader")=="Edit WYRequisition"|| sessionStorage.getItem("WYRequisitionHeader") || sessionStorage.getItem("WYRequisitionHeader")=="Add WYRequisition")
+            $scope.disabled= false;
+        else
+        {
+            $scope.disabled= true;
+        }
+
+        //-----LOT MODAL ASSIGN
+
+        $scope.IssueStores = oIssueStores;
+        if( obj.WYRequisitionDetail.RequisitionTypeInt==101)
+            $scope.IssueStores = oReceiveStores;
+
+        $scope.Operation=obj.Operation;
+        $scope.WYRequisitionDetail=obj.WYRequisitionDetail;
+        debugger;
+        //if(obj.WYRequisitionDetail.DyeingOrderDetailID==null || obj.WYRequisitionDetail.DyeingOrderDetailID<=0)
+        //{
+        //    $scope.WYRequisitionDetail={
+        //        WYRequisitionID : 0,
+        //        BUID:sessionStorage.getItem('BUID'),
+        //        Name : "",
+        //        Activity : true
+        //    }
+        //}
+        //else
+        //{
+        $scope.WYRequisitionDetail = obj.WYRequisitionDetail;
+        $scope.WYRequisitionDetail.OrderProduct=obj.WYRequisitionDetail.ProductName;
+        $scope.txtProductName=obj.WYRequisitionDetail.ProductName;
+
+
+        if(obj.WYRequisitionDetail.LotNo!="")
+            $scope.txtLotNo=obj.WYRequisitionDetail.LotNo+" [BL"+obj.WYRequisitionDetail.LotQty+"]";
+        $scope.WYRequisitionDetail.LotProductID=obj.WYRequisitionDetail.ProductID;
+
+
+        if(obj.WYRequisitionDetail.LotID>0)
+        {
+            $scope.txtProductName=obj.WYRequisitionDetail.LotProductName;
+        }
+        //$scope.WYRequisitionDetail.LotNo="";
+        //$scope.WYRequisitionDetail.LotID=0;
+        //}
+
+        $scope.PickLot= function ()
+        {
+            $scope.WYRequisitionDetail.LotID=0;
+            $scope.WYRequisitionDetail.LotNo="";
+
+            if($scope.WYRequisitionDetail.LotProductID<=0)
+            {
+                alert("Please Pick a Product And Try Again"); return;
+            }
+            debugger;
+            var sParam="NotInHouse";
+            if($scope.WYRequisitionDetail.IsInHouse) sParam="IsInHouse"; //console.log($scope.WYRequisitionDetail);
+
+            var oLot= {
+                Params :  sParam,
+                ParentID: $scope.WYRequisitionDetail.DyeingOrderDetailID,
+                ProductID:$scope.WYRequisitionDetail.LotProductID,
+                BUID:$scope.WYRequisitionDetail.BUID,
+                LotNo:($scope.txtLotNo == undefined ? "" : $scope.txtLotNo),
+                WorkingUnitID:$scope.WYRequisitionDetail.WorkingUnitID,
+                ContractorID:$scope.WYRequisitionDetail.ContractorID,
+                DyeingOrderID:$scope.WYRequisitionDetail.DyeingOrderID,
+                ModelReferenceID:$scope.WYRequisitionDetail.FEOSDID
+            };
+            $scope.txtLotNo ="";
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/'+$scope.WYRequisitionDetail.LotActionName,$.param(oLot), config).then(
+                        function (response)
+                        {
+                            debugger;
+                            var oDetailColumns = [];
+                            var oColumn = { field: 'OrderRecapNo', name:'OrderNo', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            var oColumn = { field: 'LotNo', name:'Lot No', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'Balance', name:'Qty', width:'15%',cellClass: 'text-left',enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'ReportUnitSymbol', name:'Unit', width:'15%',cellClass: 'text-left',enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'LocationName', name:'Location', width:'20%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'OperationUnitName', name:'Operation Unit', width:'20%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+
+                            var results=jQuery.parseJSON(response.data);
+                            if(results.length<=0)
+                            {
+                                alert("No Data Found!!"); return;
+                            }
+
+                            var modalObj={
+                                size:'lg',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Porduct List',
+                                searchingbyfieldName:'DyeingOrderNo',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                if(result.LotID>0)
+                                {
+                                    $scope.WYRequisitionDetail.LotID=result.LotID;
+                                    $scope.WYRequisitionDetail.LotNo=result.LotNo;
+                                    $scope.WYRequisitionDetail.Qty=result.BalanceQty;
+                                    $scope.txtLotNo=result.LotNo+" [BL-"+result.BalanceQty+"]";
+
+                                    $scope.WYRequisitionDetail.WorkingUnitID_Issue=result.WorkingUnitID;
+                                }
+                                else
+                                {
+                                    $scope.WYRequisitionDetail.LotID=0;
+                                    $scope.WYRequisitionDetail.LotNo="";
+                                    $scope.txtLotNo="";
+                                }
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(response.statusText);}
+                    );
+        };
+        $scope.SearchKeyDownLot = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var txtLotNo = $.trim($scope.txtLotNo);
+                if(txtLotNo=="" || txtLotNo==null)
+                {
+                    alert("Type Lot No and Press Enter");
+                    return;
+                }
+                $scope.PickLot();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtPorductNo='';
+            }
+        };
+        $scope.PickProduct= function ()
+        {
+            debugger;
+            $scope.WYRequisitionDetail.LotProductID="";
+            $scope.WYRequisitionDetail.LotProductName="";
+            $scope.WYRequisitionDetail.LotID=0;
+            $scope.WYRequisitionDetail.LotNo="";
+            $scope.WYRequisitionDetail.WorkingUnitID_Issue=0;
+            $scope.txtLotNo="";
+            var oPorduct= {
+                ProductName:($scope.txtProductName == undefined ? "" : $scope.txtProductName),
+                BUID:$scope.WYRequisitionDetail.BUID
+            };
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/DURequisition/GetProducts',$.param(oPorduct), config).then(
+                        function (response)
+                        {
+                            var oDetailColumns = [];
+                            var   oColumn = { field: 'ProductCode', name:'Code', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductName', name:'Porduct', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductCategoryName', name:'Category', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Porduct List',
+                                searchingbyfieldName:'ProductName',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                if(result.ProductID>0)
+                                {
+                                    $scope.WYRequisitionDetail.LotProductID=result.ProductID;
+                                    $scope.WYRequisitionDetail.LotProductName=result.ProductName;
+                                    $scope.txtProductName=result.ProductName;
+                                }
+                                else
+                                {
+                                    $scope.WYRequisitionDetail.ProductID=0;
+                                    $scope.WYRequisitionDetail.ProductName="";
+                                    $scope.WYRequisitionDetail.MUnit="";
+                                    $scope.txtProductName="";
+                                }
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        };
+        $scope.SearchKeyDownProduct = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var txtPorduct = $.trim($scope.txtProductName);
+                if(txtPorduct=="" || txtPorduct==null)
+                {
+                    alert("Type Product Name and Press Enter");
+                    return;
+                }
+
+                $scope.PickProduct();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtPorductNo='';
+            }
+        };
+
+        $scope.Validation=function()
+        {
+            if($scope.WYRequisitionDetail.Name == "" || $scope.WYRequisitionDetail.Name == undefined){
+                msModal.Message({headerTitle : '', bodyText:'Enter DyeingType Name.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            return  true;
+        };
+
+        $scope.UpdateLot= function ()
+        {
+            debugger;
+            var oWYRequisitionDetail= $scope.WYRequisitionDetail;
+            $uibModalInstance.close(oWYRequisitionDetail);
+        };
+
+        $scope.cancel= function () {
+            $uibModalInstance.close();
+        };
+    });
+</script>

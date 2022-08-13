@@ -1,0 +1,182 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Menu Permission";
+    }
+    @model ESimSol.BusinessObjects.User
+    <div id="divMenuPermission" class="easyui-panel" title="Menu Permission" style="font-family:Tahoma; height:100%; width:100%">        
+        <div style="width:100%; height:87%; text-align:left; padding-top:2px">
+            <fieldset style="height:97%; overflow:auto">
+                <legend style="font-weight: bold;text-align:left;">Menu Permission : </legend>
+                <ul id="ulMenuTree" data-options="checkbox:true"></ul>
+            </fieldset>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        </td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oUser =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divMenuPermission').data('User', oUser);
+        $('#divMenuPermission').data('SelectedMenus', []);
+        $('#divMenuPermission').data('UserMenu', null);
+        LoadUserMenu();
+    });
+
+    function LoadUserMenu()
+    {
+        debugger;
+        var oTempUser = $('#divMenuPermission').data('User');
+        var oUser= { UserID: parseInt(oTempUser.UserID) };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/User/GetsUserMenuTree",
+            traditional: true,
+            data:  JSON.stringify(oUser),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTenmpUser = jQuery.parseJSON(data);
+                $('#divMenuPermission').data('SelectedMenus', oTenmpUser.Permissions);
+                $('#divMenuPermission').data('UserMenu', oTenmpUser.Menu);
+                if (oTenmpUser.Menu != null) {
+                    $('#ulMenuTree').tree({ data: [oTenmpUser.Menu] });
+                    RefreshControl();
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    //Checked Selected Items
+    function RefreshControl()
+    {  
+        //var node = $('#ulMenuTree').tree('find', 1);
+        //$('#ulMenuTree').tree('check', node.target);  
+           
+        var oAllNodes=$('#ulMenuTree').tree('getChecked', 'unchecked');         
+        if(oAllNodes!=null)
+        {
+            for(var n=0;n<oAllNodes.length;n++)
+            {
+                if(AlreadySelected(oAllNodes[n].id))
+                {
+                    if($('#ulMenuTree').tree('isLeaf', oAllNodes[n].target))
+                    {
+                        $('#ulMenuTree').tree('check', oAllNodes[n].target); 
+                    }
+                }
+            }
+        }    
+    }
+        
+    function AlreadySelected(nKey)
+    {    
+        var oSelectedMenus = $('#divMenuPermission').data('SelectedMenus');
+        for(var j=0;j<oSelectedMenus.length;j++)
+        {
+            if(oSelectedMenus[j] ==nKey)
+            {
+                return true;    
+            }
+        }
+        return false;
+    }
+    
+    $("#btnSave").click(function () {   
+        var oUser = $('#divMenuPermission').data('User');
+        var SelectedMenus = $('#ulMenuTree').tree('getChecked');
+        
+        if(oUser===null)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+        if(parseInt(oUser.UserID)<=0)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+
+        var oSelectedMenus= $('#ulMenuTree').tree('getChecked');        
+        if(oSelectedMenus==null)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+        var sMenuKeys="";
+        for(var i=0; i<oSelectedMenus.length;i++)
+        {
+            sMenuKeys = sMenuKeys + oSelectedMenus[i].id+',';        
+        }      
+
+        //get indeterminate items
+        oSelectedMenus= [];
+        oSelectedMenus= $('#ulMenuTree').tree('getChecked', 'indeterminate'); 
+        for(var i=0; i<oSelectedMenus.length;i++)
+        {
+            sMenuKeys=sMenuKeys + oSelectedMenus[i].id+',';        
+        }   
+        
+        var oUser= {
+            UserID : parseInt(oUser.UserID),            
+            Keys : sMenuKeys
+        }
+          
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : sessionStorage.getItem("BaseAddress")+  "/User/ConfirmMenuPermission",
+            traditional: true,
+            data:  JSON.stringify(oUser),   
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var aaaa = jQuery.parseJSON(data);
+                if(aaaa=='Data save successfully')
+                {
+                    alert(aaaa);
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                alert(aaaa);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });        
+                
+    })
+
+    $("#btnClose").click(function () {          
+        window.location.href = sessionStorage.getItem("BackLink");
+    })
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>
+
+
+

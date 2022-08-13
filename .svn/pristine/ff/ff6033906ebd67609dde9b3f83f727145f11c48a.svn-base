@@ -1,0 +1,3548 @@
+﻿@model ESimSol.BusinessObjects.FabricSizingPlan
+<link href="../../Content/CSS/AjaxLoader.css" rel="stylesheet" type="text/css" />
+<link href="../../Content/CSS/icon.css" rel="stylesheet" type="text/css" />
+<html>
+@{ViewBag.Title = "Production Schedule";}
+<body>
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div id="winPrintTypeSelector" class="easyui-window winClass" title="Print Type" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="width:360px; float: left;">
+            <table border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="width: 50px; text-align: right">
+                        Type:
+                    </td>
+                    <td style="width:120px">
+                        <input type="checkbox" id="chkPortrait" />Portrait
+                    </td>
+                    <td style="width:120px">
+                        <input type="checkbox" id="chkLandScape" />Landscape
+                    </td>
+                </tr>
+                <tr style="height:50px">
+                    <td style="width:350px; text-align:right" colspan="3">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="OkPrintTypeButtonClick()()">Ok</a>
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="ClosePrintType()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable" id="divPS">
+        <div id="cc" class="easyui-layout" style="width: 100%; height: 564px;">
+
+            <div id="divContentCenter" data-options="region:'center'" style="padding: 2px; width: 100%">
+                <div id="scheduleViewOption" style="padding-left: 5px; background-color: gray;">
+                    <input type="text" id="txtOrderNoTwo" style="width:8%" placeholder="Type Order No" />
+                    <input type="text" id="txtBatchNoTwo" style="width:8%" placeholder="Type Batch No" />
+                     <span style="padding-left: 5px; color: Black">Pending</span>
+                    <input type="checkbox" id="chkboxUptoUnloadDyeMachine"  />
+                    <select id="cboMachineType" ></select>
+                    <input type="text" id="txtMachineTypePicker" style="width:80px" placeholder="Machine Type & Enter"/>
+                    <label>
+                        <input type="button" value="<" style="width: 20px; font-size: 10px;" onclick="Prevoius()" />
+                    </label>
+                    <label id="dateHeader" style="font-size: 12px; padding-left: 0px; color: White; font-family: Verdana;">
+                    </label>
+                    <label>
+                        <input type="button" value=">" style="width: 20px; font-size: 10px;" onclick="Next()" />
+                    </label>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="ToolbarRefresh()"></a>
+                    <label>
+                        <input type="button" value="Today" style="width: 40px; font-size: 10px;" onclick="TodayView()" />
+                    </label>
+                    <label>
+                        <input type="button" value="Day View" style="width: 60px; font-size: 10px;" onclick="DayView()" />
+                    </label>
+                    @*<label>
+                            <input type="button" value="Week" style="width: 37px; font-size: 10px;" onclick="WeekView()" />
+                        </label>*@
+                    <label>
+                        <input type="button" value="Month View" style="width: 70px; font-size: 10px;" onclick="MonthView()" />
+                    </label>
+                    <label>
+                        <input type="button" value="Machine View" style="width: 70px; font-size: 10px;" onclick="MachineView()" />
+                    </label>
+
+
+                    <span style="padding-top: 20px;">
+                      
+                    </span><a id="btnPrintSC" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="print()">Print</a>
+                    </span><a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="printXL()">Print XL</a>
+                </div>
+
+                <div id="divSchedule">
+                    @*<table id="tblSchedule" style="width: 100%; height: 530px;" border="0" cellpadding="0" cellspacing="0"></table>*@
+                    <table id="tblSchedule" class="easyui-datagrid" style="width: 100%; height: 530px;" fitcolumns="false" rownumbers="false" pagination="false" singleselect="true" autorowheight="true"></table>
+                </div>
+                <div id="divParentCalendar" style=" width:98%; height:80%; margin-left:2%; border: 1px solid #8AC007">
+                    <div id="divCalendar" class="easyui-calendar"
+                         data-options="fit:true,
+                        weeks:['Sun','Mon','Tus','Wed','Thu','Fri','Sat'],
+                        formatter:GenerateCalendarCellValue
+                       ">
+                    </div>
+                </div>
+                <div id="divMachineView" style="margin-left: 0px; height: 525px; width: 100%; padding-top: 0px;">
+                    <table id="tblFabricSizingPlanDetail" class="easyui-datagrid" style="height: 525px; width:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" striped="true" autorowheight="false" toolbar="#scheduleDetailtoolbar" data-options="onLoadSuccess: onLoadSuccess">
+                        <thead frozen="true">
+                            <tr>
+                                <th field="MachineName" width="12%" striped="true" align="left">
+                                    Machine Name
+                                </th>
+                                <th field="CheckBox" checkbox="true">
+                                </th>
+                                <th field="ScheduleNo" width="10%" align="left">
+                                    PS No
+                                </th>
+                            </tr>
+                        </thead>
+                        <thead>
+                            <tr>
+                                <th field="OrderNo" width="10%" align="left">
+                                    Order No
+                                </th>
+                                <th field="ContractorName" width="15%" align="left">
+                                    Customer
+                                </th>
+                                <th field="BuyerName" width="15%" align="left">
+                                    Buyer
+                                </th>
+                                <th field="BuyerRef" width="15%" align="left">
+                                    Buyer Ref
+                                </th>
+                                <th field="ColorName" width="10%" align="left">
+                                    Color Name
+                                </th>
+                                <th align="right" width="10%" data-options="field:'Qty',formatter:formatPrice">
+                                    Qty
+                                </th>
+                                <th field="DeliveryDateSt" width="8%" align="left">
+                                    Delivery Date
+                                </th>
+                                <th field="ProductName" width="12%" align="left">
+                                    Yarn Type
+                                </th>
+                              
+                                <th field="PSBatchNo" width="8%" align="center">
+                                    Color Batch
+                                </th>
+                                <th field="RouteSheetNo" width="10%" align="left">
+                                    Batch
+                                </th>
+                                <th field="StartTimeInST" width="8%" align="left">
+                                    Start Date
+                                </th>
+                                <th field="EndTimeInST" width="10%" align="left">
+                                    End Date
+                                </th>
+
+                                <th field="ApproveLotNo" width="12%" align="left">
+                                    Match to
+                                </th>
+                                <th field="ColorNo" width="12%" align="left">
+                                    Color/LD No 
+                                </th>
+                                <th field="RSStateSt" width="5%" align="left">
+                                    Status
+                                </th>
+
+                            </tr>
+                        </thead>
+                    </table>
+
+                    <div id="scheduleDetailtoolbar">
+                        <button type="button" id="btnSwap" class="btn-warning" style="  font-size:11px; width:80px;">
+                        <span class="glyphicon glyphicon-repeat info" > Swap </span> </button>
+
+                        <button type="button" id="btnCreate_Requisition" class="btn-primary btn-xs" style="  font-size:11px;">
+                            <span class="glyphicon glyphicon-plus"> Create Requisition </span>
+                        </button>
+
+                        <button type="button" id="btnDUPS_Cut_Machine" class="btn-danger btn-xs" style="  font-size:11px;">
+                            <span class="glyphicon glyphicon-scissors"> Cut</span>
+                        </button>
+
+                        <button type="button" id="btnDUPS_Paste_Machine" class="btn-warning btn-xs" style="  font-size:11px;">
+                            <span class="glyphicon glyphicon-paste"> Paste</span>
+                        </button>
+
+                        @*<a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"
+                           onclick="scheduleDetailRefresh()"></a>
+                        <input type="text" id="txtSearchbyScheduleDetailColorName" placeholder="Search by Color"
+                               style="width: 80px; font-size: 11px;" />
+                        <input id="txtProductName" type="text" placeholder="Search By Count" style="width: 80px; font-size: 11px;" />
+                        <input type="text" placeholder="Buyer Ref" style="width: 80px; font-size: 11px;"
+                               id="txtBuyerRef" />
+                        <input type="text" placeholder="Order Ref" style="width: 80px; font-size: 11px;"
+                               id="txtOrderRef" />
+                        <input id="txtJobCode" type="text" placeholder="Code" value="33" style="width: 33px;
+                                font-size: 11px;" maxlength="2" />
+                        <input id="txtJobNo" type="text" placeholder="Exe No" style="width: 40px; font-size: 11px;"
+                               maxlength="5" />
+                        <input id="txtJobYear" type="text" placeholder="Year" style="width: 33px; font-size: 11px;"
+                               maxlength="2" />
+
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"
+                           id="btnAdvanceSearch">Adv. Search</a>
+                        <a href="javascript:void(0)" class="easyui-linkbutton"
+                           iconcls="icon-details" plain="true" id="btnDetail">Detail</a>
+                        <a href="javascript:void(0)" class="easyui-linkbutton"
+                           iconcls="icon-edit" plain="true" id="btnEdit">Edit</a>
+                        <input type="button" id="btnCut" style=" font-size:11px; width:30px; " value="Cut" />
+                        <input type="button" id="btnPaste" style=" font-size:11px; width:40px;" value="Paste" />
+                        
+                        <a href="javascript:void(0)" class="easyui-linkbutton"
+                           iconcls="icon-print" plain="true" id="btnPrintDefault">All</a> <a href="javascript:void(0)"
+                                                                                             class="easyui-linkbutton" iconcls="icon-print" plain="true" id="btnPrintSchedule">
+                            Schedule
+                        </a>*@
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="divAjaxLoader" style="width: 500px;">
+            <img src="../../Content/Images/Ajaxloader.GIF" class="ajax-loader" />
+        </div>
+    </div>
+    <div id="winDUFabricSizingPlan" style="width:800px;height:540px" class="easyui-window winstyle" title="Schedule Informations" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="padding-left:0px; padding-right:0px; padding-top:2px;">
+            <div>
+                <table cellpadding="1" cellspacing="1" style="font-size: 12px;width: 100%">
+                    <tr>
+                        <td style="width:15%;text-align:right;">
+                            Dispo No:
+                        </td>
+                        <td style="width:35%;text-align:right;">
+                            <input id="txtOrderNo" class="reset-text" placeholder="Search by Dispo No" style="width:70%" />
+                            <a id="btnPickOrderNo" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                            Buyer Name:
+                        </td>
+                        <td style="padding-left: 2px;width:35%;text-align:left">
+                            <input id="txtBuyerName" type="text" style="width:100%" data-options="showSeconds:false" />
+                        </td>
+                    </tr> 
+                    <tr>
+                        <td style="width:15%;text-align:right;">
+                            Construction:
+                        </td>
+                        <td style="width:35%;text-align:right;">
+                            <input id="txtConstruction" class="reset-text" placeholder="Search by Dispo No" style="width:100%" />
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                            Composition:
+                        </td>
+                        <td style="padding-left: 2px;width:35%;text-align:left">
+                            <input id="txtComposition" type="text" style="width:100%"  />
+                        </td>
+                    </tr> 
+                    <tr>
+                        <td style="width:15%;text-align:right;">
+                            Design:
+                        </td>
+                        <td style="width:35%;text-align:right;">
+                            <input id="txtDesign" class="reset-text" placeholder="Search by Dispo No" style="width:100%" />
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                           Req. WarpLength:
+                        </td>
+                        <td style="padding-left: 2px;width:35%;text-align:left">
+                            <input id="txtRequiredWarpLength" type="text" style="width:100%" />
+                        </td>
+                    </tr> 
+                </table>
+            </div>
+
+            <table id="tblDUPSDetail" class="easyui-datagrid" style="width:100%;height:150px;"
+                   data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbarPS',onClickRow:onClickRow ">
+                <thead>
+                    <tr>
+                        <th field="OrderNo" width="12%" align="left">Order No </th>
+                        <th width="10%" align="right" field="OrderQty" formatter="formatPrice"> Order Qty</th>
+                        <th data-options="field:'BagCount',align:'right',editor:{type:'numberbox',options:{precision:0}}" width="10%"> <label id="lblBagCount"></label> </th>
+                        <th data-options="field:'QtyPerBag',align:'right',editor:{type:'numberbox',options:{precision:2}}" width="10%"> <label id="lblBagQty"></label> </th>
+                        <th data-options="field:'Qty',align:'right',editor:{type:'numberbox',options:{precision:2}}" width="10%">Qty</th>
+                        <th data-options="field:'OrderLast',align:'right',editor:{type:'text'}" width="10%">O\L</th>
+                        <th field="ContractorName" width="15%" align="left">
+                            Customer
+                        </th>
+                        <th field="BuyerName" width="15%" align="left">
+                            Buyer
+                        </th>
+                        <th field="ProductName" width="10%" align="left">
+                            Product Name
+                        </th>
+                        <th field="ColorName" width="10%" align="left">
+                            Color Name
+                        </th>
+                        <th field="ColorNo" width="10%" align="left">
+                            LD No/Color No
+                        </th>
+                     
+                        <th field="RouteSheetNo" width="10%" align="left">
+                            Batch No/Lot No
+                        </th>
+                        <th field="RSStateSt" width="10%" align="left">
+                            Status
+                        </th>
+                        <th field="HankorConeST" width="10%" align="left">
+                            Dyeing Type
+                        </th>
+                    </tr>
+                </thead>
+            </table>
+            <div>
+                <div id="toolbarPS">
+                    <select id="cboOrderType" style="width:15%"></select> @* onchange="ChangeOrderType()"*@
+                    <span class="lblOrderNo"></span>
+                    <input id="txtOrderNo" class="reset-text" placeholder="Search by Dispo No" style="width:20%" />
+                    <a id="btnPickOrderNo" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                    <a id="btnResetOrderNo" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                    <a id="btnRefreshDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                    <a id="btnDeleteDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                   
+                </div>
+
+            </div>
+        </div>
+        <div>
+            <fieldset>
+                <legend>Schedule Info:</legend>
+                <div>
+                    <table cellpadding="1" cellspacing="1" style="font-size: 12px;width: 100%">
+                        <tr>
+                            <td style="width:8%;text-align:right;"></td>
+                            <td style="width:10%;text-align:right;">
+                                Schedule No:
+                            </td>
+                            <td style="padding-left: 2px;width:22%;text-align:left">
+                                <input id="txtScheduleNo" type="text" style="width:100%" data-options="showSeconds:false" />
+                            </td>
+                            <td colspan="2" style="padding-right: 2px;width:50%;text-align:right;">
+                                <div style="float: right; width:100%;">
+
+                                    <span>
+                                        <input type="button" id="btnScheduleLastTime" value="Default Time" style="font-size: 11px;
+                                            height: 23px; width: 80px;" />
+                                    </span><span>
+                                        <input type="button" id="btnCurrenttime" value="Current Time" style="font-size: 11px;
+                                            height: 23px; width: 80px;" />
+                                    </span><span>
+                                        <input id="tptimeSpinner" class="easyui-timespinner" style="width: 75px; height:20px; font-size: 11px;" required="required"
+                                               data-options="showSeconds:false" />
+                                    </span>
+                                    <span>
+                                        <input type="button" id="btnAddSpinnerTime" value="Add" style="font-size: 11px;
+                                            height: 23px; width: 30px;" />
+                                    </span>
+                                </div>
+                            </td>
+                            <td style="width:10%;text-align:right;"></td>
+                        </tr>
+                        <tr>
+                            <td style="width:8%;text-align:right;"></td>
+                            <td style="width:10%;text-align:right;">
+                                Start Time:
+                            </td>
+                            <td style="width:22%;">
+                                @*<input id="txtStartDate" type="text" class="easyui-datetimebox" style="width:100%" data-options="showSeconds:false" />*@
+                                <input id="txtStartDate" style="width:100px;" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                <input id="tpStartTime" class="easyui-timespinner" style="width:60px;" required="required" />
+                            </td>
+
+                            <td style="width:20%;text-align:right;">
+                                End Time:
+                            </td>
+                            <td style="padding-left: 2px;width:30%;">
+                                @*<input id="txtEndDate" type="text" class="easyui-datetimebox" style="width:100%" data-options="showSeconds:false" />*@
+                                <input id="txtEndDate" style="width:100px;" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                <input id="tpEndTime" class="easyui-timespinner" style="width:60px;" required="required" />
+                            </td>
+
+                            <td style="width:10%;text-align:right;"></td>
+                        </tr>
+
+                    </table>
+
+                </div>
+
+            </fieldset>
+            <fieldset>
+                <legend>Schedule Info:</legend>
+                <div>
+                    <table style="font-size: 12px;width: 100%">
+                        <tr>
+                            <td style="width:20%;text-align:right;">
+                                Location Name:
+                            </td>
+                            <td style="width:30%;">
+                                <select style="width:100%" id="cboLocationTwo"></select>
+                            </td>
+                            <td style="padding-left:2px;text-align:right;width:20%;">
+                                Machine Name:
+                            </td>
+                            <td style="width:30%;">
+                                <input id="txtMachine" class="reset-text txt-styler-picker" placeholder="Search Machine" />
+                                <a id="btnPickMachine" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                <a id="btnResetMachine" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:20%;text-align:right;">
+                                Store Name:
+                            </td>
+                            <td style="width:30%;">
+                                <select style="width:100%" id="cboWorkingUnit" ></select>
+                            </td>
+                            <td style="width:20%;text-align:right;">
+                                Remarks:
+                            </td>
+                            <td colspan="3" style="width:80%;">
+                                <input id="txtNote" class="reset-text" style="width:100%;" placeholder="Remarks.." />
+                            </td>
+                        </tr>
+                    </table>
+                    <table id="tblDUPSLot" class="easyui-datagrid" style="width:98%;height:120px;"
+                           data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbarLot'">
+                        <thead>
+                            <tr>
+                                <th field="LotNo" width="30%" align="left">Lot No</th>
+                                <th width="20%" align="right" field="Balance" formatter="formatPrice"> Balance</th>
+                                <th data-options="field:'Qty',align:'right',editor:{type:'numberbox',options:{precision:2}}" width="20%">Qty</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div>
+                        <div id="toolbarLot">
+                            Lot No:<input id="txtLot" class="reset-text txt-styler-picker" placeholder="Search Lot" />
+                            <a id="btnPickLot" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                            <a id="btnResetLot" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                            <a id="btnRefreshLot" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                            <a id="btnDeleteLot" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                        </div>
+                    </div>
+
+                </div>
+            </fieldset>
+        </div>
+        <fieldset class="actionfieldsetstyle">
+            <legend>Actions : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="width:100%; font-size:11px; font-weight:bold;">
+                <tr>
+                    <td style="width:60%;text-align:left;">
+                        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                        <a id="btnSaveRS" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" style=" height:22px;">Dyeing Card</a>
+                        <a id="btnCut" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cut" plain="true" style=" height:22px;">Cut</a>
+                        <a id="btnPaste1" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-paste" plain="true" style=" height:22px;">Paste</a>
+
+                        <select style="width:25%" id="cboScheduleStatus">
+                            <option value="">--Select Status--</option>
+                        </select>
+                        <a id="btnUpdateStatus" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" style=" height:22px;">Update</a>
+                    </td>
+                    <td style="width:40%;text-align:right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" style=" height:22px;" onclick="Save(false)">Save</a>
+                        <a id="btnClosePS" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+    <div id="winDUPS_MonthDetail" style="width:500px;height:600px" class="easyui-window winstyle" title="MarketingSchedule Informations" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="width:100%; height:88%">
+            <table id="tblDUPS_MonthDetail" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" data-options="rowStyler: function(index,row){
+                                         if (row.MachineName=='Total'){
+                                            return 'color:#016B18; font-weight:bold;';
+                                        }
+                                    }
+                    ">
+                <thead>
+                    <tr>
+                        <th field="MachineName" width="25%" align="left">M/C Name</th>
+                        <th field="OrderCount" width="100" align="left">Order Count</th>
+                        <th field="Qty" width="100" align="left">Qty(Kg)</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <fieldset class="actionfieldsetstyle">
+            <legend>Actions : </legend>
+            <table style="width:100%">
+                <tr>
+                    <td style=" width:90%; text-align:right"></td>
+                    <td style="width:10%; text-align:right;">
+                        <a id="btnClose_DUPS_MonthDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+
+    var _sBaseAddress="";
+    var _sCalendarDate='';
+    var _oFabricSizingPlan=null;
+    var _oDyeMachines=[];
+
+    var _nfirstLoad=1;
+    var nflagWeekValue=0;
+    var _nView=0;
+    var _nWeek=0;
+
+
+    var _oFabricSizingPlans=[];
+    var _bToolbarRefresh=false;
+
+    var _bCut=false;
+    var _oDUPSCopy=null;
+    var _sFMIDs = "";
+    var _oDyeMachines_temp=[];
+    var _oDyeMachine={};
+    var _oAuthorizationRolesMapping=[];
+    var _oWorkingUnits=[];
+    var _oMachineTypes=[];
+    var _oMCells=[];
+    var _oMCellPSs=[];
+    var _sColor="";
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricSizingPlan =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oDyeMachines=  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.FabricMachines));
+       
+        _oFabricSizingPlans= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.FabricSizingPlans));
+        _oDUOrderSetups = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUOrderSetups));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BUID));
+       
+        _oMachineTypes=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.MachineTypes));
+        _oScheduleStatuses=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.ScheduleStatuses));
+        _oAuthorizationRolesMapping =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        
+        RefreshControlLayout();
+
+        //txtCone='Cone';
+        //txtHank='Bell';
+        //changeLabel({HankorCone:0});
+
+        sessionStorage.setItem('BUID',nBUID);
+        $("#divPS").data("PrintParam","");
+        $("#divPS").data("PrintType","");
+        $('#tpStartTime,#tpEndTime').timespinner('setValue', "00:00");
+        $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date));
+        //$('#txtStartDate,#txtEndDate').datebox('setValue',icsdateformat(new Date()));
+        //$("#cboLocationTwo").icsLoadCombo({ List: oLocations,  OptionValue: "LocationID",  DisplayText: "Name",  });
+        $("#cboScheduleStatus").icsLoadCombo({ List: _oScheduleStatuses,  OptionValue: "id",  DisplayText: "Value",  InitialValue:'-- Select one --' });
+     
+
+        //$("#cboOrderType").icsLoadCombo({ List: _oDUOrderSetups,  OptionValue: "OrderType", DisplayText: "ShortName",});
+        //$("#cboMachineType").icsLoadCombo({ List: _oMachineTypes,  OptionValue: "MachineTypeID", DisplayText: "Name", InitialValue:'-- All Machine --'});
+
+        ////TodayView();
+        $("#divParentCalendar").hide();
+        $("#divMachineView").hide();
+        $("#btnDUPS_Paste_Machine").hide();
+        $("#btnDUPS_Paste_Machine").data("DUPS",{ FabricSizingPlanID: 0});
+        
+        var oDate=new Date();
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        document.getElementById("dateHeader").innerHTML= oDate.getDate()+" "+ Month[oDate.getMonth()] +" "+ oDate.getFullYear();
+        MakeTable(_oDyeMachines);
+        GenerateTableData(_oDyeMachines);
+        // LoadIntoGrid(_oFabricSizingPlans);
+        $("#divAjaxLoader,#divExeFound").hide();
+        //var x = $("#cboDateSelection").val();
+        //if(x == "None")
+        //{
+        //    document.getElementById("regionStartDate").style.display = 'none';
+        //    document.getElementById("regionEndDate").style.display = 'none';
+        //}
+
+        //FindMachineName();
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function MakeTable(oMachines)
+    {
+        debugger;
+        var tblfrozenColumns=[];
+        var tblColums=[];
+        var oColumn=null;
+        oColumn= { field :"sDate", title:"SL", width:"25", align: "center"  };
+        tblfrozenColumns.push(oColumn);
+        if(oMachines.length<=0)
+        {
+            alert("Please Choose at least one Machine!");
+            return;
+        }
+        var count =0;
+        _oDyeMachine["sDate"] ="";
+        for(var i=0; i<oMachines.length;i++)
+        {
+            count++;
+            oColumn= {
+                field:"FMID"+oMachines[i].FMID,
+                title:  oMachines[i].MachineCodeWithName ,
+                width: "150",
+                align: "left",
+                formatter: function (value, row, index) { return FormatDetailSchedule(value, index); }
+            };
+            tblColums.push(oColumn);
+            _oDyeMachine["FMID"+oMachines[i].FMID] =oMachines[i].FMID;
+            _oDyeMachine["Note"] ="";
+            _oDyeMachine["SL"] =count;
+
+        }
+        $('#tblSchedule').datagrid({
+            frozenColumns:[tblfrozenColumns],
+            columns:[tblColums]
+        });
+
+    }
+
+    function GenerateTableData(oMachines)
+    {
+        debugger
+        _oDyeMachines_temp=[];
+        for(var i=0; i<20;i++)
+        {
+            _oDyeMachine={}  ;
+            for (var j = 0; j < oMachines.length; j++)
+            {
+                _oDyeMachine.sDate = i+1;
+                _oDyeMachine["SL"] =i;
+                _oDyeMachine['Note'] =  i;
+                _oDyeMachine["FMID"+oMachines[j].FMID] = GenerateCellValue(oMachines[j].FMID, j);
+
+            }
+
+            _oDyeMachines_temp.push(_oDyeMachine);
+        }
+        DynamicRefreshList(_oDyeMachines_temp, 'tblSchedule');
+    }
+
+    function GenerateCellValue(nFMID, j) {
+        debugger
+        var sDateString = "";
+        var sReturn = nFMID + '~' + sDateString + '~';
+        var sBuyersName = '';
+        for (var i = 0; i < _oFabricSizingPlans.length; i++) {
+            if (_oFabricSizingPlans[i].FMID == nFMID && _oFabricSizingPlans[i].DBUserID!=5 ) {
+                sBuyersName = sBuyersName + _oFabricSizingPlans[i].OrderInfo + '~'+_oFabricSizingPlans[i].FabricSizingPlanID+ '~'+_oFabricSizingPlans[i].StatusInt+",";
+                _oFabricSizingPlans[i].DBUserID=5;
+                break;
+            }
+        }
+
+        sBuyersName = sBuyersName.substring(0, sBuyersName.length - 1);
+        sReturn =sReturn+ sBuyersName+'~';
+        //alert(sReturn);
+        return sReturn;
+    }
+
+    function FormatDetailSchedule(value, index) {
+
+        //debugger
+        var aValues = value.split('~');
+        var nObjectID = parseInt(aValues[0]);
+        var sDate = aValues[1];
+        var sRSStatus = aValues[4];
+        if(sRSStatus<=0 || sRSStatus==null)
+        {
+            _sColor='#0099FF'
+        }
+        if(sRSStatus==1)
+        {
+            _sColor='#BEA9F0'
+        }
+        if(sRSStatus==2)
+        {
+            _sColor='#ffff4d'
+        }
+        if(sRSStatus==3)
+        {
+            _sColor='#80ff80'
+        }
+        if(sRSStatus==4)
+        {
+            _sColor='#a3a3c2'
+        }
+        if(sRSStatus==5)//cancel
+        {
+            _sColor='#FC0D0D'
+        }
+        if(sRSStatus==6)
+        {
+            _sColor='#1CAB12'
+        }
+        sPSID=(aValues[3]== null ||aValues[3]== '')?"0":aValues[3];
+        //   alert("MNo=" + nObjectID +" Date :"+sDate+" PSID :"+sPS);
+        var sParam = "" + nObjectID + ",'" + sDate + "'," + index + ","+sPSID+"";
+        var s = (aValues[2] == null || aValues[2] == '') ?
+            ' <input type="image" src="'+ _sBaseAddress +'/Content/CSS/icons/Add.png", id="btnDetail' + nObjectID + '", onclick="DetailViewSchedule(' + sParam + ')", value=""/>'
+            : ' <label style="font-size:11px; background-color:'+_sColor+'" id="btnDetail' + nObjectID + '" onclick="DetailViewSchedule(' + sParam + ')">' + aValues[2] + '</label>';
+
+        return s;
+    }
+    function DetailViewSchedule(nObjectID, sDate, index,sPSID) {
+
+        //  alert("index="+sPSID);
+        if (nObjectID == null || nObjectID <= 0) {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        _oFabricSizingPlan = { ErrorMessage: "", FabricSizingPlanID: sPSID, FMID: nObjectID };
+
+        $.ajax({
+            type: "POST",
+            url: _sBaseAddress + "/FabricSizingPlan/GetPS",
+            traditional: true,
+            data: JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                _oFabricSizingPlan = { ErrorMessage: "", FabricSizingPlanID: 0, FMID: 0 };
+                var oFabricSizingPlan = jQuery.parseJSON(data);
+             
+
+                //if(oFabricSizingPlan.FabricSizingPlanDetails!=null )
+                //{
+                //    if(oFabricSizingPlan.FabricSizingPlanDetails.length>0)
+                //        changeLabel(oFabricSizingPlan.FabricSizingPlanDetails[0]);
+
+                //    DynamicRefreshList(oFabricSizingPlan.FabricSizingPlanDetails, "tblDUPSDetail");
+                    
+                //}
+                //else
+                //{
+                //    DynamicRefreshList([], "tblDUPSDetail");
+
+                //}
+                RefreshControl(oFabricSizingPlan);
+                endEditing();
+               
+                //debugger;
+                if(_oDUPSCopy==null || _oDUPSCopy.FabricSizingPlanID==undefined || _oDUPSCopy.FabricSizingPlanID==0)
+                    $("#btnPaste1").hide();
+                else
+                    $("#btnPaste1").show();
+
+
+                $("#winDUFabricSizingPlan").icsWindow("open", "Schedule Entry");
+
+            }
+        });
+    }
+ 
+    $('#btnCut').click(function(e)
+    {
+        if(_oFabricSizingPlan.FabricSizingPlanID>0)
+        {
+
+            $.ajax({
+                type: "POST",
+                url: _sBaseAddress + "/FabricSizingPlan/GetPS",
+                traditional: true,
+                data: JSON.stringify(_oFabricSizingPlan),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oDUPS = jQuery.parseJSON(data);
+                    _oDUPSCopy=oDUPS;
+                    _bCut=true; oDUPS.OrderInfo="";
+                    var oFabricSizingPlan= $('#tblSchedule').datagrid('getSelected');
+                    if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+                    var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+                    oFabricSizingPlan["FMID"+oDUPS.FMID] = oDUPS.FMID+"~"+""+"~"+oDUPS.OrderInfo+"~"+oDUPS.FabricSizingPlanID;
+                    $('#tblSchedule').datagrid('updateRow', { index: SelectedRowIndex, row: oFabricSizingPlan });
+
+                    $("#winDUFabricSizingPlan").icsWindow("close");
+                }
+            });
+        }
+    });
+
+    $('#btnPaste').click(function(e)
+    {
+        if(_oFabricSizingPlan.FabricSizingPlanID>0)
+        {
+            $.ajax({
+                type: "POST",
+                url: _sBaseAddress + "/FabricSizingPlan/GetPS",
+                traditional: true,
+                data: JSON.stringify(_oFabricSizingPlan),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oFabricSizingPlan = jQuery.parseJSON(data);
+                    if(oFabricSizingPlan.FabricSizingPlanID>0)
+                    {
+                        //var oDateTime=new Date(oProductionSchedule.EndTimeInPerfect);
+                        SchedulePaste(oFabricSizingPlan);
+                        _bCut=false;
+                    }
+
+
+                }
+            });
+        }
+        else
+        {
+            var oFabricSizingPlan={FabricSizingPlanID:0, LocationID:_oFabricSizingPlan.LocationID, FMID:_oFabricSizingPlan.FMID, BUID:sessionStorage.getItem('BUID')};
+            SchedulePaste(oFabricSizingPlan);
+            _bCut=false;
+        }
+
+
+    });
+    function SchedulePaste(oFabricSizingPlanOld)
+    {
+        if(_oDUPSCopy==null|| _oDUPSCopy.FabricSizingPlanID<=0){alert("Nothing found for paste."); return;}
+        //debugger;
+        if(oFabricSizingPlanOld.FabricSizingPlanID<=0)
+        {
+            var dStartDate =$('#txtStartDate').datebox('getValue');
+            var startTime= $('#tpStartTime').timespinner('getValue');
+        }
+        else{
+            var dStartDate =oFabricSizingPlanOld.EndDateSt;
+            var startTime=oFabricSizingPlanOld.EndTimeTS;
+        }
+        var sTime=startTime.split(':');
+        var hStartTime= parseFloat(sTime[0]);
+        var mStartTime= parseFloat(sTime[1])+1;
+        dStartDate = new Date(dStartDate);
+        dStartDate.setHours(hStartTime);
+        dStartDate.setMinutes(mStartTime);
+
+        var dEndtDate =new Date();
+        dEndtDate= new Date(dEndtDate.setHours(dStartDate.getHours() +oFabricSizingPlanOld.TimeDiffInHours));
+        dEndtDate= new Date(dEndtDate.setMinutes( dEndtDate.getMinutes() +1));
+
+        _oDUPSCopy.FMID =oFabricSizingPlanOld.FMID,
+        _oDUPSCopy.LocationID =oFabricSizingPlanOld.LocationID,
+        _oDUPSCopy.StartTime	= dStartDate;
+        _oDUPSCopy.EndTime=dEndtDate;
+
+        var nts=(new Date()).getTime()/1000;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricSizingPlan/ScheduleInTimePeriod",
+            data: JSON.stringify({oFabricSizingPlan:_oDUPSCopy, nts: nts}),
+            contentType: "application/json; charset=utf-8",
+            success: function(data)
+            {
+                //debugger;
+                nCount = jQuery.parseJSON(data);
+                if (nCount>0)
+                {
+                    if(confirm("Are you sure to increase time from next all schedules."))
+                    {
+                        _oDUPSCopy.IsIncreaseTime=true;
+                        SaveProductionSchedule(_oDUPSCopy, false);
+                    }
+                }
+                else if(nCount==0)
+                {
+                    _oDUPSCopy.IsIncreaseTime=false;
+                    SaveProductionSchedule(_oDUPSCopy, false);
+                }
+
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+    }
+
+    $('#btnPaste1').click(function(e)
+    {
+        if(_oDUPSCopy==null|| _oDUPSCopy.FabricSizingPlanID<=0){alert("Nothing found for paste."); return;}
+        if(_oFabricSizingPlan.FMID<=0)
+        {
+            alert("Select Machine from List.");
+            return;
+        }
+        //debugger;
+
+        if(_oFabricSizingPlan.FabricSizingPlanID<=0)
+        {
+            var dStartDate =$('#txtStartDate').datebox('getValue');
+            var startTime= $('#tpStartTime').timespinner('getValue');
+        }
+        else{
+            var dStartDate =_oFabricSizingPlan.EndDateSt;
+            var startTime=_oFabricSizingPlan.EndTimeTS;
+        }
+
+        if(_oFabricSizingPlan.FMID<=0){
+            alert("Invalid Machine !"); return;
+        }
+
+        var oFabricSizingPlan=
+            {
+                FabricSizingPlanID: (_oFabricSizingPlan!=null &&_oFabricSizingPlan.FabricSizingPlanID>0)? _oFabricSizingPlan.FabricSizingPlanID:0,
+                LocationID:_oFabricSizingPlan.LocationID,
+                FMID:_oFabricSizingPlan.FMID,
+                BUID:sessionStorage.getItem('BUID'),
+                Params:_oFabricSizingPlan.FabricSizingPlanID+'~'+_oDUPSCopy.FabricSizingPlanID+'~'+dStartDate+"~"+startTime
+            };
+
+        //debugger;
+
+        var nts=(new Date()).getTime()/1000;
+        {
+            //var sPSIDs=;
+            $.ajax({
+                type: "Post",
+                dataType: "json",
+                url: _sBaseAddress + "/FabricSizingPlan/PastSchedule",
+                traditional: true,
+                data:   JSON.stringify(oFabricSizingPlan),///{sPSIDs : sPSIDs, nts:nts}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    var oresults=jQuery.parseJSON(data);
+                    if(oresults[0].ErrorMessage=="" || oresults[0].ErrorMessage==null)
+                    {
+                        alert("Paste Successfully");
+                        _oDUPSCopy={};
+                        ToolbarRefresh();
+                        $("#winDUFabricSizingPlan").icsWindow("close");
+
+                        //var oFabricSizingPlanDetails = $('#tblFabricSizingPlanDetail').datagrid('getChecked');
+                        //var oList=$('#tblFabricSizingPlanDetail').datagrid('getRows');
+                        //var nFirstIndex=oList.indexOf(oFabricSizingPlanDetails[0]);
+                        //var nSecondIndex=oList.indexOf(oFabricSizingPlanDetails[1]);
+
+                        //oList[nSecondIndex]=oresults[0];
+                        //oList[nFirstIndex]=oresults[1];
+
+                        //console.log(oresults);
+
+                        //DynamicRefreshList(oList, "tblFabricSizingPlanDetail");
+                    }
+                    else {alert(oresults[0].ErrorMessage);}
+                    //alert(sMessage);
+                    //if(sMessage=="Swap Successfully") { Refresh(); }
+
+                },
+                error: function (xhr, status, error) {alert(error);}
+            });
+        }
+    });
+
+    function formatString(val,row)
+    {
+        return '<center>'+val+'</center>';
+    }
+    function formatDate(val,row)
+    {
+
+        return '<span style="color:blue">'+val+'</span>';
+    }
+
+    $('#btnOrderNoReset').click(function(e)
+    {
+        $("#txtOrderNo")[0].value='';
+        document.getElementById('lblExeFound').innerHTML="";
+        document.getElementById('divExeFound').style.display='none';
+    });
+
+    function setDateTime(startDate)
+    {
+        var nYear=startDate.getFullYear();
+        var nMonth=startDate.getMonth();
+        var nDate=startDate.getDate();
+        var nHour=startDate.getHours();
+        var nMin=startDate.getMinutes();
+        //        if(nMonth<10 )
+        //        {
+        //           nMonth="0"+nMonth;
+        //        }
+        if(nDate<10)
+        {
+            nDate="0"+nDate;
+        }
+        if(nHour<10)
+        {
+            nHour="0"+nHour;
+        }
+        if(nMin<10)
+        {
+            nMin="0"+nMin;
+        }
+
+        // var intervalMin=Number(nMin)+14;
+
+        //var sDateTime= nMonth+"/"+nDate+"/"+nYear+" "+nHour+":"+nMin+" - "+nHour+":"+intervalMin;
+        //var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        //var sDateTime= nDate+"/"+mthNames[Number(nMonth)]+"/"+nYear+" "+nHour+":"+nMin;
+
+        var sDateTime= nHour+":"+nMin;
+        return sDateTime;
+    }
+
+    function Next()
+    {
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dateString=document.getElementById("dateHeader").innerHTML;
+
+        var returnValue=dateChange();
+
+        var nDate= new Date(returnValue[0]);
+        var cSpace= returnValue[1];
+        var sDateView=returnValue[2];
+
+
+        if( sDateView=="viewAsDateMonth")
+        {
+            if(Number(cSpace)==1)
+            {
+                _nfirstLoad=0;
+                nDate.setMonth(Number(nDate.getMonth())+1);
+                document.getElementById("dateHeader").innerHTML= Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+                _oFabricSizingPlan.sMonth="Month";
+                _oFabricSizingPlan.StartTime= nDate;
+                // search();
+
+            }
+            else if(Number(cSpace)==2)
+            {
+                nDate.setDate(Number(nDate.getDate())+1);
+                document.getElementById("dateHeader").innerHTML= nDate.getDate()+" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+                _oFabricSizingPlan.sDay= "Day";
+                _oFabricSizingPlan.StartTime= nDate;
+                // search();
+            }
+        }
+
+        else if(sDateView=="viewAsWeek")
+        {
+            var tempDate=new Date(returnValue[0]);
+            nDate.setDate(nDate.getDate()+7);
+
+            if(nDate.getFullYear()==tempDate.getFullYear())
+            {
+                document.getElementById("dateHeader").innerHTML= (tempDate.getDate()+1)+" "+ Month[tempDate.getMonth()] +" - "+ nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+            }
+            else
+            {
+                //alert(tempDate.getDate()+1);
+                tempDate.setDate(tempDate.getDate()+1);
+                document.getElementById("dateHeader").innerHTML= (tempDate.getDate())+" "+ Month[tempDate.getMonth()] +" "+ tempDate.getFullYear()+" "+"-"+" "+ nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+            }
+
+            _oFabricSizingPlan.sWeek= "Week";
+            _oFabricSizingPlan.StartTime= tempDate;
+            //search();
+        }
+
+
+
+
+    }
+
+    function Prevoius()
+    {
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dateString=document.getElementById("dateHeader").innerHTML;
+
+        var returnValue=dateChange();
+        var nDate= new Date(returnValue[0]);
+        var cSpace= returnValue[1];
+        var sDateView=returnValue[2];
+
+        if( sDateView=="viewAsDateMonth")
+        {
+            if(Number(cSpace)==1)
+            {
+                _nfirstLoad=0;
+                nDate.setMonth(Number(nDate.getMonth())-1);
+                document.getElementById("dateHeader").innerHTML= Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+                _oFabricSizingPlan.sMonth="Month";
+                _oFabricSizingPlan.StartTime= nDate;
+                // search();
+
+            }
+            if(Number(cSpace)==2)
+            {
+                nDate.setDate(Number(nDate.getDate())-1);
+                document.getElementById("dateHeader").innerHTML= nDate.getDate()+" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+                _oFabricSizingPlan.sDay= "Day";
+                _oFabricSizingPlan.StartTime= nDate;
+                //search();
+            }
+        }
+        else if(sDateView=="viewAsWeek")
+        {
+            var tempDate=new Date(returnValue[0]);
+
+            tempDate.setDate(Number(tempDate.getDate())-13);
+            nDate.setDate(Number(nDate.getDate())-7);
+            if(nDate.getFullYear()==tempDate.getFullYear())
+            {
+                document.getElementById("dateHeader").innerHTML= tempDate.getDate()+" "+ Month[tempDate.getMonth()] +" - "+nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+            }
+            else
+            {
+                document.getElementById("dateHeader").innerHTML= tempDate.getDate()+" "+ Month[tempDate.getMonth()] +" "+ tempDate.getFullYear()+" - "+ nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+            }
+
+            _oFabricSizingPlan.sWeek= "Week";
+            _oFabricSizingPlan.StartTime= tempDate;
+            //search();
+        }
+
+    }
+
+    function dateChange()
+    {
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dateString=document.getElementById("dateHeader").innerHTML;
+        var flag=0;
+        var countSpace=0;
+        var tempDate="";
+        var sMonth="";
+        var temp=0;
+        var dateFormat="";
+        var sDateView="";
+        var sStartDate="";
+        for(var i=0; i<dateString.length;i++)
+        {
+            if(dateString[i]=='-')
+            {
+                flag=1;
+                i=dateString.length;
+            }
+        }
+
+        if(flag==0)
+        {
+
+            for(var i=0; i<dateString.length;i++)
+            {
+                nflagWeekValue=0;
+                if(dateString[i]!=" ")
+                {
+                    if(isNaN(dateString[i]))
+                    {
+                        sMonth += dateString[i];
+                        if(dateString[Number(i)+1]==" ")
+                        {
+                            for(var j=0;j<Month.length;j++)
+                            {
+                                if(Month[j]==sMonth)
+                                {
+                                    temp=Number(j)+1;
+                                    j=Month.length;
+                                }
+                            }
+                        }
+
+                    }
+
+                    else
+                    {
+                        tempDate +=dateString[i];
+                    }
+
+                }
+                if(dateString[i] ==" ")
+                {
+                    countSpace=Number(countSpace)+1;
+                    tempDate +="/";
+                }
+
+            }
+
+            if(tempDate.length>5)
+            {
+                dateFormat=temp+"/"+tempDate;
+            }
+            else
+            {
+                dateFormat=temp+"/"+"1"+"/"+tempDate;
+            }
+
+            sDateView="viewAsDateMonth";
+
+        }
+
+        else if(flag==1)
+        {
+            nflagWeekValue=1;
+            var i=0;
+            while(dateString[i]!='-')
+            {
+                sStartDate=sStartDate+dateString[i];
+                i++;
+            }
+            sStartDate=$.trim(sStartDate.split('-')[0]);
+            i++;
+            for(var j=i; i<dateString.length;i++)
+            {
+
+                if(dateString[i]!=" ")
+                {
+                    if(isNaN(dateString[i]))
+                    {
+                        sMonth += dateString[i];
+                        if(dateString[Number(i)+1]==" ")
+                        {
+                            for(var j=0;j<Month.length;j++)
+                            {
+                                if(Month[j]==sMonth)
+                                {
+                                    temp=Number(j)+1;
+                                    j=Month.length;
+                                }
+                            }
+                        }
+
+                    }
+
+                    else
+                    {
+                        tempDate +=dateString[i];
+                    }
+
+                }
+                if(dateString[i] ==" ")
+                {
+                    countSpace=Number(countSpace)+1;
+                    tempDate +="/";
+                }
+
+            }
+
+            if(tempDate.length>5)
+            {
+                dateFormat=temp+"/"+tempDate;
+            }
+            else
+            {
+                dateFormat=temp+"/"+"1"+"/"+tempDate;
+            }
+            if(sStartDate.length<=6)
+            {
+                var oDate=new Date(dateFormat);
+                sStartDate=sStartDate+' '+oDate.getFullYear();
+            }
+            sStartDate=new Date(sStartDate);
+            sDateView="viewAsWeek";
+
+        }
+
+
+        var newDate=new Date(dateFormat);
+        if($.trim(sStartDate)=='')
+        {
+            sStartDate=newDate;
+        }
+        return [newDate, countSpace,sDateView,sStartDate];
+    }
+
+    function TodayView()
+    {
+        $("#divParentCalendar").hide();
+        $("#divSchedule").show();
+        $("#divMachineView").hide();
+        var currentDate=new Date();
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        document.getElementById("dateHeader").innerHTML= currentDate.getDate()+" "+ Month[currentDate.getMonth()] +" "+ currentDate.getFullYear();
+        _oFabricSizingPlan.sDay= "Day";
+        _oFabricSizingPlan.sPrintView="viewAsDateMonth";
+        _oFabricSizingPlan.StartTime= currentDate;
+        _bToolbarRefresh=true;
+        search();
+
+    }
+
+    function DayView()
+    {
+        $("#divParentCalendar").hide();
+        $("#divSchedule").show();
+        $("#divMachineView").hide();
+        var returnValue=dateChange();
+        var nDate=new Date(returnValue[0]);
+        if(nflagWeekValue==1)
+        {
+            nDate.setDate(nDate.getDate()-6);
+        }
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        document.getElementById("dateHeader").innerHTML= nDate.getDate()+" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+        _oFabricSizingPlan.sDay= "Day";
+        _oFabricSizingPlan.sPrintView="viewAsDateMonth";
+        _oFabricSizingPlan.StartTime= nDate;
+        _bToolbarRefresh=true;
+        search();
+
+
+    }
+
+    ///Machine view
+    function MonthView()
+    {
+        $("#divParentCalendar").show();
+        $("#divSchedule").hide();
+        $("#divMachineView").hide();
+        var returnValue=dateChange();
+        var nDate=new Date(returnValue[0]);
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        document.getElementById("dateHeader").innerHTML=Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+        _oFabricSizingPlan.sMonth= "Month";
+        _oFabricSizingPlan.sPrintView="viewAsDateMonth";
+        _oFabricSizingPlan.StartTime= nDate;
+        _bToolbarRefresh=true;
+        _oFabricSizingPlan.LocationID=0;
+        _oFabricSizingPlan.BUID = sessionStorage.getItem('BUID');
+        _oFabricSizingPlan.FabricSizingPlanDetails=[];
+        _oFabricSizingPlan.FabricSizingPlans=[];
+        _oFabricSizingPlan.FabricMachines=[];
+        _oFabricSizingPlan.LocationList=[];
+        search_MonthView();
+
+    }
+    function MachineView()
+    {
+        $("#divParentCalendar").hide();
+        $("#divSchedule").hide();
+        $("#divMachineView").show();
+
+        $('#tblFabricSizingPlanDetail').datagrid({selectOnCheck:false, checkOnSelect:false});
+        var returnValue=dateChange();
+        var nDate=new Date(returnValue[0]);
+        if(nflagWeekValue==1)
+        {
+            nDate.setDate(nDate.getDate()-6);
+        }
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        document.getElementById("dateHeader").innerHTML= nDate.getDate()+" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+        _oFabricSizingPlan.sDay= "Day";
+        _oFabricSizingPlan.sPrintView="viewAsDateMonth";
+        _oFabricSizingPlan.StartTime= nDate;
+        _bToolbarRefresh=true;
+
+        $('#btnPrintSC').show();
+        _oFabricSizingPlan.LocationID=0;
+        _oFabricSizingPlan.BUID = sessionStorage.getItem('BUID');
+        _oFabricSizingPlan.MachineName= ($("#cboMachineType").val()==0?"":$("#cboMachineType").val());
+        _oFabricSizingPlan.MachineNo=_sFMIDs;
+
+        DynamicRefreshList([], 'tblSchedule');
+        // var sScheduleDateType = "";
+        //if(_bToolbarRefresh==false)
+        //{
+        //    sScheduleDateType = $("#cboDateSelection").val()
+        //}
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/GetsForMachineView",
+            traditional: true,
+            data:  JSON.stringify({oFabricSizingPlan: _oFabricSizingPlan, bUptoLoadDyeMachine:$("#chkboxUptoUnloadDyeMachine").is(":checked"), sScheduleDateType:3}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oPS = jQuery.parseJSON(data);
+                var oFabricSizingPlanDetails=oPS.FabricSizingPlanDetails;
+
+                var oMachineNames=[];
+                var oPSs=[];
+                if(oFabricSizingPlanDetails.length>0)
+                {
+                    for(var i=0; i<oFabricSizingPlanDetails.length;i++)
+                    {
+                        oMachineNames.push(oFabricSizingPlanDetails[i].MachineName);
+                        oPSs.push(oFabricSizingPlanDetails[i].ScheduleNo);
+
+                    }
+                    _oMCells=GenerateRowSpan(oMachineNames);
+                    _oMCellPSs=GenerateRowSpan(oPSs);
+                    $('#tblFabricSizingPlanDetail').empty();
+                    DynamicRefreshList(oFabricSizingPlanDetails, "tblFabricSizingPlanDetail");
+                }
+
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+
+        });
+
+    }
+    function GenerateRowSpan(oDatas)
+    {
+        var oMCell=null;
+        var nIndex=0;
+        var nRowSpan=0;
+        var oMCells=[];
+        for (var i=0; i<oDatas.length;i++)
+        {
+            nRowSpan=0;
+            for(var j=i; j<oDatas.length;j++)
+            {
+                if(oDatas[i]==oDatas[j]){++nRowSpan;}
+            }
+            nRowSpan = (nRowSpan >= 0) ? nRowSpan : 0;
+            oMCell={
+                ParentID : 0,
+                Index : nIndex,
+                RowSpan : nRowSpan
+            };
+            oMCells.push(oMCell);
+            nIndex = nIndex + nRowSpan;
+            i=nIndex-1;
+        }
+        return oMCells;
+    }
+    function onLoadSuccess(data)
+    {
+        //debugger;
+        for(var i=0; i<_oMCells.length; i++)
+        {
+            $(this).datagrid('mergeCells',{index: _oMCells[i].Index,field: 'MachineName', rowspan: _oMCells[i].RowSpan});
+
+        }
+        for(var i=0; i<_oMCellPSs.length; i++)
+        {
+            $(this).datagrid('mergeCells',{index: _oMCellPSs[i].Index,field: 'CheckBox', rowspan: _oMCellPSs[i].RowSpan});
+            $(this).datagrid('mergeCells',{index: _oMCellPSs[i].Index,field: 'ProductionScheduleNo', rowspan: _oMCellPSs[i].RowSpan});
+            $(this).datagrid('mergeCells',{index: _oMCellPSs[i].Index,field: 'StartTimeInString', rowspan: _oMCellPSs[i].RowSpan});
+            $(this).datagrid('mergeCells',{index: _oMCellPSs[i].Index,field: 'EndTimeInString', rowspan: _oMCellPSs[i].RowSpan});
+        }
+    }
+    ///Machine view end
+
+
+    // ================ Cut + Paste 4m Machine View ================
+    
+    $('#btnDUPS_Cut_Machine').click(function(e)
+    {
+        var oFabricSizingPlanDetail = $('#tblFabricSizingPlanDetail').datagrid('getSelected');
+        if(oFabricSizingPlanDetail == null || oFabricSizingPlanDetail.FabricSizingPlanID<=0)
+        {
+            alert("Please select an item form the list.");
+            return;
+        }
+        
+        if(!confirm("Are you sure to cut?"))return;
+
+        if(oFabricSizingPlanDetail.FabricSizingPlanID>0)
+        {
+            $.ajax(
+                {
+                    type: "POST",
+                    url: _sBaseAddress + "/FabricSizingPlan/GetPS",
+                    traditional: true,
+                    data: JSON.stringify(oFabricSizingPlanDetail),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        //debugger;
+                        var oDUPS = jQuery.parseJSON(data);
+                        $("#btnDUPS_Paste_Machine").data("DUPS",oDUPS);
+                        $("#btnDUPS_Paste_Machine").show();
+                        $("#btnDUPS_Cut_Machine").hide();
+
+
+                        var oList = $('#tblFabricSizingPlanDetail').datagrid('getRows');
+                        var oList_Temp = [];
+
+                        for(var i=0; i<oList.length; i++)
+                        {
+                            if(!(oList[i].FabricSizingPlanID == oFabricSizingPlanDetail.FabricSizingPlanID && oList[i].FMID == oFabricSizingPlanDetail.FMID))
+                                oList_Temp.push(oList[i]);
+                        }
+                        
+                        var oMachineNames=[];
+                        var oPSs=[];
+                        if(oList_Temp.length>0)
+                        {
+                            for(var i=0; i<oList_Temp.length;i++)
+                            {
+                                oMachineNames.push(oList_Temp[i].MachineName);
+                                oPSs.push(oList_Temp[i].ScheduleNo);
+
+                            }
+                            _oMCells=GenerateRowSpan(oMachineNames);
+                            _oMCellPSs=GenerateRowSpan(oPSs);
+                            $('#tblFabricSizingPlanDetail').empty();
+                            DynamicRefreshList(oList_Temp, "tblFabricSizingPlanDetail");
+                        }
+                }
+            });
+        }
+    });
+
+    $('#btnDUPS_Paste_Machine').click(function(e)
+    {
+        var oDUPSCopy = $("#btnDUPS_Paste_Machine").data("DUPS");
+        if(oDUPSCopy==null|| oDUPSCopy.FabricSizingPlanID<=0){alert("Nothing found for paste."); return;}
+
+        var oFabricSizingPlanDetail = $('#tblFabricSizingPlanDetail').datagrid('getSelected');
+        if(oFabricSizingPlanDetail == null || oFabricSizingPlanDetail.FabricSizingPlanID<=0)
+        {
+            alert("Please select an item form the list.");
+            return;
+        }
+
+        if(oDUPSCopy.FMID<=0)
+        {
+            alert("Invalid Machine From Copied List.");
+            return;
+        }
+       
+        if(!confirm("Confirm to paste?"))return;
+
+        var dStartDate =oFabricSizingPlanDetail.EndDateSt;
+        var startTime=oFabricSizingPlanDetail.EndTimeTS;
+        
+        if(oFabricSizingPlanDetail.FMID<=0){
+            alert("Invalid Machine !"); return;
+        }
+        if(oDUPSCopy.FMID<=0){
+            alert("Invalid Machine From Copied List.");return;
+        }
+
+        var oFabricSizingPlan=
+            {
+                FabricSizingPlanID: oFabricSizingPlanDetail.FabricSizingPlanID,
+                LocationID:oFabricSizingPlanDetail.LocationID,
+                FMID:oFabricSizingPlanDetail.FMID,
+                BUID:sessionStorage.getItem('BUID'),
+                Params:oFabricSizingPlanDetail.FabricSizingPlanID+'~'+oDUPSCopy.FabricSizingPlanID+'~'+dStartDate+"~"+startTime
+            };
+        
+        //console.log(oFabricSizingPlan,oFabricSizingPlanDetail); return;
+        var nts=(new Date()).getTime()/1000;
+        {
+            //var sPSIDs=;
+            $.ajax({
+                type: "Post",
+                dataType: "json",
+                url: _sBaseAddress + "/FabricSizingPlan/PastSchedule",
+                traditional: true,
+                data:   JSON.stringify(oFabricSizingPlan),
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    var oresults=jQuery.parseJSON(data);
+                    if(oresults[0].ErrorMessage=="" || oresults[0].ErrorMessage==null)
+                    {
+                        alert("Paste Successfully");
+
+                        var oList = $('#tblFabricSizingPlanDetail').datagrid('getRows');
+                        var oList_Temp = [];
+                        var SelectedRowIndex=$('#tblFabricSizingPlanDetail').datagrid('getRowIndex',oFabricSizingPlanDetail);
+
+
+                        for(var i=0; i<oList.length; i++)
+                        {
+                            if(oList[i].FMID == oresults[0].FMID)
+                            {
+                                for(var j=0; j<oList.length; j++)
+                                {
+                                    if(oList[i].FMID == oList[j].FMID)
+                                        oList_Temp.push(oList[j]);
+                                }
+                                for(var j=0; j<oresults.length; j++)
+                                    oList_Temp.push(oresults[j]);
+                            }
+                            else
+                                oList_Temp.push(oList[i]);
+                        }
+
+                        var oMachineNames=[];
+                        var oPSs=[];
+                        if(oList_Temp.length>0)
+                        {
+                            for(var i=0; i<oList_Temp.length;i++)
+                            {
+                                oMachineNames.push(oList_Temp[i].MachineName);
+                                oPSs.push(oList_Temp[i].ScheduleNo);
+
+                            }
+                            _oMCells=GenerateRowSpan(oMachineNames);
+                            _oMCellPSs=GenerateRowSpan(oPSs);
+                            $('#tblFabricSizingPlanDetail').empty();
+                            DynamicRefreshList(oList_Temp, "tblFabricSizingPlanDetail");
+                        }
+                        
+                        $("#btnDUPS_Paste_Machine").hide();
+                        $("#btnDUPS_Cut_Machine").show();
+                        //DynamicRefreshList(oList_Temp, "tblFabricSizingPlanDetail");
+                    }
+                    else {alert(oresults[0].ErrorMessage);}
+                },
+                error: function (xhr, status, error) {alert(error);}
+            });
+        }
+    });
+
+    // =================== Cut + Paste (End)
+
+
+    function WeekView()
+    {
+
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        var returnValue=dateChange();
+
+        var tempDate=new Date(returnValue[0]);
+        var nDate=new Date(returnValue[0]);
+        //  if(_nWeek==0)
+        {
+            nDate.setDate(nDate.getDate()+6);
+            _nWeek=1;
+        }
+        //    else
+        //    {
+        //      //nDate.setDate(nDate.getDate()-6);
+        //       tempDate.setDate(tempDate.getDate()-6);
+        //    }
+
+        if(nDate.getFullYear()==tempDate.getFullYear())
+        {
+            document.getElementById("dateHeader").innerHTML= tempDate.getDate()+" "+ Month[tempDate.getMonth()]+" "+"-"+" "+ nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+        }
+        else
+        {
+            document.getElementById("dateHeader").innerHTML= tempDate.getDate()+" "+ Month[tempDate.getMonth()] +" "+ tempDate.getFullYear()+" "+"-"+" "+ nDate.getDate() +" "+ Month[nDate.getMonth()] +" "+ nDate.getFullYear();
+        }
+
+        _oFabricSizingPlan.sWeek= "Week";
+        _oFabricSizingPlan.sPrintView="viewAsWeek";
+        _oFabricSizingPlan.StartTime= tempDate;
+        _bToolbarRefresh=true;
+        search();
+
+    }
+
+    function ToolbarRefresh()
+    {
+        //debugger;
+        $("#divParentCalendar").hide();
+        $("#divSchedule").show();
+        $("#divMachineView").hide();
+        var returnValue=dateChange();
+        var nDate= new Date(returnValue[0]);
+        var cSpace= returnValue[1];
+        var sDateView=returnValue[2];
+        if(sDateView=="viewAsDateMonth")
+        {
+            _oFabricSizingPlan.StartTime=nDate;
+            if(Number(cSpace)==1)
+            {
+                _oFabricSizingPlan.sMonth="Month";
+                search_MonthView();
+            }
+            else if(Number(cSpace)==2)
+            {
+                _oFabricSizingPlan.sDay= "Day";
+                search();
+            }
+
+
+        }
+        else if(sDateView=="viewAsWeek")
+        {
+            _oFabricSizingPlan.sWeek= "Week";
+            _oFabricSizingPlan.StartTime=new Date(nDate.setDate(nDate.getDate()-6));
+
+        }
+        _bToolbarRefresh=true;
+
+
+    }
+
+    function search()
+    {
+        //debugger
+        $('#btnPrintSC').show();
+        _oFabricSizingPlan.LocationID=0;
+        _oFabricSizingPlan.BUID = sessionStorage.getItem('BUID');
+        _oFabricSizingPlan.MachineName= ($("#cboMachineType").val()==0?"":$("#cboMachineType").val());
+        _oFabricSizingPlan.MachineNo=_sFMIDs;
+
+        DynamicRefreshList([], 'tblSchedule');
+        //var sScheduleDateType = "";
+        //if(_bToolbarRefresh==false)
+        //{
+        //    sScheduleDateType = $("#cboDateSelection").val()
+        //}
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/RefreshMachineWise",
+            traditional: true,
+            data:  JSON.stringify({oFabricSizingPlan: _oFabricSizingPlan, bUptoLoadDyeMachine:$("#chkboxUptoUnloadDyeMachine").is(":checked"), sScheduleDateType:3}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oPS = jQuery.parseJSON(data);
+                _oFabricSizingPlans=oPS.FabricSizingPlans;
+                _oDyeMachines=oPS.FabricMachines;
+                MakeTable(_oDyeMachines);
+                GenerateTableData(_oDyeMachines);
+
+
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+
+        });
+    }
+
+    function print()
+    {
+        var returnValue=dateChange();
+        var oEndTime = new Date(returnValue[0]);
+        var oStartTime= new Date(returnValue[3]);
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var sStartTime= oStartTime.getDate() +" "+Month[oStartTime.getMonth()]+" "+ oStartTime.getFullYear()+" "+0+":"+0;
+        var sEndTime= oEndTime.getDate() +" "+Month[oEndTime.getMonth()]+" "+ oEndTime.getFullYear()+" "+0+":"+0;
+        var cSpace= 0;
+        var sPrintView= "";
+        var FMIDs="";
+        var FabricSizingPlanIDs="";
+        var nLocationID=3;
+        var bPortrait=false;
+        var bValue=$("#chkboxUptoUnloadDyeMachine").is(":checked");
+        var psof=document.getElementById("dateHeader").innerHTML;
+        var newstring=cSpace+'~'+sStartTime+'~'+sEndTime+'~'+nLocationID+'~'+FMIDs+'~'+psof+'~'+sPrintView+'~'+FabricSizingPlanIDs+'~'+bValue+'~'+sessionStorage.getItem('BUID')+'~'+$('#cboMachineType').val()+"~"+_sFMIDs;
+        window.open(_sBaseAddress + '/FabricSizingPlan/PrintFabricSizingPlan?newstring='+newstring+'&bPortrait='+bPortrait, '_blank'); // Print in Portrait
+
+    }
+    function printXL()
+    {
+        var returnValue=dateChange();
+        var oEndTime = new Date(returnValue[0]);
+        var oStartTime= new Date(returnValue[3]);
+        var Month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var sStartTime= oStartTime.getDate() +" "+Month[oStartTime.getMonth()]+" "+ oStartTime.getFullYear()+" "+0+":"+0;
+        var sEndTime= oEndTime.getDate() +" "+Month[oEndTime.getMonth()]+" "+ oEndTime.getFullYear()+" "+0+":"+0;
+        var cSpace= 0;
+        var sPrintView= "";
+        var FMIDs="";
+        var FabricSizingPlanIDs="";
+        var nLocationID=3;
+        var bPortrait=false;
+        var bValue=$("#chkboxUptoUnloadDyeMachine").is(":checked");
+        var psof=document.getElementById("dateHeader").innerHTML;
+        var newstring=cSpace+'~'+sStartTime+'~'+sEndTime+'~'+nLocationID+'~'+FMIDs+'~'+psof+'~'+sPrintView+'~'+FabricSizingPlanIDs+'~'+bValue+'~'+sessionStorage.getItem('BUID')+'~'+$('#cboMachineType').val()+"~"+_sFMIDs;
+        window.open(_sBaseAddress + '/FabricSizingPlan/PrintFabricSizingPlanXL?newstring='+newstring+'&bPortrait='+bPortrait, '_blank'); // Print in Portrait
+    }
+
+    $('#chkPortrait').change(function(e)
+    {
+        $("#divPS").data("PrintType","");
+        if(document.getElementById('chkPortrait').checked==true)
+        {
+            document.getElementById('chkLandScape').checked=false;
+            $("#divPS").data("PrintType","Portrait");
+        }
+        else
+        {
+            document.getElementById('chkPortrait').checked=false;
+            document.getElementById('chkLandScape').checked=true;
+            $("#divPS").data("PrintType","Landscape");
+        }
+    });
+    $('#chkLandScape').change(function(e)
+    {
+        $("#divPS").data("PrintType","");
+        if(document.getElementById('chkLandScape').checked==true)
+        {
+            document.getElementById('chkPortrait').checked=false;
+            $("#divPS").data("PrintType","Landscape");
+        }
+        else
+        {
+            document.getElementById('chkLandScape').checked=false;
+            document.getElementById('chkPortrait').checked=true;
+            $("#divPS").data("PrintType","Portrait");
+        }
+    });
+    function ClosePrintType()
+    {
+        $("#divPS").data("PrintType","");
+        $("#divPS").data("PrintParam","");
+        $("#winPrintTypeSelector").icsWindow('close');
+    }
+    function OkPrintTypeButtonClick()
+    {
+        if($("#divPS").data("PrintType")=="" || $("#divPS").data("PrintParam")=="")
+        {
+            alert("Select Page Type.");
+            return;
+        }
+        $("#winPrintTypeSelector").icsWindow('close');
+        var bPortrait = false;
+        if($("#divPS").data("PrintType")=='Landscape'){ bPortrait=false;}else{ bPortrait=true;}
+        window.open(_sBaseAddress + '/FabricSizingPlan/PrintFabricSizingPlan?newstring='+$("#divPS").data("PrintParam")+'&bPortrait='+bPortrait, '_blank'); // Print in Portrait
+    }
+
+
+    //////////////
+    $("#btnPickOrderNo").click(function () 
+    {
+        var oList=  $('#tblDUPSDetail').datagrid('getRows');
+
+        var nDetailID=0;
+        if(oList.length>0)
+        {
+            //nDetailID=oList[0].LabDipDetailID;
+
+            //if(nDetailID<=0)
+            //{
+            //    alert("No Lab Dip Color Found!");return;
+            //}
+
+        }
+        
+
+        var oPSDetail = {
+            OrderType:$('#cboOrderType').val(),
+            ExeNo:$('#txtOrderNo').val(),
+            FMID:_oFabricSizingPlan.FMID,
+            DODID:0
+        };
+
+        GetOrders(oPSDetail);
+    });
+
+    $("#txtOrderNo").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sorderNo=$.trim($("#txtOrderNo").val());
+            var oList=  $('#tblDUPSDetail').datagrid('getRows');
+            //debugger;
+            var nDetailID=0;
+            //if(oList.length>0)
+            //{
+            //    nDetailID=oList[0].LabDipDetailID;
+            //    //if(nDetailID<=0)
+            //    //{
+            //    //    alert("No Lab Dip Color Found!");return;
+            //    //}
+
+            //}
+            var oPSDetail = {
+                OrderType:$('#cboOrderType').val(),
+                ExeNo:$('#txtOrderNo').val(),
+                FMID:_oFabricSizingPlan.FMID,
+                DODID:0
+            };
+            GetOrders(oPSDetail);
+        }
+        else if(nkeyCode==8){
+
+        }
+    });
+    $("#txtOrderNoTwo").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sorderNo=$.trim($("#txtOrderNoTwo").val());
+
+            if (sorderNo=="" ||sorderNo==null)
+            {
+
+                alert("Please Type Order no.");
+                $('#txtOrderNoTwo').focus();
+                $('#txtOrderNoTwo').addClass("errorFieldBorder");
+                return;
+            }
+            else{
+                $('#txtOrderNoTwo').removeClass("errorFieldBorder");
+            }
+
+            var oPSDetail = {
+                OrderType:0,
+                OrderNo:$('#txtOrderNoTwo').val(),
+                LabDipDetailID:0,
+                DODID:0
+            };
+            GetOrdersTwo(oPSDetail);
+        }
+        else if(nkeyCode==8){
+
+        }
+    });
+    
+    $("#txtBatchNoTwo").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sRouteSheetNo=$.trim($("#txtBatchNoTwo").val());
+
+            if (sRouteSheetNo=="" ||sRouteSheetNo==null)
+            {
+
+                alert("Please Type Batch no.");
+                $('#txtBatchNoTwo').focus();
+                $('#txtBatchNoTwo').addClass("errorFieldBorder");
+                return;
+            }
+            else{
+                $('#txtBatchNoTwo').removeClass("errorFieldBorder");
+            }
+
+            SearchDO("",sRouteSheetNo);
+        }
+        else if(nkeyCode==8){
+
+        }
+    });
+    
+
+    $("#btnResetOrderNo").click(function ()
+    {
+        $("#txtOrderNo").val("");
+    });
+
+    function GetOrders(oPSDetail)
+    {
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPSDetail,
+            ControllerName: "FabricSizingPlan",
+            ActionName: "GetsDyeingOrder",
+            IsWinClose: false
+        };
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.icsDataGets(obj, function (response) {
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FEOSID > 0) {
+                    //debugger;
+                    var tblColums = [];
+
+                    var oColumn = { field: "OrderNo", title: "OrderNo", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ContractorName", title: "Customer", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "BuyerName", title: "Buyer ", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "OrderQty", title: "Order Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "Qty_PSD", title: "Schedule Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "Qty", title: "Yet To Schedule", width: 75, align: "right" };tblColums.push(oColumn);
+                    oColumn = { field: "Qty_Pro", title: "Dye Line Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "YetToRS", title: "Yet To DL", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Yarn Type", width: 225, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ColorName", title: "ColorName", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ShadeSt", title: "Shade", width: 40, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ColorNo", title: "ColorNo", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "LabdipNo", title: "LabdipNo", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "OrderTypeSt", title: "OrderType", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "SLNo", title: "SL", width: 100, align: "left" };tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winOrderPicker',
+                        winclass:'clsOrderPicker',
+                        winwidth: 1000,
+                        winheight: 660,
+                        tableid: 'tblOrderPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'OrderNo',
+                        windowTittle: 'Order List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No order found.");
+            }
+        });
+
+
+    }
+    function GetOrdersTwo(oPSDetail)
+    {
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPSDetail,
+            ControllerName: "FabricSizingPlan",
+            ActionName: "GetsDyeingOrder",
+            IsWinClose: false
+        };
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.icsDataGets(obj, function (response) {
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FEOSID > 0) {
+                    //debugger;
+                    var tblColums = [];
+
+                    var oColumn = { field: "OrderNo", title: "OrderNo", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ContractorName", title: "Customer", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "BuyerName", title: "Buyer ", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "OrderQty", title: "Order Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "Qty_PSD", title: "Schedule Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "Qty", title: "Balance", width: 75, align: "right" };tblColums.push(oColumn);
+                    oColumn = { field: "Qty_Pro", title: "Batch Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Yarn Type", width: 225, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ColorName", title: "ColorName", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ShadeSt", title: "Shade", width: 40, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ColorNo", title: "ColorNo", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "LabdipNo", title: "LabdipNo", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "OrderTypeSt", title: "OrderType", width: 100, align: "left" };tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winOrderPickerTwo',
+                        winclass:'clsOrderPicker',
+                        winwidth: 1000,
+                        winheight: 660,
+                        tableid: 'tblOrderPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName:'OrderNo',
+                        windowTittle: 'Order List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No order found.");
+            }
+        });
+
+
+    }
+    $("#btnResetMachine").click(function () {
+
+        $("#txtMachine").val("");
+        _oFabricSizingPlan.FMID=0;
+    });
+
+    $("#btnPickMachine").click(function () {
+
+        var sMachineName=$.trim($("#txtMachine").val());
+        //if(sMachineName==""){ alert("Type machine name to search."); return false; }
+        GetMachines(sMachineName);
+    });
+
+    $("#txtMachine").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sMachineName=$.trim($("#txtMachine").val());
+            //if(sMachineName==""){ alert("Type machine name to search."); return false; }
+            GetMachines(sMachineName);
+        }
+        else if(nkeyCode==8){
+            $("#txtMachine").val("");
+            _oFabricSizingPlan.FMID=0;
+        }
+    });
+
+    function chngWorkingUnit()
+    {
+        //debugger;
+        var oLots=$('#tblDUPSLot').datagrid('getRows');
+        if(_oFabricSizingPlan.FabricSizingPlanID>0 && oLots.length>0)
+        {
+            $('#cboWorkingUnit').val(_oFabricSizingPlan.WorkingUnitID);
+        }
+    }
+    ///Pick Lots
+ 
+    function GetMachines(sMachineName){
+
+        var oMachine = {
+            BUID:sessionStorage.getItem('BUID'),
+            //ResourcesTypeInInt:2,
+            Name:sMachineName
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oMachine,
+            ControllerName: "FabricSizingPlan",
+            ActionName: "GetsMachine",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FMID > 0) {
+                    //debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "Code", title: "Code", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "Name", title: "Machine Name", width: 150, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "Capacity", title: "Capacity", width: 90, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "SequenceNo", title: "SL No", width: 150, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winMachinePicker',
+                        winclass:'clsMachinePicker',
+                        winwidth: 480,
+                        winheight: 460,
+                        tableid: 'tblMachinePicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'Name',
+                        windowTittle: 'Machine List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No machine found.");
+            }
+        });
+
+
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj) {
+        //debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winLabDipPicker')
+        {
+            if (oreturnObj != null && oreturnObj.LabDipDetailID > 0)
+            {
+                $('#txtColorNo').val(oreturnObj.ColorNo);
+                //$('#txtColorName').val(oreturnObj.ColorName);
+                $('#txtLabdipNo').val(oreturnObj.LabdipNo);
+                _nLabDipDetailID= oreturnObj.LabDipDetailID;
+            }
+            else{
+                alert("Data Not Found.");
+                return;
+            }
+        }
+        else if (oPickerobj.winid == 'winMachinePicker')
+        {
+            if(oreturnObj !=null  && oreturnObj.FMID>0){
+
+                $('#txtMachine').val(oreturnObj.Name);
+                _oFabricSizingPlan.FMID= oreturnObj.FMID;
+                _oFabricSizingPlan.LocationID=oreturnObj.LocationID;
+            }
+            else{
+                alert("Please select machine.");
+            }
+        }
+        else if (oPickerobj.winid == 'winLotPicker')
+        {
+            if(oreturnObj !=null  && oreturnObj.LotID>0){
+                debugger;
+                endEditing();
+                $('#txtLot').val("");
+                _oFabricSizingPlan.LotID= oreturnObj.LotID;
+                var  oDUPSLot={FabricSizingPlanID:0, DUPSLotID:0,FabricSizingPlanDetailID:0,LotID:_oFabricSizingPlan.LotID,LotNo:oreturnObj.LotNo,Balance:oreturnObj.StockValue,Qty:0 };
+                if($('#tblDUPSDetail').datagrid('getRows').length==1)
+                {
+                    var nToatlLotQty= GetTotalLotQty();
+                    oDUPSLot.Qty=$('#tblDUPSDetail').datagrid('getRows')[0].Qty;
+
+                    oDUPSLot.Qty= parseFloat($('#tblDUPSDetail').datagrid('getRows')[0].Qty)-parseFloat(nToatlLotQty);
+
+                    if(oDUPSLot.Qty>oDUPSLot.Balance)
+                        oDUPSLot.Qty=oDUPSLot.Balance;
+                    else if(oDUPSLot<=0)
+                        oDUPSLot.Qty=0;
+
+                    oDUPSLot.DODID=$('#tblDUPSDetail').datagrid('getRows')[0].DODID;
+                    oDUPSLot.FabricSizingPlanID=$('#tblDUPSDetail').datagrid('getRows')[0].FabricSizingPlanID;
+                    oDUPSLot.FabricSizingPlanDetailID=$('#tblDUPSDetail').datagrid('getRows')[0].FabricSizingPlanDetailID;
+                }else
+                {
+                    var oDetail=$("#tblDUPSDetail").datagrid("getSelected");
+                    if(oDetail!=null || oDetail.FabricSizingPlanDetailID>0)
+                    {
+                        var nToatlLotQty= GetTotalLotQty(oDetail.DODID);
+                        oDUPSLot.Qty=oDetail.Qty;
+
+                        oDUPSLot.Qty= parseFloat(oDetail.Qty)-parseFloat(nToatlLotQty);
+
+                        if(oDUPSLot.Qty>oDUPSLot.Balance)
+                            oDUPSLot.Qty=oDUPSLot.Balance;
+                        else if(oDUPSLot<=0)
+                            oDUPSLot.Qty=0;
+                        
+                        oDUPSLot.DODID=oDetail.DODID;
+                        oDUPSLot.FabricSizingPlanID=oDetail.FabricSizingPlanID;
+                        oDUPSLot.FabricSizingPlanDetailID=oDetail.FabricSizingPlanDetailID;
+                    }
+                }
+                $('#tblDUPSLot').datagrid('appendRow',oDUPSLot);
+                //SaveDUPSLot(oreturnObj,"ADD");
+            }
+            else{
+                alert("Please select Lot.");
+            }
+        }
+        else if (oPickerobj.winid == 'winOrderPicker')
+        {
+            //debugger;
+            if(oreturnObj !=null  && oreturnObj.FEOSID>0)
+            {
+                //bExists= IsExist(oreturnObj.FEOSID)
+                //if(bExists)
+                //{
+                //    alert("This Order already exists.")
+                //    return;
+                //}
+                RefreshControl(oreturnObj);
+              //  $('#tblDUPSDetail').datagrid('appendRow',oreturnObj);
+            }
+
+            else{
+                alert("Data Not Found.");
+                return;
+            }
+        }
+        else if (oPickerobj.winid == 'winOrderPickerTwo')
+        {
+            if (oreturnobjs != null && oreturnobjs.length> 0)
+            {
+
+                var sDODIDs=''; var sMessage='';
+                sMessage=(oreturnobjs.length>1)? oreturnobjs.length +" Order(s) Selected" : oreturnobjs[0].OrderNo;
+                $('#txtOrderNoTwo').val(sMessage);
+                $("#txtOrderNoTwo").addClass("fontColorOfPickItem");
+
+                for(var i=0;i<oreturnobjs.length;i++){
+                    sDODIDs=sDODIDs+oreturnobjs[i].FEOSID+',';
+                }
+                sDODIDs=sDODIDs.substring(0,sDODIDs.length-1);
+                SearchDO(sDODIDs,"");
+            }
+            else
+            {
+                alert("Please select a Order.");
+                return false;
+            }
+
+        }
+    }
+    function SearchDO(sDODIDs, sRSNo)
+    {
+        //debugger
+        $('#btnPrintSC').show();
+        _oFabricSizingPlan.LocationID=0;
+        _oFabricSizingPlan.BUID = sessionStorage.getItem('BUID');
+        _oFabricSizingPlan.MachineName= "";
+        _oFabricSizingPlan.MachineNo="";
+        _oFabricSizingPlan.MachineNo="";
+        _oFabricSizingPlan.RouteSheetNo=sRSNo;
+        _oFabricSizingPlan.Params=sDODIDs;
+        DynamicRefreshList([], 'tblSchedule');
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricSizingPlan/RefreshOrderWise",
+            traditional: true,
+            data: JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oPS = jQuery.parseJSON(data);
+                _oFabricSizingPlans=oPS.FabricSizingPlans;
+                _oDyeMachines=oPS.FabricMachines;
+                if (_oDyeMachines.length<=0)
+                {
+                    alert("Sorry, No data found.");
+                    return;
+                }
+                MakeTable(_oDyeMachines);
+                GenerateTableData(_oDyeMachines);
+
+
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+
+        });
+    }
+    function changeLabel(obj)
+    {
+        var nCount="Cone";
+        debugger
+        nCount=obj.HankorConeST;
+        if(obj!=null)
+        {
+            $('#lblBagCount').text(nCount);
+            $('#lblBagQty').text('Qty/'+nCount);
+        }
+    }
+
+    $("#btnRefreshRSDO").click(function () {
+
+        endEditing();
+    });
+    function IsExist(nDyeingOrderDetailID)
+    {
+        var oRSDOs = $('#tblDUPSDetail').datagrid('getRows');
+        for (var i = 0; i < oRSDOs.length; i++)
+        {
+            if (parseInt(oRSDOs[i].DODID) == parseInt(nDyeingOrderDetailID))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    function IsExist_DOD(nDyeingOrderDetailID)
+    {
+        var oRSDOs = $('#tblRouteSheetDO').datagrid('getRows');
+        for (var i = 0; i < oRSDOs.length; i++) {
+            if (parseInt(oRSDOs[i].DyeingOrderDetailID) == parseInt(nDyeingOrderDetailID))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function RefreshControl(oFabricSizingPlan)
+    {
+        _oFabricSizingPlan=oFabricSizingPlan;
+        if(oFabricSizingPlan.FabricSizingPlanID>0)
+        {
+            $('#tpStartTime').timespinner('setValue', oFabricSizingPlan.StartTimeTS);
+            $('#txtStartDate').datebox('setValue', oFabricSizingPlan.StartDateSt);
+
+            $('#tpEndTime').timespinner('setValue', oFabricSizingPlan.EndTimeTS);
+            $('#txtEndDate').datebox('setValue', oFabricSizingPlan.EndDateSt);
+
+            $("#txtScheduleNo").val(oFabricSizingPlan.ScheduleNo);
+            $("#txtMachine").val(oFabricSizingPlan.MachineNoWithCapacity);
+            $("#txtNote").val(oFabricSizingPlan.Note);
+        }
+
+        $("#txtOrderNo").val(oFabricSizingPlan.ExeNo);
+        $("#txtBuyerName").val(oFabricSizingPlan.ContractorName);
+        $("#txtConstruction").val(oFabricSizingPlan.Construction);
+        $("#txtComposition").val(oFabricSizingPlan.Composition);
+        $("#txtDesign").val(oFabricSizingPlan.Design);
+        $("#txtRequiredWarpLength").val(oFabricSizingPlan.RequiredWarpLength);
+
+     
+     
+    }
+
+    _nBagCount=0;
+    _nQtyPerBag=0;
+    var editIndex = undefined;
+    function endEditing() {
+        if (editIndex == undefined) { return true }
+        if ($('#tblDUPSDetail').datagrid('validateRow', editIndex)) {
+            $('#tblDUPSDetail').datagrid('endEdit', editIndex);
+            $('#tblDUPSDetail').datagrid('selectRow', editIndex);
+            var oDUPSDetail = $('#tblDUPSDetail').datagrid('getSelected');
+
+            if(oDUPSDetail==undefined){editIndex == undefined; return;}
+            //debugger;
+
+            if(_nBagCount!=parseFloat(oDUPSDetail.BagCount) || _nQtyPerBag!=parseFloat(oDUPSDetail.QtyPerBag))
+            {
+                if(parseFloat(oDUPSDetail.BagCount)>0 && parseFloat(oDUPSDetail.QtyPerBag)>0)
+                {
+                    oDUPSDetail.Qty= oDUPSDetail.BagCount*oDUPSDetail.QtyPerBag;
+                }
+                _nBagCount=parseFloat(oDUPSDetail.BagCount);
+                _nQtyPerBag=parseFloat(oDUPSDetail.QtyPerBag);
+            }
+
+
+            $('#tblDUPSDetail').datagrid('updateRow', { index: editIndex, row: oDUPSDetail });
+
+            //RefreshSummary();
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onClickRow(index) {
+
+        if (editIndex != index) {
+            if (endEditing()) {
+                $('#tblDUPSDetail').datagrid('selectRow', index).datagrid('beginEdit', index);
+
+
+                var oDUPSDetail= $('#tblDUPSDetail').datagrid('getSelected');
+                _nBagCount=parseFloat(oDUPSDetail.BagCount);
+                _nQtyPerBag=parseFloat(oDUPSDetail.QtyPerBag);
+
+                //DynamicRefreshList([], "tblDUPSLot");
+                //  Get_DUPSLot(oDUPSDetail);
+
+                editIndex = index;
+            }
+            else {
+                $('#tblDUPSDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+    $("#btnClosePS").click(function () {
+        $("#winDUFabricSizingPlan").icsWindow("close");
+
+    });
+    $('#btnCurrenttime').click(function(e)
+    {
+        var oDate=new Date();
+        oDate.setMinutes(oDate.getMinutes()+5);
+        SetStartTime(oDate);
+        AddTime(oDate);
+    });
+
+  
+
+    function SetLastScheduleTime()
+    {
+
+        if(parseInt(_oFabricSizingPlan.FMID)>0 && parseInt(_oFabricSizingPlan.LocationID)>0)
+        {
+            var nts=(new Date()).getTime()/1000;
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/FabricSizingPlan/GetPSByMachine",
+                data: { nFMID: _oFabricSizingPlan.FMID ,  nLocationID: _oFabricSizingPlan.LocationID , nts:nts },
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    ////debugger;
+                    var sStratTime = jQuery.parseJSON(data);
+                    if ($.trim(sStratTime)!='')
+                    {
+                        SetStartTime(new Date(sStratTime));
+                        AddTime(new Date(sStratTime));
+                    }
+                    else
+                    {
+                        var oDate=new Date();
+                        oDate.setMinutes(oDate.getMinutes()+5);
+                        SetStartTime(oDate);
+                        AddTime(oDate);
+                    }
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+    }
+
+    $('#btnScheduleLastTime').click(function(e)
+    {
+        if(parseInt($("#cboLocationTwo").val())<=0)
+        {
+            alert("Please Select Location.");
+            $("#cboLocationTwo").focus();
+            $('#cboLocationTwo').addClass("errorFieldBorder");
+            return;
+        }
+        else{
+            $('#cboLocationTwo').removeClass("errorFieldBorder");
+        }
+        _oFabricSizingPlan.LocationID=parseInt($("#cboLocationTwo").val());
+        SetLastScheduleTime();
+    });
+    function SetStartTime(oDate)
+    {
+
+        //debugger;
+
+        $('#txtStartDate').datebox('setValue', icsdateformat(oDate));
+        var nHour=oDate.getHours();
+        var nMin=oDate.getMinutes();
+        if(isNaN(nHour))
+        {
+            nHour=0;
+        }
+        if(isNaN(nMin))
+        {
+            nMin=0;
+        }
+        $('#tpStartTime').timespinner('setValue', nHour+":"+nMin);
+
+    }
+
+    function AddTime(sDate)
+    {
+        //debugger;
+        //var startTime= $('#tpStartTime').timespinner('getValue');
+        //var sTime=startTime.split(':');
+        //var hStartTime= parseFloat(sTime[0]);
+        //var mStartTime= parseFloat(sTime[1]);
+
+        var nhr=$('#tpStartTime').timespinner('getHours');
+        var nmin=$('#tpStartTime').timespinner('getMinutes');
+        if(isNaN(nhr))
+        {
+            nhr=0;
+        }
+        if(isNaN(nmin))
+        {
+            nmin=0;
+        }
+        var oDate=new Date(sDate);
+        oDate.setHours(oDate.getHours()+nhr);
+        oDate.setMinutes(oDate.getMinutes()+nmin);
+        $('#txtEndDate').datebox('setValue', icsdateformat(oDate));
+        var nHour=oDate.getHours();
+        var nMin=oDate.getMinutes();
+        if(isNaN(nHour))
+        {
+            nHour=0;
+        }
+        if(isNaN(nMin))
+        {
+            nMin=0;
+        }
+        $('#tpEndTime').timespinner('setValue', nHour+":"+nMin);
+
+    }
+    //function GetDateTime(dt)
+    //{
+    //    var date=new Date(dt);
+    //    var nMonth=date.getMonth()+1;
+    //    var nDate=date.getDate();
+    //    var nYear=date.getFullYear();
+    //    var nHour=date.getHours();
+    //    var nMin=date.getMinutes();
+
+    //    if(nMonth<10)
+    //    {
+    //        nMonth='0'+nMonth;
+    //    }
+    //    if(nDate<10)
+    //    {
+    //        nDate='0'+nDate;
+    //    }
+    //    if(nHour<10)
+    //    {
+    //        nHour='0'+nHour;
+    //    }
+    //    if(nMin<10)
+    //    {
+    //        nMin='0'+nMin;
+    //    }
+    //    date= nMonth+'/'+nDate+'/'+nYear+' '+nHour+':'+nMin;
+
+    //    return date;
+
+    //}
+    function ValidationOfStartTime()
+    {
+        if(new Date($('#txtStartDate').datebox('getValue'))> new Date($('#txtEndDate').datebox('getValue'))){
+            alert("Start time must be later than End time.");
+            return false;
+        }
+        return true;
+    }
+
+    $('#btnAddSpinnerTime').click(function(e)
+    {
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var nhr=$('#tptimeSpinner').timespinner('getHours');
+        var nmin=$('#tptimeSpinner').timespinner('getMinutes');
+        if(isNaN(nhr))
+        {
+            nhr=0;
+        }
+        if(isNaN(nmin))
+        {
+            nmin=0;
+        }
+        var oDate=new Date(dStartDate);
+        oDate.setHours(oDate.getHours()+nhr);
+        oDate.setMinutes(oDate.getMinutes()+nmin);
+        AddTime(oDate);
+        if(!ValidationOfStartTime())return;
+    });
+
+    function RefreshObject()
+    {
+        debugger;
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var startTime= $('#tpStartTime').timespinner('getValue');
+        var sTime=startTime.split(':');
+        var hStartTime= parseFloat(sTime[0]);
+        var mStartTime= parseFloat(sTime[1]);
+        dStartDate = new Date(dStartDate);
+        dStartDate.setHours(hStartTime);
+        dStartDate.setMinutes(mStartTime);
+
+        var dEndtDate =$('#txtEndDate').datebox('getValue');
+        var EndtTime= $('#tpEndTime').timespinner('getValue');
+        var sTime=EndtTime.split(':');
+        var hEndtTime= parseFloat(sTime[0]);
+        var mEndtTime= parseFloat(sTime[1]);
+        dEndtDate = new Date(dEndtDate);
+        dEndtDate.setHours(hEndtTime);
+        dEndtDate.setMinutes(mEndtTime);
+
+
+        var oScheduleDetail=$('#tblDUPSDetail').datagrid('getRows');
+
+        var oFabricSizingPlan = {
+            FabricSizingPlanID          : (_oFabricSizingPlan!=null && _oFabricSizingPlan.FabricSizingPlanID>0)? _oFabricSizingPlan.FabricSizingPlanID:0,
+            FMID                   : _oFabricSizingPlan.FMID,
+            FEOSID   : _oFabricSizingPlan.FEOSID,
+            FSCDID                  : _oFabricSizingPlan.FSCDID,
+            BatchNo                : _oFabricSizingPlan.BatchNo,
+            BUID                   :sessionStorage.getItem('BUID'),
+            Qty                    : 0,
+            ScheduleType           : _oFabricSizingPlan.ScheduleType,
+            StartTime	           : dStartDate,
+            EndTime                : dEndtDate,
+            Note                   :  $("#txtNote").val(),
+            StatusInt              :  $("#cboScheduleStatus").val(),
+            FabricSizingPlanDetails     : oScheduleDetail
+          
+        };
+        return oFabricSizingPlan;
+    }
+
+    function IsQtyValid()
+    {
+        var oLots= $('#tblDUPSLot').datagrid('getRows');
+        var oDetails= $('#tblDUPSDetail').datagrid('getRows');
+        debugger;
+
+        if(oLots==null || oLots.length<=0)
+        {
+            return true;
+        }
+        debugger;
+        if(oLots!=null && oDetails!=null && oDetails.length>0)
+        {
+            for(var i=0; i<oLots.length; i++)
+            {
+                if(parseFloat(oLots[i].Qty) < 0){
+                    alert("Lot Qty Shoulb Be Greater Than Zero! [Lot No: "+ oLots[0].Lot +"]"); return false;}
+            }
+
+            for(var i=0; i<oDetails.length; i++)
+            {
+                
+                if(oDetails[i].Qty != GetTotalLotQty(oDetails[i].DODID))
+                {
+                  
+                    alert("Order Qty & Lot Qty Is Not Same [Order No: "+ oDetails[0].OrderNo +"] Qty: "); return false;}
+            }
+        }
+
+        return true;
+    }
+    function GetTotalLotQty()
+    {
+        var nLotQty=0;
+        var oLots= $('#tblDUPSLot').datagrid('getRows');
+        for(var i=0; i<oLots.length; i++)
+        {
+            nLotQty= parseFloat(nLotQty) + parseFloat(oLots[i].Qty);
+        }
+        return nLotQty;
+    }
+    function GetTotalLotQty(nDODID)
+    {
+        var nLotQty=0;
+        var oLots= $('#tblDUPSLot').datagrid('getRows');
+        for(var i=0; i<oLots.length; i++)
+        {
+            if(oLots[i].DODID==nDODID)
+                nLotQty= parseFloat(nLotQty) + parseFloat(oLots[i].Qty);
+        }
+        return nLotQty;
+    }
+    
+
+    function Save(isDUPSLot)
+    {
+        debugger;
+        endEditing();
+      
+
+        if(!ValidationOfStartTime())return;
+        if(_oFabricSizingPlan.FMID==null || _oFabricSizingPlan.FMID<=0)
+        {
+            alert("Please, first select a FMID.");
+            return;
+        }
+        if(!IsQtyValid())
+        {
+            //alert("Order Qty & Lot Qty Should Be Same (and greater than zero).");
+            return;
+        }
+        //var ntotalQuantity = (oScheduleDetail.BatchNo * oScheduleDetail.ProductionQty);
+        //if( ntotalQuantity<1)
+        //{
+        //    alert("Number of yet to schedule must greater than zero.");
+        //    return;
+        //}
+        var oFabricSizingPlan=RefreshObject();
+        var nts=(new Date()).getTime()/1000;
+
+        $('#btnSave').hide();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricSizingPlan/ScheduleInTimePeriod",
+            data: JSON.stringify({oFabricSizingPlan:oFabricSizingPlan, nts: nts}),
+            contentType: "application/json; charset=utf-8",
+            success: function(data)
+            {
+                ////debugger;
+                var nCount = jQuery.parseJSON(data);
+                if (nCount>0)
+                {
+                    if(confirm("Are you sure to increase time from next all schedules."))
+                    {
+                        oFabricSizingPlan.IsIncreaseTime=true;
+                        SaveProductionSchedule(oFabricSizingPlan, isDUPSLot);
+                        //$("#winDUFabricSizingPlan").icsWindow("close");
+                        //$('#btnSave').show();
+                    }
+                }
+                else if(nCount==0)
+                {
+                    oFabricSizingPlan.IsIncreaseTime=false;
+                    SaveProductionSchedule(oFabricSizingPlan, isDUPSLot);
+                    //$("#winDUFabricSizingPlan").icsWindow("close");
+                    //$('#btnSave').show();
+                }
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+                $('#btnSave').show();
+            }
+        });
+    }
+    function Get_DUPSLot(oDetail){
+
+        if(oDetail.FabricSizingPlanDetailID<=0){
+            console.log('Invalid Schedule Product!'); return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: _sBaseAddress + "/FabricSizingPlan/GetPS_Lot",
+            traditional: true,
+            data: JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oDUPLots = jQuery.parseJSON(data);
+                if(oDUPLots!=null && oDUPLots.length<=0)
+                {
+                    DynamicRefreshList(oDUPLots, "tblDUPSLot");
+                }
+            }
+        });
+    }
+
+    $('#btnSaveRS').click(function(e)
+    {
+        if(!ValidationOfStartTime())return;
+        if(_oFabricSizingPlan.FMID==null || _oFabricSizingPlan.FMID<=0)
+        {
+            alert("Please, first select a FMID.");
+            return;
+        }
+        var oFabricSizingPlan=RefreshObject();
+
+        if(oFabricSizingPlan.FabricSizingPlanID==null || oFabricSizingPlan.FabricSizingPlanID<=0)
+        {
+            alert("Please, first select valid Schedul.");
+            return;
+        }
+        if (!confirm("Confirm to Create Dyeing Card?")) return;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/SaveRS",
+            traditional: true,
+            data:  JSON.stringify(oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oDUPS = jQuery.parseJSON(data);
+                if(oDUPS.ErrorMessage==""|| oDUPS.ErrorMessage==null)
+                {
+                    alert("Dyeing Card create successfully");
+                    var oFabricSizingPlan= $('#tblSchedule').datagrid('getSelected');
+                    if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+                    var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+                    //oFabricSizingPlan["FMID"+_oFabricSizingPlan.FMID] =_oFabricSizingPlan.FMID+"~"+""+"~"+""+"~";
+                    oFabricSizingPlan["FMID"+oDUPS.FMID] = oDUPS.FMID+"~"+""+"~"+oDUPS.OrderInfo+"~"+oDUPS.FabricSizingPlanID;
+                    $('#tblSchedule').datagrid('updateRow', { index: SelectedRowIndex, row: oFabricSizingPlan });
+                    $("#winDUFabricSizingPlan").icsWindow("close");
+                }
+                else{alert(oDUPS.ErrorMessage)}
+
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+    $('#btnRefreshDetail').click(function(e){
+        endEditing();
+    });
+
+    function SaveProductionSchedule(oFabricSizingPlan,isDUPSLot)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/Save",
+            traditional: true,
+            data:  JSON.stringify(oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                ////debugger;
+                var oDUPS = jQuery.parseJSON(data);
+                if (oDUPS.ErrorMessage=="")
+                {
+                    _oFabricSizingPlan=oDUPS;
+                    alert("Data Saved successfully");
+
+
+                    DynamicRefreshList(_oFabricSizingPlan.FabricSizingPlanDetails, "tblDUPSDetail");
+                    DynamicRefreshList(_oFabricSizingPlan.DUPSLots, "tblDUPSLot");
+
+                    var oFabricSizingPlan= $('#tblSchedule').datagrid('getSelected');
+                    if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+                    var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+                    oFabricSizingPlan["FMID"+oDUPS.FMID] = oDUPS.FMID+"~"+""+"~"+oDUPS.OrderInfo+"~"+oDUPS.FabricSizingPlanID;
+                    $('#tblSchedule').datagrid('updateRow', { index: SelectedRowIndex, row: oFabricSizingPlan });
+
+                    //if(isDUPSLot)
+                    //{
+                    //    var oDUPS= JSON.parse(sessionStorage.getItem('DUPSLot'));
+                    //    Save_DUPSLot(oDUPS,'ADD')
+                    //}else
+                    //{
+                  
+                    //  $("#winDUFabricSizingPlan").icsWindow("close");
+                    //}
+                //    $("#winDUFabricSizingPlan").icsWindow("close");
+                    $('#btnSave').show();
+                }
+                else {
+                    alert(oDUPS.ErrorMessage); $('#btnSave').show();
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+
+        });
+    }
+    function SaveDUPSLot(oDUPSLot,sOpt)
+    {
+        var nFabricSizingPlanID=(_oFabricSizingPlan!=null && _oFabricSizingPlan.FabricSizingPlanID>0)? _oFabricSizingPlan.FabricSizingPlanID:0;
+        if(nFabricSizingPlanID<=0)
+        {
+            sessionStorage.setItem('DUPSLot', JSON.stringify(oDUPSLot));
+            Save(true); return false;
+        }else
+        {
+            Save_DUPSLot(oDUPSLot,sOpt);
+        }
+    }
+    function Save_DUPSLot(oDUPSLot,sOpt)
+    {
+        var nFabricSizingPlanID=(_oFabricSizingPlan!=null && _oFabricSizingPlan.FabricSizingPlanID>0)? _oFabricSizingPlan.FabricSizingPlanID:0;
+        if(nFabricSizingPlanID<=0)
+        {
+            alert("Please save Production Schedule & try again!"); return false;
+        }
+        var oDetail=$("#tblDUPSDetail").datagrid("getSelected");
+        if(oDetail==null || oDetail.FabricSizingPlanDetailID<=0)
+        {
+            var oRSDOs = $('#tblDUPSDetail').datagrid('getRows');
+            if(oRSDOs!=null && oRSDOs.length==1)
+                oDetail=oRSDOs[0];
+            //else
+            //{
+            //    alert("Please select a Product & try again!"); return false;
+            //}
+        }
+
+        oDUPSLot.FabricSizingPlanID=nFabricSizingPlanID;
+        oDUPSLot.FabricSizingPlanDetailID=oDetail.FabricSizingPlanDetailID;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/Save_Lot",
+            traditional: true,
+            data:  JSON.stringify(oDUPSLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                ////debugger;
+                var oDUPS = jQuery.parseJSON(data);
+                if (oDUPS.ErrorMessage=="" || oDUPS.ErrorMessage==null)
+                {
+                    if(sOpt!='EDIT')
+                    {
+                        //alert("Lot Added successfully");
+                        $('#tblDUPSLot').datagrid('appendRow',oDUPS);
+                    }
+                    //if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+                    //var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+                    //oFabricSizingPlan["FMID"+oDUPS.FMID] = oDUPS.FMID+"~"+""+"~"+oDUPS.OrderInfo+"~"+oDUPS.FabricSizingPlanID;
+                    //$('#tblSchedule').datagrid('updateRow', { index: SelectedRowIndex, row: oFabricSizingPlan });
+                    //$("#winDUFabricSizingPlan").icsWindow("close");
+                }
+                else {
+                    alert(oDUPS.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+
+        });
+    }
+ 
+    $('#btnDelete').click(function(e){
+
+
+        var oFabricSizingPlan= $('#tblSchedule').datagrid('getSelected');
+        if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+        var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+
+        if(_oFabricSizingPlan.FabricSizingPlanID==null || _oFabricSizingPlan.FabricSizingPlanID<=0)
+        {
+            alert("Please, first select valid Schedul.");
+            return;
+        }
+        if (!confirm("Confirm to delete?")) return;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/Delete",
+            traditional: true,
+            data:  JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oFabricSizingPlan = jQuery.parseJSON(data);
+                if(oFabricSizingPlan.ErrorMessage=="Deleted")
+                {
+                    var oFabricSizingPlan= $('#tblSchedule').datagrid('getSelected');
+                    if (oFabricSizingPlan ==null || oFabricSizingPlan.FabricSizingPlanID <=0 ) { alert("Please select an item from list."); return ; }
+                    var SelectedRowIndex=$('#tblSchedule').datagrid('getRowIndex',oFabricSizingPlan);
+                    oFabricSizingPlan["FMID"+_oFabricSizingPlan.FMID] =_oFabricSizingPlan.FMID+"~"+""+"~"+""+"~";
+                    $('#tblSchedule').datagrid('updateRow', { index: SelectedRowIndex, row: oFabricSizingPlan });
+                }
+                else{alert(oFabricSizingPlan.ErrorMessage)}
+
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+    });
+    $("#btnDeleteDetail").click(function () {
+
+        var oFabricSizingPlanDetail = $("#tblDUPSDetail").datagrid("getSelected");
+        if (oFabricSizingPlanDetail == null) { alert("Please select an item from list!"); return false; }
+        var nIndex=$('#tblDUPSDetail').datagrid('getRowIndex',oFabricSizingPlanDetail);
+        if (!confirm("Confirm to Delete?")) return false;
+
+        if(oFabricSizingPlanDetail.FabricSizingPlanDetailID<=0)
+        {
+            $("#tblDUPSDetail").datagrid("deleteRow", nIndex);
+        }
+        else
+        {
+            var obj =
+                     {
+                         BaseAddress: _sBaseAddress,
+                         Object: oFabricSizingPlanDetail,
+                         ControllerName: "FabricSizingPlan",
+                         ActionName: "DeleteDetail",
+                         TableId: "tblDUPSDetail",
+                         IsWinClose: false
+                     };
+            $.icsDelete(obj);
+        }
+        //RefreshSummary();
+        editIndex = undefined;
+    });
+
+    $('#btnUpdateStatus').click(function()
+    {
+        if(_oFabricSizingPlan.FabricSizingPlanID==null || _oFabricSizingPlan.FabricSizingPlanID<=0)
+        {
+            alert("No Valid Production Schedule Found To Update.");
+            return;
+        }
+        if($("#cboScheduleStatus").val()==null || $("#cboScheduleStatus").val()<0)
+        {
+            alert("Please, first select valid Schedul."); return;
+        }
+        if (!confirm("Confirm to Update Schedule?")) return;
+
+        _oFabricSizingPlan.StatusInt=$("#cboScheduleStatus").val();
+        debugger;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/Update_Status",
+            traditional: true,
+            data:  JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oDUPS = jQuery.parseJSON(data);
+                if( (oDUPS.ErrorMessage==""|| oDUPS.ErrorMessage==null) && oDUPS.FabricSizingPlanID > 0)
+                {
+                    alert("Scedule is updated successfully"); return;
+                }
+                else{alert(oDUPS.ErrorMessage)}
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+    ///
+    ///Month View
+    function search_MonthView()
+    {
+        _oFabricSizingPlans=[];
+        $('#btnPrintSC').hide();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricSizingPlan/RefreshManthWise",
+            traditional: true,
+            data:  JSON.stringify({oFabricSizingPlan: _oFabricSizingPlan, bUptoLoadDyeMachine:$("#chkboxUptoUnloadDyeMachine").is(":checked"), sScheduleDateType:3}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //debugger;
+                var oPS = jQuery.parseJSON(data);
+                _oFabricSizingPlans=oPS.FabricSizingPlans;
+                _oDyeMachines=oPS.FabricMachines;
+
+                $('#divCalendar').calendar('moveTo', new Date(_oFabricSizingPlan.StartTime));
+
+
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+
+        });
+    }
+
+    $("#btnRefresh").click(function () {
+        //debugger;
+        var sDate = $('#txtDateScheduleCalendar').datebox('getValue');
+        if (sDate == null || sDate == "") {
+            alert("Please select a date!");
+            return;
+        }
+
+        _sCalendarDate = '';
+
+        RefreshMSCalendarArguments();
+
+
+        $.ajax({
+            type: "POST",
+            url: _sBaseAddress + "/MarketingSchedule/Gets",
+            traditional: true,
+            data: JSON.stringify(_oBaseMarketingSchedule),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+
+                _oDBMarketingSchedules = (jQuery.parseJSON(data) == null) ? [] : jQuery.parseJSON(data);
+
+                var sDate = $('#txtDateScheduleCalendar').datebox('getValue');
+                var dCurrentDate = new Date();
+                var sDay = icsCustomStringFormat(dCurrentDate.getDate(), '00');
+                sDate = sDay + " " + sDate;
+                RefreshCalendarShcedule(sDate);
+
+
+            }
+        });
+    });
+
+
+    function RefreshMSCalendarArguments() {
+        //debugger;
+        var arg = 'Arguments;';
+
+
+        var txtDateScheduleCalendar = _oFabricSizingPlan.StartTime;
+        if (_sCalendarDate == null || _sCalendarDate == '')
+        {
+            if (txtDateScheduleCalendar != null) {
+                arg = arg + txtDateScheduleCalendar + '~';
+            }
+        }
+        else if (_sCalendarDate != null)
+        {
+            arg = arg + _sCalendarDate + '~';
+        }
+
+        //if (_oFabricSizingPlan.FMID != null) {
+        //    arg = arg + _oFabricSizingPlan.FMID + '~';
+        //}
+
+        //if (_oFabricSizingPlan.FMID != null) {
+        //    arg = arg + _oBaseBuyer.FMID + '~';
+        //}
+
+
+
+        _oFabricSizingPlan.ErrorMessage = arg;
+        _oFabricSizingPlan.IsForBaseCollection = true;
+        _oFabricSizingPlan.IsForBaseCalendar = true;
+
+    }
+    function DetailViewCalendar(sDate) {
+        //debugger;
+
+        if (sDate == null || sDate == '') {
+            alert("Please select a Date!");
+            return;
+        }
+        $('#divCalendar').calendar('moveTo', new Date(sDate));
+
+        _oFabricSizingPlan = { ErrorMessage: "", FabricSizingPlanID: 0, FMID: 0,StartTime:sDate,StartTimeSt:sDate ,BUID:sessionStorage.getItem('BUID')};
+
+        _sCalendarDate = sDate;
+
+        RefreshMSCalendarArguments();
+        _oFabricSizingPlan.StartTime = sDate;
+        _oFabricSizingPlan.MachineName= ($("#cboMachineType").val()==0?"":$("#cboMachineType").val());
+        _oFabricSizingPlan.MachineNo=_sFMIDs;
+        //debugger;
+        $.ajax({
+            type: "POST",
+            url: _sBaseAddress + "/FabricSizingPlan/GetsDetailForCalendar",
+            traditional: true,
+            data: JSON.stringify(_oFabricSizingPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oFabricSizingPlans = (jQuery.parseJSON(data) == null) ? [] : jQuery.parseJSON(data);
+                DynamicRefreshList(oFabricSizingPlans, 'tblDUPS_MonthDetail');
+                RefreshSUM_Month();
+                $("#winDUPS_MonthDetail").icsWindow("open", "Schedule Date: "+_sCalendarDate);
+            }
+        });
+    }
+
+    function RefreshSUM_Month()
+    {
+        //debugger;
+        var oRows = $('#tblDUPS_MonthDetail').datagrid('getRows');
+        if(oRows.length>0)
+        {
+            var nQty = 0,nOrderCount=0;
+            for(var i=0;i<oRows.length;i++)
+            {
+                nQty = parseFloat(nQty)+parseFloat(oRows[i].Qty);
+                nOrderCount = parseFloat(nOrderCount)+parseFloat(oRows[i].OrderCount);
+            }
+            nQty = parseFloat(nQty).toFixed(2);
+            nOrderCount = parseFloat(nOrderCount).toFixed(2);
+
+            //debugger
+            var oRow =
+            {
+                MachineName : 'Total',
+                Qty:nQty,
+                OrderCount:nOrderCount
+            }
+            $('#tblDUPS_MonthDetail').datagrid('appendRow',oRow);
+
+        }
+    }
+
+
+    $("#btnClose_DUPS_MonthDetail").click(function () {
+        $("#winDUPS_MonthDetail").icsWindow('close');
+
+    });
+
+
+    function GenerateCalendarCellValue(Date) {
+
+        var sDateString = icsdateformat(Date);
+        var sDay = icsCustomStringFormat(Date.getDate(), '00');
+        var sParam = "'" + sDateString + "'";
+        for (var i = 0; i < _oFabricSizingPlans.length; i++) {
+            if (_oFabricSizingPlans[i].StartDateSt == sDateString) {
+                return '<div  class="icon-details md" onclick="DetailViewCalendar(' + sParam + ')">' + sDay + '</div>';
+            }
+        }
+        return '<div class="icon-edit md" onclick="DetailViewCalendar(' + sParam + ')">' + sDay + '</div>';
+    }
+    //function GenerateCalendarCellValue(Date) {
+    //    //debugger;
+    //    var sDateString = icsdateformat(Date);
+    //  //  alert(sDateString+'jj');
+    //    var sDay = icsCustomStringFormat(Date.getDate(), '00');
+    //    var sParam = "'" + sDateString + "'";
+    //    for (var i = 0; i < _oFabricSizingPlans.length; i++) {
+    //        if (_oFabricSizingPlans[i].StartTimeS == sDateString) {
+    //            //return '<input type="button" id="btnPickQTL" style="width:20px;" onclick="DetailViewCalendar(' + sParam + ')" />';
+    //            //return '<div class="icon-details md" onclick="DetailViewCalendar(' + sParam + ')"> <input type="button" value='+_oFabricSizingPlans[i].BatchNo+'  style="width:60px;" />' + sDay + '</div>';
+    //            return '<div class="icon-details md" onclick="DetailViewCalendar(' + sParam + ')">' + sDay + ' title='+_oFabricSizingPlans[i].BatchNo+' </div>';
+    //        }
+    //    }
+    //    return '<div class="icon-edit md" onclick="DetailViewCalendar(' + sParam + ')">' + sDay + '</div>';
+    //}
+    function RefreshCalendarShcedule(sDate)
+    {
+        //debugger;
+        var _sBaseMKTPersonName='';
+        $('#divCalendar').calendar('moveTo', new Date(sDate));
+        sDate = sDate.substring(3, sDate.length);
+        var sLabel = (_sBaseMKTPersonName == null || _sBaseMKTPersonName == '') ? ' Schedule ' + sDate : "Marketing Schedule for " + _sBaseMKTPersonName + '' + sDate;
+        $("#lblMonthHeader").html(sLabel);
+    }
+    function RefreshControlLayout()
+    {
+        //debugger;
+        $('#toolbarPS,#btnSave,#btnDelete,#btnDeleteDetail,#btnSaveRS,#btnUpdateStatus,#btnPaste1,#btnCut,#btnDUPS_Cut_Machine,#btnDUPS_Paste_Machine,.ics-pick').hide();
+        //if(HavePermission('AdvSearch','NOA')){document.getElementById('btnSearch').style.display = '';}
+        
+        if(PermissionChecker('Add','FabricSizingPlan',_oAuthorizationRolesMapping)){  $('#toolbarPS,#btnSave,.ics-pick').show();}
+        if(PermissionChecker('Edit','FabricSizingPlan',_oAuthorizationRolesMapping)){ $('#toolbarPS,#btnSave,.ics-pick').show();}
+        if(PermissionChecker('Delete','FabricSizingPlan',_oAuthorizationRolesMapping)){ $('#btnDeleteDetail,#btnDelete,.ics-pick').show();}
+        if(PermissionChecker('Add','RouteSheet',_oAuthorizationRolesMapping)){$('#btnSaveRS').show();}
+        if(PermissionChecker('Copy','FabricSizingPlan',_oAuthorizationRolesMapping)){$('#btnCut,#btnDUPS_Cut_Machine').show();}
+        if(PermissionChecker('Copy','FabricSizingPlan',_oAuthorizationRolesMapping)){$('#btnPaste1,#btnDUPS_Paste_Machine').show();}
+        if(PermissionChecker('UpdateInfo','FabricSizingPlan',_oAuthorizationRolesMapping)){ $('#btnUpdateStatus').show();}
+        //if(HavePermission('Approved','NOA')){document.getElementById('btnApproved').style.display = '';}
+        //if(HavePermission('Preview','FabricSizingPlan')){$('#btnPrintSC,#chkboxUptoUnloadDyeMachine').show();}
+    }
+
+
+    $('#btnSwap').click(function(e)
+    {
+        //debugger;
+        var oFabricSizingPlanDetails = $('#tblFabricSizingPlanDetail').datagrid('getChecked');
+        if(oFabricSizingPlanDetails.length<2)
+        {
+            alert("Please select two items.");
+            return;
+        }
+        if(oFabricSizingPlanDetails.length>2){alert("Please select only two items.");  return;}
+        var nts=(new Date()).getTime()/1000;
+        {
+            var sPSIDs=oFabricSizingPlanDetails[0].FabricSizingPlanID+'~'+oFabricSizingPlanDetails[1].FabricSizingPlanID;
+            $.ajax({
+                type: "Post",
+                dataType: "json",
+                url: _sBaseAddress + "/FabricSizingPlan/SwapSchedule",
+                traditional: true,
+                data:   JSON.stringify({sPSIDs : sPSIDs, nts:nts}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    var oresults=jQuery.parseJSON(data);
+                    if(oresults[0].ErrorMessage=="" || oresults[0].ErrorMessage==null)
+                    {
+                        alert("Swap Successfully");
+                        var oFabricSizingPlanDetails = $('#tblFabricSizingPlanDetail').datagrid('getChecked');
+                        var oList=$('#tblFabricSizingPlanDetail').datagrid('getRows');
+                        var nFirstIndex=oList.indexOf(oFabricSizingPlanDetails[0]);
+                        var nSecondIndex=oList.indexOf(oFabricSizingPlanDetails[1]);
+
+                        oList[nSecondIndex]=oresults[0];
+                        oList[nFirstIndex]=oresults[1];
+
+                        DynamicRefreshList(oList, "tblFabricSizingPlanDetail");
+                    }
+                    else {alert(oFabricSizingPlanDetails[0].ErrorMessage);}
+                    //alert(sMessage);
+                    //if(sMessage=="Swap Successfully") { Refresh(); }
+
+                },
+                error: function (xhr, status, error) {alert(error);}
+            });
+        }
+    });
+    $('#btnCreate_Requisition').click(function(e)
+    {
+        debugger;
+        var oFabricSizingPlanDetails = $('#tblFabricSizingPlanDetail').datagrid('getChecked');
+
+        if(oFabricSizingPlanDetails.length<=0)
+        {
+            alert("Please select at least an items!!");  return;
+        }
+        var nts=(new Date()).getTime()/1000;
+
+        if(!isAllSame('WorkingUnitID_Lot',oFabricSizingPlanDetails))
+        {
+            alert("All items are not in same store!!");  return;
+        }
+
+        var sPSIDs=oFabricSizingPlanDetails[0].FabricSizingPlanDetailID;
+        var bIsRequistion=oFabricSizingPlanDetails[0].IsRequistion; var nIsRequistion_index=0;
+
+        for(var i=1;i<oFabricSizingPlanDetails.length;i++)
+        {
+            if(oFabricSizingPlanDetails[i].IsRequistion){
+                IsRequistion=true; nIsRequistion_index=i;
+            }
+
+            sPSIDs+=","+oFabricSizingPlanDetails[i].FabricSizingPlanDetailID;
+        }
+        if(bIsRequistion)
+        {
+            alert("Requisition is already created for: Schedule No ["+oFabricSizingPlanDetails[nIsRequistion_index].ScheduleNo+"] !!");  return;
+        }
+
+        var oDUPS={
+            Params:sPSIDs
+        };
+        $.ajax({
+            type: "Post",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricSizingPlan/Save_Requisition",
+            traditional: true,
+            data:   JSON.stringify(oDUPS),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                var oresults=jQuery.parseJSON(data);
+                if(oresults.ErrorMessage=="" && oresults.DURequisitionID>0)
+                {
+                    alert("Requisition Created Successfully");
+                    //var oFabricSizingPlanDetails = $('#tblFabricSizingPlanDetail').datagrid('getChecked');
+                    //var oList=$('#tblFabricSizingPlanDetail').datagrid('getRows');
+
+                    //var nFirstIndex=oList.indexOf(oFabricSizingPlanDetails[0]);
+                    //var nSecondIndex=oList.indexOf(oFabricSizingPlanDetails[1]);
+
+                    //oList[nSecondIndex]=oresults[0];
+                    //oList[nFirstIndex]=oresults[1];
+
+                    //console.log(oresults);
+
+                    //DynamicRefreshList(oList, "tblFabricSizingPlanDetail");
+                }
+                else {alert(oresults.ErrorMessage);}
+                //alert(sMessage);
+                //if(sMessage=="Swap Successfully") { Refresh(); }
+
+            },
+            error: function (xhr, status, error) {alert(error);}
+        });
+    });
+    function isAllSame(field,data)
+    {
+        var isSame=true;
+        for(var i=0; i<data.length;i++)
+        {
+            for(var j=0; j<data.length;j++)
+            {
+                if(data[i][field]!=data[j][field])
+                    isSame=false;
+            }
+        }
+        return isSame;
+    }
+    $("#txtMachineTypePicker").keyup(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+
+            //debugger
+            var oMechine = {
+                Name : $('#txtMachineTypePicker').val(),
+                MachineTypeID : $('#cboMachineType').val(),
+                BUID : sessionStorage.getItem('BUID')
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oMechine,
+                ControllerName: "FabricSizingPlan",
+                ActionName: "SearchMachineType",
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+                var result=response.objs;
+                if (response.status && result.length > 0) {
+                    if (result[0].FMID > 0) {
+                        var tblColums = [];
+                        var oColumn = { field: "Code", title: "Code", width: 100, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 180, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "MachineTypeName", title: "Machine Type ", width: 100, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Capacity", title: "Capacity", width: 180, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "SequenceNo", title: "SL", width: 40, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winPickerMachine',
+                            winclass: 'clsMachinePicker',
+                            winwidth: 500,
+                            winheight: 460,
+                            tableid: 'tblMachinePicker',
+                            tablecolumns: tblColums,
+                            datalist: result,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Machine List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbuttonPI(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }else{
+                    alert("Data Not Found.");
+                }
+            });
+        }else if(event.which==8)
+        {
+            _sFMIDs="";
+            $('#txtMachineTypePicker').val("");
+        }
+    });
+    function IntializePickerbuttonPI(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssignPI(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssignPI(oPickerobj);
+            }
+        });
+    }
+    function SetPickerValueAssignPI(oPickerobj) {
+        _sFMIDs="";
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        if (oPickerobj.winid == 'winPickerMachine')
+        {
+            if (oreturnObjs!= null && oreturnObjs.length> 0)
+            {
+                //debugger;
+                var oMechines = oreturnObjs;
+                _sFMIDs=oMechines[0].FMID;
+                for(var i =1;i<oMechines.length;i++)
+                {
+                    _sFMIDs +=","+ oMechines[i].FMID;
+                }
+
+                $('#txtMachineTypePicker').val(oMechines.length+" item(s) selected")
+                console.log(_sFMIDs);
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+</script>

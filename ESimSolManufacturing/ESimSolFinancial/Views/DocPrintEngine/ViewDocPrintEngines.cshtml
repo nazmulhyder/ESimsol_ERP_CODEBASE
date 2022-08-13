@@ -1,0 +1,309 @@
+﻿@{
+    ViewBag.Title = "DocPrintEngine";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.DocPrintEngine>
+<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div class="panel-heading" style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>
+<div ng-app="DocPrintEngineModule" class="form-horizontal">
+    <div ng-controller="DocPrintEngineController">
+        <div class="ui-grid-top-panel">
+            <div class="form-inline">
+                <input type="text" class="form-control" ng-model="SearchString" style="width:22%" ng-keyup="SearchByNo($event)" placeholder="Type SL/Challan No & Press Enter" />
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"> Search</span></button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                @*<button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Process()"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span> Process</button>*@
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Activity()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Activity</span></button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="copy()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Copy</button>
+                @*<input type="checkbox" ng-checked="false" ng-model="IsMeter">*@
+                @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Update_PrintBy()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Format</span></button>*@
+                @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>*@
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 520px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+      #progressbarParent {
+        opacity: 0.8;
+        background-color: #ffffff  /*#DCD9D4*/;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }
+</style>
+
+<script type="text/javascript">
+    $("#progressbar").progressbar({ value: 0 });
+    $("#progressbarParent").hide();
+
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oDocPrintEngines =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+    sessionStorage.setItem('BUID', _nBUID);
+    var DocPrintEngineModule = angular.module('DocPrintEngineModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.edit','ms.service']);
+    DocPrintEngineModule.controller('DocPrintEngineController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        //oDocPrintEngines= (userSession.getData('DocPrintEngines').length>0)? userSession.getData('DocPrintEngines'):oDocPrintEngines;
+        
+        $scope.gridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'LetterName', name: 'Letter Name', width:'20%', enableCellEdit: false },
+                { field: 'LetterTypeST', name: 'Letter Type', width:'15%', enableCellEdit: false },
+                { field: 'FontName', name: 'FontName', width: '15%', enableCellEdit: false },
+                { field: 'PageSize', name: 'PageSize', width: '10%', enableCellEdit: false},
+                { field: 'Margin', name: 'Margin', width: '10%', enableCellEdit: false},
+                { field: 'ActivityST', name: 'Activity', width: '10%', enableCellEdit: false},
+                { field: 'BusinessUnitName', name: 'Business Unit', width: '15%', enableCellEdit: false},
+            ],
+            data:oDocPrintEngines,
+            onRegisterApi:function(gridApi) {
+
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oDocPrintEngines.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    $scope.gridApi.selection.selectRow(oDocPrintEngines[userSession.getRowIndex()]);
+                    //$scope.RowSelect(oDocPrintEngines[userSession.getRowIndex()]);
+                }
+                //$scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                //    //$scope.RowSelect(row.entity );
+                //});
+                userSession.clear();
+            }
+        };
+
+
+
+        $scope.add = function () {
+            debugger
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("DocPrintEngineHeader", "Add DocPrintEngine");
+            sessionStorage.setItem("DocPrintEngines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("DocPrintEngine", JSON.stringify([]));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/DocPrintEngine/ViewDocPrintEngine?id=0&buid="+_nBUID;
+        };
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DocPrintEngineID==data[0].DocPrintEngineID){
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DocPrintEngineHeader", "Edit DocPrintEngine");
+                    sessionStorage.setItem("DocPrintEngines", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("DocPrintEngine", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DocPrintEngine/ViewDocPrintEngine?id="+value.DocPrintEngineID+"&buid="+_nBUID;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.copy = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DocPrintEngineID==data[0].DocPrintEngineID){
+                    sessionStorage.setItem("Operation", "Copy");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DocPrintEngineHeader", "Copy DocPrintEngine");
+                    sessionStorage.setItem("DocPrintEngines", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("DocPrintEngine", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DocPrintEngine/ViewDocPrintEngine?id="+value.DocPrintEngineID+"&buid="+_nBUID;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+'/DocPrintEngine/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Data delete successfully'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.DocPrintEngineID==data[0].DocPrintEngineID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DocPrintEngineID==data[0].DocPrintEngineID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DocPrintEngineHeader", "View DocPrintEngine");
+                    sessionStorage.setItem("DocPrintEngines", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DocPrintEngine/ViewDocPrintEngine?id="+value.DocPrintEngineID+"&buid="+_nBUID;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.SearchByNo = function(e)
+        {
+            debugger;
+            var SearchString = $scope.SearchString;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oDocPrintEngines;
+            }
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].SLNo;
+                n=sTempName.toUpperCase().indexOf(SearchString.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }else
+                {
+                    sTempName=oCurrentList[i].ChallanNo;
+                    n=sTempName.toUpperCase().indexOf(SearchString.toUpperCase())
+                    if(n!=-1)
+                    {
+                        oSearchedList.push(oCurrentList[i]);
+                    }
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+
+
+        $scope.Activity = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to update.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var sMsg="Active";
+            if(data[0].Activity)
+                sMsg="Inactive";
+
+            if (!confirm("Confirm to "+sMsg+"?")) return ;
+
+            var SelectedIndex=$scope.gridOptions.data.indexOf(data[0]);
+            $http.post(_sBaseAddress+'/DocPrintEngine/Update',JSON.stringify(data[0])).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    if(result.DocPrintEngineID>0  && result.ErrorMessage=="")
+                                    {
+                                        debugger;
+                                        $scope.DocPrintEngine=result;
+                                        $scope.gridOptions.data[SelectedIndex]=result;
+                                        msModal.Message({headerTitle : '', bodyText:sMsg+' Successfully.', sucessText : 'Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                    else
+                                    {
+                                        alert(result.ErrorMessage);
+                                        return;
+                                    }
+                                },
+                                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                        );
+        };
+
+
+        function updateProgress() {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 90){
+                value += Math.floor(Math.random() * 10);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+        function hideShow(miliseconds) {
+            $("#progressbarParent").hide();
+        }
+    });
+
+</script>
+                       
+
+
+              

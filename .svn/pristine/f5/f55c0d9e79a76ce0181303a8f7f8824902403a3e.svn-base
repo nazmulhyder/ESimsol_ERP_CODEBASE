@@ -1,0 +1,703 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.SampleOutStanding>
+
+    @{
+        ViewBag.Title = "Sample OutStanding Report(Mkt)";
+        Layout = "~/Views/Shared/_Layout.cshtml";
+    }
+
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="easyui-panel menuMainCollectionTable" style="font-family:Tahoma; margin-left: 0px; height: 100%; width:100%">
+        <table id="tblSORs" title="ample Outstanding Report(Adjustment)" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="rowStyler: function(index,row){
+                                         if (row.MAName=='Total'){
+                                            return 'color:#016B18; font-weight:bold;';
+                                        }
+                                    }
+                    ">
+            <thead>
+                <tr>
+                    <th data-options=" field:'selected',checkbox:true"></th>
+                    <th field="MarketingAccountID" width="8%" align="left">Code</th>
+                    <th field="MAName" width="30%" align="left">Mkt Name</th>
+                    <th field="Opening" width="13%" align="right" formatter="formatPrice">Opening Value</th>
+                    <th field="Debit" width="13%" align="right" formatter="formatPrice">Debit Value</th>
+                    <th field="Credit" width="13%" align="right" formatter="formatPrice">Credit Value</th>
+                    <th field="Closing" width="13%" align="right" formatter="formatPriceABS">Closing Value</th>
+
+
+                </tr>
+            </thead>
+        </table>
+
+
+        <div id="toolbar">
+            <table style="width:100%" border="0" cellpadding="2" cellspacing="2">
+                <tr>
+                    <td colspan="2" style="width:100%;font-size:12px; text-align:left;vertical-align:top">
+                        Date<select id="cboDateSearch" style="width:10%;" onchange="DateActions();"></select>
+                        <input id="txtStartDate" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        To
+                        <input id="txtEndDate" type="text" style="width: 110px;height:20px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+
+
+                </tr>
+                <tr>
+                    <td style="width:30%;  font-size:12px;">
+                        Mkt Concern  <input type="text" style="width: 40%;" id="txtMktAccount" placeholder="Search By Mkt Person" />
+                        <a id="btnPickMktAccount" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        <a id="btnclrMktAccount" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                    </td>
+                    <td style="width:70%;  font-size:12px; text-align:right">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()">Refresh </a>
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(Detail)</a>
+                        <a id="btnPrintSummary" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(Summary)</a>
+                        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">ExportToXL(Detail)</a>
+                        <a id="btnPrintXLSummary" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">ExportToXL(Summary)</a>
+                        <a id="btnPrintDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(Buyer)</a>
+                        <a id="btnPrintDetail_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel (Buyer)</a>
+                    </td>
+
+                </tr>
+
+            </table>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oSampleOutStandings=[];
+        var _oSampleOutStanding=null;
+        var _sBaseAddress="";
+        var _oCompareOperators=[];
+        var _sMarketingAccountID="";
+        var _nBUID=0;
+        $(document).ready(function () {
+            debugger;
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oSampleOutStandings=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            $("#cboDateSearch").icsLoadCombo({
+                List: _oCompareOperators,
+                OptionValue: "id",
+                DisplayText: "Value"
+            });
+            sessionStorage.setItem("Params", "");
+            $("#progressbar").progressbar({value: 0});
+            $("#progressbarParent").hide();
+            $(".lblLoadingMessage").hide();
+            $("txtMktAccount").val("");
+
+        });
+        function updateProgress() {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 96){
+                value += Math.floor(Math.random() * 10);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+        function hideShow(miliseconds) {
+            $("#progressbarParent").hide();
+        }
+        function DateActions() {
+            DynamicDateActions("cboDateSearch", "txtStartDate", "txtEndDate");
+        }
+        function CheckFromAndToDateValidation(OperationComboId, FromDateId, ToDateId) {
+            $("#" + OperationComboId).parent().parent().parent().find("select").removeClass("errorFieldBorder");
+            var nCboVal = $("#" + OperationComboId).val();
+            if (parseInt(nCboVal) == 5 || parseInt(nCboVal) == 6) {
+                var fromDate = $("#" + FromDateId).datebox("getValue");
+                var toDate = $("#" + ToDateId).datebox("getValue");
+                if (new Date(fromDate) > new Date(toDate)) {
+                    $("#" + ToDateId).focus();
+                    $("#" + OperationComboId).addClass("errorFieldBorder");
+                    $(".lblLoadingMessage").hide();
+                    return false;
+                } else {
+                    $("#" + OperationComboId).removeClass("errorFieldBorder");
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+
+
+
+        function Refresh()
+        {
+            debugger
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            var sParams = "" + "~" +
+                      nDateType + "~" +
+                      date1 + "~" +
+                       date2  + "~" +
+                       _sMarketingAccountID ;
+            //sessionStorage.setItem("Params", sParams);
+
+            var oSampleOutStanding= {
+                ErrorMessage : sParams
+            }
+
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/SampleOutStanding/AdvSearch_PartyMkt",
+                traditional: true,
+                data:  JSON.stringify(oSampleOutStanding),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    clearInterval(intervalID);
+                    $("#progressbarParent").hide();
+                    var _oSampleOutStandings = data;
+                    if (_oSampleOutStandings.length>0)
+                    {
+                        RefreshList(_oSampleOutStandings);
+
+                    }
+                    else {
+                        alert("Data not Found");
+                        DynamicRefreshList([], 'tblSORs');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        function RefreshList(oSampleOutStandings)
+        {
+            $('#tblSORs').empty();
+            $('#tblSORs').datagrid({ selectOnCheck: false, checkOnSelect: false });
+            data = oSampleOutStandings;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblSORs').datagrid('loadData', data);
+
+            RefreshSummary();
+        }
+        function RefreshSummary()
+        {
+            debugger;
+            var oRows = $('#tblSORs').datagrid('getRows');
+            if(oRows.length>0)
+            {
+
+                var nOpening = 0,nDebit=0,nCredit=0,nClosing=0;
+                for(var i=0;i<oRows.length;i++)
+                {
+                    nOpening = parseFloat(nOpening)+parseFloat(oRows[i].Opening);
+                    nDebit = parseFloat(nDebit)+parseFloat(oRows[i].Debit);
+                    nCredit = parseFloat(nCredit)+parseFloat(oRows[i].Credit);
+                    nClosing = parseFloat(nClosing)+parseFloat(oRows[i].Closing);
+                }
+
+                nOpening = parseFloat(nOpening).toFixed(2);
+                nDebit = parseFloat(nDebit).toFixed(2);
+                nCredit = parseFloat(nCredit).toFixed(2);
+                nClosing = parseFloat(nClosing).toFixed(2);
+                debugger
+                var oRow =
+                {   ContractorID:0,
+                    MAName : 'Total',
+                    Opening:nOpening,
+                    Debit:nDebit,
+                    Credit:nCredit,
+                    Closing:nClosing
+                }
+
+                $('#tblSORs').datagrid('appendRow',oRow);
+            }
+        }
+
+
+
+
+        $("#btnResetMktPerson").click(function () {
+
+            $("#txtMktAccount").val("");
+            _oFabricSalesContract.MktAccountID=0;
+        });
+
+
+
+     
+
+        $("#btnPickMktAccount").click(function () {
+            debugger;
+            var sName=$.trim($("#txtMktAccount").val());
+            GetMktPersons(sName);
+        });
+
+        $("#txtMktAccount").keydown(function (e) {
+            var nkeyCode = e.keyCode || e.which;
+            if(nkeyCode==13){
+                var sName=$.trim($("#txtMktAccount").val());
+                //if($('#txtMktAccount').val()==null || $('#txtMktAccount').val()=="")
+                //{
+                //    alert("Please Type Name or part Name and Press Enter.");
+                //    $('#txtMktAccount').focus();
+                //    return;
+                //}
+                GetMktPersons(sName);
+            }
+            else if(nkeyCode==8){
+                $("#txtMktAccount").val("");
+                _oFabricSalesContract.MktAccountID=0;
+            }
+        });
+
+        function GetMktPersons(sName){
+
+            var oMarketingAccount_BU = {
+                Name:sName,
+                BUID:_nBUID
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oMarketingAccount_BU,
+                ControllerName: "MarketingAccount",
+                ActionName: "MarketingAccountSearchByName",
+                IsWinClose: false
+            };
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+            $.icsDataGets(obj, function (response) {
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].MarketingAccountID > 0) {
+                        debugger;
+                        var tblColums = [];
+                        var oColumn = { field: "MarketingAccountID", title: "Code", width: 50, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 180, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "GroupName", title: "Group Name", width: 120, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "Phone", title: "Phone", width: 100, align: "left" };tblColums.push(oColumn);
+
+                        var oPickerParam = {
+                            winid: 'winMktAccount',
+                            winclass:'clsMktPersonPicker',
+                            winwidth: 460,
+                            winheight: 460,
+                            tableid: 'tblMktPersonPicker',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName:'Name',
+                            windowTittle: 'MKT Person List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+                else{
+                    alert("No marketing person found.");
+                }
+            });
+
+
+        }
+        function IntializePickerbutton(oPickerobj) {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                //for Single Select
+                SetPickerValueAssign(oPickerobj);
+            });
+            $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    SetPickerValueAssign(oPickerobj);
+
+                }
+            });
+        }
+        function SetPickerValueAssign(oPickerobj) {
+            var oreturnObj = null, oreturnObjs = [];
+            if (oPickerobj.multiplereturn) {
+                oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+            } else {
+                oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+            }
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+            debugger;
+      
+            if (oPickerobj.winid=='winMktAccount')
+            {
+                 if (oreturnObjs != null && oreturnObjs.length> 0)
+                 {
+                     debugger;
+                     var sMessage='';
+                     _sMarketingAccountID="";
+                     sMessage=(oreturnObjs.length>1)? oreturnObjs.length +"MKT Account(s) Selected" : oreturnObjs[0].Name;
+                     $('#txtMktAccount').val(sMessage);
+                     $("#txtMktAccount").addClass("fontColorOfPickItem");
+                     for(var i=0;i<oreturnObjs.length;i++){
+                         _sMarketingAccountID=_sMarketingAccountID+oreturnObjs[i].MarketingAccountID+',';
+                     }
+                     _sMarketingAccountID=_sMarketingAccountID.substring(0,_sMarketingAccountID.length-1);
+                 }
+                 else
+                 {
+                     alert("Please select a MKt Account.");
+                     return false;
+                 }
+            }
+
+        }
+
+        function formatPriceABS(val,row)
+        {
+
+            val=parseFloat(val);
+            var test = val.toFixed(2);
+            if (val < 0)
+            {
+                test=(-1*test);
+            }
+            var tests = addComma(test);
+            if (val < 0)
+            {
+                return '<span style="color:red;">('+tests+')</span>';
+            }
+            else
+            {
+                return tests;
+            }
+
+        }
+
+
+        function addComma(nStr)
+        {
+
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var rgx = /(\d+)(\d{3})/;
+            while (rgx.test(x1)) {
+                x1 = x1.replace(rgx, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+        $("#btnPrint").click(function(){
+
+            var oSampleOutStandings = $('#tblSORs').datagrid('getChecked');
+            if(oSampleOutStandings.length<=0)
+            {
+                alert("Please checked at least one Buyer Name.");
+                return;
+            }
+            var nMarketingAccountIDs ="";
+
+            for(var i=0;i<oSampleOutStandings.length;i++){
+                if(oSampleOutStandings[i].MarketingAccountID>0)
+                {
+                    nMarketingAccountIDs=nMarketingAccountIDs+oSampleOutStandings[i].MarketingAccountID+',';
+                }
+            }
+            nMarketingAccountIDs=nMarketingAccountIDs.substring(0,nMarketingAccountIDs.length-1);
+
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var sParams =    "" + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2  + "~" +
+                       nMarketingAccountIDs ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingMkt?sTempString='+sParams, "_blank");
+        });
+        $("#btnPrintSummary").click(function(){
+
+            var oSampleOutStandings = $('#tblSORs').datagrid('getChecked');
+            //if(oSampleOutStandings.length<=0)
+            //{
+            //    alert("Please checked at least one Buyer Name.");
+            //    return;
+            //}
+
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+
+            var nMarketingAccountIDs ="";
+
+            for(var i=0;i<oSampleOutStandings.length;i++){
+                if(oSampleOutStandings[i].MarketingAccountID>0)
+                {
+                    nMarketingAccountIDs=nMarketingAccountIDs+oSampleOutStandings[i].MarketingAccountID+',';
+                }
+            }
+            nMarketingAccountIDs=nMarketingAccountIDs.substring(0,nMarketingAccountIDs.length-1);
+
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var sParams =    "" + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2  + "~" +
+                       nMarketingAccountIDs ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingSummaryMkt?sTempString='+sParams, "_blank");
+
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+        });
+        $("#btnPrintXL").click(function(){
+            var oSampleOutStandings = $('#tblSORs').datagrid('getChecked');
+            if(oSampleOutStandings.length<=0)
+            {
+                alert("Please checked at least one Buyer Name.");
+                return;
+            }
+            var nMarketingAccountIDs ="";
+
+            for(var i=0;i<oSampleOutStandings.length;i++){
+                if(oSampleOutStandings[i].MarketingAccountID>0)
+                {
+                    nMarketingAccountIDs=nMarketingAccountIDs+oSampleOutStandings[i].MarketingAccountID+',';
+                }
+            }
+            nMarketingAccountIDs=nMarketingAccountIDs.substring(0,nMarketingAccountIDs.length-1);
+
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var sParams =    "" + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2  + "~" +
+                       nMarketingAccountIDs ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingXLMkt?sTempString='+sParams, "_blank");
+        });
+        $("#btnPrintXLSummary").click(function(){
+
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+
+            debugger
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            var sParams = "" + "~" +
+                      nDateType + "~" +
+                      date1 + "~" +
+                      date2  + "~" +
+                       _sMarketingAccountID ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingSummartXLMkt?sTempString='+sParams, "_blank");
+
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+        });
+
+        $("#btnPrintDetail").click(function(){
+
+            var oSampleOutStandings = $('#tblSORs').datagrid('getChecked');
+            if(oSampleOutStandings.length<=0)
+            {
+                alert("Please checked at least one Buyer Name.");
+                return;
+            }
+            var nMarketingAccountIDs ="";
+
+            for(var i=0;i<oSampleOutStandings.length;i++){
+                if(oSampleOutStandings[i].MarketingAccountID>0)
+                {
+                    nMarketingAccountIDs=nMarketingAccountIDs+oSampleOutStandings[i].MarketingAccountID+',';
+                }
+            }
+            nMarketingAccountIDs=nMarketingAccountIDs.substring(0,nMarketingAccountIDs.length-1);
+
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var sParams =    "" + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2  + "~" +
+                       nMarketingAccountIDs ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingSummaryMktDetail?sTempString='+sParams, "_blank");
+        });
+        
+        $("#btnPrintDetail_XL").click(function(){
+
+            var oSampleOutStandings = $('#tblSORs').datagrid('getChecked');
+            if(oSampleOutStandings.length<=0)
+            {
+                alert("Please checked at least one Buyer Name.");
+                return;
+            }
+            var nMarketingAccountIDs ="";
+
+            for(var i=0;i<oSampleOutStandings.length;i++){
+                if(oSampleOutStandings[i].MarketingAccountID>0)
+                {
+                    nMarketingAccountIDs=nMarketingAccountIDs+oSampleOutStandings[i].MarketingAccountID+',';
+                }
+            }
+            nMarketingAccountIDs=nMarketingAccountIDs.substring(0,nMarketingAccountIDs.length-1);
+
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+
+            if(parseInt(nDateType) <=0 || nDateType==null)//Equ
+            {
+                alert("Please, select Date caritria.");
+                $('#cboDateSearch').focus();
+                return ;
+            }
+
+            var checkDate = CheckFromAndToDateValidation("cboDateSearch", "txtStartDate", "txtEndDate");
+            if (!checkDate) {
+                alert("Start date must be greater than end date.");
+                return false;
+            }
+
+            if(parseInt(nDateType) == 1)//Equ
+            {
+                date2=date1;
+            }
+            var sParams =    "" + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2  + "~" +
+                       nMarketingAccountIDs ;
+
+            window.open(_sBaseAddress + '/SampleOutStanding/Print_SampleOutStandingSummaryMktDetail_XL?sTempString='+sParams, "_blank");
+        });
+
+    </script>
+
+

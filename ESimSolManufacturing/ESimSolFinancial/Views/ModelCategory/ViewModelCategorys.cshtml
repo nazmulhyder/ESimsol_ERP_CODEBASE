@@ -1,0 +1,235 @@
+﻿@{
+    ViewBag.Title = "Model Category List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ModelCategory>
+
+    <div class="menuMainCollectionTable" ng-app="ModelCategoryApp">
+        <div ng-controller="ModelCategoryController">
+            <div style="margin-bottom:2px; display:block" title="Color Category List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByCategory($event)" placeholder="Search by Category Name" style="width:200px" />
+                <button type="button" id="btnAdd" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnDetails" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                <button type="button" id="btnExportToExcel" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:540px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oModelCategorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    debugger;
+    var CCapp= angular.module('ModelCategoryApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('ModelCategoryController',function ($scope,uiGridConstants,userSession) 
+    {
+       // oModelCategorys= (userSession.getData('ModelCategorys').length>0)? userSession.getData('ModelCategorys'):oModelCategorys;
+        oModelCategorys= (userSession.getData('ModelCategory').length>0)? userSession.getData('ModelCategory'):oModelCategorys;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'CategoryName', name:'Category Name', width:'50%' },
+              { field: 'Remarks', name:'Remarks', width:'47%' , enableSorting: false}
+            ],
+            data: oModelCategorys,
+
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                if(oModelCategorys.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oModelCategorys);
+                    $scope.gridApi.selection.selectRow(oModelCategorys[userSession.getRowIndex()]);
+                    $scope.RowSelect(oModelCategorys[userSession.getRowIndex()] );
+                }
+                userSession.clear();
+            }
+        };
+        $scope.SearchByCategory = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oModelCategorys;
+            }     
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].CategoryName;        
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.Add=function()
+        {
+            //sessionStorage.setItem("ModelCategorys", JSON.stringify($scope.gridOptions.data));
+            //sessionStorage.setItem("SelectedRowIndex", -1);
+            //sessionStorage.setItem("ModelCategoryHeader", "Add Color Category");
+            //sessionStorage.setItem("BackLink", window.location.href);
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("ModelCategoryHeader", "Add Model Category");
+            sessionStorage.setItem("ModelCategory", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ModelCategory/ViewModelCategory?id=0";
+        }            
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oModelCategory= data[0];//get selected index
+            if(oModelCategory==null || oModelCategory.ModelCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            //var SelectedRowIndex= $scope.gridOptions.data.indexOf(oModelCategory);
+            //sessionStorage.setItem("ModelCategorys", JSON.stringify($scope.gridOptions.data));
+            //sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            //sessionStorage.setItem("ModelCategoryHeader", "Edit Color Category");
+            //sessionStorage.setItem("BackLink", window.location.href);
+
+            sessionStorage.setItem("Operation", "Edit");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",$scope.gridOptions.data.indexOf(data[0]));
+            sessionStorage.setItem("ModelCategoryHeader", "Edit Model Category");
+            sessionStorage.setItem("ModelCategory", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/ModelCategory/ViewModelCategory?id="+oModelCategory.ModelCategoryID
+        }
+                
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oModelCategory= data[0];//get selected index
+            if(oModelCategory==null || oModelCategory.ModelCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            //var SelectedRowIndex= $scope.gridOptions.data.indexOf(oModelCategory);
+            //sessionStorage.setItem("ModelCategorys", JSON.stringify($scope.gridOptions.data));
+            //sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            //sessionStorage.setItem("ModelCategoryHeader", "View Color Category");
+            //sessionStorage.setItem("BackLink", window.location.href);
+            sessionStorage.setItem("Operation", "View");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",$scope.gridOptions.data.indexOf(data[0]));
+            sessionStorage.setItem("ModelCategoryHeader", "View Model Category");
+            sessionStorage.setItem("ModelCategory", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/ModelCategory/ViewModelCategory?id="+oModelCategory.ModelCategoryID;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oModelCategory= data[0];//get selected index
+            if(oModelCategory==null || oModelCategory.ModelCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oModelCategory);
+            if (oModelCategory.ModelCategoryID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/ModelCategory/Delete",
+                    data: { id: oModelCategory.ModelCategoryID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Data delete successfully")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+        $scope.PrintList = function()
+        {
+            var oModelCategorys= $scope.gridOptions.data;
+            var ids ="";
+            if(oModelCategorys.length >0)
+            {
+                for(var i =0;i<oModelCategorys.length;i++)
+                {
+                    ids =ids+oModelCategorys[i].ModelCategoryID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/ModelCategory/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oModelCategorys=  $scope.gridOptions.data;
+            var ids ="";
+            if(oModelCategorys.length >0)
+            {
+                for(var i =0;i<oModelCategorys.length;i++)
+                {
+                    ids =ids+oModelCategorys[i].ModelCategoryID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/ModelCategory/ModelCategoryExportToExcel?sIDs='+ids);
+        }
+
+        //button hide unhide
+            $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide(); 
+            if(PermissionChecker('Add','ModelCategory',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            if(PermissionChecker('Edit','ModelCategory',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            if(PermissionChecker('View','ModelCategory',oAuthorizationRolesMapping)){$("#btnView").show();}
+            if(PermissionChecker('Delete','ModelCategory',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            if(PermissionChecker('PrintList','ModelCategory',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

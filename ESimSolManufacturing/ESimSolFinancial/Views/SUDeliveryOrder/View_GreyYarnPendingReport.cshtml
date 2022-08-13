@@ -1,0 +1,93 @@
+﻿@{
+    ViewBag.Title = "Summary";
+}
+@model ESimSol.BusinessObjects.SUDeliveryOrder
+<html>
+<head>
+    <title>Grey Yarn Pending Report</title>
+</head>
+<body class="menuMainCollectionTable">
+    <div>
+        <fieldset>
+            <legend>Grey Yarn Pending Report</legend>
+            Date :
+            <input id="chkIsDate" type="checkbox" />
+            <input id="dDeliveryDateFrom" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="dDeliveryDateTo" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <select id="cboIsInHouse">
+                <option value="1">EXE</option>
+                <option value="0">SWC</option>
+            </select>
+            <input id="txtFEONo" type="text" placeholder="Type FFO No & Press Enter" style="width: 159px;" />
+            <input id="txtFEOYear" type="text" style="width: 18px;" class="number" maxlength="2" />
+          
+            <a id="btnPrintGreyYarnPendingReport" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        </fieldset>
+
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _nFEOID=0;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oSUDeliveryOrder =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        $(".easyui-datebox").datebox({ disabled: true });
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+        $("#txtFEOYear").val(new Date().getFullYear().toString().slice(-2));
+    });
+
+    $("#txtFEONo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            var oFabricExecutionOrder = {
+                Params : parseInt($("#cboIsInHouse").val()) + "~" + $.trim($(this).val()) + "~" + $("#txtFEOYear").val()
+            };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oFabricExecutionOrder,
+                ControllerName: "FabricExecutionOrder",
+                ActionName: "GetByFEOrderNo",
+                IsWinClose: false
+            };
+
+            $.icsDataGet(obj, function (response) {
+                debugger;
+                if (response.status && response.obj.FEOID > 0) {
+                    _nFEOID = response.obj.FEOID ;
+                    var sFEONo = response.obj.FEONo.split("/");
+                    $("#txtFEONo").val(sFEONo[0]);
+                    $("#txtFEONo").addClass("fontColorOfPickItem");
+                }
+                else
+                {
+                    alert("Sorry, No Fabric Execution Order Found.");
+                    $("#txtFEONo").removeClass("fontColorOfPickItem");
+                    _nFEOID=0;
+                }
+            });
+        }
+        else if(e.keyCode === 8){
+            $("#txtFEONo").removeClass("fontColorOfPickItem");
+            _nFEOID=0;
+        }
+    });
+
+    $("#chkIsDate").change(function(){
+        if(this.checked) {
+            $(".easyui-datebox").datebox({ disabled: false });
+        }else{
+            $(".easyui-datebox").datebox({ disabled: true });
+        }
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+    });
+
+    $("#btnPrintGreyYarnPendingReport").click(function(){
+        var nts = ((new Date()).getTime()) / 1000;
+        var sParams = $("#chkIsDate").is(':checked') + "~" + $('#dDeliveryDateFrom').datebox('getValue') + "~" + $('#dDeliveryDateTo').datebox('getValue') + "~" + _nFEOID;
+        window.open(_sBaseAddress + '/SUDeliveryOrder/PrintGreyYarnPending?sParams=' + sParams + "&nts=" + nts, "_blank");
+    });
+</script>

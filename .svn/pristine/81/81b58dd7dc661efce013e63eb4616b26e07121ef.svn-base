@@ -1,0 +1,208 @@
+﻿@{
+    ViewBag.Title = "Auto Voucher Configuration";
+}
+@model IEnumerable<ESimSol.BusinessObjects.IntegrationSetup>
+<div style="margin-left: 0px; height: 100%; width:100%">
+<table id="tblIntegrationSetup" title="Auto Voucher Configurations" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+    <thead>
+        <tr>
+            <th field="SetupNo" width="80">Setup No</th>
+            <th field="BUSName" width="120">BU Name</th>
+            <th field="VoucherSetupString" width="200">Voucher Setup</th>
+            <th field="Sequence" width="60" align="center">Sequence</th>
+            <th field="DataCollectionSQL" width="280">Data Collection SQL</th>
+            <th field="KeyColumn" width="120">Key Column</th>
+        </tr>
+    </thead>
+</table>
+<div id="toolbar">
+    <select id="cboBusinessUnit" style="width:100px"></select>
+    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>    
+    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+    <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+    <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+    <a id="btnSetSequence" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Setup Sequence</a>    
+    <a id="btnCopy" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-copy" plain="true">Copy</a>
+</div>
+</div>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oTempIntegrationSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+
+        $('#cboBusinessUnit').data('BusinessUnits', oBusinessUnits);
+        var oIntegrationSetups =sessionStorage.getItem("IntegrationSetups");
+        if(oIntegrationSetups!=null)
+        {
+            oIntegrationSetups = jQuery.parseJSON(oIntegrationSetups);
+        }
+        else
+        {
+            oIntegrationSetups=oTempIntegrationSetups;
+        }
+        RefreshList(oIntegrationSetups);
+        RefreshControlLayout(oAURolesMapping);
+        RefreshCombobox();
+    });
+   
+    function RefreshCombobox()
+    {        
+        var oBusinessUnits = $('#cboBusinessUnit').data('BusinessUnits');       
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortName" });
+    }
+    
+    $("#btnRefresh").click(function(){
+        var oIntegrationSetup= { BUID : parseInt($('#cboBusinessUnit').val()) };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/IntegrationSetup/GetsIntegrationSetup",
+            data:  JSON.stringify(oIntegrationSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oIntegrationSetups = jQuery.parseJSON(data);
+                RefreshList(oIntegrationSetups);
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+    });
+
+    $("#btnAdd").click(function(){
+        var oIntegrationSetups= $('#tblIntegrationSetup').datagrid('getRows');
+        sessionStorage.setItem("IntegrationSetups", JSON.stringify(oIntegrationSetups));
+        sessionStorage.setItem("SelectedIntegrationSetupRowIndex", -1);
+        sessionStorage.setItem("IntegrationSetupHeader", "Add Integration Setup");
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/IntegrationSetup/ViewIntegrationSetup?id=0";
+    });
+
+    $("#btnEdit").click(function(){
+        var oIntegrationSetup= $('#tblIntegrationSetup').datagrid('getSelected');
+        if(oIntegrationSetup==null || parseInt(oIntegrationSetup.IntegrationSetupID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedIntegrationSetupRowIndex=$('#tblIntegrationSetup').datagrid('getRowIndex',oIntegrationSetup);
+        var oIntegrationSetups= $('#tblIntegrationSetup').datagrid('getRows');
+        sessionStorage.setItem("IntegrationSetups", JSON.stringify(oIntegrationSetups));
+        sessionStorage.setItem("SelectedIntegrationSetupRowIndex", SelectedIntegrationSetupRowIndex);
+        sessionStorage.setItem("IntegrationSetupHeader", "Edit Integration Setup");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/IntegrationSetup/ViewIntegrationSetup?id="+parseInt(oIntegrationSetup.IntegrationSetupID);
+    });
+
+    $("#btnView").click(function(){
+        var oIntegrationSetup= $('#tblIntegrationSetup').datagrid('getSelected');
+        if(oIntegrationSetup==null || parseInt(oIntegrationSetup.IntegrationSetupID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedIntegrationSetupRowIndex=$('#tblIntegrationSetup').datagrid('getRowIndex',oIntegrationSetup);
+        var oIntegrationSetups= $('#tblIntegrationSetup').datagrid('getRows');
+        sessionStorage.setItem("IntegrationSetups", JSON.stringify(oIntegrationSetups));
+        sessionStorage.setItem("SelectedIntegrationSetupRowIndex", SelectedIntegrationSetupRowIndex);
+        sessionStorage.setItem("IntegrationSetupHeader", "View Integration Setup");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/IntegrationSetup/ViewIntegrationSetup?id="+parseInt(oIntegrationSetup.IntegrationSetupID);
+    });
+
+    $("#btnCopy").click(function(){
+        var oIntegrationSetup= $('#tblIntegrationSetup').datagrid('getSelected');
+        if(oIntegrationSetup==null || parseInt(oIntegrationSetup.IntegrationSetupID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedIntegrationSetupRowIndex=$('#tblIntegrationSetup').datagrid('getRowIndex',oIntegrationSetup);
+        var oIntegrationSetups= $('#tblIntegrationSetup').datagrid('getRows');
+        sessionStorage.setItem("IntegrationSetups", JSON.stringify(oIntegrationSetups));
+        sessionStorage.setItem("SelectedIntegrationSetupRowIndex", SelectedIntegrationSetupRowIndex);
+        sessionStorage.setItem("IntegrationSetupHeader", "Copy Integration Setup");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/IntegrationSetup/ViewIntegrationSetup?id="+parseInt(oIntegrationSetup.IntegrationSetupID);
+    });
+
+    $("#btnDelete").click(function(){
+        var oIntegrationSetup= $('#tblIntegrationSetup').datagrid('getSelected');
+        if(oIntegrationSetup==null || parseInt(oIntegrationSetup.IntegrationSetupID)<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedIntegrationSetupRowIndex=$('#tblIntegrationSetup').datagrid('getRowIndex',oIntegrationSetup);
+        if (parseInt(oIntegrationSetup.IntegrationSetupID) > 0)
+        {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/IntegrationSetup/Delete",
+                data: { id: oIntegrationSetup.IntegrationSetupID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Delete sucessfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblIntegrationSetup').datagrid('deleteRow',SelectedIntegrationSetupRowIndex);
+                        var oIntegrationSetups= $('#tblIntegrationSetup').datagrid('getRows');
+                        sessionStorage.setItem("IntegrationSetups", JSON.stringify(oIntegrationSetups));
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    $('#btnSetSequence').click(function(){
+        var tsv=((new Date()).getTime())/1000;
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+"/IntegrationSetup/ViewSetupSequence?&ts="+tsv;
+    });
+
+    function RefreshList(oIntegrationSetups)
+    {
+        data=oIntegrationSetups;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblIntegrationSetup').datagrid('loadData',data);
+        var SelectedIntegrationSetupRowIndex = parseInt(sessionStorage.getItem("SelectedIntegrationSetupRowIndex"));
+        if(SelectedIntegrationSetupRowIndex>=0)
+        {
+            $('#tblIntegrationSetup').datagrid('selectRow',SelectedIntegrationSetupRowIndex);
+        }
+    }
+
+    function RefreshControlLayout(oAURolesMapping)
+    {
+        $("#btnAdd").hide();
+        $("#btnEdit").hide();
+        $("#btnView").hide();
+        $("#btnDelete").hide();
+        $("#btnSetSequence").hide();
+
+        if(PermissionChecker('Add','IntegrationSetup',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','IntegrationSetup',oAURolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','IntegrationSetup',oAURolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','IntegrationSetup', oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('Add','IntegrationSetup',oAURolesMapping)){$("#btnSetSequence").show();}
+    }
+</script>

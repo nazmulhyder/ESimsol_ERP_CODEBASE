@@ -1,0 +1,305 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model ESimSol.BusinessObjects.AccountingSession
+<div class="easyui-panel" title="Add Accounting Session" style="font-family: Tahoma; width:100%;height:100%">
+        <fieldset style="width:99%; min-height:88%">
+            <table border="0" cellpadding="2" cellspacing="2" style="font-size:11px;width:80%;margin: 10% auto; font-weight:bold">
+                <tr>
+                    <td style="width:100px; text-align:right">Start Date :</td>
+                    <td style="width:120px">
+                    <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                    <td style="width:100px"></td>
+                    <td style="width:100px; text-align:right">End Date :</td>
+                    <td style="width:120px">
+                        <input id="txtEndDate" type="text" style="width:110px" disabled="disabled" />
+                    </td>
+                    <td rowspan="4" style="width:150px">
+                        <fieldset>
+                            <legend>
+                                Session Hierarchy
+                            </legend>
+                            @{ Html.RenderAction("Checks", new { values = Enum.GetValues(typeof(ESimSol.BusinessObjects.EnumSessionType)), name = "chkSessionType" }); }
+                        </fieldset>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:100px; text-align:right">Session Name :</td>
+                    <td colspan="4" style="width:440px">
+                        @Html.TextBoxFor(model => model.SessionName, new { style = "width: 470px;", id = "txtSessionName" })
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:100px; text-align:right"></td>
+                    <td colspan="2" style="width:220px">@Html.CheckBoxFor(model => model.IsDateActivation, new { id = "chkIsActivation", onClick = "chkIsDateActivationClickEvent()" }) Apply Activation Time </td>
+                    <td style="width:100px; text-align:right">Lock Time :</td>
+                    <td style="width:120px"><input id="txtLockTime" type="text" style="width: 110px;" class="easyui-timespinner" required="required" /></td>
+                </tr>
+                <tr id="trActivationDate1">
+                    <td style="width:100px; text-align:right"> Active Time :</td>
+                    <td style="width:120px"><input id="txtActivationTime" type="text" style="width: 110px;" class="easyui-timespinner" required="required" /></td>
+                    <td style="width:100px"></td>
+                    <td style="width:120px"></td>
+                    <td style="width:100px"></td>
+                </tr>
+
+                <tr id="trActivationDate2">
+                    <td style="width:100px; text-align:right"></td>
+                    <td colspan="2" style="width:220px">
+                        <br />
+                        <b>Select Session Holiday</b>
+                        <br />
+                        @{ Html.RenderAction("holidays", new { values = new string[] { "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" }, name = "chkWeeklyholidays" }); }
+                    </td>
+                    <td style="width:100px"></td>
+                    <td style="width:120px"></td>
+                    <td style="width:150px">  </td>
+                </tr>
+            </table>
+        </fieldset>
+    <fieldset style="width:99%; height:12%">
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:99%">
+            <tr>
+                <td style="float:right; margin-right:5%">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+</div>
+<script type="text/javascript">
+
+ var _oAccountingSession=null;
+ var _sBaseAddress='';
+ var sRemovedids='';
+ $(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oAccountingSession =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    document.getElementById("trActivationDate1").style.display = 'none';
+    document.getElementById("trActivationDate2").style.display = 'none';
+    document.getElementById("chkIsActivation").checked = false;
+    document.getElementById("YearEnd").checked = true;
+    document.getElementById("DayEnd").checked = true;
+    $('#txtStartDate').datebox('setValue', _oAccountingSession.StartDateString);
+    $('#txtLockTime').timespinner('setValue', _oAccountingSession.LockDateTimeString);
+    $('#txtActivationTime').timespinner('setValue', _oAccountingSession.ActivationDateTimeString);
+    if(_oAccountingSession.AccountingSessionID>0)
+    {
+        RefreshControl();
+    }
+});
+
+function RefreshControl()
+{
+    document.getElementById("txtEndDate").value= _oAccountingSession.EndDateTimeString;
+    document.getElementById("chkIsActivation").checked=_oAccountingSession.IsDateActivation;
+    var chkSessionType = document.getElementsByName("chkSessionType");
+    for(var i=0; i<chkSessionType.length; i++)
+    {
+        if(SessionTypeExists(chkSessionType[i].value))
+        {
+            chkSessionType[i].checked=true;
+        }
+    }
+    chkIsDateActivationClickEvent();
+    var chkWeeklyholidays = document.getElementsByName("chkWeeklyholidays");
+    for(var i=0; i<chkWeeklyholidays.length; i++)
+    {
+        if(WeeklyHolidayExists(chkWeeklyholidays[i].value))
+        {
+            chkWeeklyholidays[i].checked=true;
+        }
+    }
+}
+
+function SessionTypeExists(sSessionType)
+{
+    var aSessionType=_oAccountingSession.SessionHierarchy.split(',');
+    for(var i=0; i<aSessionType.length;i++)
+    {
+        if(aSessionType[i]==sSessionType)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+function WeeklyHolidayExists(sWeeklyHoliday)
+{
+    var aWeeklyHoliday=_oAccountingSession.WeekLyHolidays.split(',');
+    for(var i=0; i<aWeeklyHoliday.length;i++)
+    {
+        if(aWeeklyHoliday[i]==sWeeklyHoliday)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+function ValidateInput()
+{
+
+    var sStartDate = $('#txtStartDate').datebox('getValue');
+    var sActivationTime= $('#txtActivationTime').timespinner('getValue');
+    var sLockTime = $('#txtLockTime').timespinner('getValue');
+
+    if(sStartDate==null || sStartDate=="")
+    {
+        alert("Please enter Session Start Date!");
+        $('#txtStartDate').focus();
+        return false;
+    }
+    var sEndDate = $('#txtEndDate').val();
+    //var sEndDate = $('#txtEndDate').datebox('getValue');
+
+    if(sEndDate==null || sEndDate=="")
+    {
+        alert("Please Select Session End Date!");
+        $('#txtStartDate').focus();
+        return false;
+    }
+
+
+    if(document.getElementById("txtSessionName").value==null || document.getElementById("txtSessionName").value=="")
+    {
+        alert("Please enter Session Name!");
+        $('#txtSessionName').focus();
+        return false;
+    }
+    var chkSessionType = document.getElementsByName("chkSessionType");
+    if(chkSessionType[1].checked==false || chkSessionType[6].checked==false)
+    {
+        alert("Must be Select YearEnd & DayEnd!");
+        $('#chkSessionType').focus();
+        return false;
+    }
+    return true;
+ }
+
+ function Save()
+ {
+    if(!ValidateInput()) return;
+    var oAccountingSession=RefreshObject();
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/AccountingSession/Save",
+            traditional: true,
+            data:  JSON.stringify(oAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oTAccountingSession = jQuery.parseJSON(data);
+                if (oTAccountingSession.id>0) {
+                    alert("Data Saved sucessfully");
+                    var oAccountingSessions =sessionStorage.getItem("AccountingSessions");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    sessionStorage.setItem("SelectedRowIndex",nIndex);
+                    if(oAccountingSessions!=null)
+                    {
+                        oAccountingSessions = jQuery.parseJSON(oAccountingSessions);
+                    }
+                    else
+                    {
+                        oAccountingSessions=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oAccountingSessions[nIndex]=oTAccountingSession;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oAccountingSessions.length);
+                        oAccountingSessions.push(oTAccountingSession);
+                    }
+                    sessionStorage.setItem("AccountingSessions", JSON.stringify(oAccountingSessions));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oTAccountingSession.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+ }
+
+
+ function RefreshObject()
+ {
+    var sSessionType="";var sWeeklyholidays="";
+    var chkSessionType = document.getElementsByName("chkSessionType");
+    for(var i=0; i<chkSessionType.length; i++)
+    {
+        if(chkSessionType[i].checked==true)
+        {
+            sSessionType=sSessionType+chkSessionType[i].value+',';
+        }
+    }
+    var chkWeeklyholidays = document.getElementsByName("chkWeeklyholidays");
+    for(var i=0; i<chkWeeklyholidays.length; i++)
+    {
+        if(chkWeeklyholidays[i].checked==true)
+        {
+            sWeeklyholidays=sWeeklyholidays+chkWeeklyholidays[i].value+',';
+        }
+    }
+
+    var oAccountingSession={
+        AccountingSessionID: _oAccountingSession.AccountingSessionID,
+        SessionCode: "",
+        SessionName: $('#txtSessionName').val(),
+        StartDate: $('#txtStartDate').datebox('getValue'),
+        EndDate: $('#txtEndDate').val(),
+        LockDateTime : $('#txtLockTime').timespinner('getValue'),
+        ActivationDateTime : $('#txtActivationTime').timespinner('getValue'),
+        IsDateActivation:document.getElementById("chkIsActivation").checked,
+        SessionHierarchy:sSessionType,
+        WeekLyHolidays : sWeeklyholidays
+    };
+     return oAccountingSession;
+ }
+
+$('#txtStartDate').datebox({
+	onSelect: function(date){
+        var dStartDate=new Date(date);
+        dStartDate.setFullYear(dStartDate.getFullYear()+1);
+        dStartDate.setDate(dStartDate.getDate()-1);
+        document.getElementById("txtEndDate").value= icsdateformat(dStartDate);
+	}
+});
+
+
+
+function chkIsDateActivationClickEvent() {
+    var chkIsDateActivation = document.getElementById("chkIsActivation");
+    if (chkIsDateActivation.checked)
+    {
+        document.getElementById("trActivationDate1").style.display = '';
+        document.getElementById("trActivationDate2").style.display = '';
+        window.resizeTo(770, 530);
+    }
+    else
+    {
+        document.getElementById("trActivationDate1").style.display = 'none';
+        document.getElementById("trActivationDate2").style.display = 'none';
+        window.resizeTo(770, 365);
+    }
+}
+
+function Close()
+{
+    window.location.href = sessionStorage.getItem("BackLink");
+}
+
+</script>
+
+

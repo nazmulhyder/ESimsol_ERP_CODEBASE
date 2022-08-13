@@ -1,0 +1,540 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "Fabric Claim Order";
+    }
+</head>
+<body>
+    @model ESimSol.BusinessObjects.FabricClaim
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable">
+        <div id="MainDiv" class="easyui-panel" title="Fabric Claim Order" style="font-family:Tahoma;height:90%">
+            <fieldset>
+                <legend>Fabric Claim Order Info</legend>
+                <table style="width:100%;">
+                    <tr>
+                        <td class="align-right" style="width:10%">Parent No</td>
+                        <td style="width:20%">
+                            @Html.TextBoxFor(model => model.ParentSCNo, new { onkeydown = "ParentSCNoKeyDown(event);", style = "width:80%;", id = "txtParentSCNo", @placeholder = "" })
+                            <input type="button" id="btnParentSCNo" onclick="PickParentSCNo()" style="width:18%;float:right;" value="Pick" />
+                        </td>
+                        <td class="align-right" style="width:10%">SC Date</td>
+                        <td style="width:20%">
+                            <input type="text" style="width:200px;" id="txtSCDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                        <td class="align-right" style="width:15%">Subject</td>
+                        <td style="width:25%">
+                            @Html.TextBoxFor(model => model.Subject, new { style = "width: 100%;", id = "txtSubject" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="align-right" style="width:10%">Remarks:</td>
+                        <td colspan="5" style="width:90%">
+                            @Html.TextBoxFor(model => model.Remarks, new { style = "width: 100%;", id = "txtRemark", @placeholder = "", @class = "cls-txt" })
+                        </td>
+                    </tr>
+
+                </table>
+            </fieldset>
+            <table id="tblFabricClaimDetail" title="Fabric Claim Order Details" class="easyui-datagrid" style="height:367px; width:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="onClickRow:onClickRow">
+                <thead>
+                    <tr>
+                        <th field="ClaimSettlementTypeInString" width="20%" align="left">Settlement Type</th>
+                        <th field="ParentExeNo" width="15%" align="left">Parent Exe No</th>
+                        <th data-options="field:'QtyInPercent',align:'right',editor:{type:'numberbox',options:{precision:2}}" width="20%">Qty(%)</th>
+                        <th data-options="field:'Remarks',align:'Left',editor:{type:'text'}" width="20%" align="Left">Remarks</th>
+                        
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Settel Type: <select id="cboSettelType" style="width:100px;height:22px;"></select>
+                SC Detail : <input type="text" id="txtSCDetail" style="width:130px;" onkeydown="SCDetailKeyDown(event)" />
+                <input type="button" id="btnSCDetail" style="width:45px;" onclick="PickSCDetail()" value="Pick" />
+                
+                Qty(%) : <input type="text" id="txtQtyInPercent" style="width:70px;" class="number" />
+                Remarks : <input type="text" id="txtRemarks" style="width:180px;" />
+                <a id="btnAddDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnRemoveDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                @*<a id="btnRefreshDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>*@
+            </div>
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:60%; text-align:right"></td>
+                    <td style="width:40%;text-align:right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" onclick="Close()" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    td, th {
+        padding: 2px;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oFabricClaim = [];
+    var TypeList = [];
+    var _oClaimSettleTypes = [];
+    var _oFabricClaimDetails = [];
+    var _nBUID=0;
+    
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricClaim =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        _oClaimSettleTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ClaimSettleTypes));
+        if(sessionStorage.getItem('Action')=='View')
+        {
+            $('#tblFabricClaimDetail').data("GridEditable",false);
+            $('#btnSave, #toolbar').hide();
+        }
+        debugger;
+        if(parseInt(_oFabricClaim.FabricClaimID)>0)
+        {
+            $('#txtPINo, #txtContractorName').addClass('fontColorOfPickItem');
+            _oFabricClaimDetails = _oFabricClaim.FabricClaimDetails;
+            RefreshList(_oFabricClaimDetails);
+        }
+        $("#cboSettelType").icsLoadCombo({ List: _oClaimSettleTypes, OptionValue: "id", DisplayText: "Value" });
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $('#txtSCDate').datebox('setValue',_oFabricClaim.SCDateInString);
+        $("#txtQtyInPercent").val(0);
+        $("#MainDiv").data("SCDetail",[]);
+    });
+
+    var editIndex = undefined;
+    function endEditing() {
+        if (editIndex == undefined) { return true }
+        if ($('#tblFabricClaimDetail').datagrid('validateRow', editIndex)) {
+            $('#tblFabricClaimDetail').datagrid('endEdit', editIndex);
+            $('#tblFabricClaimDetail').datagrid('selectRow', editIndex);
+            var oFabricClaimDetail = $('#tblFabricClaimDetail').datagrid('getSelected');
+
+            debugger;
+            $('#tblFabricClaimDetail').datagrid('updateRow', { index: editIndex, row: oFabricClaimDetail });
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onClickRow(index) {
+
+        if (editIndex != index) {
+            if (endEditing()) {
+                $('#tblFabricClaimDetail').datagrid('selectRow', index).datagrid('beginEdit', index);
+                var oPRDetail= $('#tblFabricClaimDetail').datagrid('getSelected');
+
+                editIndex = index;
+            }
+            else {
+                $('#tblFabricClaimDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    //Pickers//
+    function ParentSCNoKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtParentSCNo").val();
+            if (oTxtName != null) {
+                PickParentSCNo(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            txtParentSCNo.style.color="Black";
+            _oFabricClaim.ParentSCNo="";
+            _oFabricClaim.ParentFSCID=0;
+        }
+    }
+
+    function PickParentSCNo(oTxtName)
+    {
+        debugger;
+        var oStyleSearch = {
+            BUID:_nBUID,
+            SCNo: (oTxtName == 'undefined') ? "" : oTxtName
+        };
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch),
+            ControllerName: "FabricClaim",
+            ActionName: "GetFSC",
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = []; var oColumn = { field: "SCNo", title: "SC No", width: 150, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "SCDateSt", title: "SC Date", width: 150, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('ParentSCNo',obj,tblColums,false,'SCNo','FabricSalesContractID',500); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+
+    function SetParentSCNo(oSelectedStyle) {
+        debugger;
+        document.getElementById("txtParentSCNo").value = oSelectedStyle.SCNo;
+        txtParentSCNo.style.color="Blue";
+        _oFabricClaim.ParentSCNo=oSelectedStyle.SCNo;
+        _oFabricClaim.ParentFSCID=oSelectedStyle.FabricSalesContractID;
+    }
+
+    function SCDetailKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtSCDetail").val();
+            if (oTxtName != null) {
+                PickSCDetail(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            txtSCDetail.style.color="Black";
+            $("#MainDiv").data("SCDetail",[]);
+        }
+    }
+
+    function PickSCDetail(oTxtName)
+    {
+        debugger;
+        if(_oFabricClaim.ParentFSCID <= 0){
+            alert("Please Select Fabric Sales Contract!!");
+            return;
+        }
+        var oStyleSearch = {
+            FabricSalesContractID:_oFabricClaim.ParentFSCID
+        };
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch),
+            ControllerName: "FabricClaim",
+            ActionName: "GetSCDetails",
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = []; var oColumn = { field: "StyleNo", title: "Style No", width: 150, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ExeNo", title: "Exe No", width: 150, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('SCDetail',obj,tblColums,true,'ExeNo','FabricSalesContractID',500); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+
+    function SetSCDetail(oSelectedStyle) {
+        debugger;
+        if(oSelectedStyle.length == 1)
+            document.getElementById("txtSCDetail").value = oSelectedStyle[0].ExeNo;
+        else
+            document.getElementById("txtSCDetail").value = oSelectedStyle.length + " details are selected";
+        txtSCDetail.style.color="Blue";
+        $("#MainDiv").data("SCDetail",oSelectedStyle);
+    }
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        debugger;
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winParentSCNo')
+        {
+            SetParentSCNo(oResult);
+        }
+        else if (oPickerobj.winid == 'winSCDetail')
+        {
+            SetSCDetail(oResult);
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,nWidth)
+    {
+        debugger;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        setInterval(updateProgress,250);
+
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: nWidth,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                }
+            }
+            else{
+                alert("Data Not Found.");
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                return;
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+    //End Pickerss///
+
+    function RefreshList(oFabricClaimDetails)
+    {
+        debugger;
+        var data=oFabricClaimDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFabricClaimDetail').datagrid('loadData',data);
+    }
+
+    function Validation(){
+        if($("#txtSCDate").datebox('getValue') == '' || $("#txtSCDate").datebox('getValue') == null){
+            alert('Please Select date!!');
+            $("#txtSCDate").focus();
+            return false;
+        }
+
+        if(_oFabricClaim.ParentFSCID<=0)
+        {
+            $('#txtParentSCNo').focus();
+            alert("Please Enter Sales Contrat No!!");
+            return false;
+        }
+
+        var oRows=$('#tblFabricClaimDetail').datagrid('getRows');
+        if(oRows.length<=0){
+            alert("Atleast onen detail required!!");
+            return false;
+        }
+
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oFabricClaim={
+            FabricClaimID : _oFabricClaim.FabricClaimID,
+            FSCID : 0,
+            ParentFSCID: _oFabricClaim.ParentFSCID,
+            ParentSCNo: _oFabricClaim.ParentSCNo,
+            SCDate:$('#txtSCDate').datetimebox('getValue'),
+            Subject: $.trim($('#txtSubject').val()),
+            Remarks : $.trim($('#txtRemark').val()),
+            FabricClaimDetails: $('#tblFabricClaimDetail').datagrid('getRows')
+        };
+
+        return oFabricClaim;
+    }
+
+    $("#btnSave").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oFabricClaim=RefreshObject();
+        //return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricClaim/Save",
+            traditional: true,
+            data:  JSON.stringify(oFabricClaim),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oFabricClaim = jQuery.parseJSON(data);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (oFabricClaim.ErrorMessage==null || oFabricClaim.ErrorMessage=="") {
+                    alert("Data Saved successfully");
+                    var oFabricClaims = sessionStorage.getItem("FabricClaims");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oFabricClaims != null) {
+                        oFabricClaims = jQuery.parseJSON(oFabricClaims);
+                    }
+                    else
+                    {
+                        oFabricClaims = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oFabricClaims[nIndex] = oFabricClaim;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oFabricClaims.length);
+                        oFabricClaims.push(oFabricClaim);
+                    }
+                    sessionStorage.setItem("FabricClaims", JSON.stringify(oFabricClaims));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oFabricClaim.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $("#btnAddDetail").click(function ()
+    {
+        endEditing();
+        if($('#cboSettelType').val()<=0)
+        {
+            alert("Please select a Settle Type!!");
+            return;
+        }
+        var oDetails = $("#MainDiv").data("SCDetail");
+        if(oDetails.length <= 0){
+            alert("Please select Fabric Sales Contract Detail!!");
+            return;
+        }
+        var oRows=$('#tblFabricClaimDetail').datagrid('getRows');
+        for(var i=0;i<oDetails.length;i++){
+            var isExist = false;
+            for(var j=0;j<oRows.length;j++){
+                if(oDetails[i].FabricSalesContractDetailID == oRows[j].ParentFSCDID){
+                    isExist=true;
+                    break;
+                }
+            }
+            if(isExist == false){
+                var oDCDetail={
+                    FabricClaimDetailID: 0,
+                    FabricClaimID: _oFabricClaim.FabricClaimID,
+                    ClaimSettlementType:$('#cboSettelType').val(),
+                    ClaimSettlementTypeInString: $("#cboSettelType option:selected").text(),
+                    FSCDID:0,
+                    ParentFSCDID: oDetails[i].FabricSalesContractDetailID,
+                    ParentExeNo: oDetails[i].ExeNo,
+                    QtyInPercent:parseFloat($("#txtQtyInPercent").val()),
+                    Remarks: $("#txtRemarks").val()
+                };
+                $('#tblFabricClaimDetail').datagrid('appendRow',oDCDetail);
+                
+            }
+        }
+        $("#MainDiv").data("SCDetail",[]);
+        $("#txtQtyInPercent").val(0);
+        $("#txtRemarks").val("");
+        $("#txtSCDetail").val("");
+        $("#cboSettelType").val(0);
+    });
+
+    $("#btnRemoveDetail").click(function ()
+    {
+        endEditing();
+        var oDCDetail=$('#tblFabricClaimDetail').datagrid('getSelected');
+        if(oDCDetail==null || oDCDetail.ProductID<=0)
+        {
+            alert("Please select a valid item from list.");
+            return;
+        }
+        var nIndex= $('#tblFabricClaimDetail').datagrid('getRowIndex',oDCDetail);
+        $('#tblFabricClaimDetail').datagrid('deleteRow',nIndex);
+    });
+
+    $("#btnRefreshDetail").click(function ()
+    {
+        debugger;
+        var oFabricClaim = [];
+        var oFabricClaimDetail = {
+            FabricClaimID: _oFabricClaim.FabricClaimID
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricClaim/GetsDetailsByID",
+            traditional: true,
+            data:  JSON.stringify(oFabricClaimDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oFabricClaim = jQuery.parseJSON(data);
+                if (oFabricClaim.ErrorMessage==null || oFabricClaim.ErrorMessage=="") {
+                    RefreshList(oFabricClaim.FabricClaimDetails);
+                }
+                else {
+                    alert(oFabricClaimDetail.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLink");
+    })
+
+</script>

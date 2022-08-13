@@ -1,0 +1,180 @@
+﻿@model ESimSol.BusinessObjects.TGarmentsClass
+@{
+    ViewBag.Title = "Garments Class List";
+}
+
+<div class="menuMainCollectionTable">
+    <table id="tblGarmentsClassTreeGrid" title="Garments Class List" class="easyui-treegrid" fit="true" fitcolumns="true"
+           data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th data-options="field:'text',width:300">Class/Sub Class</th>
+                <th data-options="field:'Description',width:350">Description</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <input type="text" id="txtSearchByName" value="Search by name" style="width:150px" onclick="ClearNamefield()" />
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function () {
+          //debugger;
+          var oTGarmentsClass=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+          _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+           var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));      
+          RefreshList(oTGarmentsClass);
+          RefreshControlLayout(oAuthorizationRolesMapping); 
+    });
+    
+
+   $('#txtSearchByName').keypress(function (e) {
+    //debugger;
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        
+        var bFlag=false;
+        var sAccountHeadName="";
+        var rows = $('#tblGarmentsClassTreeGrid').treegrid('getChildren',1);         
+        for(i=0;i<rows.length;++i){
+            sAccountHeadName=rows[i]['text'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sAccountHeadName.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblGarmentsClassTreeGrid').treegrid('select',id);
+                break;
+            }
+        }        
+    });
+
+    function ClearNamefield()
+    {
+         $("#txtSearchByName")[0].value='';
+    }
+
+
+        
+    function Add()
+    {
+        debugger;          
+        var oGarmentsClass= $('#tblGarmentsClassTreeGrid').datagrid('getSelected'); 
+        if(oGarmentsClass==null || oGarmentsClass.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if(oGarmentsClass.IsLastLayer==true)
+        {
+            alert("Can not add in under last layer!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblGarmentsClassTreeGrid').datagrid('getRowIndex',oGarmentsClass);
+        var oGarmentsClasses= $('#tblGarmentsClassTreeGrid').datagrid('getRows');
+        sessionStorage.setItem("GarmentsClasses", JSON.stringify(oGarmentsClasses));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("GarmentsClassHeader", "Add "+oGarmentsClass.text);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/GarmentsClass/ViewGarmentsClass?id="+oGarmentsClass.id;
+    } 
+
+
+    function Edit()
+    {
+      debugger;
+        var oGarmentsClass= $('#tblGarmentsClassTreeGrid').datagrid('getSelected'); 
+        if(oGarmentsClass==null || oGarmentsClass.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblGarmentsClassTreeGrid').datagrid('getRowIndex',oGarmentsClass);
+        var oGarmentsClasses= $('#tblGarmentsClassTreeGrid').datagrid('getRows');
+        sessionStorage.setItem("GarmentsClasses", JSON.stringify(oGarmentsClasses));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("GarmentsClassHeader", "Edit "+oGarmentsClass.text);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/GarmentsClass/EditGarmentsClass?id="+oGarmentsClass.id;
+    } 
+        
+    function RefreshList(oTGarmentsClass)
+    {
+       data= [oTGarmentsClass];
+       data={"total":""+data.length+"","rows":data};
+       $('#tblGarmentsClassTreeGrid').treegrid('loadData',data);  
+       //var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+       //if(nID!=-1)
+       //{
+       //    $('#tblGarmentsClassTreeGrid').treegrid('selectRow', nID);
+       //}
+    }
+
+    function Delete()
+    {
+        debugger;
+        var oGarmentsClass= $('#tblGarmentsClassTreeGrid').datagrid('getSelected'); 
+        if(oGarmentsClass==null || oGarmentsClass.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oGarmentsClass.parentid==0)
+        {
+            alert("Root Deletion not possible !");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblGarmentsClassTreeGrid').datagrid('getRowIndex',oGarmentsClass);
+        
+        if (oGarmentsClass.id > 0) 
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",                
+                url : _sBaseAddress+  "/GarmentsClass/Delete",
+                data: { id: oGarmentsClass.id },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully") 
+                    {
+                        alert("Data Delete Successfully");                        
+                        $('#tblGarmentsClassTreeGrid').treegrid('remove',oGarmentsClass.id);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+            },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        }
+}
+
+
+
+    
+ function RefreshControlLayout(oAuthorizationRolesMapping)
+{
+    $('#btnAdd,#btnEdit,#btnDelete').hide(); 
+    if(PermissionChecker('Add','GarmentsClass',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+    if(PermissionChecker('Edit','GarmentsClass',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+    if(PermissionChecker('Delete','GarmentsClass',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+}
+
+
+</script>

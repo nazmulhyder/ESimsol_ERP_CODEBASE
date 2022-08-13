@@ -1,0 +1,264 @@
+﻿@model ESimSol.BusinessObjects.IncomeStatement
+@{
+    ViewBag.Title = "Statement of Comprehensive Income";
+}
+
+<div class="easyui-layout" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div data-options="region:'north'" style="text-align:left; overflow:hidden;">
+        Select Business Unit :<select id="cboBUs" style="width:175px;"></select>
+        <select id="cboSession" style="width:135px"></select>
+        <select id="cboAccountType"></select>
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false" >Print Statement</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false" >Export To XL</a>
+        <a id="btnPrintComprensiveIncome" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false" >Print Comprehensive Income</a>
+        <a id="btnNotesOfComprensiveIncome" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false" >Notes Of Comprehensive Income</a>
+    </div>
+    <div data-options="region:'west',split:true" style="width:50%;">
+        <table id="tblExpense" title="Statement of Comprehensive Income (Expenses)" class="easyui-treegrid" fit="true" fitcolumns="true" rownumbers="false" pagination="false" singleselect="true" autorowheight="false" , data-options="idField:'id',treeField:'text'">
+            <thead>
+                <tr>
+                    <th field="text" width="195" align="left">Particulars</th>
+                    <th field="LadgerBalanceInString" width="100" align="right"></th>
+                    <th field="CGSGBalanceInString" width="100" align="right"></th>
+                </tr>
+            </thead>
+        </table>
+
+    </div>
+    
+    <div data-options="region:'center',split:true" style="width:50%;">
+        <table id="tblRevenue" title="Statement of Comprehensive Income (Revenue)" class="easyui-treegrid" fit="true" fitcolumns="true" rownumbers="false" pagination="false" singleselect="true" autorowheight="false" , data-options="idField:'id',treeField:'text'">
+            <thead>
+                <tr>
+                    <th field="text" width="195" align="left">Particulars</th>
+                    <th field="LadgerBalanceInString" width="100" align="right"></th>
+                    <th field="CGSGBalanceInString" width="100" align="right"></th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+
+    <div data-options="region:'south'" style="height:45px;overflow:hidden;">
+        <table border="0" style="background-color:#DEDEDE; width:100%; height:100%;">
+            <tr>
+                <td style="width:50%; text-align:right; font-weight:bold; font-size:small">
+                    <div style="width:100%;">
+                        <label id="lblExpenseTotal" style="margin-right:20px">Total : 0.00</label>
+                    </div>
+                </td>
+                <td style="width:50%; text-align:right; font-weight:bold; font-size:small">
+                    <div style="width:100%;">
+                        <label id="lblRecenueTotal" style="margin-right:20px">Total : 0.00</label>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="width:100%; text-align:left; font-weight:bold; font-size:small">
+                    <div style="width:100%;">
+                        <label id="lblNetProfutLossAccout" style="margin-left:15px">Net Profit : 0.00 BDT</label>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        </div>
+       
+    </div>
+
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oIncomeStatement=null;
+    var _oRevenues=[];
+    var _oExpenses=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oIncomeStatement =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oRevenues =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Revenues));
+        _oExpenses =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Expenses));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({
+            List: oBUs,
+            OptionValue: "BusinessUnitID",
+            DisplayText: "Name"});
+
+        var listAccountTypeObjs = _oIncomeStatement.AccountTypeObjs;
+        LoadAccountTypes(listAccountTypeObjs);
+        RefreshCboSession(_oIncomeStatement.AccountingSessions);
+        RefreshList(_oIncomeStatement.TRevenue.children, _oIncomeStatement.TExpenditure.children);
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+       
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+    function RefreshCboSession(oAccountingSessions)
+    {
+        $('#cboSession').empty();
+        var listItems= "<option value='0'>--Select Session--</option>";
+        for (var i = 0; i < oAccountingSessions.length; i++)
+        {
+            listItems+= "<option value='" + oAccountingSessions[i].AccountingSessionID + "'>" + oAccountingSessions[i].SessionName+" </option>";
+        }
+        $("#cboSession").html(listItems);
+        $("#cboSession").val(0);
+    }
+
+       
+        $("#btnRefresh").click(function(){
+            debugger;
+            if(!ValidateInput())return;
+            
+            var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+            var selectedCbo =document.getElementById("cboAccountType");
+            var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+            var oIncomeStatement= {
+                BUID:nBUID,
+                AccountTypeInInt:   parseInt(cboAccountTypeVal),
+                AccountingSessionID: $("#cboSession").val()
+            }
+            
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: '@Url.Action("GetIncomeStatement", "IncomeStatement")',
+            data: JSON.stringify(oIncomeStatement),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oIncomeStatement = jQuery.parseJSON(data);
+                $('#progressbar').progressbar('setValue', 100);
+                
+                if (_oIncomeStatement != null) {
+                    _oRevenues =_oIncomeStatement.Revenues;
+                    _oExpenses =_oIncomeStatement.Expenses;
+                    if(parseInt(_oRevenues.length) == 0 && parseInt(_oExpenses.length) == 0)
+                    {
+                        alert("Data not found!!");
+                    }
+                    RefreshList(_oIncomeStatement.TRevenue.children, _oIncomeStatement.TExpenditure.children);
+                    setTimeout(hideShow, 1000);
+                }
+                else
+                {
+                    alert("Data not found!!");
+                    RefreshList([],[]);
+                    setTimeout(hideShow, 1000);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function LoadAccountTypes(Items)
+    {
+        var listItems="";
+        for (i = 0; i < Items.length; i++)
+        {
+            if(Items[i].id!= 0 && Items[i].id!= 1)
+            {
+                listItems += "<option value='" + Items[i].Id+"'>" + Items[i].Value+"</option>";
+            }
+        }
+        $("#cboAccountType").html(listItems);
+        $("#cboAccountType").val(5);
+    }
+
+    function ValidateInput()
+    {
+
+        if($("#cboSession").val()==0)
+        {
+            alert("Please Select Session!");
+            $('#cboSession').focus();
+            return false;
+        }
+
+        return true;
+    }
+
+
+    function RefreshList(oRevenues, oExpenses)
+    {
+        data =oRevenues;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRevenue').treegrid('loadData',data);
+
+
+        data =oExpenses;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblExpense').treegrid('loadData',data);
+        var NetPro = (_oIncomeStatement.TotalRevenues-_oIncomeStatement.TotalExpenses).toFixed(2);
+        var NetProfit = addComma(NetPro);
+        var NetL = (_oIncomeStatement.TotalExpenses-_oIncomeStatement.TotalRevenues).toFixed(2);
+        var NetLoss = addComma(NetL);
+        if(_oIncomeStatement.TotalRevenues>_oIncomeStatement.TotalExpenses)
+        {
+            $('#lblNetProfutLossAccout').html("Net Profit : "+ NetProfit +" BDT");
+        }
+        else if(_oIncomeStatement.TotalRevenues<_oIncomeStatement.TotalExpenses)
+        {
+            $('#lblNetProfutLossAccout').html("Net Loss : "+ NetLoss +" BDT");
+        }
+        else{
+            $('#lblNetProfutLossAccout').html("Net Profit : 0.00 BDT");
+        }
+
+        var ET = _oIncomeStatement.TotalExpenses.toFixed(2);
+        var ExpenseTotal = addComma(ET);
+        var RT = _oIncomeStatement.TotalRevenues.toFixed(2);
+        var RevenueTotal = addComma(RT);
+
+        document.getElementById('lblExpenseTotal').innerHTML ="Total : "+ ExpenseTotal;
+        document.getElementById('lblRecenueTotal').innerHTML ="Total : "+ RevenueTotal;
+    }
+
+
+    $("#btnPrint").click(function(){
+
+        if(!ValidateInput())return;
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var tsv= (new Date().getTime())/1000;
+        var  nAccountingSessionID=$("#cboSession").val();
+        window.open(_sBaseAddress+"/IncomeStatement/PrepareIncomeStatement?nBUID="+nBUID+"&nAccountType="+cboAccountTypeVal+"&nAccountingSessionID="+nAccountingSessionID+"&ts="+tsv, "_blank");
+    });
+
+    $("#btnPrintComprensiveIncome").click(function(){
+
+        if(!ValidateInput())return;
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var tsv= (new Date().getTime())/1000;
+        var  nAccountingSessionID=$("#cboSession").val();
+        window.open(_sBaseAddress+"/IncomeStatement/ComprehensiveIncome?nBUID="+nBUID+"&nAccountType="+cboAccountTypeVal+"&nAccountingSessionID="+nAccountingSessionID+"&ts="+tsv, "_blank");
+    });
+
+    $("#btnNotesOfComprensiveIncome").click(function(){
+        if(!ValidateInput())return;
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var tsv= (new Date().getTime())/1000;
+        var  nAccountingSessionID=$("#cboSession").val();
+        window.open(_sBaseAddress+"/IncomeStatement/NotesOfTheComprehensiveIncome?nBUID="+nBUID+"&nAccountType="+cboAccountTypeVal+"&nAccountingSessionID="+nAccountingSessionID+"&ts="+tsv, "_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+
+        if(!ValidateInput())return;
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var cboAccountTypeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var tsv= (new Date().getTime())/1000;
+        var  nAccountingSessionID=$("#cboSession").val();
+        window.open(_sBaseAddress+"/IncomeStatement/PrepareIncomeStatementInXL?nBUID="+nBUID+"&nAccountType="+cboAccountTypeVal+"&nAccountingSessionID="+nAccountingSessionID+"&ts="+tsv, "_blank");
+    });
+
+</script>

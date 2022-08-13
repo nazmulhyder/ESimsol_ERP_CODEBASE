@@ -1,0 +1,185 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Location List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricSpecificationNote>
+    <div style="margin-left:0px; height:565px;">
+        <table id="tblFabricSpecificationNotes" title="Fabric Specification Note" class="easyui-datagrid" style="width:100%;height:565px" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="FEOSID" width="150">FEOSID</th>
+                    <th field="Note" width="200">Note</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="hidden" id="txtFabricSpecificationNoteID" />
+            @*<a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>*@
+
+            <input type="text" id="txtFabricSpecificationNote" placeholder="Enter Note and Press Enter">
+            <a id="btnSaveNote" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Save</a>
+            <a id="btnEditNote" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnDeleteNote" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oFabricSpecificationNotes=[];
+        var _sBaseAddress="";
+        $(document).ready(function () {
+            _oFabricSpecificationNotes =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            RefreshList(_oFabricSpecificationNotes);
+            $("#txtFabricSpecificationNoteID").hide();
+
+        });
+        function RefreshList(oFabricSpecificationNotes)
+        {
+            data=oFabricSpecificationNotes;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblFabricSpecificationNotes').datagrid('loadData',data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndexSpecificationNote"));
+            $('#tblFabricSpecificationNotes').datagrid('selectRow',nIndex);
+        }
+        function Refresh()
+        {
+            location.reload();
+            RefreshList(_oFabricSpecificationNotes);
+        }
+        $("#btnEditNote").click(function(){
+            debugger;
+            var oFabricSpecificationNote= $('#tblFabricSpecificationNotes').datagrid('getSelected');
+            if(oFabricSpecificationNote==null)
+            {
+                alert("Please Select Any");
+                return;
+            }
+            $("#txtFabricSpecificationNoteID").val(oFabricSpecificationNote.FabricSpecificationNoteID);
+            $("#txtFabricSpecificationNote").val(oFabricSpecificationNote.Note);
+            sessionStorage.setItem("SelectedRowIndexSpecificationNote", $('#tblFabricSpecificationNotes').datagrid('getRowIndex',oFabricSpecificationNote));
+        });
+        $("#btnDeleteNote").click(function(){
+            debugger;
+            var oFabricSpecificationNote= $('#tblFabricSpecificationNotes').datagrid('getSelected');
+            if (!confirm("Confirm to Delete?")) return ;
+
+            if(oFabricSpecificationNote==null || oFabricSpecificationNote.FabricSpecificationNoteID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var SelectedRowIndexSpecificationNote=$('#tblFabricSpecificationNotes').datagrid('getRowIndex',oFabricSpecificationNote);
+            var feedbackmessage = "";
+            debugger;
+            sessionStorage.setItem("SelectedRowIndexSpecificationNote", $('#tblFabricSpecificationNotes').datagrid('getRowIndex',oFabricSpecificationNote));
+            if (oFabricSpecificationNote.FabricSpecificationNoteID <= 0)
+            {
+                alert("Please Select a valid Note");
+                return;
+            }
+            debugger;
+
+            $.ajax
+                ({
+                    type: "Get",
+                    dataType: "json",
+                    url : _sBaseAddress+  "/FabricExecutionOrderSpecification/DeleteFabricSpecificationNote",
+                    //data: { nId: oFabricSpecificationNote.FabricSpecificationNoteID},
+                    data: (oFabricSpecificationNote),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+
+                        var feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            debugger;
+                            var SelectedRowIndexSpecificationNote = parseInt(sessionStorage.getItem("SelectedRowIndexSpecificationNote"));
+                            $('#tblFabricSpecificationNotes').datagrid('deleteRow',SelectedRowIndexSpecificationNote);
+                            var oFabricSpecificationNotes= $('#tblFabricSpecificationNotes').datagrid('getRows');
+                            sessionStorage.setItem("FabricSpecificationNotes", JSON.stringify(oFabricSpecificationNotes));
+                            ClearAllValueField();
+                            RefreshList(oFabricSpecificationNotes);
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+        });
+        $('#txtFabricSpecificationNote').bind('keypress', function(e) {
+            if(e.keyCode==13){
+                $("#btnSaveNote").click();
+            }
+        });
+
+        $('#btnSaveNote').click(function(e){
+            debugger;
+            var oFabricSpecificationNote = {
+                FabricSpecificationNoteID : $("#txtFabricSpecificationNoteID").val(),
+                Note : $("#txtFabricSpecificationNote").val(),
+                FEOSID:0
+            }
+            if ($("#txtFabricSpecificationNote").val()=="")
+            {
+                alert("Please Enter Route Name");
+                $("#txtFabricSpecificationNote").focus();
+                return;
+            }
+            if(oFabricSpecificationNote.FabricSpecificationNoteID==0)
+            {
+                sessionStorage.setItem("Operation_Note","SaveNote");
+            }
+            else{
+                sessionStorage.setItem("Operation_Note","EditNote");
+            }
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+"/FabricExecutionOrderSpecification/SaveFabricSpecificationNote",
+                traditional: true,
+                data:  JSON.stringify(oFabricSpecificationNote),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    data = jQuery.parseJSON(data);
+                    debugger;
+                    if (data.ErrorMessage=="" )
+                    {
+                        alert("Data Saved sucessfully");
+                        ClearAllValueField();
+                        var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndexSpecificationNote"));
+                        if (sessionStorage.getItem("Operation_Note") == "SaveNote")
+                        {
+                            sessionStorage.setItem("SelectedRowIndexSpecificationNote",$('#tblFabricSpecificationNotes').datagrid('getRows').length);
+                            $('#tblFabricSpecificationNotes').datagrid('appendRow',data);
+                            RefreshList($('#tblFabricSpecificationNotes').datagrid('getRows'));
+                        }
+                        else
+                        {
+                            var oList=$('#tblFabricSpecificationNotes').datagrid('getRows');
+                            oList[parseInt(sessionStorage.getItem("SelectedRowIndexSpecificationNote"))]=data;
+                            RefreshList(oList);
+                        }
+                        $("#txtFabricSpecificationNote").val("");
+                    }else
+                    {
+                        alert(data.ErrorMessage);
+                    }
+
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+        function ClearAllValueField()
+        {
+            $("#txtFabricSpecificationNoteID").val("");
+            $("#txtFabricSpecificationNote").val("");
+        }
+    </script>

@@ -1,0 +1,1229 @@
+﻿@model ESimSol.BusinessObjects.SP_GeneralLedger
+@{
+    ViewBag.Title = "General Ledger";
+}
+
+<div id="winPreferences" class="easyui-window" title="Settings" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+    <fieldset style="margin-top:2px">
+        <table border="0" cellpadding="2" cellspacing="2">
+            <tr>
+                <td style="width:300px; text-align:right">
+                    <div style="height:153px;width:100%;">
+                        <table id="tblPreferences" class="easyui-datagrid" style="height:100%;width:100%;" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false"
+                               data-options="onDblClickRow:function (index,row){return ChoosePreferences();}">
+                            <thead>
+                                <tr>
+                                    <th field="Value" width="97%" align="left">Option Name</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    <fieldset style="text-align:right">
+        <legend>Actions : </legend>
+        <a id="btnPreferenceOK" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="return ChoosePreferences()">OK</a>
+        <a id="btnPreferenceClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+    </fieldset>
+</div>
+<div id="winSettings" class="easyui-window" title="Settings" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+    <fieldset style="margin-top:2px">
+        <div style="height:153px;width:400px;">
+            <table id="tblGLConfigs" class="easyui-datagrid" style="height:100%;width:100%;" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="fale" autorowheight="false"
+                   data-options="onLoadSuccess: ConfigLoadSuccessful">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        <th field="ErrorMessage" width="87%" align="left">Configuration Name</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </fieldset>
+    <fieldset style="text-align:right">
+        <legend>Actions : </legend>
+        <a id="btnSettingOK" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="return ChooseSettings()">OK</a>
+        <a id="btnSettingClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+    </fieldset>
+</div>
+
+<div id="tableDiv" class="easyui-layout menuMainCollectionTable" data-options="fit:true">
+    <div data-options="region:'north',split:true" style="width:100%; height:60px;padding:5px; overflow:hidden">
+        Date Range
+        <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        To
+        <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type part of ledger then press enter" style="width:250px" />
+        &nbsp;&nbsp; <select id="cboCurrency" style="width:90px;"></select>
+        <select id="cboDisplayMode" style="font-size:12px;"> </select>
+        <input type="text" id="txtBUName" style="width:180px;" disabled /><input type="button" onclick="BUClean()" value="C" /><input type="button" value="Pick" onclick="PickBusinessUnit()" style="width:40px;" />
+        <input type="checkbox" id="chkboxApproved" style="width:20px;" /><label for="chkboxApproved">Approved</label>
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        <a id="btnPreferences" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Details" iconcls="icon-pick" plain="true" onclick="return OpenPreferences()">Ledger Details Summary</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To Excel</a>
+        <a id="btnACConfig" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-setting" plain="true" onclick=" return OpenSettings()">Configuration</a>
+        <input type="text" id="txtParams" style="display:none;" />
+    </div>
+    <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center;overflow:hidden;">
+        <div style="width:100%;height:94%; margin-bottom:20px;overflow:hidden;">
+            <div style="width:99.5%;height:96%; border:1px solid black;overflow:hidden;">
+                <div id="divHeader" style="width:100%;height:5%; overflow:hidden;">
+                    <table id="tblHeader" border="0" cellpadding="1" cellspacing="0" style="width:100%;">
+                        <tr>
+                            <td style="width:2%;"></td>
+                            <td style="width:16%;font-weight:bold;text-align:left;border-bottom:solid 1px black;"><label id="lblSummaryName">Transaction</label></td>
+                            <td style="width:20%; font-weight:bold;text-align:right;border-bottom:solid 1px black;">Opening Balance</td>
+                            <td style="width:20%;font-weight:bold;text-align:right;border-bottom:solid 1px black;">Debit</td>
+                            <td style="width:20%; font-weight:bold;text-align:right;border-bottom:solid 1px black;">Credit</td>
+                            <td style="width:20%;font-weight:bold;text-align:right;border-bottom:solid 1px black;">Closing Balance</td>
+                            <td style="width:2%"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="divReport" style="width:100%;height:95%; overflow:auto;">
+                    <table id="tblGeneralLedger" border="0" cellpadding="1" cellspacing="0" style="width:100%;">
+                        @*<tr>
+                                <td style="width:2%;"></td>
+                                <td style="width:16%;font-weight:bold;text-align:left;border-bottom:solid 1px black;"><label id="lblSummaryName">Transaction</label></td>
+                                <td style="width:20%; font-weight:bold;text-align:center;border-bottom:solid 1px black;">Opening Balance</td>
+                                <td style="width:20%;font-weight:bold;text-align:center;border-bottom:solid 1px black;">Debit</td>
+                                <td style="width:20%; font-weight:bold;text-align:center;border-bottom:solid 1px black;">Credit</td>
+                                <td style="width:20%;font-weight:bold;text-align:center;border-bottom:solid 1px black;">Closing Balance</td>
+                                <td style="width:2%"></td>
+                            </tr>*@
+                    </table>
+                </div>
+            </div>
+            <table id="tblFooter" border="0" cellpadding="1" cellspacing="0" style="width:100%;">
+                <tr>
+                    <td style="width:2%;"></td>
+                    <td style="width:16%;font-weight:bold;text-align:left;"></td>
+                    <td style="width:20%; font-weight:bold;text-align:right;"></td>
+                    <td style="width:20%;font-weight:bold;text-align:right;"><label id="lblDebit">0.00</label></td>
+                    <td style="width:20%; font-weight:bold;text-align:right;"><label id="lblCredit">0.00</label></td>
+                    <td style="width:20%;font-weight:bold;text-align:right;"></td>
+                    <td style="width:2%"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    #tblGeneralLedger tr:hover td,
+    #tblGeneralLedger tr:hover td.highlight {
+        background: #D6DAD5;
+    }
+</style>
+
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oGeneralLedgers=[];
+    var _oCreditChartOfAccount=null;
+    var _nAccountHeadID=0;
+    var _oCurrencies = [];
+    var _oGeneralLedger = null;
+    var sParams = "";
+    $(document).ready(function ()
+    {
+        debugger;
+        var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+        sessionStorage.setItem("Company", JSON.stringify(oCompany));
+
+        _oGeneralLedger =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Currencies));
+        $("#cboCurrency").data('objs',_oCurrencies);
+        $("#cboCurrency").icsLoadCombo({List: _oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        $("#txtAccountHeadName").data('obj',oCOA);
+
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#txtBUName").data('BusinessUnits',oBusinessUnits);
+        $('#txtBUName').val(_oGeneralLedger.BUName);
+        $('#txtBUName').addClass('fontColorOfPickItem');
+
+        var oGLConfigs= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.GLConfigs));
+        sessionStorage.setItem("GLConfigs",JSON.stringify(oGLConfigs));
+        sessionStorage.setItem("SelectedGLConfigs",JSON.stringify(_oGeneralLedger.ACConfigs));
+
+
+        var oDisplayModeObjs = _oGeneralLedger.DisplayModes;
+        $("#cboDisplayMode").data('objs',oDisplayModeObjs);
+        $("#cboDisplayMode").icsLoadCombo({List: oDisplayModeObjs,OptionValue: "id",DisplayText: "Value", InitialValue : "--Display Mode--"});
+
+        var oPreferences= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Preferences));
+        sessionStorage.setItem("Preferences",JSON.stringify(oPreferences));
+        DynamicRefreshList(oPreferences,'tblPreferences');
+
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+
+
+        ////refresh control
+        $('#txtStartDate').datebox('setValue', _oGeneralLedger.StartDateInString);
+        $('#txtEndDate').datebox('setValue', _oGeneralLedger.EndDateInString);
+        $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+        $('#cboCurrency').val(_oGeneralLedger.CurrencyID);
+        $('#cboDisplayMode').val(_oGeneralLedger.DisplayMode);
+        document.getElementById('chkboxApproved').checked =  _oGeneralLedger.IsApproved;
+
+        /////end refresh control
+        var sHeaderText=RefreshHeader();
+
+        sessionStorage.setItem('HeaderText',sHeaderText);
+        $('#tableDiv').panel({ title:sHeaderText});
+
+        //if(parseInt($('#cboDisplayMode').val()) <= 1)
+        //{
+        //PrepareDataGridForTransaction(_oGeneralLedger.SP_GeneralLedgerList);
+        //}
+        //else
+        //{
+        PrepareDataGrid(_oGeneralLedger.SP_GeneralLedgerList);
+        //}
+        //RefreshTotalSummary(_oGeneralLedger.SP_GeneralLedgerList);
+
+
+        $('#Mainlayout').layout('collapse', 'west');
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+    });
+    function RefreshTotalSummary(objs){
+
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='DebitAmount';
+        sParamCredit='CreditAmount';
+        sLabelDebit='lblDebitBalance';
+        sLabelCredit='lblCreditBalance';
+
+        sParamOpening='OpeiningValue';
+        sParamClosing='ClosingValue';
+        sLabelOpening='lblCCBOpeningBalance';
+        sLabelClosing='lblCCBClosingBalance';
+
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+
+        //if(parseInt($('#cboDisplayMode').val()) > 1){
+        //    $('#tdTotal').css('width','38%');
+        //    $('#tdDebit').css('width','20%');
+        //    $('#tdCredit').css('width','20%');
+        //    $('#tdClosing').css('width','20%');
+        //}else{
+        //    $('#tdTotal').css('width','56%');
+        //    $('#tdDebit').css('width','14%');
+        //    $('#tdCredit').css('width','14%');
+        //    $('#tdClosing').css('width','14%');
+        //}
+    }
+
+    function RefreshHeader(){
+        var sHeaderText='';
+        if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0){
+            sHeaderText='General Ledger || '+$('#txtAccountHeadName').data('obj').AccountHeadName;
+        }else{
+            sHeaderText='General Ledger';
+        }
+
+        var sBUName = $('#txtBUName').val();
+        if(_oGeneralLedger.BusinessUnitIDs!="0")
+        {
+            sHeaderText=sHeaderText+' || '+sBUName+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+
+        }else{
+            sHeaderText=sHeaderText+' || '+jQuery.parseJSON(sessionStorage.getItem("Company")).Name+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+        }
+        return sHeaderText;
+    }
+
+    function GLDetailsSummary(){
+        var nOptionID=parseInt(sessionStorage.getItem('OptionID'))?parseInt(sessionStorage.getItem('OptionID')):0;
+        var sController='',sAction='',sSessionAction='';
+        var obj={
+            AccountHeadID: $('#txtAccountHeadName').data('obj').AccountHeadID,
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            //BusinessUnitID:parseInt($('#cboBusinessUnit').val()),
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            IsApproved:$('#chkboxApproved').is(':checked'),
+            IsApproved:$('#chkboxApproved').is(':checked')
+        }
+
+        if(nOptionID===1){
+            sController='FinancialStatement';
+            sSessionAction='SetCCBSessionData';
+            sAction='ViewSubLedgerTransactions';
+        }else if(nOptionID===2){
+            sController='FinancialStatement';
+            sSessionAction='SetVRRSessionData';
+            sAction='ViewBillTransactions';
+        }else if(nOptionID===4){
+            sController='FinancialStatement';
+            sSessionAction='SetVPTSessionData';
+            sAction='ViewItemTransactions';
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/"+sController+"/"+sSessionAction,
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/"+sController+"/"+sAction+"?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function OpenPreferences(){
+        var oPreferences=jQuery.parseJSON(sessionStorage.getItem("Preferences"));
+        var oTempObjs=[];
+        for(var i=0;i<oPreferences.length;i++){
+            if(oPreferences[i].Id<5){
+                oTempObjs.push(oPreferences[i]);
+            }
+        }
+        oPreferences=oTempObjs;
+        DynamicRefreshList(oPreferences,'tblPreferences');
+        $("#winPreferences").icsWindow('open', "Choose Ledger Detail");
+        sessionStorage.setItem("PreferenceWindow", 'Open');
+    }
+    function ChoosePreferences(){
+        var selected = $('#tblPreferences').datagrid('getSelected');
+        sessionStorage.setItem("OptionID",selected==null?0: selected.Id);
+        $("#winPreferences").icsWindow('close');
+        sessionStorage.setItem("PreferenceWindow", 'Close');
+        GLDetailsSummary();
+    }
+    $("#btnPreferenceClose").click(function (){
+        $("#winPreferences").icsWindow('close');
+        sessionStorage.setItem("PreferenceWindow", 'Close');
+    });
+
+
+    function OpenSettings(){
+
+        var oGLConfigs=jQuery.parseJSON(sessionStorage.getItem("GLConfigs"));
+        DynamicRefreshList(oGLConfigs,'tblGLConfigs');
+
+        $("#winSettings").icsWindow('open', "Change Search Settings");
+        //$("#winSettings").focus();
+        sessionStorage.setItem("SettingWindow", 'Open');
+    }
+    function ChooseSettings(){
+        var oSelectedConfigs=$('#tblGLConfigs').datagrid('getChecked');
+        sessionStorage.setItem("SelectedGLConfigs",JSON.stringify(oSelectedConfigs));
+        $("#winSettings").icsWindow('close');
+        sessionStorage.setItem("SettingWindow", 'Close');
+
+
+        if(!ValidateInput())return false;
+
+
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oGeneralLedger= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            DisplayMode : cboDisplayModeVal,
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGeneralLedger.IsApproved = true;
+        }else{
+            oGeneralLedger.IsApproved = false;
+        }
+
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    if(parseInt($('#cboDisplayMode').val())>1){
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGeneralLedgerSummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                    else{
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGeneralLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+    $("#btnSettingClose").click(function (){
+        $("#winSettings").icsWindow('close');
+        sessionStorage.setItem("SettingWindow", 'Close');
+    });
+
+    function ConfigLoadSuccessful(data){
+        var objs=data.rows;
+        var oSelectedConfigs=jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"));
+        for(var i=0;i<oSelectedConfigs.length;i++){
+            for(var j=0;j<objs.length;j++){
+                if(oSelectedConfigs[i].ConfigureType===objs[j].ConfigureType){
+                    $('#tblGLConfigs').datagrid('checkRow',j);
+                }
+            }
+        }
+    }
+    $("#btnRefresh").click(function(){
+
+        if(!ValidateInput())return false;
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oGeneralLedger= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            DisplayMode : cboDisplayModeVal,
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGeneralLedger.IsApproved = true;
+        }else{
+            oGeneralLedger.IsApproved = false;
+        }
+
+        var sHeaderText=RefreshHeader();
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    if(parseInt($('#cboDisplayMode').val())>1){
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGeneralLedgerSummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                    else{
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGeneralLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+    function onLoadSuccess(data){
+        var rows = $('#tblGeneralLedger').datagrid('getRows');
+        for(i=0;i<rows.length;i++){
+            if(rows[i].VoucherID == 0 && i > 0)
+            {
+                $('#tblGeneralLedger').datagrid('mergeCells',{
+                    index: i,
+                    field: 'VoucherNo',
+                    colspan: 5
+                });
+            }
+        }
+    }
+
+
+    function Resize(){
+        var div= document.getElementById('divReport'); // need real DOM Node, not jQuery wrapper
+        var hasVerticalScrollbar= div.scrollHeight>div.clientHeight;
+        var hasHorizontalScrollbar= div.scrollWidth>div.clientWidth;
+        if(hasVerticalScrollbar){
+            $('#tblHeader').width('98.5%');
+            $('#tblFooter').width('98.5%');
+        }
+
+        //if($(this).scrollTop() > 1){
+        //    $('#tblHeader').width('98.5%');
+        //}
+    }
+
+
+    function PrepareDataGrid(oGeneralLedgers)
+    {
+
+
+        /*
+
+         {field:'VoucherDateInString',title:sTitleName,width:80,align:'left'},
+                        {field:'OpenningBalanceInString',title:'Openning Balance', align:'right'},
+                        {field:'DebitAmountInString',title:'Debit',width:100,align:'right'},
+                        {field:'CreditAmountInString',title:'Credit',width:100,align:'right'},
+                        {field:'CurrentBalanceInString',title:'Closing Balance',width:100,align:'right'}
+        <tr>
+                            <td style="width:2%;"></td>
+                            <td style="width:16%;font-weight:bold;text-align:left;border-bottom:solid 1px black;"><label id="lblSummaryName">Transaction</label></td>
+                            <td style="width:20%; font-weight:bold;text-align:center;border-bottom:solid 1px black;">Opening Balance</td>
+                            <td style="width:20%;font-weight:bold;text-align:center;border-bottom:solid 1px black;">Debit</td>
+                            <td style="width:20%; font-weight:bold;text-align:center;border-bottom:solid 1px black;">Credit</td>
+                            <td style="width:20%;font-weight:bold;text-align:center;border-bottom:solid 1px black;">Closing Balance</td>
+                            <td style="width:2%"></td>
+                        </tr>
+        */
+
+        var nMaxRowIndex = document.getElementById('tblGeneralLedger').rows.length-1;
+        for(var i=nMaxRowIndex; i>0; i--)
+        {
+            document.getElementById("tblGeneralLedger").deleteRow(i);
+        }
+
+
+
+        var sTitleName = "";
+        if(parseInt($('#cboDisplayMode').val()) == 2)
+        {
+            sTitleName = "Date";
+        }
+        else if(parseInt($('#cboDisplayMode').val())== 3)
+        {
+            sTitleName = "Week";
+        }
+        else if(parseInt($('#cboDisplayMode').val()) == 4)
+        {
+            sTitleName = "Month";
+        }
+        $('#lblSummaryName').html(sTitleName);
+
+        var nOpening=0,nDebit=0,nCredit=0,nClosing=0;
+        for(var i=0;i<oGeneralLedgers.length;i++){
+
+            var table = document.getElementById('tblGeneralLedger');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank1 = row.insertCell(0);
+            cellBlank1.width= "2%";
+            cellBlank1.innerHTML = '';
+
+            var param="'"+oGeneralLedgers[i].StartDateInString+"',"+"'"+oGeneralLedgers[i].EndDateInString+"'";
+            var cellAccountHead = row.insertCell(1);
+            cellAccountHead.width= "16%";
+            cellAccountHead.innerHTML = '<a href="javascript:void(0)" onclick="TransactionView('+param+')"><label rowIndex="'+nRowIndex+'" style="font-size:13px; cursor:pointer;">'+oGeneralLedgers[i].VoucherDateInString+'</label></a>';
+            cellAccountHead.style.textAlign = 'left';
+
+            var cellAccountHead = row.insertCell(2);
+            cellAccountHead.width= "20%";
+            cellAccountHead.innerHTML = '<label rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oGeneralLedgers[i].OpenningBalanceInString+'</label>';
+            cellAccountHead.style.textAlign = 'right';
+
+            var cellAmount = row.insertCell(3);
+            cellAmount.width= "20%";
+            cellAmount.innerHTML = '<label rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oGeneralLedgers[i].DebitAmountInString+'</label>';
+            cellAmount.style.textAlign = 'right';
+
+            var cellAmount = row.insertCell(4);
+            cellAmount.width= "20%";
+            cellAmount.innerHTML = '<label rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oGeneralLedgers[i].CreditAmountInString+'</label>';
+            cellAmount.style.textAlign = 'right';
+
+            var cellAmount = row.insertCell(5);
+            cellAmount.width= "20%";
+            cellAmount.innerHTML = '<label rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oGeneralLedgers[i].CurrentBalanceInString+'</label>';
+            cellAmount.style.textAlign = 'right';
+
+            var cellBlank2 = row.insertCell(6);
+            cellBlank2.width= "2%";
+            cellBlank2.innerHTML = '';
+
+            nDebit=nDebit+oGeneralLedgers[i].DebitAmount;
+            nCredit=nCredit+oGeneralLedgers[i].CreditAmount;
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        $('#lblDebit').html(nDebit);
+        $('#lblCredit').html(nCredit);
+        Resize();
+    }
+
+    function TransactionView(sStartDate,sEndDate){
+        var oGeneralLedger= {
+            StartDate:sStartDate,
+            EndDate:sEndDate,
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGeneralLedger.IsApproved = true;
+        }else{
+            oGeneralLedger.IsApproved = false;
+        }
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = _sBaseAddress+ "/GeneralLedger/ViewGeneralLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnPrintXL").click(function(){
+
+        if(!ValidateInput())return false;
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oGeneralLedger= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            DisplayMode : cboDisplayModeVal,
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGeneralLedger.IsApproved = true;
+        }else{
+            oGeneralLedger.IsApproved = false;
+        }
+
+
+        var sHeaderText=RefreshHeader();
+
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.open(sessionStorage.getItem('BaseAddress')+'/GeneralLedger/ExportGLToExcel?',"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    function FormatStyle(value,row,index){
+        var s = "";
+        if(row.VoucherID>0 && value!='Opening Balance')
+        {
+            s = '<label id="lblVoucher~'+index+'" style="color:Blue;cursor:pointer;text-decoration:underline;" onclick="RefreshVoucherData('+row.VoucherID+')">'+value+'</label>';
+        }
+        else
+        {
+            s = '<label>'+value+'</label>';
+        }
+        return s;
+    }
+
+    function FormatOpeningStyle(value,row,index){
+        var s = "";
+        if(value==='Opening Balance' && row.VoucherID===0){
+            s = '<label id="lblOpening~'+index+'" style="color:Blue;cursor:pointer;text-decoration:underline;" onclick="OpeningBreakdown()">'+value+'</label>';
+        }
+        else
+        {
+            s = '<label>'+value+'</label>';
+        }
+        return s;
+    }
+    function OpeningBreakdown()
+    {
+        debugger;
+        var oGeneralLedger = {
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            AccountHeadID : parseInt($("#txtAccountHeadName").data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID : parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0,
+            IsApproved:$('#chkboxApproved').is(':checked')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/FinancialStatement/SetAHOBSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/FinancialStatement/ViewAHOpeningBreakdowns?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function ValidateInput()
+    {
+        if ( $('#txtStartDate').datebox('getValue')=="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        if ( $('#txtEndDate').datebox('getValue')=="") {alert("Please select end date!!");$('#txtEndDate').focus();return false;}
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+
+
+        if(dEndDate < dStartDate) {
+            alert("End date must be grater then start date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+
+        var oCreditChartOfAccount= $('#txtAccountHeadName').data('obj');
+        if(oCreditChartOfAccount==null ||oCreditChartOfAccount.AccountHeadID<=0){
+
+            alert("Please select an account head !");
+            $("#txtAccountHeadName").addClass("errorFieldBorder");
+            $("#txtAccountHeadName").focus();
+            return false;
+        } else {
+            $("#txtAccountHeadName").removeClass("errorFieldBorder");
+        }
+
+
+        return true;
+    }
+
+
+    $("#btnPrint").click(function(){
+
+        if(!ValidateInput())return false;
+
+
+
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var cboCurrency = document.getElementById("cboCurrency");
+        var nCurrencyID = cboCurrency.options[cboCurrency.selectedIndex].value;
+        var oGeneralLedger= {
+            AccountHeadID : parseInt($('#txtAccountHeadName').data('obj').AccountHeadID),
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            CurrencyID:parseInt(nCurrencyID),
+            DisplayMode : cboDisplayModeVal,
+            BusinessUnitIDs:_oGeneralLedger.BusinessUnitIDs,
+            BUName:$('#txtBUName').val(),
+            Narration : $("#txtParams").val(),   // For Advance Search
+            ACConfigs: jQuery.parseJSON(sessionStorage.getItem("SelectedGLConfigs"))
+        }
+        if( document.getElementById('chkboxApproved').checked== true)
+        {
+            oGeneralLedger.IsApproved = true;
+        }else{
+            oGeneralLedger.IsApproved = false;
+        }
+
+        //var intervalID = setInterval(updateProgress, 250);
+        var sHeaderText=RefreshHeader();
+
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oGeneralLedger),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.open(sessionStorage.getItem('BaseAddress')+'/GeneralLedger/PrintGeneralLedger?',"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    //////////voucher
+    function RefreshVoucherData(nVoucherID){
+        debugger;
+
+        $.icsDataGet({
+            BaseAddress: sessionStorage.getItem("BaseAddress"),
+            Object: {VoucherID:nVoucherID},
+            ControllerName: 'Voucher',
+            ActionName: 'GetSingleVoucherDetails',
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.obj!=null){
+                if(response.obj.VoucherID>0){
+                    debugger;
+                    sessionStorage.setItem("Voucher",JSON.stringify(response.obj));
+                    var oVoucher =response.obj;
+                    var oCurrencyes =oVoucher.LstCurrency;
+                    var oCompany =oVoucher.Company;
+                    var oVDObjs = oVoucher.VDObjs;
+                    $(".lblBaseCurrencySymbol").text("("+oVoucher.BaseCUSymbol+")");
+                    RefreshList(oVDObjs);
+                    RefreshSummery(oVDObjs);
+                    InitializeEventClick();
+                    InitializeEventHover();
+                    RefreshControl();
+                    $("#winVoucher").icsWindow('open');
+                    sessionStorage.setItem("VoucherWindow", 'Open');
+                }
+            }
+        });
+
+    }
+    function RefreshList(oVDObjs)
+    {
+        //VoucherDetail = 0
+        //CostCenter = 1
+        //BillReference = 2
+        //VoucherReference = 3
+        //InventoryReference = 4
+        var table = document.getElementById('tblVoucherDetail');
+        $('#tblVoucherDetail').empty();
+        for(var i=0; i<oVDObjs.length; i++)
+        {
+            var row = table.insertRow(i);
+            if(oVDObjs[i].ObjTypeInt==0)
+            {
+                var cellBusinessUnit = row.insertCell(0);
+                cellBusinessUnit.width= "5%";
+                cellBusinessUnit.style.textAlign = "center";
+                cellBusinessUnit.innerHTML =oVDObjs[i].BCode;
+
+                var cellAccountHead = row.insertCell(1);
+                cellAccountHead.width= "45%";
+                cellAccountHead.innerHTML =oVDObjs[i].AHName + " ["+oVDObjs[i].AHCode+"]";
+
+                var cellNarration = row.insertCell(2);
+                cellNarration.colSpan= 2;
+                cellNarration.width= "30%";
+                cellNarration.innerHTML = oVDObjs[i].Detail;
+
+
+                var cellDebitAmount = row.insertCell(3);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.style.textAlign = "right";
+                cellDebitAmount.innerHTML =  formatPrice(oVDObjs[i].DrAmount,null);
+
+                var cellCreditAmount = row.insertCell(4);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.style.textAlign = "right";
+                cellCreditAmount.innerHTML = formatPrice(oVDObjs[i].CrAmount,null);
+            }
+            if(oVDObjs[i].ObjTypeInt==1)
+            {
+                var cellDebitCredit = row.insertCell(0);
+                cellDebitCredit.width= "5%";
+                cellDebitCredit.innerHTML = "";
+
+                var cellSubLedgerName = row.insertCell(1);
+                cellSubLedgerName.width= "45%";
+                cellSubLedgerName.innerHTML = oVDObjs[i].CFormat;
+
+                var cellSubLedgerNarration = row.insertCell(2);
+                cellSubLedgerNarration.width= "20%";
+                cellSubLedgerNarration.innerHTML = oVDObjs[i].Detail;
+
+                var cellSubLedgerAmount = row.insertCell(3);
+                cellSubLedgerAmount.width= "10%";
+                cellSubLedgerAmount.style.textAlign = "right";
+                cellSubLedgerAmount.innerHTML = formatPrice(oVDObjs[i].CAmount);
+
+                var cellDebitAmount = row.insertCell(4);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.innerHTML = "";
+
+                var cellCreditAmount = row.insertCell(5);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.innerHTML =  "";
+            }
+            if(oVDObjs[i].ObjTypeInt==2 || oVDObjs[i].ObjTypeInt==5)
+            {
+                var cellDebitCredit = row.insertCell(0);
+                cellDebitCredit.width= "5%";
+                cellDebitCredit.innerHTML = "";
+
+                var cellBillNumber = row.insertCell(1);
+                cellBillNumber.width= "45%";
+                cellBillNumber.innerHTML = oVDObjs[i].CFormat;
+
+                var cellBillNarration = row.insertCell(2);
+                cellBillNarration.width= "20%";
+                cellBillNarration.innerHTML = oVDObjs[i].Detail;
+
+                var cellBillAmount = row.insertCell(3);
+                cellBillAmount.width= "10%";
+                cellBillAmount.style.textAlign = "right";
+                cellBillAmount.innerHTML = formatPrice(oVDObjs[i].CAmount);
+
+                var cellDebitAmount = row.insertCell(4);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.innerHTML = "";
+
+                var cellCreditAmount = row.insertCell(5);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.innerHTML =  "";
+            }
+            if(oVDObjs[i].ObjTypeInt==3 || oVDObjs[i].ObjTypeInt==6)
+            {
+                var cellDebitCredit = row.insertCell(0);
+                cellDebitCredit.width= "5%";
+                cellDebitCredit.innerHTML = "";
+
+                var cellChequeNumber = row.insertCell(1);
+                cellChequeNumber.width= "45%";
+                cellChequeNumber.innerHTML = oVDObjs[i].CFormat;
+
+                var cellChequeNarration = row.insertCell(2);
+                cellChequeNarration.width= "20%";
+                cellChequeNarration.innerHTML = oVDObjs[i].Detail;
+
+                var cellChequeAmount = row.insertCell(3);
+                cellChequeAmount.width= "10%";
+                cellChequeAmount.style.textAlign = "right";
+                cellChequeAmount.innerHTML = formatPrice(oVDObjs[i].CAmount);
+
+                var cellDebitAmount = row.insertCell(4);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.innerHTML = "";
+
+                var cellCreditAmount = row.insertCell(5);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.innerHTML =  "";
+            }
+            if(oVDObjs[i].ObjTypeInt==4)
+            {
+                var cellDebitCredit = row.insertCell(0);
+                cellDebitCredit.width= "5%";
+                cellDebitCredit.innerHTML = "";
+
+                var cellInventoryItem = row.insertCell(1);
+                cellInventoryItem.colSpan=2;
+                cellInventoryItem.width= "65%";
+                cellInventoryItem.innerHTML = oVDObjs[i].CFormat;
+
+                var cellChequeAmount = row.insertCell(2);
+                cellChequeAmount.width= "10%";
+                cellChequeAmount.style.textAlign = "right";
+                cellChequeAmount.innerHTML = formatPrice(oVDObjs[i].CAmount);
+
+                var cellDebitAmount = row.insertCell(3);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.innerHTML = "";
+
+                var cellCreditAmount = row.insertCell(4);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.innerHTML =  "";
+            }
+            if(oVDObjs[i].ObjTypeInt === 7 || oVDObjs[i].ObjTypeInt === 8)//Order Reference= 7 //SLOrder Reference= 8
+            {
+
+                var cellDebitCredit = row.insertCell(0);
+                cellDebitCredit.width= "5%";
+                cellDebitCredit.innerHTML = "";
+
+                var cellInventoryItem = row.insertCell(1);
+                cellInventoryItem.colSpan=2;
+                cellInventoryItem.width= "65%";
+                cellInventoryItem.innerHTML = oVDObjs[i].CFormat;
+
+                var cellChequeAmount = row.insertCell(2);
+                cellChequeAmount.width= "10%";
+                cellChequeAmount.style.textAlign = "right";
+                cellChequeAmount.innerHTML = formatPrice(oVDObjs[i].Amount);
+
+                var cellDebitAmount = row.insertCell(3);
+                cellDebitAmount.width= "10%";
+                cellDebitAmount.innerHTML = "";
+
+                var cellCreditAmount = row.insertCell(4);
+                cellCreditAmount.width= "10%";
+                cellCreditAmount.innerHTML =  "";
+            }
+        }
+    }
+    function RefreshSummery(oVDObjs)
+    {
+        var nTotalDebitAmount=0; var nTotalCreditAmount=0;
+        if(oVDObjs==null)oVDObjs=[];
+        for(var i=0; i<oVDObjs.length; i++)
+        {
+            nTotalDebitAmount=nTotalDebitAmount+ parseFloat(oVDObjs[i].DrAmount)
+            nTotalCreditAmount=nTotalCreditAmount+parseFloat(oVDObjs[i].CrAmount);
+        }
+        document.getElementById('lblTotalDebitAmount').innerHTML =formatPrice(nTotalDebitAmount, null) ;
+        document.getElementById('lblTotalCreditAmount').innerHTML =formatPrice(nTotalCreditAmount, null);
+    }
+    function InitializeEventClick()
+    {
+        $("#tblVoucherDetail tr").click(function() {
+            ResetAllRowsClick();
+            $(this).addClass("highlight");
+            $(this).css("cursor","pointer");
+        });
+    }
+    function ResetAllRowsClick()
+    {
+        var tblVoucherDetail=document.getElementById("tblVoucherDetail");
+        if(tblVoucherDetail.rows!=null)
+        {
+            for(var i=0; i<tblVoucherDetail.rows.length; i++)
+            {
+                $('#tblVoucherDetail tr').eq(i).removeClass("highlight");
+                $('#tblVoucherDetail tr').eq(i).removeClass("highlighthover");
+            }
+        }
+    }
+    function InitializeEventHover()
+    {
+        $("#tblVoucherDetail tr").hover(function() {
+            ResetAllRowsHover();
+            $(this).addClass("highlighthover");
+            $(this).css("cursor","pointer");
+        });
+    }
+    function ResetAllRowsHover()
+    {
+        var tblVoucherDetail=document.getElementById("tblVoucherDetail");
+        if(tblVoucherDetail.rows!=null)
+        {
+            for(var i=0; i<tblVoucherDetail.rows.length; i++)
+            {
+                $('#tblVoucherDetail tr').eq(i).removeClass("highlighthover");
+            }
+        }
+    }
+    function RefreshControl()
+    {
+        var oVoucher=jQuery.parseJSON(sessionStorage.getItem("Voucher"));
+        $("#lblHeaderName").text('View Voucher');
+        $("#btnApprove").hide();
+
+        $("#lblVoucherType").text(oVoucher.VoucherName);
+        $('#txtVoucherDate').val(oVoucher.VoucherDateAsString)
+        $("#txtVoucherNo").val(oVoucher.VoucherNo);
+        $('#txtCurrency').val(oVoucher.CurrencyNameSymbol);
+        $('#txtConversionRate').val(oVoucher.CurrencyConversionRate);
+        $("#txtNarration").val(oVoucher.Narration);
+        CalculateTotalSummary();
+    }
+    function CalculateTotalSummary()
+    {
+        debugger;
+        var oVoucher=jQuery.parseJSON(sessionStorage.getItem("Voucher"));
+        var nTotalDebitAmount=0;
+        var nTotalCreditAmount=0;
+        var oVDObjs = oVoucher.VDObjs;
+        if(oVDObjs!=null)
+        {
+            for(var i=0; i<oVDObjs.length;i++)
+            {
+
+                nTotalDebitAmount=nTotalDebitAmount+ parseFloat(oVDObjs[i].DrAmount)
+                nTotalCreditAmount=nTotalCreditAmount+parseFloat(oVDObjs[i].CrAmount);
+
+            }
+        }
+        document.getElementById('lblTotalDebitAmount').innerHTML =formatPrice(nTotalDebitAmount, null) ;
+        document.getElementById('lblTotalCreditAmount').innerHTML =formatPrice(nTotalCreditAmount, null);
+    }
+    $('#btnPrintVoucher').click(function(){
+        var oVoucher=jQuery.parseJSON(sessionStorage.getItem("Voucher"));
+        window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintVoucher?id=' + oVoucher.VoucherID+'&buid=0', "_blank");
+    });
+    $("#btnCloseVoucher").click(function (){
+        $("#winVoucher").icsWindow('close');
+        sessionStorage.setItem("VoucherWindow", 'Close');
+    });
+    ////////////voucher
+
+
+    function BUClean()
+    {
+        $("#txtBUName").removeClass("fontColorOfPickItem");
+        $("#txtBUName").val("Group Accounts");
+        _oGeneralLedger.BusinessUnitIDs="0";
+        _oGeneralLedger.BUName="Group Accounts";
+        $('#txtBUName').val("Group Accounts");
+    }
+    function PickBusinessUnit()
+    {
+        //debugger;
+        var oBusinessUnits=  $("#txtBUName").data('BusinessUnits');
+        var tblColums = []; var oColumn = { field: "Code", title: "Code", width:60, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 120, align: "left" }; tblColums.push(oColumn);
+
+        var oPickerParam = {
+            winid: 'winBusinessUnit',
+            winclass: 'clsBusinessUnit',
+            winwidth: 420,
+            winheight: 460,
+            tableid: 'tblBusinessUnits',
+            tablecolumns: tblColums,
+            datalist: oBusinessUnits,
+            multiplereturn: true,
+            searchingbyfieldName: 'Name',
+            windowTittle: 'Business Unit List'
+        };
+        $.icsPicker(oPickerParam);
+        IntializePickerbutton(oPickerParam);
+        var aSelectedBU = _oGeneralLedger.BusinessUnitIDs.split(',');
+        var oBUList = $('#tblBusinessUnits').datagrid('getRows');
+        debugger;
+        for(var i =0;i<oBUList.length;i++)
+        {
+            if(ICS_IsExistInArray(oBUList[i].BusinessUnitID,aSelectedBU))
+            {
+                $('#tblBusinessUnits').datagrid('checkRow',i);
+            }
+        }
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winBusinessUnit')
+        {
+            if (oreturnobjs.length>0)
+            {
+                $('#txtBUName').val(ICS_PropertyConcatation(oreturnobjs,'ShortName'));
+                $('#txtBUName').addClass('fontColorOfPickItem');
+                _oGeneralLedger.BusinessUnitIDs=ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+            }
+        }
+    }
+
+</script>
+<style type="text/css">
+    .tablebordaer {
+        border: 1px solid black;
+    }
+
+    #tblVoucherDetail td {
+        border-left: 1px solid #D8D8D8;
+        border-bottom: 1px solid #D8D8D8;
+    }
+
+    #tblVoucherDetailHeader td {
+        border-left: 1px solid black;
+    }
+
+    .highlight {
+        background-color: #CFB53B;
+        color: #fff;
+    }
+
+    .highlighthover {
+        background-color: #FAE794;
+        color: #000;
+    }
+</style>

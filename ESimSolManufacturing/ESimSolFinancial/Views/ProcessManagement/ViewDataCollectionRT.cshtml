@@ -1,0 +1,213 @@
+﻿<html>
+<head>
+    <title>Daily Attendance</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.RTPunchLog
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 300px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                        Data Collection Process</label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Data Collection : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+
+                <tr>
+                    <td style="width: 100px; text-align: right">
+                        Date :
+                    </td>
+                    <td>
+                        <input id="txtDate" type="text" style="width: 180px" class="easyui-datebox"
+                               required="required" data-options="formatter:icsdateformatDDMMYY,parser:icsdateparserDDMMYY" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100px; text-align: right">
+                        File Location :
+                    </td>
+                    <td>
+                        <select id="cboFileLocation" style="width:180px" class="_select_change_Gender">
+                            <option value="0">att-1</option>
+                            @*<option value="1">Att-2</option>
+                            <option value="2">Att-3</option>*@
+                            @*<option value="3">standard-4</option>
+                            <option value="3">standard-5</option>
+                            <option value="3">standard-6</option>
+                            <option value="3">standard-7</option>
+                            <option value="3">Standard JQ</option>*@
+                        </select> 
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    
+                    <td style="width: 230px">
+                    </td>
+                    <td style="width: 50px">
+                        <a id="btnProcess" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true"
+                            onclick="Process()">Process</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+var _oRTDatas=[];
+$(document).ready(function() {  
+    _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var obj = window.dialogArguments;
+    //document.getElementById('lblHeaderName').innerHTML = obj.Name;
+    $('#txtDate').datebox('setValue', icsdateformatDDMMYY(new Date()));
+});
+
+function  icsdateformatDDMMYY(date)
+{
+    //debugger;    
+    //var mthNames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+    var y = date.getFullYear();
+    var m = date.getMonth()+1;
+    var d = date.getDate();
+    var sd="";
+    var sm="";
+    if (d>9){sd=d;}else{sd="0"+d;}
+    if (m>9){sm=m;}else{sm="0"+m;}
+//    if (m>9)
+//    {
+//        var result= y +'-'+ m +'-'+ sd;
+//    }else{
+        var result= y +'-'+ sm +'-'+ sd;
+//    }
+    return result;
+}
+
+function icsdateparserDDMMYY(s) {
+    
+    //var mthNames = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];    
+    //var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if (!s) return new Date();        
+    var ss = (s.split('-'));        
+    var d = parseInt(ss[2], 10);  
+    var m = parseInt(ss[1], 10);
+    var y = parseInt(ss[0], 10);        
+
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m - 1, d);
+    } else {
+        return new Date();
+    }
+}
+
+function Process()
+{   debugger;     
+
+    var sDate=$('#txtDate').datebox('getValue');
+    var tsv = ((new Date()).getTime()) / 1000;      
+    document.getElementById('btnProcess').style.display='none';
+    var oRTPLs=[];
+    oRTPLs= getRTData(); 
+    //alert(oRTPLs.length);
+    if (oRTPLs.length<=0)
+    {
+        alert('There s no data by this date.!!');
+        document.getElementById('btnProcess').style.display='';
+        return;
+    }
+    $.ajax({
+         type: "POST",
+         dataType: "json",
+         url: _sBaseAddress + "/ProcessManagement/ProcessDataCollectionRT",
+         traditional: true,
+         data: JSON.stringify({oRTPs:oRTPLs,sDate:sDate,ts:tsv}),
+         contentType: "application/json; charset=utf-8",
+         success: function(data)
+         {   
+             
+             document.getElementById('btnProcess').style.display='';
+             var sMessage = jQuery.parseJSON(data);
+             alert(sMessage);
+             //Close();
+         },
+         error: function(xhr, status, error)
+         {
+             alert(error);
+             document.getElementById('btnProcess').style.display='';
+         }
+     });
+}
+
+
+function getRTData(){
+    debugger;
+    //alert(_sBaseAddress);
+    _oRTDatas=[];
+    var sDate=$('#txtDate').datebox('getValue');
+    
+    var strDate=sDate.replace("-", "");
+    var sstrDate=strDate.replace("-", "");
+    
+    var cn = new ActiveXObject("ADODB.Connection");  
+
+    var sLocation='';
+    var e = document.getElementById("cboFileLocation");
+    var sLocation=e.options[e.selectedIndex].innerHTML;
+
+    if (_sBaseAddress=='/posmi')
+    {
+        var strConn = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\\attendance\\"+sLocation+"\\Att2003.mdb; Jet OLEDB:Database ";
+        cn.Open(strConn);
+        var rs = new ActiveXObject("ADODB.Recordset");
+        var SQL = "SELECT Format(Checkinout.CheckTime, 'yyyymmdd'), Format(Checkinout.CheckTime, 'hhnnss')"
+                    +", Userinfo.IDCard FROM Checkinout INNER JOIN Userinfo ON Checkinout.Userid = Userinfo.Userid"
+                    +"  WHERE Format(Checkinout.CheckTime, 'yyyymmdd')='" + sstrDate + "' AND Userinfo.IDCard<>''";
+    }
+    else if(_sBaseAddress=='/mamiya')
+    {
+        
+        var strConn = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=D:\\HAMS-19\\HAMS_2016.mdb; Jet OLEDB:Database ";
+        cn.Open(strConn);
+        var rs = new ActiveXObject("ADODB.Recordset");
+        var SQL = "SELECT Format(PubEvent.eventDate, 'yyyymmdd')"
+                    +", Format(PubEvent.eventTime, 'hhnnss'), PubEvent.eventCard"
+                    +" FROM PubEvent WHERE Format(PubEvent.eventDate, 'yyyymmdd')='" + sstrDate + "' AND PubEvent.eventCard<>''";
+        
+    }
+
+        //alert(SQL);
+    //var SQL = "SELECT Format(CheckTime, 'yyyymmdd'), Format(CheckTime, 'hhnnss'), UserID FROM Checkinout WHERE Format(CheckTime, 'yyyymmdd')='" + sstrDate + "' AND UserID<>'' ";
+    rs.Open(SQL, cn);
+    while(!rs.EOF)
+    {   
+        var oRTData={C_Date:rs(0).Value,C_Time:rs(1).Value,C_Unique:rs(2).Value};
+        _oRTDatas.push(oRTData);                
+        rs.MoveNext();            
+    }
+    rs.Close();
+    cn.Close(); 
+    alert(_oRTDatas[0].C_Date+'----'+_oRTDatas[0].C_Time+'---'+_oRTDatas[0].C_Unique);
+    return _oRTDatas;
+}
+
+function Close()
+{
+    window.close();
+}
+</script>

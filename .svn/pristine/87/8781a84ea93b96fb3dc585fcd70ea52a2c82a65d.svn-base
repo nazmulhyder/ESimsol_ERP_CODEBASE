@@ -1,0 +1,333 @@
+﻿
+@{
+    ViewBag.Title = "LoanProductRate";
+}
+@model IEnumerable<ESimSol.BusinessObjects.LoanProductRate>
+    <div class="menuMainCollectionTable" style="height:100%">
+        <table id="tblLoanProductRates" title="Loan Product Rate" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ProductCode" width="120">ProductCode</th>
+                    <th field="ProductName" width="120">Product Name</th>
+                    <th field="UnitName" width="70">Unit Name</th>
+                    <th field="UnitPrice" width="70" align="right">Unit Price</th>
+                    <th field="LastUpdateDateInString" width="100">Last UpdateDate</th>
+                    <th field="LastUpdateByName" width="100">Last Update BY</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="text" id="txtProductName" style="width:180px" placeholder="Plress Enter with product Name" />
+            <input type="text" id="txtProductCode" style="width:180px" placeholder="Press Enter with product Code" />
+           Date  From:
+            <input id="txtProcessStartDate" type="text" style="width: 120px;" class="easyui-datebox"  data-options="formatter:icsdateformat,parser:icsdateparser" />
+            TO:
+            <input id="txtProcessEndDate" type="text" style="width: 120px;" class="easyui-datebox"  data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <br />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>
+        </div>
+    </div>
+
+ <script type="text/javascript">
+
+     var _sBaseAddress ="";
+     var _nCheckProductNameOrCode=0;
+    $(document).ready(function () {
+        debugger;
+        var oLoanProductRates =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress = @Html.Raw(Json.Encode(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var BUID=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem("BUID", BUID);
+        $('#tblLoanProductRates').data('BaseAddress', _sBaseAddress);
+        var oTempLoanProductRates =sessionStorage.getItem("LoanProductRates");
+        if(oTempLoanProductRates!=null)
+        {
+            oLoanProductRates = jQuery.parseJSON(oTempLoanProductRates);
+        }
+        $('#txtProcessStartDate').datebox('setValue', Date());
+        $('#txtProcessEndDate').datebox('setValue',  Date());
+        RefreshList(oLoanProductRates);
+
+
+    });
+
+
+     $("#txtProductName").keydown(function (e) {
+
+         var code = (e.keyCode ? e.keyCode : e.which);
+         if (code == 13) // Enter Press
+         {
+             if($.trim($('#txtProductName').val())===null || $.trim($('#txtProductName').val())==="")
+             {
+                 alert("Press enter with Product name");
+                 return;
+             }
+             _nCheckProductNameOrCode=1;
+             PickByProduct();
+         }
+         if (code == 8) //backspace=8
+         {
+             $("#txtProductName").removeClass("fontColorOfPickItem");
+         }
+     });
+     $("#txtProductCode").keydown(function (e) {
+
+         var code = (e.keyCode ? e.keyCode : e.which);
+         if (code == 13) // Enter Press
+         {
+             if($.trim($('#txtProductCode').val())===null || $.trim($('#txtProductCode').val())==="")
+             {
+                 alert("Press enter with ProductCode");
+                 return;
+             }
+             _nCheckProductNameOrCode=2;
+             PickByProduct();
+         }
+         if (code == 8) //backspace=8
+         {
+             $("#txtProductCode").removeClass("fontColorOfPickItem");
+         }
+     });
+     function PickByProduct()
+     {
+         if(_nCheckProductNameOrCode==1){
+             var sProductName =$.trim($('#txtProductName').val());
+             var sProductCode ="";
+         }
+         else{
+             var sProductName ="";
+             var sProductCode = $.trim($('#txtProductCode').val());
+         }
+         
+         $('#txtProductName').val("");
+         $('#txtProductCode').val("");
+         var sSearchingData  =  sProductName+'~';
+         sSearchingData = sSearchingData +sProductCode;
+         var oLoanProductRate = {
+             Note : sSearchingData
+         };
+
+         $.ajax({
+             type: "POST",
+             dataType: "JSON",
+             url: sessionStorage.getItem("BaseAddress")+  "/LoanProductRate/SearchDataByProduct",
+             data:  JSON.stringify(oLoanProductRate),
+             contentType: "application/json; charset=utf-8",
+             success: function (data) {
+                 var  oLoanProductRates = jQuery.parseJSON(data);
+                 if (oLoanProductRates != null) {
+                     if(oLoanProductRates.length>0)
+                     {
+                         if(oLoanProductRates[0].ErrorMessage=="")
+                         {
+                             RefreshList(oLoanProductRates);
+                             $('#tblLoanProductRates').data('LoanProductRates', oLoanProductRates);
+                         }
+                         else
+                         {
+                             alert(oLoanProductRates[0].ErrorMessage);
+                         }
+                     }
+                     else
+                     {
+                         alert("Data not found!!");
+                     }
+                 }
+             },
+             error: function (xhr, status, error) {
+                 alert(error);
+             }
+         });
+     }
+     $('#btnSearch').click(function(e){
+         debugger;
+         var sProcessStartDate   = $('#txtProcessStartDate').datebox('getValue');
+         var sProcessEndDate   = $('#txtProcessEndDate').datebox('getValue');
+         if(sProcessStartDate>sProcessEndDate){
+             alert("Start Date cannot be greater than End date");
+             return;
+         }
+        
+      var   sSearchingData =  sProcessStartDate+'~';
+      sSearchingData = sSearchingData + sProcessEndDate;
+      var oLoanProductRate = {
+          Note : sSearchingData
+      };
+
+
+      $.ajax({
+          type: "POST",
+          dataType: "JSON",
+          url: sessionStorage.getItem("BaseAddress")+  "/LoanProductRate/SearchDataByDate",
+          data:  JSON.stringify(oLoanProductRate),
+          contentType: "application/json; charset=utf-8",
+          success: function (data) {
+              var  oLoanProductRates = jQuery.parseJSON(data);
+              if (oLoanProductRates != null) {
+                  if(oLoanProductRates.length>0)
+                  {
+                      if(oLoanProductRates[0].ErrorMessage=="")
+                      {
+                          RefreshList(oLoanProductRates);
+                          $('#tblLoanProductRates').data('LoanProductRates', oLoanProductRates);
+                      }
+                      else
+                      {
+                          alert(oLoanProductRates[0].ErrorMessage);
+                      }
+                  }
+                  else
+                  {
+                      alert("Data not found!!");
+                  }
+              }
+          },
+          error: function (xhr, status, error) {
+              alert(error);
+          }
+      });
+     });
+     $('#btnAdd').click(function () {
+         var BUID=sessionStorage.getItem("BUID");
+        var oLoanProductRates = $('#tblLoanProductRates').datagrid('getRows');
+        sessionStorage.setItem("LoanProductRates", JSON.stringify(oLoanProductRates));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("LoanProductRateHeader", "Add LoanProductRate");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = $('#tblLoanProductRates').data('BaseAddress') + "/LoanProductRate/ViewLoanProductRate?id=0&buid="+BUID;
+    });
+
+    $('#btnEdit').click(function(){
+        var oLoanProductRate= $('#tblLoanProductRates').datagrid('getSelected');
+        if(oLoanProductRate==null || oLoanProductRate.LoanProductRateID<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        var BUID=sessionStorage.getItem("BUID");
+        var SelectedRowIndex=$('#tblLoanProductRates').datagrid('getRowIndex',oLoanProductRate);
+        var oLoanProductRates= $('#tblLoanProductRates').datagrid('getRows');
+        sessionStorage.setItem("LoanProductRates", JSON.stringify(oLoanProductRates));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("LoanProductRateHeader", "Edit LoanProductRate");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href =  $('#tblLoanProductRates').data('BaseAddress')+  "/LoanProductRate/ViewLoanProductRate?id="+oLoanProductRate.LoanProductRateID+"&buid="+BUID;
+    });
+    $('#btnView').click(function(){
+      
+        var oLoanProductRate= $('#tblLoanProductRates').datagrid('getSelected');
+        if(oLoanProductRate==null || oLoanProductRate.LoanProductRateID<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        var BUID=sessionStorage.getItem("BUID");
+        var SelectedRowIndex=$('#tblLoanProductRates').datagrid('getRowIndex',oLoanProductRate);
+        var oLoanProductRates= $('#tblLoanProductRates').datagrid('getRows');
+        sessionStorage.setItem("LoanProductRates", JSON.stringify(oLoanProductRates));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("LoanProductRateHeader", "View LoanProductRate");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href =  $('#tblLoanProductRates').data('BaseAddress')+  "/LoanProductRate/ViewLoanProductRate?id="+oLoanProductRate.LoanProductRateID+"&buid="+BUID;
+    });
+
+    $('#btnPrintList').click(function(){
+        debugger;
+        var oLoanProductRates= $('#tblLoanProductRates').datagrid('getRows');
+        if(oLoanProductRates.length<=0)
+        {
+            alert("Data not found ");
+            return;
+        }
+        var sLoanProductRateIDs = "";
+        for(var i = 0;i<oLoanProductRates.length;i++)
+        {
+            sLoanProductRateIDs+= oLoanProductRates[i].LoanProductRateID+",";
+        }
+        sLoanProductRateIDs = sLoanProductRateIDs.substring(0, sLoanProductRateIDs.length-1);
+        var oLoanProductRate = {ErrorMessage:sLoanProductRateIDs};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/LoanProductRate/SetLoanProductRateListData",
+            traditional: true,
+            data:  JSON.stringify(oLoanProductRate),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/LoanProductRate/PrintLoanProductRates");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+    $('#btnDelete').click(function(){
+        debugger;
+        var oLoanProductRate= $('#tblLoanProductRates').datagrid('getSelected');
+        if(oLoanProductRate==null || oLoanProductRate.LoanProductRateID<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+
+
+        var SelectedRowIndex=$('#tblLoanProductRates').datagrid('getRowIndex',oLoanProductRate);
+
+        if (oLoanProductRate.LoanProductRateID > 0)
+        {
+            debugger;
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : $('#tblLoanProductRates').data('BaseAddress')+  "/LoanProductRate/Delete",
+                data: JSON.stringify(oLoanProductRate),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblLoanProductRates').datagrid('deleteRow',SelectedRowIndex);
+                        var oLoanProductRates= $('#tblLoanProductRates').datagrid('getRows');
+                        sessionStorage.setItem("LoanProductRates", JSON.stringify(oLoanProductRates));
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+    function RefreshList(oLoanProductRates)
+    {
+        data={"total":""+oLoanProductRates.length+"","rows":oLoanProductRates};
+        $('#tblLoanProductRates').datagrid('loadData',data);
+        var nSelectedRowIndex =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(nSelectedRowIndex!=-1)
+        {
+            $('#tblLoanProductRates').datagrid('selectRow', nSelectedRowIndex);
+        }
+    }
+
+ </script>

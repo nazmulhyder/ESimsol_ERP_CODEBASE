@@ -1,0 +1,110 @@
+﻿@{
+    ViewBag.Title = "Upload Configure";
+}
+@model IEnumerable<ESimSol.BusinessObjects.UploadConfigure>
+<head>
+</head>
+<div class="menuMainCollectionTable" style="margin-left:0px; width:100%" id="divMain">
+    <table id="tblUploadConfigure" title="Upload Configure"
+           class="easyui-datagrid" style="width:100%;height:88%" fitcolumns="false" rownumbers="true" pagination="false" autorowheight="false">
+
+        <thead>
+            <tr>
+                <th data-options="field:'Selected',checkbox:true">
+                </th>
+                <th field="TableCaption" width="400">Field Name</th>
+            </tr>
+        </thead>
+    </table>
+
+    <div id="toolbar" >
+        <fieldset style="height: 10%;">
+            <legend>Action</legend>
+            <a id="btnSave" href="javascript:void(0)" style="margin-left:85%" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+        </fieldset>
+    </div>
+</div>  
+
+<script type="text/javascript">
+
+    var _sBaseAddress = "";
+    var _oUploadConfigure = {AddressConfigID:0};
+    var _oUploadConfigures = [];
+    var _oSelectedOptions = null;
+
+    $(document).ready(function () {
+        _oUploadConfigures =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oSelectedOptions =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.SelectedOptions));
+
+        $('#divMain').data("UploadConfigure",_oSelectedOptions);
+        $('#divMain').data("UploadType",_oSelectedOptions.UploadType);
+
+        DynamicRefreshList(_oUploadConfigures, "tblUploadConfigure");
+        
+        var oFieldNames = _oSelectedOptions.FieldNames.split(',');
+
+        for(var i = 0;i<oFieldNames.length;i++)
+        {    
+            $('#tblUploadConfigure').datagrid('checkRow',FindIndex(oFieldNames[i]));
+        }
+    });
+    
+    function FindIndex(svalue)
+    {
+        var oPickerTableRows = $('#tblUploadConfigure').datagrid('getRows');
+        for(var i = 0;i<oPickerTableRows.length;i++)
+        {
+            if($.trim(oPickerTableRows[i].FieldName)=== $.trim(svalue))
+            {
+                return i;
+            }
+        }
+    }
+    $("#btnClose").click(function (e)
+    {
+        window.close();
+    })
+   
+    $("#btnSave").click(function (e)
+    {
+        debugger;
+        var oSelectedColumns = $("#tblUploadConfigure").icsGetCheckedItem();
+        if(oSelectedColumns.length<=0)
+        {
+            alert("Please Select at Least One Item from List");
+            return;
+        }
+        var oUC = {
+            UploadConfigureID:$('#divMain').data("UploadConfigure").UploadConfigureID,
+            FieldNames : ICS_PropertyConcatation(oSelectedColumns,'FieldName'),
+            CaptionNames : ICS_PropertyConcatation(oSelectedColumns,'TableCaption'),
+            UploadTypeInInt:$('#divMain').data("UploadType")
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/UploadConfigure/Save",
+            traditional: true,
+            data:  JSON.stringify(oUC),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oUploadConfigure = jQuery.parseJSON(data);
+                if (oUploadConfigure.ErrorMessage==null || oUploadConfigure.ErrorMessage=="")
+                {
+                    alert("Successfully Configuration");
+                    $('#divMain').data("UploadConfigure",oUploadConfigure);
+                }
+                else {
+                    alert(oUploadConfigure.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+</script>

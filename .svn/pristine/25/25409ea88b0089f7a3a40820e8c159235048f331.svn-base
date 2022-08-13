@@ -1,0 +1,199 @@
+﻿@{
+    ViewBag.Title = "PaymentTerms List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.PaymentTerm>
+<head>
+    
+</head>
+<body>
+        <table id="tblPaymentTerms" title="PaymentTerm List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarPaymentTerm">
+            <thead>
+                <tr>
+                    <th field="FullTerm" width="90%">PaymentTerm Name</th>
+                    <th field="Description" width="5%">Note</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarPaymentTerm">
+            <table>
+                <tr>
+                    <td>
+                        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>
+                        <input type="text" id="txtSearchbyCode" placeholder="Search by Code" />
+                        <input type="text" id="txtSearchByName" placeholder="Search by Name" />
+                        <a id="btnAddPaymentTerm" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                        <a id="btnEditPaymentTerm" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                        <a id="btnViewPaymentTerm" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                        <a id="btnDeletePaymentTerm" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                        </td>
+                </tr>
+            </table>
+        </div>
+</body>
+
+<script type="text/javascript">
+    var _oPaymentTerm = null;
+    var _oPaymentTerms = [];
+    var _sBaseAddress = "";    
+    var _oPaymentTermBranch = null;
+    var _nID=null;
+    $(document).ready(function() {
+        debugger;
+        _oPaymentTerms = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oPaymentTerms =sessionStorage.getItem("PaymentTerms");
+        if(oPaymentTerms!=null)
+        {
+            oPaymentTerms = jQuery.parseJSON(oPaymentTerms);
+        }
+        else
+        {
+            oPaymentTerms=_oPaymentTerms;
+        }
+        DynamicRefreshList(oPaymentTerms, 'tblPaymentTerms');
+        if(_nID!=-1)
+        {
+            $('#tblPaymentTerms').datagrid('selectRow', _nID);
+        }
+
+        RefreshControlLayout(oAuthorizationRolesMapping);
+    });
+    function RefreshArguments(){
+        var sErrorMessage='Arguments;';
+
+        var txtSearchbyCode=$("#txtSearchbyCode").val();
+        if(txtSearchbyCode!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchbyCode+'~';
+        }
+        var txtSearchByName=$("#txtSearchByName").val();
+        if(txtSearchByName!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchByName+'~';
+        }
+
+        return {ErrorMessage:sErrorMessage};
+    }
+    $('#btnRefresh').click(function(){
+        var oPaymentTerm=RefreshArguments();
+        $.icsDataGets({
+            BaseAddress: _sBaseAddress,
+            Object: oPaymentTerm,
+            ControllerName: "PaymentTerm",
+            ActionName: "Gets",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oPaymentTerms=response.objs;
+                    DynamicRefreshList(oPaymentTerms, 'tblPaymentTerms');
+                }
+            }
+        });
+    });
+    $('#btnPrintPaymentTerm').click(function(){
+        var oPaymentTerms=$('#tblPaymentTerms').datagrid('getRows');
+        if(oPaymentTerms==null||oPaymentTerms.length<=0){return false;}
+        $("#txtPaymentTermCollectionList").val(JSON.stringify(oPaymentTerms));
+    });
+    $("#btnAddPaymentTerm").click(function(){
+        var oPaymentTerms= $('#tblPaymentTerms').datagrid('getRows');
+        sessionStorage.setItem("PaymentTerms", JSON.stringify(oPaymentTerms));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("PaymentTermHeader", "Add Payment Term");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/PaymentTerm/ViewPaymentTerm?id=0";
+    });
+    $("#btnEditPaymentTerm").click(function(){
+        var oPaymentTerm= $('#tblPaymentTerms').datagrid('getSelected');
+        if(oPaymentTerm==null || oPaymentTerm.PaymentTermID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblPaymentTerms').datagrid('getRowIndex',oPaymentTerm);
+        var oPaymentTerms= $('#tblPaymentTerms').datagrid('getRows');
+        sessionStorage.setItem("PaymentTerms", JSON.stringify(oPaymentTerms));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PaymentTermHeader", "Edit Payment Term");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/PaymentTerm/ViewPaymentTerm?id="+oPaymentTerm.PaymentTermID;
+    });
+    $("#btnViewPaymentTerm").click(function(){
+        var oPaymentTerm= $('#tblPaymentTerms').datagrid('getSelected');
+        if(oPaymentTerm==null || oPaymentTerm.PaymentTermID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblPaymentTerms').datagrid('getRowIndex',oPaymentTerm);
+        var oPaymentTerms= $('#tblPaymentTerms').datagrid('getRows');
+        sessionStorage.setItem("PaymentTerms", JSON.stringify(oPaymentTerms));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PaymentTermHeader", "View Payment Term");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/PaymentTerm/ViewPaymentTerm?id="+oPaymentTerm.PaymentTermID;
+    });
+    $("#btnDeletePaymentTerm").click(function(){
+        debugger;
+        var oPaymentTerm= $('#tblPaymentTerms').datagrid('getSelected');
+        if(oPaymentTerm==null || oPaymentTerm.PaymentTermID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblPaymentTerms').datagrid('getRowIndex',oPaymentTerm);
+        if (oPaymentTerm.PaymentTermID > 0)
+        {
+            $.icsDelete({
+                BaseAddress: _sBaseAddress,
+                Object: oPaymentTerm,
+                ControllerName: "PaymentTerm",
+                ActionName: "Delete",
+                TableId: "tblPaymentTerms",
+                IsWinClose: false
+            });
+        }
+    });
+
+
+    function RefreshControlLayout(oAuthorizationRolesMappings)
+    {
+        $("#btnAddPaymentTerm").hide();
+        $("#btnEditPaymentTerm").hide();
+        $("#btnViewPaymentTerm").hide();
+        $("#btnDeletePaymentTerm").hide();
+
+        if(PermissionChecker('Add','PaymentTerm',oAuthorizationRolesMappings)){$("#btnAddPaymentTerm").show();}
+        if(PermissionChecker('Edit','PaymentTerm',oAuthorizationRolesMappings)){$('#btnEditPaymentTerm').show(); }
+        if(PermissionChecker('View','PaymentTerm',oAuthorizationRolesMappings)){  $('#btnViewPaymentTerm').show();}
+        if(PermissionChecker('Delete','PaymentTerm',oAuthorizationRolesMappings)){ $('#btnDeletePaymentTerm').show(); }                
+    }
+
+    $("#btnLocationAssign").click(function(){
+
+        var oPaymentTerm= $('#tblPaymentTerms').datagrid('getSelected');
+        if(oPaymentTerm==null || oPaymentTerm.PaymentTermID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblPaymentTerms').datagrid('getRowIndex',oPaymentTerm);
+        var oPaymentTerms= $('#tblPaymentTerms').datagrid('getRows');
+        sessionStorage.setItem("PaymentTerms", JSON.stringify(oPaymentTerms));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PaymentTermHeader", "Assign Operation Unit");
+        window.location.href = _sBaseAddress+  "/PaymentTerm/ViewBusinessLocationAssign?id="+oPaymentTerm.PaymentTermID;
+
+
+    });
+
+
+</script>

@@ -1,0 +1,463 @@
+﻿@{
+    ViewBag.Title = "Production Execution Plans";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ProductionExecutionPlan>
+<body onfocus="parent_disable();" onclick="parent_disable()">
+    <div class="menuMainCollectionTable">
+        <table id="tblProductionExecutionPlans" title="Production Execution Plan List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="RefNo" width="90">Ref No</th>
+                    <th field="RecapNo" width="90">Recap No</th>
+                    <th field="BuyerName" width="150">Buyer</th>
+                    <th field="PlanStatusInString" width="90">Status</th>
+                    <th field="ShipmentDateInString" width="90" align="center">Shipment Date</th>
+                    <th field="ApproveByName" width="120">Approved By</th>
+                    <th field="RecapQty" formatter="formatPrice" width="80" align="right">Order Qty</th>
+                    <th field="PlanExecutionQty" formatter="formatPrice" width="80" align="right">Target Qty</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add </a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            <a id="btnApproved" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Approve()">Approve</a>
+            <a id="btnRequsetForRevise" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-redo" plain="true" onclick="RequsetForRevise()">Request For Revise</a>
+            <a id="btnAcceptRevise" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="AcceptRevise()">Accept Revise</a>
+            <a id="btnReviseHistory" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="ReviseHistory()">Revise History</a>
+            <a id="btnPreView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPreview()">Preview</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintList()">Print List</a>
+
+        </div>
+    </div>
+</body>
+
+<script type="text/javascript">
+var popupWindow=null;
+var _oProductionExecutionPlans=[];
+var _sBaseAddress="";
+var _oAuthorizationRolesMapping = [];
+$(document).ready(function () {
+    //debugger;
+    _oProductionExecutionPlans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));  
+    var oProductionExecutionPlans =sessionStorage.getItem("ProductionExecutionPlans");
+    if(oProductionExecutionPlans!=null)
+    {
+        oProductionExecutionPlans = jQuery.parseJSON(oProductionExecutionPlans);
+    }
+    else
+    {
+        oProductionExecutionPlans=_oProductionExecutionPlans;
+    }
+    RefreshList(oProductionExecutionPlans);
+    //RefreshControlLayout();
+});
+
+    function AdvanceSearch()
+    {
+        var oParameter = new Object();
+        oParameter.Name = "Production Order Advance Search";
+        oParameter.MultipleItemReturn=true;
+        var url = _sBaseAddress+"/ProductionExecutionPlan/AdvanceSearch"
+        sessionStorage.setItem('Parameter',JSON.stringify(oParameter));
+        child_open(url,oParameter);
+    }
+    function child_open(url,oParameter)
+    { 
+        if(popupWindow && !popupWindow.closed)
+            popupWindow.focus();
+        else
+            popupWindow =window.open(url,oParameter,"directories=no, status=no, menubar=no, scrollbars=yes, resizable=no,width=745px, height=560px,top=50,left=300");
+    }
+    function parent_disable() {
+        if(popupWindow && !popupWindow.closed)
+            popupWindow.focus();
+    }
+    function WinReturnSearch(oProductionExecutionPlans)
+    {
+        if(oProductionExecutionPlans.length>0)
+        {
+            RefreshList(oProductionExecutionPlans);
+        }
+    }
+
+function Approve()
+{
+    
+    //debugger;
+    var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+    if(oProductionExecutionPlan==null || parseFloat(oProductionExecutionPlan.ProductionExecutionPlanID)<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }
+    if(oProductionExecutionPlan.ApproveBy!=0)
+     {
+        alert("Selected Item Already Approved");
+        return;
+     }
+     if (!confirm("Confirm to Approve?")) return ;
+     var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+     if (oProductionExecutionPlan.ProductionExecutionPlanID > 0) 
+     {
+         $.ajax
+         ({
+             type: "GET",
+             dataType: "json",                
+             url : _sBaseAddress+  "/ProductionExecutionPlan/Approve",
+             data: { id: oProductionExecutionPlan.ProductionExecutionPlanID },
+             contentType: "application/json; charset=utf-8",
+             success: function (data) {
+                 //debugger;
+                 oProductionExecutionPlan = jQuery.parseJSON(data);
+                 if (oProductionExecutionPlan.ErrorMessage =="") 
+                 {
+                     alert("Approve sucessfully");                        
+                     $('#tblProductionExecutionPlans').datagrid('updateRow',{index: SelectedRowIndex,	row: oProductionExecutionPlan});
+                 }
+                 else
+                 {
+                     alert(oProductionExecutionPlan.ErrorMessage);
+                 }
+             },
+             error: function (xhr, status, error) 
+             {
+                 alert(error);
+             }
+                      
+         });
+     }
+
+
+}
+    
+function RequsetForRevise()
+{
+    
+    //debugger;
+    var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+    if(oProductionExecutionPlan==null || parseFloat(oProductionExecutionPlan.ProductionExecutionPlanID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    if(oProductionExecutionPlan.ApproveBy==0)
+    {
+        alert("Selected Item Only Approved Item.");
+        return;
+    }
+    
+    var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+    if (oProductionExecutionPlan.ProductionExecutionPlanID > 0) 
+    {
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",                
+            url : _sBaseAddress+  "/ProductionExecutionPlan/RequstRevise",
+            data: { id: oProductionExecutionPlan.ProductionExecutionPlanID },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oProductionExecutionPlan = jQuery.parseJSON(data);
+                if (oProductionExecutionPlan.ErrorMessage =="") 
+                {
+                    alert("Sucessfully Request");                        
+                    $('#tblProductionExecutionPlans').datagrid('updateRow',{index: SelectedRowIndex,	row: oProductionExecutionPlan});
+                }
+                else
+                {
+                    alert(oProductionExecutionPlan.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+    }
+
+
+}
+
+function Add()
+{
+    debugger;
+    var oProductionExecutionPlans= $('#tblProductionExecutionPlans').datagrid('getRows');
+    sessionStorage.setItem("ProductionExecutionPlans", JSON.stringify(oProductionExecutionPlans));
+    sessionStorage.setItem("SelectedRowIndex", -1);
+    sessionStorage.setItem("ProductionExecutionPlanHeader", "Add Production Execution Plan");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = _sBaseAddress+ "/ProductionExecutionPlan/ViewProductionExecutionPlan?id=0&OrderRecapID=0";
+} 
+
+ function Edit()
+    {
+    debugger;
+        var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+        if(oProductionExecutionPlan==null || oProductionExecutionPlan.ProductionExecutionPlanID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(parseInt(oProductionExecutionPlan.PlanStatusInInt)!=1 )
+        {
+            alert("Select Only Initialize Item.");
+            return;
+        }
+        var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+        var oProductionExecutionPlans= $('#tblProductionExecutionPlans').datagrid('getRows');
+        sessionStorage.setItem("ProductionExecutionPlans", JSON.stringify(oProductionExecutionPlans));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ProductionExecutionPlanHeader", "Edit Production Execution Plan");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/ProductionExecutionPlan/ViewProductionExecutionPlan?id="+oProductionExecutionPlan.ProductionExecutionPlanID+"&OrderRecapID=0";
+
+    } 
+
+function View()
+{
+      var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+        if(oProductionExecutionPlan==null || oProductionExecutionPlan.ProductionExecutionPlanID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+        var oProductionExecutionPlans= $('#tblProductionExecutionPlans').datagrid('getRows');
+        sessionStorage.setItem("ProductionExecutionPlans", JSON.stringify(oProductionExecutionPlans));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ProductionExecutionPlanHeader", "View Production Execution Plan");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/ProductionExecutionPlan/ViewProductionExecutionPlan?id="+oProductionExecutionPlan.ProductionExecutionPlanID+"&OrderRecapID=0";
+  
+}
+
+function AcceptRevise()
+{
+    debugger;
+    var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+    if(oProductionExecutionPlan==null || oProductionExecutionPlan.ProductionExecutionPlanID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    if(parseInt(oProductionExecutionPlan.PlanStatusInInt)!=3)//
+    {
+        alert("Select Only Requested Item");
+        return;
+    }
+    var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+    var oProductionExecutionPlans= $('#tblProductionExecutionPlans').datagrid('getRows');
+    sessionStorage.setItem("ProductionExecutionPlans", JSON.stringify(oProductionExecutionPlans));
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("ProductionExecutionPlanHeader", "Accept Production Execution Plan");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = _sBaseAddress+ "/ProductionExecutionPlan/ViewProductionExecutionPlan?id="+oProductionExecutionPlan.ProductionExecutionPlanID+"&OrderRecapID=0";
+
+} 
+
+function ReviseHistory()
+{
+
+    var oProductionExecutionPlan = $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+    if(oProductionExecutionPlan==null || parseFloat(oProductionExecutionPlan.ProductionExecutionPlanID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    if(oProductionExecutionPlan.ApproveBy==0)
+    {
+        alert("Selected Item Only Approved Item.");
+        return;
+    }  
+    var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+    if (oProductionExecutionPlan.ProductionExecutionPlanID > 0) 
+    {
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",                
+            url : _sBaseAddress+  "/ProductionExecutionPlan/GetReviseLogs",
+            data: { id: oProductionExecutionPlan.ProductionExecutionPlanID },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oProductionExecutionPlans = jQuery.parseJSON(data);
+                if (oProductionExecutionPlans.length>0) 
+                {
+                    var tblColums = []; 
+                    var oColumn = { field: "RefNo", title: "Ref No", width: 80, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "RecapNo", title: "Recap No", width: 150, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BuyerName", title: "Buyer", width: 150, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "PlanExecutionQty", title: "Qty", width: 100, align: "right" }; tblColums.push(oColumn);
+                    var tblColums = tblColums; 
+                    var oPickerParam = {
+                        winid: 'winPP',
+                        winclass: 'clsPP',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblPP',
+                        tablecolumns: tblColums,
+                        datalist: oProductionExecutionPlans,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'RefNo',
+                        windowTittle: 'History List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    $('#btnOk').hide();
+                }
+                else
+                {
+                    alert("Data Not Found.");
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+    }
+}
+ function PrintPreview()
+{
+    var oPOD= $('#tblProductionExecutionPlans').datagrid('getSelected'); 
+    if(oPOD==null || parseInt(oPOD.ProductionExecutionPlanID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var tsv= (new Date().getTime())/1000;  
+    window.open(_sBaseAddress + '/ProductionExecutionPlan/Preview?id='+oPOD.ProductionExecutionPlanID);        
+}
+
+
+function PrintList()
+{
+   
+   var oProductionExecutionPlans= $('#tblProductionExecutionPlans').datagrid('getRows'); 
+    var ids ="";
+    if(oProductionExecutionPlans.length>0)
+    {
+        for(var i =0;i<oProductionExecutionPlans.length;i++)
+        {
+            ids =ids+oProductionExecutionPlans[i].ProductionExecutionPlanID+",";
+        }
+       ids= ids.substring(0, parseInt(ids.length - 1));
+    }
+    if(ids =="" || ids==null)
+    {    
+        alert("Data not found ");
+        return;
+    }
+    var tsv= (new Date().getTime())/1000;  
+    window.open(_sBaseAddress + '/ProductionExecutionPlan/PrintList?sID='+ids+'&ts='+tsv);  
+ 
+} 
+
+
+function Delete()
+{
+        //debugger;  
+        var oProductionExecutionPlan= $('#tblProductionExecutionPlans').datagrid('getSelected');
+        
+        if(oProductionExecutionPlan==null || oProductionExecutionPlan.ProductionExecutionPlanID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        if(parseInt(oProductionExecutionPlan.ApproveBy)!=0 )
+        {
+            alert("Approved Item can't delete, Please select Un Approved Item");
+            return;
+        }
+        var SelectedRowIndex=$('#tblProductionExecutionPlans').datagrid('getRowIndex',oProductionExecutionPlan);
+        if (!confirm("Confirm to Delete?")) return ;
+        if (oProductionExecutionPlan.ProductionExecutionPlanID > 0) 
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",                
+                url : _sBaseAddress+  "/ProductionExecutionPlan/Delete",
+                data: { id: oProductionExecutionPlan.ProductionExecutionPlanID },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully") 
+                    {
+                        alert("Delete sucessfully");                        
+                        $('#tblProductionExecutionPlans').datagrid('deleteRow',SelectedRowIndex);
+                          
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        }
+}
+   
+function RefreshList(oProductionExecutionPlans)
+{    
+    data=oProductionExecutionPlans;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionExecutionPlans').datagrid('loadData',data);  
+    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+    $('#tblProductionExecutionPlans').datagrid('selectRow',nIndex);
+}
+
+    
+
+function RefreshControlLayout()
+{
+    document.getElementById('btnAdd').style.display = 'none'; 
+    document.getElementById('btnEdit').style.display = 'none'; 
+    document.getElementById('btnDelete').style.display = 'none'; 
+    document.getElementById('btnApproved').style.display = 'none'; 
+    document.getElementById('btnPreView').style.display = 'none'; 
+    document.getElementById('btnPrintList').style.display = 'none'; 
+     
+
+    if(HavePermission('Add','ProductionExecutionPlan')){document.getElementById('btnAdd').style.display = '';}
+    if(HavePermission('Edit','ProductionExecutionPlan')){document.getElementById('btnEdit').style.display = '';}
+    if(HavePermission('Delete','ProductionExecutionPlan')){document.getElementById('btnDelete').style.display = '';}
+    if(HavePermission('Approved','ProductionExecutionPlan')){document.getElementById('btnApproved').style.display = '';}
+    if(HavePermission('Preview','ProductionExecutionPlan')){document.getElementById('btnPreView').style.display = '';}
+    if(HavePermission('PrintList','ProductionExecutionPlan')){document.getElementById('btnPrintList').style.display = '';}
+    
+}
+
+function HavePermission(sOperationType, sDbObject)
+{
+    var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+    if(nSessionID == -9) //check SuperUser 
+    {
+        return true;
+    }else
+    {
+        
+        for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+        {
+            if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+            return  true;
+        }
+        return false;
+     }
+}
+
+</script>

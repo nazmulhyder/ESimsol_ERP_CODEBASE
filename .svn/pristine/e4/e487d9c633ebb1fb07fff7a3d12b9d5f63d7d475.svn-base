@@ -1,0 +1,340 @@
+﻿@{
+    ViewBag.Title = "Inventory Tracking WIP";
+}
+@model IEnumerable<ESimSol.BusinessObjects.InventoryTrackingWIP>
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable" id="regionInventoryTrackingWIP">
+        <table id="tblInventoryTrackingWIPs" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" showfooter="true" autorowheight="false" toolbar="#toolbar"></table>
+        <div id="toolbar">
+            @*<input id="txtStartDate" type="text" class="easyui-datetimebox" required="required" data-options="formatter:icsdatetimeformat,parser:icsdatetimeparser" style="width:150px" />
+            <input id="txtEndDate" type="text" class="easyui-datetimebox" required="required" data-options="formatter:icsdatetimeformat,parser:icsdatetimeparser" style="width:150px" />*@
+            <input id="txtStartDate" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="tpStartTime" class="easyui-timespinner" style="width:60px;" required="required" />
+            To
+            <input id="txtEndDate" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="tpEndTime" class="easyui-timespinner" style="width:60px;" required="required" />
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnDetailPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Details</a>
+            <a id="btnExportToXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Export To XL</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+ debugger;
+    var _oInventoryTrackingWIPs=[];
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping=[];
+    var _nTotalQty = 0;
+    $(document).ready(function () {
+        debugger;
+        _oInventoryTrackingWIPs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem("BUID",nBUID);
+        
+        //var today = new Date();
+        //today.setHours(12);
+        //today.setMinutes(0);
+        //today.setHours(24);
+        //$('#txtEndDate').datetimebox('setValue', icsdatetimeformat(today));
+        //today.setDate(today.getDate()-1);
+        //$('#txtStartDate').datetimebox('setValue', icsdatetimeformat(today));
+        $('#tpStartTime,#tpEndTime').timespinner('setValue', '00:00');
+        $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date));
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    $('#btnSearch').click(function (e)
+    {
+        debugger;
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var startTime= $('#tpStartTime').timespinner('getValue');
+        var sTime=startTime.split(':');
+        var hStartTime= sTime[0];
+        var mStartTime= sTime[1];
+        if(isNaN(hStartTime))
+        {
+            hStartTime="00";
+            mStartTime="00";
+        }
+        dStartDate=dStartDate+" "+hStartTime+":"+mStartTime;
+
+        var dEndDate =$('#txtEndDate').datebox('getValue');
+        var endTime= $('#tpEndTime').timespinner('getValue');
+        sTime=endTime.split(':');
+        hEndTime= sTime[0];
+        mEndTime= sTime[1];
+        if(isNaN(hEndTime))
+        {
+            hEndTime="00";
+            mEndTime="00";
+        }
+        dEndDate=dEndDate+" "+hEndTime+":"+mEndTime;
+
+        oObj = {
+            BUID: sessionStorage.getItem("BUID"),
+            StartDate: dStartDate,
+            EndDate: dEndDate
+        }
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress+ "/InventoryTrackingWIP/Search",
+            data:JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                debugger;
+                var oResult = data;
+                GetDynamicColumn(oResult);
+                GetDynamicColumnData(oResult);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+            },
+        });
+    });
+
+    function GetDynamicColumn(oResult){
+        debugger;
+        var oDetailColumns = []; var oColumn = "";
+        oColumn =  { field:'ProductName', title:'Item Name', width:'18%', align:'left' };oDetailColumns.push(oColumn);
+        oColumn =  { field:'OpeningQty', title:'Opening Qty', width:'8%', align:'right' };oDetailColumns.push(oColumn);
+        for(var j=0; j<oResult.ITWIPsForIssue.length; j++){
+            oColumn =  { field:'WU_In'+oResult.ITWIPsForIssue[j].WorkingUnitID, title:oResult.ITWIPsForIssue[j].WorkingUnitName, width:'12%', align:'right' };oDetailColumns.push(oColumn);
+        }
+        oColumn =  { field:'TotalInQty', title:'Total In', width:'8%', align:'right' };oDetailColumns.push(oColumn);
+
+        //for(var j=0; j<oResult.ITWIPsForReceive.length; j++){
+        //    oColumn =  { field:'WU_Out'+oResult.ITWIPsForReceive[j].WorkingUnitID, title:oResult.ITWIPsForReceive[j].WorkingUnitName, width:'12%', align:'right' };oDetailColumns.push(oColumn);
+        //}
+        oColumn =  { field:'QtySt', title:'Total Out Qty', width:'10%', align:'right' };oDetailColumns.push(oColumn);
+        oColumn =  { field:'QtyPackingSt', title:'Fresh Packing', width:'10%', align:'right' };oDetailColumns.push(oColumn);        
+        oColumn =  { field:'QtyRecycleSt', title:'Re-Cycle', width:'10%', align:'right' };oDetailColumns.push(oColumn);
+        oColumn =  { field:'QtyWastageSt', title:'Wastage', width:'10%', align:'right' };oDetailColumns.push(oColumn);
+        oColumn =  { field:'QtyShortSt', title:'Short/Gain', width:'10%', align:'right' };oDetailColumns.push(oColumn);
+
+        oColumn =  { field:'TotalOutQty', title:'Total Out', width:'8%', align:'right' };oDetailColumns.push(oColumn);
+        oColumn =  { field:'ClosingQty', title:'Closing Qty', width:'8%', align:'right' };oDetailColumns.push(oColumn);
+
+        $('#tblInventoryTrackingWIPs').datagrid({
+            columns:[oDetailColumns]
+        });
+        $('#tblInventoryTrackingWIPs').datagrid({
+            rowStyler:function(index,row){
+                if (row.ProductID <= 0)
+                {
+                    return 'background-color:#488da6;color:white;font-weight:bold;';
+                }
+            }
+        });
+    }
+
+    function GetDynamicColumnData(oResult){
+        var oObjs = [];
+        var nPCID = -999;
+        for(var i=0; i<oResult.MainList.length; i++){
+            //debugger;
+            if(nPCID != oResult.MainList[i].PCategoryID){
+                var oObj = new Object();
+                oObj.ProductID = 0;
+                oObj.ProductName = oResult.MainList[i].PCategoryName;
+                oObj.TotalInQty="";
+                oObjs.push(oObj);
+            }
+            var oObj = new Object();
+            oObj.ProductID = oResult.MainList[i].ProductID;
+            oObj.ProductName = oResult.MainList[i].ProductName;
+            oObj.OpeningQty = oResult.MainList[i].OpeningQty.toFixed(2);
+            var nClosingQty = oResult.MainList[i].OpeningQty;
+            
+            _nTotalQty = 0;
+            for(var j=0; j<oResult.ITWIPsForIssue.length; j++){
+                var nQty = GetProductAndStoreWiseQty(oResult.MainList[i].ProductID, oResult.ITWIPsForIssue[j].WorkingUnitID, oResult.IssueList);
+                oObj['WU_In'+oResult.ITWIPsForIssue[j].WorkingUnitID] = nQty;
+            }
+            oObj.TotalInQty = TempFormatPrice(_nTotalQty);
+            //oObj.TotalInQty = _nTotalQty;
+            nClosingQty += _nTotalQty;
+            
+            var oRes = GetProductWiseObject(oResult.MainList[i].ProductID, oResult.ReceiveList);
+            if(oRes != null){
+                oObj.Qty = oRes.Qty;
+                oObj.QtySt = oRes.QtySt;
+                oObj.QtyPacking = oRes.QtyPacking;
+                oObj.QtyPackingSt = oRes.QtyPackingSt;
+                oObj.QtyRecycle = oRes.QtyRecycle;
+                oObj.QtyRecycleSt = oRes.QtyRecycleSt;
+                oObj.QtyWastage = oRes.QtyWastage;
+                oObj.QtyWastageSt = oRes.QtyWastageSt;
+                oObj.QtyShort = oRes.QtyShort;
+                oObj.QtyShortSt = oRes.QtyShortSt;
+                oObj.TotalOutQty = TempFormatPrice(oRes.QtyPacking+oRes.QtyRecycle+oRes.QtyWastage+oRes.QtyShort);
+                //nClosingQty -= (oRes.QtyPacking+oRes.QtyRecycle+oRes.QtyWastage+oRes.QtyShort);
+                nClosingQty -= (oRes.Qty);
+                oObj.ClosingQty = TempFormatPrice(nClosingQty);
+            }else{
+                oObj.QtyPacking = 0;
+                oObj.QtyPackingSt = TempFormatPrice(0);
+                oObj.QtyRecycle = 0;
+                oObj.QtyRecycleSt = TempFormatPrice(0);
+                oObj.QtyWastage = 0;
+                oObj.QtyWastageSt = TempFormatPrice(0);
+                oObj.QtyShort = 0;
+                oObj.QtyShortSt = TempFormatPrice(0);
+                oObj.TotalOutQty = TempFormatPrice(0);
+                //nClosingQty -= (oRes.QtyPacking+oRes.QtyRecycle+oRes.QtyWastage+oRes.QtyShort);
+                oObj.ClosingQty = TempFormatPrice(nClosingQty);
+            }
+            
+            oObjs.push(oObj);
+            nPCID = oResult.MainList[i].PCategoryID;
+        }
+        $('#tblInventoryTrackingWIPs').datagrid('loadData', oObjs);
+
+        debugger;
+        var data = []; var nCount=0;
+        data[nCount++] = 'ProductName';
+        data[nCount++] = 'OpeningQty';
+        for(var j=0; j<oResult.ITWIPsForIssue.length; j++)
+            data[nCount++] = 'WU_In'+oResult.ITWIPsForIssue[j].WorkingUnitID;
+        data[nCount++] = 'TotalInQty';
+        data[nCount++] = 'QtySt';
+        data[nCount++] = 'QtyPackingSt';
+        data[nCount++] = 'QtyRecycleSt';
+        data[nCount++] = 'QtyWastageSt';
+        data[nCount++] = 'QtyShortSt';
+        data[nCount++] = 'TotalOutQty';
+        data[nCount++] = 'ClosingQty';
+        //$.icsMakeFooterColumn('tblInventoryTrackingWIPs',['ProductName','OpeningQty','TotalInQty']);
+        //$.icsMakeFooterColumn('tblInventoryTrackingWIPs',data);
+        $.icsUpdatedMakeFooterColumn('tblInventoryTrackingWIPs',data, 3);
+    }
+
+    function GetProductAndStoreWiseQty(nProductID, nWorkingUnitID, oList){
+        var nQty = 0;
+        for(var i=0; i<oList.length; i++){
+            if(oList[i].ProductID == nProductID && oList[i].WorkingUnitID == nWorkingUnitID){
+                nQty += parseFloat(oList[i].Qty);
+            }
+        }
+        _nTotalQty += nQty;
+        return TempFormatPrice(nQty);
+    }
+
+    function GetProductWiseObject(nProductID, oList){
+        for(var i=0; i<oList.length; i++){
+            if(oList[i].ProductID == nProductID){
+                return oList[i];
+            }
+        }
+        return null;
+    }
+
+    function TempFormatPrice(val, row) {
+        if (val == null) {
+            val = 0.00;
+        }
+        val = parseFloat(val);
+        if (isNaN(val) || val === undefined) { return 0.00; }
+        var test = val.toFixed(3);
+        var tests = TempAddComma(test);
+        return tests;
+    }
+
+    function TempAddComma(nStr) {
+        nStr += '';
+        x = nStr.split('.');
+        x1 = x[0];
+        x2 = x.length > 1 ? '.' + x[1] : '';
+        var process = /(\d+)(\d{3})/;
+        while (process.test(x1)) {
+            x1 = x1.replace(process, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    }
+
+    $('#btnDetailPreview').click(function(){
+        var oITWIP=$('#tblInventoryTrackingWIPs').datagrid('getSelected');
+        if(oITWIP==null || parseInt(oITWIP.ProductID)<=0)
+        {
+            alert("Please select an item!!");
+            return;
+        }
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var startTime= $('#tpStartTime').timespinner('getValue');
+        var sTime=startTime.split(':');
+        var hStartTime= sTime[0];
+        var mStartTime= sTime[1];
+        if(isNaN(hStartTime))
+        {
+            hStartTime="00";
+            mStartTime="00";
+        }
+        dStartDate=dStartDate+" "+hStartTime+":"+mStartTime;
+
+        var dEndDate =$('#txtEndDate').datebox('getValue');
+        var endTime= $('#tpEndTime').timespinner('getValue');
+        sTime=endTime.split(':');
+        hEndTime= sTime[0];
+        mEndTime= sTime[1];
+        if(isNaN(hEndTime))
+        {
+            hEndTime="00";
+            mEndTime="00";
+        }
+        dEndDate=dEndDate+" "+hEndTime+":"+mEndTime;
+        window.open(_sBaseAddress+ "/InventoryTrackingWIP/DetailPrint?nProductID="+oITWIP.ProductID+"&dStartDate="+dStartDate+"&dEndDate="+dEndDate+"&nOpeningQty="+oITWIP.OpeningQty+"&nBUID="+sessionStorage.getItem("BUID"));
+    });
+
+    $('#btnExportToXL').click(function (e)
+    {
+        var dStartDate =$('#txtStartDate').datebox('getValue');
+        var startTime= $('#tpStartTime').timespinner('getValue');
+        var sTime=startTime.split(':');
+        var hStartTime= sTime[0];
+        var mStartTime= sTime[1];
+        if(isNaN(hStartTime))
+        {
+            hStartTime="00";
+            mStartTime="00";
+        }
+        dStartDate=dStartDate+" "+hStartTime+":"+mStartTime;
+
+        var dEndDate =$('#txtEndDate').datebox('getValue');
+        var endTime= $('#tpEndTime').timespinner('getValue');
+        sTime=endTime.split(':');
+        hEndTime= sTime[0];
+        mEndTime= sTime[1];
+        if(isNaN(hEndTime))
+        {
+            hEndTime="00";
+            mEndTime="00";
+        }
+        dEndDate=dEndDate+" "+hEndTime+":"+mEndTime;
+        window.open(_sBaseAddress+ "/InventoryTrackingWIP/ExportXL?nBUID="+sessionStorage.getItem("BUID")+"&dStartDate="+dStartDate+"&dEndDate="+dEndDate);
+    });
+
+    </script>

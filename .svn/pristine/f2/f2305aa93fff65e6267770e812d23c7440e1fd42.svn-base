@@ -1,0 +1,306 @@
+﻿
+@model ESimSol.BusinessObjects.Voucher
+@{
+    ViewBag.Title = "Profit Loss Appropriation  Accounts";
+}
+
+
+<div style="margin-left: 0px; height: 480px; width:100%">
+    <table id="tblVoucherDetail" title="Profit Loss Appropriation  A/C" class="easyui-datagrid" style="width:100%;" fit="true" fitcolumns="true" toolbar="#toolbar1" data-options="singleSelect: true, rownumbers:true,pagination:false,autorowheight:false,onClickRow: onClickRow ">
+        <thead>
+            <tr>
+                <th field="AccountCode" width="100">Account Code</th>
+                <th field="AccountHeadName" width="496">Account Head</th>
+                <th field="DebitAmount" width="125" align="right">Debit Amount</th>
+                <th width="125" align="right" formatter="formatPrice" data-options="field:'CreditAmount',editor:{type:'numberbox',options:{precision:2}}">Credit Amount</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar1">
+        <table border="0" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="font-size:12px; font-weight:bold; width:150px; text-align:left">
+                    <select id="cboBusinessUnit" style="width:150px"></select>
+                </td>
+                <td style="font-size:12px; font-weight:bold; width:135px; text-align:left">
+                    <select id="cboSession" style="width:135px"> </select>
+                </td>
+                <td style="font-size:12px; font-weight:bold; width:80px; text-align:left">
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                </td>
+                <td style="font-size:12px; font-weight:bold; width:250px; text-align:center">
+                    <a id="btnConfirmProfitLossAppropriationAccount" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Commit P/L Appropriation A/C</a>
+                </td>
+                <td style="font-size:12px; font-weight:bold; width:120px; text-align:left">
+                    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<table border="0" style="background-color:#DEDEDE;width:100%" >
+    <tr>
+        <td style="width:80%; text-align:right; font-weight:bold; font-size:small">
+            <label id="lblTotalDebit" style="margin-right:20px">Total : 0.00</label>
+        </td>
+        <td style="width:15%; text-align:right; font-weight:bold; font-size:small">
+            <label id="lblTotalCredit" style="margin-right:20px"> 0.00</label>
+        </td>
+    </tr>
+</table>
+<br />
+<table border="0">
+    <tr>
+        <td style="width:100px; text-align:right; font-weight:bold; font-size:small"> 
+            Narration : 
+        </td>
+        <td style="width:780px; text-align:right"> 
+            @Html.TextBoxFor(model => model.Narration, new { style = "width: 780px;", id = "txtNarration" }) 
+        </td>
+    </tr>
+</table>
+
+
+
+<script type="text/javascript">
+    var _oVoucher=null;
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oVoucher = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").data('objs',oBusinessUnits);
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "--Business Unit--"});
+
+        RefreshList(_oVoucher.VoucherDetailLst);
+        RefreshCboSession(_oVoucher.AccountingSessions);
+    });
+
+$("#btnPrint").click(function(){
+    if(parseInt(_oVoucher.AccountingSessionID) <= 0)
+    {
+        alert('Please Select a Session & Click Refresh Button!');
+        $('#cboSession').focus();
+        return;
+    }
+    if(parseInt(_oVoucher.VoucherID) <= 0)
+    {
+        alert('Please Commit P/L Appropriation Accounts!');
+        return;
+    }
+    window.open(_sBaseAddress+'/Voucher/PrintVoucher?id=' + _oVoucher.VoucherID+'&buid=0', "_blank");
+});
+
+$("#btnConfirmProfitLossAppropriationAccount").click(function(){
+    endEditing();
+    if(parseInt(_oVoucher.AccountingSessionID) <= 0)
+    {
+        alert('Please Select a Session & Click Refresh Button!');
+        $('#cboSession').focus();
+        return;
+    }
+   
+    var nBUID = parseInt($('#cboBusinessUnit').val());
+    if(parseInt(nBUID) <= 0)
+    {
+        alert('Please Select a Business Unit!');
+        $('#cboBusinessUnit').focus();
+        return;
+    } 
+
+    if (!confirm("Confirm to Commit Profit Loss Appropriation Accounts on Session "+cboSession.options[cboSession.selectedIndex].text+"?")) return ;
+
+    var oVoucher =    {
+        BUID : parseInt(nBUID),
+        VoucherID: _oVoucher.VoucherID,
+        AccountingSessionID: _oVoucher.AccountingSessionID,
+        Narration: document.getElementById("txtNarration").value,
+        VoucherDetailLst : $('#tblVoucherDetail').datagrid('getRows')
+    };
+
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("CommitProfitLossAppropriationAccounts", "FinancialStatement")',
+            data: JSON.stringify(oVoucher),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oVoucher  = jQuery.parseJSON(data);
+                if (oVoucher != null) {
+                    if(oVoucher.VoucherID>0 && oVoucher.ErrorMessage=="")
+                    {
+                        alert("Successfully  Commit Profit Loss Appropriation Accounts.");
+                    }
+                    else
+                    {
+                        alert(oVoucher.ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Invalid Operation!!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+
+    $("#btnRefresh").click(function(){
+        var cboSession = document.getElementById("cboSession");
+        var nSessionID=cboSession.options[cboSession.selectedIndex].value;
+        if(parseInt(nSessionID) <= 0)
+        {
+            alert('Please Select a Session!');
+            $('#cboSession').focus();
+            return;
+        }
+
+        var nBUID = parseInt($('#cboBusinessUnit').val());
+        if(parseInt(nBUID) <= 0)
+        {
+            alert('Please Select a Business Unit!');
+            $('#cboBusinessUnit').focus();
+            return;
+        } 
+
+        var oAccountingSession =    {
+            BUID : parseInt(nBUID),
+            AccountingSessionID : parseInt(nSessionID)
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("GetProfitLossAppropriationAccounts", "FinancialStatement")',
+            data: JSON.stringify(oAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                _oVoucher = jQuery.parseJSON(data);
+                if (_oVoucher != null) {
+                    document.getElementById("txtNarration").value =  _oVoucher.Narration;
+                    RefreshList(_oVoucher.VoucherDetailLst);
+                }
+                else
+                {
+                    alert("Data not found!!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+
+    function RefreshList(oVoucherDetails)
+    {
+        var data =oVoucherDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVoucherDetail').datagrid('loadData',data);
+        RefreshTotalSummary();
+    }
+
+    function RefreshTotalSummary()
+    {
+        var oVoucherDetails = $('#tblVoucherDetail').datagrid('getRows');
+        var nTotalDebit = 0;
+        var nTotalCredit=0;
+        if(oVoucherDetails.length>0)
+        {
+            for(var i =0;i<oVoucherDetails.length;i++)
+            {
+                if(oVoucherDetails[i].IsDr==true)
+                {
+                    nTotalDebit=nTotalDebit+parseFloat(oVoucherDetails[i].DebitAmount);
+                }
+                else
+                {
+                    nTotalCredit=nTotalCredit+parseFloat(oVoucherDetails[i].CreditAmount);
+                }
+            }
+        }
+        document.getElementById('lblTotalDebit').innerHTML ="Total : "+ formatPrice(nTotalDebit, null);
+        document.getElementById('lblTotalCredit').innerHTML =formatPrice(nTotalCredit, null);
+    }
+
+    function RefreshCboSession(oAccountingSessions)
+    {
+        $('#cboSession').empty();
+        var listItems= "<option value='0'>--Select Session--</option>";
+        for (var i = 0; i < oAccountingSessions.length; i++)
+        {
+            listItems+= "<option value='" + oAccountingSessions[i].AccountingSessionID + "'>" + oAccountingSessions[i].SessionName+" </option>";
+        }
+        $("#cboSession").html(listItems);
+        $("#cboSession").val(0);
+    }
+
+
+
+    function GetDividendAmount()
+    {
+        var nRetainedEarningAmount=0;
+        var oVoucherDetails = $('#tblVoucherDetail').datagrid('getRows');
+        for(var i=0; i<oVoucherDetails.length; i++)
+        {
+            if(i!=0)
+            {
+                if(i!=oVoucherDetails.length-1)
+                {
+                    nRetainedEarningAmount=nRetainedEarningAmount+parseFloat(oVoucherDetails[i].CreditAmount);
+                }
+            }
+        }
+        return nRetainedEarningAmount;
+    }
+
+    function onClickRow(index){
+        if (editIndex != index){
+            if (endEditing())
+            {
+                $('#tblVoucherDetail').datagrid('selectRow', index)
+                if(index!=0)
+                {
+                    var oVoucherDetails = $('#tblVoucherDetail').datagrid('getRows');
+
+                    if(index!=oVoucherDetails.length-1)
+                    {
+                        $('#tblVoucherDetail').datagrid('beginEdit', index);
+                        editIndex = index;
+                    }
+                }
+            }
+            else
+            {
+                $('#tblVoucherDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+    var editIndex = undefined;
+    function endEditing(){
+        if (editIndex == undefined){return true}
+        if ($('#tblVoucherDetail').datagrid('validateRow', editIndex)){
+            $('#tblVoucherDetail').datagrid('endEdit', editIndex);
+
+            var oVoucherDetails = $('#tblVoucherDetail').datagrid('getRows');
+            var nLastIndex=oVoucherDetails.length-1;
+            var oVoucherDetail =oVoucherDetails[nLastIndex];
+            oVoucherDetail.Amount=parseFloat(oVoucherDetails[0].DebitAmount) -  GetDividendAmount();
+            oVoucherDetail.CreditAmount=oVoucherDetail.Amount;
+            $('#tblVoucherDetail').datagrid('updateRow',{index: nLastIndex,	row: oVoucherDetail});
+            RefreshTotalSummary();
+            editIndex = undefined;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+</script>

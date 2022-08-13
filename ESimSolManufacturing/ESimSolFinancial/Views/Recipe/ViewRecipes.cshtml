@@ -1,0 +1,335 @@
+﻿
+@model IEnumerable<ESimSol.BusinessObjects.Recipe>
+@{
+    ViewBag.Title = "Recipes List";
+}
+     <div class="menuMainCollectionTable">
+        <table id="tblRecipe" title="Recipe List" class="easyui-datagrid" fit="true"  rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="RecipeCode" width="120" align="left">Code</th>
+                    <th field="RecipeName" width="150" align="left">Recipe Name</th>
+                    <th field="ColorName" width="200" align="left">Color</th>
+                    <th field="RecipeTypeInString" width="200" align="left">Type</th>
+                    <th field="Note" width="120" align="left">Note</th>
+                    <th field="IsActiveInString" width="150" align="left">Active</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+            <input type="text" id="txtSearchByCode" placeholder="Search by code" style="width:100px" />
+            <input type="text" id="txtModelName" placeholder="Type Model Name and Press enter" style="width:150px" />
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">Details</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-copy" plain="true" onclick="Copy()">Copy</a>
+            <a id="btnActiveInActive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="ActiveInActive()">Active</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintD()">Print Details</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="Print()">Print List</a>
+        </div>
+    </div>
+<script type="text/javascript">
+    var _oRecipes=[];
+    var _sBaseAddress="";
+    var _nBUID = 0;
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oRecipes =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var ProductNature = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductNature));
+        sessionStorage.setItem("ProductNature",ProductNature);
+        var oRecipes =sessionStorage.getItem("Recipes");
+        if(oRecipes!=null)
+        {
+            oRecipes = jQuery.parseJSON(oRecipes);
+        }
+        else
+        {
+            oRecipes=_oRecipes;
+        }
+        RefreshList(oRecipes);
+    });
+
+    function Refresh()
+    {    var oRecipes = $('#tblRecipe').datagrid('getRows');
+        data=oRecipes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRecipe').datagrid('loadData',data);
+        $('#tblRecipe').datagrid({selectOnCheck:false, checkOnSelect:false})
+    }
+
+    function RefreshList(oRecipes)
+    {
+        data=oRecipes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRecipe').datagrid('loadData',data);
+        $('#tblRecipe').datagrid({selectOnCheck:false, checkOnSelect:false})
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblRecipe').datagrid('selectRow',nIndex);
+    }
+
+    function Print()
+    {
+        //debugger;
+        var oRecipes = $('#tblRecipe').datagrid('getRows');
+        if(oRecipes.length<=0)
+        {
+            alert ("No data found to print!!! Please use Search option!!!");
+            return false;
+        }
+
+        var ids ="";
+        if(oRecipes.length >0)
+        {
+
+            for(var i =0;i<oRecipes.length;i++)
+            {
+                ids =ids+oRecipes[i].RecipeID+",";
+            }
+            ids= ids.substring(0, ids.length - 1);
+        }
+
+        window.open(_sBaseAddress + '/Recipe/PrintRecipes?sIDs='+ids, "_blank");
+    }
+
+    function PrintD()
+    {
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        window.open(_sBaseAddress + '/Recipe/PrintRecipeDetails?id='+oRecipe.RecipeID, "_blank");
+    }
+
+    $('#txtSearchByCode').keypress(function (e) {
+        //debugger;
+        var c = String.fromCharCode(e.which);
+        var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+        txtSearchByCode = txtSearchByCode + c;
+
+        var bFlag=false;
+        var sRecipeCode="";
+        var rows = $('#tblRecipe').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sRecipeCode=rows[i]['RecipeCode'].substring(0, txtSearchByCode.length);
+            if(txtSearchByCode.toUpperCase()==sRecipeCode.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblRecipe').datagrid('selectRow', i);
+        }
+    })
+    //txtModelName
+    $("#txtModelName").keydown(function (e) {
+        debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtModelName').val())==null || $.trim($('#txtModelName').val())=="")
+            {
+                alert("Type Model Name and Press Enter.");
+                $('#txtModelName').focus();
+                return;
+            }
+
+            var oRecipe = {ModelReferenceName:$.trim($('#txtModelName').val())};
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: '@Url.Action("GetsRecipeByModelName", "Recipe")',
+                traditional: true,
+                data:  JSON.stringify(oRecipe),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    oRecipes = jQuery.parseJSON(data);
+                    if (oRecipes.length>0 &&  (oRecipes[0].ErrorMessage == '' || oRecipes[0].ErrorMessage == null))
+                    {
+                        RefreshList(oRecipes);
+                    }
+                    else {
+                        alert(oRecipes[0].ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+    function ActiveInActive()
+    {
+        //debugger;
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oRecipe.IsActive==1)
+        {
+            if (!confirm("Confirm to In Active?")) return
+            oRecipe.IsActive = 0;
+        }else{
+            if (!confirm("Confirm to Active?")) return
+            oRecipe.IsActive = 1;
+        }
+        var SelectedRowIndex=$('#tblRecipe').datagrid('getRowIndex',oRecipe);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/Recipe/ActiveInActive",
+            traditional: true,
+            data:  JSON.stringify(oRecipe),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                oRecipe = jQuery.parseJSON(data);
+                if (oRecipe.ErrorMessage == '' || oRecipe.ErrorMessage == null)
+                {
+                    if(oRecipe.IsActive == 1)
+                    {
+                        alert("Sucessfully Active");
+                    }else{
+                        alert("Sucessfully In Active");
+                    }
+
+                    $('#tblRecipe').datagrid('updateRow',{index: SelectedRowIndex,	row: oRecipe});
+                }
+                else {
+                    alert(oRecipe.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Add()
+    {
+        //debugger;
+        var oRecipes= $('#tblRecipe').datagrid('getRows');
+        sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("RecipeHeader", "Add Recipe");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/Recipe/ViewRecipe?id=0";
+    }
+
+    function Edit()
+    {
+        //debugger;
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblRecipe').datagrid('getRowIndex',oRecipe);
+        var oRecipes= $('#tblRecipe').datagrid('getRows');
+        sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RecipeHeader", "Edit Recipe");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/Recipe/ViewRecipe?id="+oRecipe.RecipeID;
+    }
+
+    function Copy()
+    {
+        //debugger;
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblRecipe').datagrid('getRowIndex',oRecipe);
+        var oRecipes= $('#tblRecipe').datagrid('getRows');
+        sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RecipeHeader", "Copy Recipe");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/Recipe/ViewRecipe?id="+oRecipe.RecipeID;
+    }
+    function Details()
+    {
+        //debugger;
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblRecipe').datagrid('getRowIndex',oRecipe);
+        var oRecipes= $('#tblRecipe').datagrid('getRows');
+        sessionStorage.setItem("Recipes", JSON.stringify(oRecipes));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RecipeHeader", "View Recipe");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/Recipe/ViewRecipe?id="+oRecipe.RecipeID;
+
+    }
+
+    function Delete()
+    {
+        debugger;
+        var oRecipe= $('#tblRecipe').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+        if(oRecipe==null || oRecipe.RecipeID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblRecipe').datagrid('getRowIndex',oRecipe);
+        if (oRecipe.RecipeID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url: '@Url.Action("Delete", "Recipe")',
+                data: { id: oRecipe.RecipeID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Delete sucessfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblRecipe').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+
+
+    </script>

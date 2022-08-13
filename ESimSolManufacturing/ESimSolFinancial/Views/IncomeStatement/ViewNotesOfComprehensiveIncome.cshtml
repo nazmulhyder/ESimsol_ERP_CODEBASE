@@ -1,0 +1,269 @@
+﻿@model ESimSol.BusinessObjects.IncomeStatement
+@{
+    ViewBag.Title = "Statement of Comprehensive Income";
+}
+
+@*<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>*@
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%;padding:5px; overflow:hidden">
+            <div style="margin-bottom:5px">                
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Comprehensive Income</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div id="divComprehensiveIncome" style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table id="tblComprehensiveIncome" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="4" style="width:100%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="width:100%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Statement of Comprehensive Income</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="width:100%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;">As at 31 December 2015</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:50%"></td>
+                        <td style="width:28%; text-align:center; font-weight:bold"></td>
+                        <td style="width:20%; text-align:right; border:1px solid black">
+                            <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold">31 Dec 2015-BDT</label>
+                        </td>
+                        <td style="width:2%"></td>
+                    </tr>
+                    <tr>
+                        <td style="width:50%"></td>
+                        <td style="width:28%; text-align:center; font-weight:bold">Notes</td>
+                        <td style="width:20%; text-align:right;"></td>
+                        <td style="width:2%"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>        
+    </div>
+</div>
+
+<style>    
+    .segmentclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;
+        font-weight:bold;
+        font-style:italic;
+    }
+    .subgroupclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;           
+    }
+    .segmentsummeryclass {        
+        color: black;
+        font-size : 13px;
+        font-family : Tahoma;  
+        font-weight:bold;         
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblComprehensiveIncome tr:hover td,
+    #tblComprehensiveIncome tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oIncomeStatement=null;
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {
+        debugger;
+        var oIncomeStatement =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+
+        $('#divComprehensiveIncome').data('obj',oIncomeStatement);
+
+        RefreshControl(oIncomeStatement);
+        RefreshTable(oIncomeStatement);
+        
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+   
+    $("#btnRefresh").click(function(){
+
+    
+        var obj={
+            BUID:parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            TempDate:$('#txtEndDate').datebox('getValue')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/IncomeStatement/SetBSSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/IncomeStatement/ViewFinancialPosition?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshControl(oIncomeStatement)
+    {
+        $('#lblCompanyName').text(oIncomeStatement.Company.Name);
+        $('#lblStatementDate').text('For the Year Ended '+ oIncomeStatement.EndDateFullSt);
+        $('#lblStatementDateWithCurrency').text(oIncomeStatement.SessionDate+' '+oIncomeStatement.Company.CurrencyName);
+        var nMaxRowIndex = document.getElementById('tblComprehensiveIncome').rows.length-1;
+        for(var i=nMaxRowIndex; i>4; i--)
+        {
+            document.getElementById("tblComprehensiveIncome").deleteRow(i);
+        }
+
+    }
+
+    function RefreshTable(oIncomeStatement)
+    {
+        //Segment = 2, SubGroup = 4,
+        var oIncomeStatements = oIncomeStatement.IncomeStatements;
+        var nParentHeadID=oIncomeStatement.ParentAccountHeadID;
+        var sCurrencyName=oIncomeStatement.Company.CurrencyName;
+       
+      
+
+        for(var i=0;  i<oIncomeStatements.length; i++ )
+        {
+
+            
+           
+            if(oIncomeStatements[i].AccountHeadID===nParentHeadID){
+                var table = document.getElementById('tblComprehensiveIncome');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.width= "100%";
+                cellAccountHead.colSpan= 4;
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oIncomeStatements[i].AccountHeadName+' '+sCurrencyName+' '+oIncomeStatements[i].CGSGBalanceInString+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+            }
+            else{
+                var table = document.getElementById('tblComprehensiveIncome');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.width= "50%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oIncomeStatements[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellAccountHead = row.insertCell(1);
+                cellAccountHead.width= "28%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="NoteWiseDetails('+oIncomeStatements[i].AccountHeadID+');" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oIncomeStatements[i].AccountCode+'</label>';
+                cellAccountHead.style.textAlign = 'center';
+            
+                var cellAmount = row.insertCell(2);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;">'+oIncomeStatements[i].LedgerBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                var cellBlank = row.insertCell(3);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+            }
+            
+            
+            
+           
+        }
+
+
+        var table = document.getElementById('tblComprehensiveIncome');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 4;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '55';
+
+
+    }
+
+   
+
+    function NoteWiseDetails(nAccountHeadID)
+    {
+
+        var obj={
+            BusinessUnitID:$('#divComprehensiveIncome').data('obj').BUID,
+            StartDate:$('#divComprehensiveIncome').data('obj').StartDateSt,
+            EndDate:$('#divComprehensiveIncome').data('obj').EndDateSt,
+            AccountHeadID:nAccountHeadID,
+            IsApproved:true
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetMonthlyGLSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGLMonthlySummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnPrint").click(function(){
+        var nBUID=$('#divComprehensiveIncome').data('obj').BUID;
+        var dStartDate = $('#divComprehensiveIncome').data('obj').StartDateSt;
+        var dEndDate = $('#divComprehensiveIncome').data('obj').EndDateSt;
+        var nParentAccountHeadID=$('#divComprehensiveIncome').data('obj').ParentAccountHeadID;
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+"~"+nParentAccountHeadID;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/PrintNotesOfComprehensiveIncome?Params=' + sParam, "_blank");
+    });
+
+
+    $("#btnPrintXL").click(function(){
+        var nBUID=$('#divComprehensiveIncome').data('obj').BUID;
+        var dStartDate = $('#divComprehensiveIncome').data('obj').StartDateSt;
+        var dEndDate = $('#divComprehensiveIncome').data('obj').EndDateSt;
+        var nParentAccountHeadID=$('#divComprehensiveIncome').data('obj').ParentAccountHeadID;
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+"~"+nParentAccountHeadID;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/ExportNotesOfComprehensiveIncomeToExcel?Params=' + sParam, "_blank");
+    });
+</script>

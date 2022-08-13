@@ -1,0 +1,251 @@
+﻿@{
+    ViewBag.Title = "Cash flow List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.CashFlowSetup>
+    <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblCashFlowSetups" title="Cash flow List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="CFTransactionCategoryInString" width="120">Tranjaction Category</th>
+                    <th field="CFTransactionGroupInString" width="150">Tranjaction Group</th>
+                    <th field="CFDataTypeInString" width="200">Data Type</th>
+                    <th field="SubGroupName" width="200">Sub Group</th>
+                    <th field="DisplayCaption" width="200">Display Caption</th>
+                </tr>
+            </thead>
+        </table>​  
+            <div id="toolbar"> 
+               <select id="cboCFTransactionGroup" style="width:200px;" class="changeTransactionGroup"></select>
+                <select id="cboCFDataType" style="width:200px;" class="changeDataType"></select>
+                <select id="cboSubGroup" style="width:200px;"></select>
+                <input type="text" id="txtDisplayCaption" placeholder="Type Display Caption" style="width:200px" />
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="Add()">Add</a>  
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            </div>  
+</div>
+
+<script type="text/javascript">
+    var _oCashFlowSetups=[];
+    var _sBaseAddress="";
+    var _oCFTransactionGroups = [];
+    var _oCFDataTypes = [];
+    $(document).ready(function () {
+        //debugger;
+        _oCashFlowSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCFTransactionGroups =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CFTransactionGroups));
+        _oCFDataTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CFDataTypes)); 
+        $("#cboCFTransactionGroup").icsLoadCombo({List: _oCFTransactionGroups,OptionValue:"id", DisplayText: "Value"});
+        $("#cboCFDataType").icsLoadCombo({List: _oCFDataTypes,OptionValue:"id", DisplayText: "Value"});
+        //$('#cboCFTransactionGroup').val(0);//select none
+        RefreshList(_oCashFlowSetups);
+    });
+
+    function Search()
+    {
+        var oFBreakges =[];
+        if($('#cboCFTransactionGroup').val()==-1)
+        {
+            RefreshList(_oCashFlowSetups);
+        }
+        else
+        {
+            for(var i=0;i<_oCashFlowSetups.length;i++)
+            {
+                if(parseInt(_oCashFlowSetups[i].WeavingProcess)== parseInt($('#cboCFTransactionGroup').val()))
+                {
+                    oFBreakges.push(_oCashFlowSetups[i]);
+                }
+            }
+            RefreshList(oFBreakges);
+        }
+    }
+
+    $('.changeDataType').change(function(){
+        if(parseInt($('#cboCFDataType').val())>0)
+        {
+            var oCashFlowSetup = {CFDataTypeInInt:$('#cboCFDataType').val()};
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/CashFlowSetup/GetsByDataType",
+                traditional: true,
+                data:  JSON.stringify(oCashFlowSetup),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    _oChartsOfAccountList = jQuery.parseJSON(data);
+                    if (_oChartsOfAccountList.length>0)
+                    {
+                        $("#cboSubGroup").icsLoadCombo({List: _oChartsOfAccountList,OptionValue:"AccountHeadID", DisplayText: "AccountHeadName"});                 
+                    }
+                    else
+                    {
+                        $("#cboSubGroup").val(0);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+    $('.changeTransactionGroup').change(function(){
+        var oTempDataTypes = [];
+        if(parseInt($('#cboCFTransactionGroup').val())>0)
+        {
+           LoadDataTypes($('#cboCFTransactionGroup').val());
+        }
+        else
+        {
+            $("#cboCFDataType").icsLoadCombo({List: oTempDataTypes,OptionValue:"id", DisplayText: "Value"});
+        }
+    });
+    
+    function LoadDataTypes(nCFTransactionGroup)
+    {
+        var oTempDataTypes =[];
+        var oCashFlowSetup = {CFTransactionGroupInInt:nCFTransactionGroup};
+        $.ajax
+             ({
+                 type: "POST",
+                 dataType: "json",
+                 url : _sBaseAddress+"/CashFlowSetup/GetDataTypes",
+                 traditional: true,
+                 data:  JSON.stringify(oCashFlowSetup),
+                 contentType: "application/json; charset=utf-8",
+                 success: function (data) {
+                     //debugger;
+                     _oCFDataTypes = jQuery.parseJSON(data);
+                     if (_oCFDataTypes.length>0)
+                     {
+                         $("#cboCFDataType").icsLoadCombo({List: _oCFDataTypes,OptionValue:"id", DisplayText: "Value"});            
+                     }
+                     else
+                     {
+                         $("#cboCFDataType").val(0);
+                     }
+                 },
+                 error: function (xhr, status, error)
+                 {
+                     alert(error);
+                 }
+
+             });
+    }
+
+
+    function Add()
+    {
+        if($('#cboCFTransactionGroup').val()<=0)
+        {
+            alert("Select Transaction Group");
+            $('#cboCFTransactionGroup').focus();
+            return;
+        }
+        if($('#cboCFDataType').val()<=0)
+        {
+            alert("Select Data Type");
+            $('#cboCFDataType').focus();
+            return;
+        }
+
+        if($('#txtDisplayCaption').val()==null || $('#txtDisplayCaption').val()=="")
+        {
+            alert("Please Type Display Caption");
+            $('#txtDisplayCaption').focus();
+            return;
+        }
+        //debugger;
+        var oCashFlowSetup = {
+            CashFlowSetupID:0,
+            CFTransactionGroupInInt:$('#cboCFTransactionGroup').val(),
+            CFDataTypeInInt:$('#cboCFDataType').val(),
+            SubGroupID :$('#cboSubGroup').val(),
+            DisplayCaption: $('#txtDisplayCaption').val()
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CashFlowSetup/Save",
+            traditional: true,
+            data:  JSON.stringify(oCashFlowSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oCashFlowSetup = jQuery.parseJSON(data);
+                if (_oCashFlowSetup.ErrorMessage=="" || _oCashFlowSetup.ErrorMessage==null) {
+                    alert("Data Saved sucessfully");
+                    $('#tblCashFlowSetups').datagrid('appendRow',_oCashFlowSetup);
+                    $('#cboCFTransactionGroup').val(0);
+                    $('#cboCFDataType').val(0);
+                    $('#cboSubGroup').val(0);
+                    $('#txtDisplayCaption').val('');
+                }
+                else {
+                    alert(_oCashFlowSetup.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    
+    function Delete()
+    {
+        //debugger;
+        var oCashFlowSetup= $('#tblCashFlowSetups').datagrid('getSelected');
+        if(oCashFlowSetup==null || oCashFlowSetup.CashFlowSetupID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblCashFlowSetups').datagrid('getRowIndex',oCashFlowSetup);
+        if (parseInt(oCashFlowSetup.CashFlowSetupID) > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/CashFlowSetup/Delete",
+                data: { id: oCashFlowSetup.CashFlowSetupID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCashFlowSetups').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    function RefreshList(oCashFlowSetups)
+    {
+        data=oCashFlowSetups;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCashFlowSetups').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblCashFlowSetups').datagrid('selectRow',nIndex);
+    }
+
+</script>

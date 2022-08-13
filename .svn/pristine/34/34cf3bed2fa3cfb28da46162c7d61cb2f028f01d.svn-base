@@ -1,0 +1,325 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.AttendanceCalendar>
+@{
+    ViewBag.Title = "AttendanceCalendars";
+}
+
+<div class="menuMainCollectionTable">
+    <table id="tblAttendanceCalendar" title="AttendanceCalendar List" class="easyui-datagrid" style="width:100%; height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="Code" width="100" align="left">Code</th>
+                <th field="Name" width="180" align="left">Name</th>
+                <th field="Description" width="220" align="left">Description</th>
+                <th field="Activity" width="100" align="left">Activity</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+        <a id="btnSession" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Session</a>
+    </div>
+
+    <div id="winAttendanceCalendar" class="easyui-window" title="Attendance Calendar" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+
+        <table class="tbl">
+            <tr>
+                <td class="tdAttCalendar">
+                    <div class="divLabel">
+                        <label>Code :</label>
+                    </div>
+                    <div class="divInput">
+                        <input id="txtCode" class="resetfield" type="text" disabled />
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="tdAttCalendar">
+                    <div class="divLabel">
+                        <label>Name :</label>
+                    </div>
+                    <div class="divInput">
+                        <input id="txtName" class="resetfield" type="text" placeholder="Name" />
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="tdAttCalendar">
+                    <div class="divLabel">
+                        <label>Description :</label>
+                    </div>
+                    <div class="divInput">
+                        <textarea id="txtDescription" class="resetfield" placeholder="Description"></textarea>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="tdAttCalendar">
+                    <div class="divLabel">
+                        <label>Active :</label>
+                    </div>
+                    <div class="divInputChk">
+                        <input type="checkbox" id="chkActivity" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <fieldset>
+            <legend>Actions : </legend>
+            <div class="region-action">
+                <a id="btnSaveAttendanceCalendar" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                <a id="btnCloseAttendanceCalendar" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+ <style type="text/css">
+     #winAttendanceCalendar{
+         width:400px;
+     }
+     .region-action{
+         text-align:right;
+     }
+
+    .tbl{
+        margin-top:10px;
+     }
+    .tdAttCalendar .divLabel {
+        float: left;
+        width: 25%;
+        text-align: right;
+        margin-right: 1%;
+        font-size: 11px;
+    }
+    .divInput input {
+        float: left;
+        width: 70%;
+        font-size: 11px;
+        text-align:left;
+    }
+     .divInput textarea {
+        float: left;
+        width: 70%;
+        height:70px;
+        resize:none;
+        font-size: 11px;
+        text-align:left;
+    }
+    .divInputChk input{
+        float: left;
+        width: auto;
+        font-size: 11px;
+        text-align:left;
+    }
+
+ </style>
+ 
+
+<script type="text/javascript">
+    var _oAttendanceCalendars=[];
+    var _sBaseAddress="";
+    var _oAttendanceCalendar=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAttendanceCalendars =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        sessionStorage.clear();
+        DynamicRefreshList(_oAttendanceCalendars,'tblAttendanceCalendar');
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+    function ResetControl(){
+        _oAttendanceCalendar=null;
+        $('#winAttendanceCalendar').find('input,textarea').not('#txtCode').prop('disabled',false);
+        $('#btnSaveAttendanceCalendar').show();
+        $('#winAttendanceCalendar').find('input,textarea').not('#chkActivity').val('');
+        $('#chkActivity').prop('checked',false);
+    }
+
+    function GetAttendanceCalendar(oAttendanceCalendar, sTitle){
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oAttendanceCalendar,
+                ControllerName: "AttendanceCalendar",
+                ActionName: "GetAttendanceCalendar",
+                IsWinClose: false
+            };
+
+        $.icsDataGet(obj, function (response) {
+
+            if (response.status && response.obj != null) {
+                if (response.obj.AttendanceCalendarID > 0) {
+                    RefreshControl(response.obj);
+                    $('#winAttendanceCalendar').icsWindow('open', sTitle);
+                }
+                else { alert((response.obj.ErrorMessage!=null || response.obj.ErrorMessage!='')? response.obj.ErrorMessage : "Invalid Attendance Calendar."); }
+            }
+        });
+    }
+ 
+    function RefreshControl(oAttendanceCalendar){
+        _oAttendanceCalendar=oAttendanceCalendar;
+        $('#txtCode').val(oAttendanceCalendar.Code);
+        $('#txtName').val(oAttendanceCalendar.Name);
+        $('#txtDescription').val(oAttendanceCalendar.Description);
+        $('#chkActivity').prop('checked',oAttendanceCalendar.IsActive);
+    }
+
+    function RefreshObject(){
+        var oAttendanceCalendar={
+            AttendanceCalendarID: (_oAttendanceCalendar!=null) ? _oAttendanceCalendar.AttendanceCalendarID:0,
+            Code: $("#txtCode").val(),
+            Name: $("#txtName").val(),
+            Description: $("#txtDescription").val(),
+            IsActive: $('#chkActivity').is(':checked')
+        };
+        return oAttendanceCalendar;
+    }
+    
+    function Validation(){
+
+        if ($.trim($("#txtName").val()) == "") {
+            alert("Please enter name.");
+            $("#txtName").addClass("errorFieldBorder");
+            $("#txtName").focus();
+            return false;
+        } else {
+            $("#txtName").removeClass("errorFieldBorder");
+        }
+
+        if ($.trim($("#txtDescription").val()) == "") {
+            alert("Please enter description.");
+            $("#txtDescription").addClass("errorFieldBorder");
+            $("#txtDescription").focus();
+            return false;
+        } else {
+            $("#txtDescription").removeClass("errorFieldBorder");
+        }
+        return true;
+    }
+
+
+    $('#btnAdd').click(function(e){
+
+        ResetControl();
+        $('#winAttendanceCalendar').icsWindow('open', 'Add Attendance Calendar');
+
+    });
+
+    $('#btnEdit').click(function(e){
+
+        var oAttendanceCalendar = $('#tblAttendanceCalendar').datagrid('getSelected');
+        if (oAttendanceCalendar == null || oAttendanceCalendar.AttendanceCalendarID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+        ResetControl();
+        GetAttendanceCalendar(oAttendanceCalendar,'Edit Attendance Calendar');
+
+    });
+
+    $('#btnDelete').click(function(e){
+
+        var oAttendanceCalendar = $('#tblAttendanceCalendar').datagrid('getSelected');
+
+        if (oAttendanceCalendar == null || oAttendanceCalendar.AttendanceCalendarID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oAttendanceCalendar,
+            ControllerName: "AttendanceCalendar",
+            ActionName: "Delete",
+            TableId: "tblAttendanceCalendar",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $('#btnView').click(function(e){
+
+        var oAttendanceCalendar = $('#tblAttendanceCalendar').datagrid('getSelected');
+        if (oAttendanceCalendar == null || oAttendanceCalendar.AttendanceCalendarID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+        ResetControl();
+        $('#winAttendanceCalendar').find('input,textarea').not('#txtCode').prop('disabled',true);
+        $('#btnSaveAttendanceCalendar').hide();
+        GetAttendanceCalendar(oAttendanceCalendar,'View Attendance Calendar');
+    });
+
+
+    $('#btnSaveAttendanceCalendar').click(function(e){
+
+        if (!Validation()) return;
+        var oAttendanceCalendar = RefreshObject();
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oAttendanceCalendar,
+            ObjectId: oAttendanceCalendar.AttendanceCalendarID,
+            ControllerName: "AttendanceCalendar",
+            ActionName: "Save",
+            TableId: "tblAttendanceCalendar",
+            IsWinClose: true,
+            Message: (oAttendanceCalendar.AttendanceCalendarID>0)?"Update Successfully." : "Save Successfully."
+        };
+        $.icsSave(obj);
+
+    });
+
+    $('#btnCloseAttendanceCalendar').click(function(e){
+        $('#winAttendanceCalendar').icsWindow('close');
+        ResetControl();
+    });
+
+    $('#btnSession').click(function(e){
+
+        var oAttendanceCalendar = $('#tblAttendanceCalendar').datagrid('getSelected');
+        if (oAttendanceCalendar == null || oAttendanceCalendar.AttendanceCalendarID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+        sessionStorage.setItem('BackLink',window.location.href);
+        var nts=(new Date()).getTime();
+        window.location.href = _sBaseAddress + "/AttendanceCalendar/ViewAttendanceCalendarSessions?nACID=" + oAttendanceCalendar.AttendanceCalendarID + "&nts=" + nts;
+    });
+
+    
+
+    function Session() {
+        debugger;
+        var oAttendanceCalendar = $('#tblAttendanceCalendar').datagrid('getSelected');
+        if (oAttendanceCalendar == null || oAttendanceCalendar.AttendanceCalendarID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblAttendanceCalendar').datagrid('getRowIndex', oAttendanceCalendar);
+        var oParameter = new Object();
+        oParameter.Name = "Add AttendanceCalendarSession";
+        oParameter.ACID = oAttendanceCalendar.AttendanceCalendarID;
+        oParameter.CalendarName = oAttendanceCalendar.Name;
+        var tsv = ((new Date()).getTime()) / 1000;
+        var url = _sBaseAddress + "/AttendanceCalendar/ViewAttendanceCalendarSessions?ACid=" + oAttendanceCalendar.AttendanceCalendarID + "&ts=" + tsv;
+        var nLeft=(window.screen.width/2)-(700/2);
+        var nHeight=(window.screen.height/2)-(470/2);
+        oAttendanceCalendarSession = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        //oAttendanceCalendarSession = window.showModalDialog(url, oParameter, 'dialogHeight:470;dialogWidth:700px;dialogLeft:400;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+        //    if (oAttendanceCalendarSession != null) {
+        //            if (oAttendanceCalendarSession.AttendanceCalendarID > 0) {
+        //                var oAttendanceCalendars = $('#tblAttendanceCalendarSession').datagrid('getRows');
+        //                var nIndex = oAttendanceCalendars.length;
+        //                $('#tblAttendanceCalendarSession').datagrid('appendRow', oAttendanceCalendarSession);
+        //                $('#tblAttendanceCalendarSession').datagrid('selectRow', nIndex);
+        //            }
+        //    }
+    }
+</script>

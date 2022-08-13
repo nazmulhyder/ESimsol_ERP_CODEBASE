@@ -1,0 +1,602 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ProductReconciliationReportDetail>
+  
+    @{
+        ViewBag.Title = "Product Reconciliation Report";
+    }
+
+                      <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+                          <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+                              <label style="font-size:18px;">Please wait</label>
+                              <div id="progressbar" style="width:100%;height:37px;"></div>
+                          </div>
+                      </div>
+    <div class="easyui-panel menuMainCollectionTable" style="font-family:Tahoma; margin-left: 0px; height: 100%; width:100%">
+            <table id="tblPRs" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="rowStyler: function(index,row){
+                                        if (row.ProductName=='Total'){
+                                            return 'color:#016B18; font-weight:bold;';
+                                        }
+                                    }
+                    ">
+                <thead>
+                    <tr>
+
+                        <th field="IssueDateSt" width="10%" align="left">Date</th>
+                        <th field="PINo" width="10%" align="left">PI No</th>
+                        <th field="ContractorName" width="15%" align="left">Buyer Name</th>
+                        <th field="ProductName" width="10%" align="left">Product Name</th>
+                        <th field="PIQty" width="10%" align="right" formatter="formatPrice">PI Qty</th>
+                        <th field="Rate" width="10%" align="right" formatter="formatPrice">UP</th>
+                        <th field="OrderQty" width="10%" align="right" formatter="formatPrice">Order Qty</th>
+                        <th field="Qty" width="10%" align="right" formatter="formatPrice">Balance</th>
+                        <th field="Qty_Prod" width="10%" align="right" formatter="formatPrice">Production Qty</th>
+                        <th field="YetToProduction" width="10%" align="right" formatter="formatPrice">Pending Prod</th>
+                        <th field="DeliveryQty" width="10%" align="right" formatter="formatPrice">Delivery Qty</th>
+                        <th field="LCNo" width="12%" align="left">L/C No</th>
+                        <th field="PIStatusSt" width="12%" align="left">Status</th>
+                        <th field="LCStatusSt" width="12%" align="left">L/C Status</th>
+
+
+                    </tr>
+                </thead>
+            </table>
+
+
+        <div id="toolbar">
+            <table border="0" cellpadding="2" cellspacing="2">
+                <tr>
+                    <td colspan="2" style="font-size:12px; text-align:left;vertical-align:top">
+                        Date  <select id="cboDateSearch" style="width:100px" ;font-size:12px;" class="_select_changeA" />
+                        <input id="txtStartDate" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        To
+                        <input id="txtEndDate" type="text" style="width: 110px;height:20px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+
+                </tr>
+                  <tr>
+                    <td style="width:70%;  font-size:12px;">
+                      Product  <input type="text" style="width: 200px;" id="txtProduct_Raw" placeholder="Search By Product" />
+                        <a id="btnProduct_Raw" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        <a id="btnclrProduct" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                      Party  <input type="text" style="width: 200px;" id="txtContractorName" placeholder="Search By Party" />
+                        <a id="btnContractor" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        <a id="btnclrContractor" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                    </td>
+                      <td style="width:30%;  font-size:12px; text-align:right">
+                          <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()">Refresh All</a>
+                          @*<a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print </a>*@
+                          <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">ExportToXL</a>
+                      </td>
+
+                </tr>
+
+            </table>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oProductReconciliationReportDetails=[];
+        var _oProductReconciliationReportDetail=null;
+        var _sBaseAddress="";
+        var _sProductIDs="";
+        var _sContractorIds="";
+        var _nBUID=0;
+        $(document).ready(function () {
+            debugger;
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oProductReconciliationReportDetails=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            RefreshDateSearch();
+            sessionStorage.setItem("Params", "");
+            $("#progressbar").progressbar({value: 0});
+            $("#progressbarParent").hide();
+            $(".lblLoadingMessage").hide();
+        });
+        function updateProgress() {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 96){
+                value += Math.floor(Math.random() * 10);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+        function hideShow(miliseconds) {
+            $("#progressbarParent").hide();
+        }
+        function RefreshDateSearch()
+        {
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            $('#cboDateSearch').empty();
+            var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+            listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+            $("#cboDateSearch").html(listDates);
+            $('#txtEndDate').datebox({disabled: true});
+            /// for Order Wise
+
+        
+
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+
+        }
+       
+        $('._select_changeA').change(function () {
+            var DateTypes = document.getElementById("cboDateSearch");
+            var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+            if (DateType == "EqualTo") {
+                $('#txtStartDate').datebox({disabled: false});
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox({disabled: true});
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+            if (DateType == "None" )
+            {
+                $('#txtStartDate').datebox({disabled: true});
+                $('#txtEndDate').datebox({disabled: true});
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+            if (DateType == "Between" ||DateType == "NotBetween"  )
+            {
+                $('#txtStartDate').datebox({disabled: false});
+                $('#txtEndDate').datebox({disabled: false});
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+        });
+  
+
+        function Refresh()
+        {
+            debugger
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) == 1)//Equ
+            {  
+                date2=date1;
+            }
+
+            var sParams = _sProductIDs + "~" +
+                _sContractorIds + "~" +
+                      nDateType + "~" +
+                      date1 + "~" +
+                      date2 ;
+            sessionStorage.setItem("Params", sParams);
+
+            var oProductReconciliationReportDetail= {
+                ErrorMessage : sParams
+            }
+         
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ProductReconciliationReport/AdvSearch",
+                traditional: true,
+                data:  JSON.stringify(oProductReconciliationReportDetail),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    var _oProductReconciliationReportDetails = data;
+                    if (_oProductReconciliationReportDetails.length>0)
+                    {
+                        DynamicRefreshList(_oProductReconciliationReportDetails, 'tblPRs');
+                        RefreshSummary();
+                    }
+                    else {
+                        alert("Data not Found");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        function RefreshByProduct(oProducts)
+        {
+            _sContractorIds="";
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) == 1)//Equ
+            {  
+                date2=date1;
+            }
+
+            var sProducts = "";
+            if(oProducts.length > 0)
+            {
+                for (i = 0; i < oProducts.length; ++i) {
+                    sProducts = sProducts +  oProducts[i].ProductID + ',';
+                }
+                sProducts = sProducts.substring(0, sProducts.length - 1);
+            }
+            _sProductIDs=sProducts;
+            var sParams = _sProductIDs + "~" +
+                _sContractorIds + "~" +
+                      nDateType + "~" +
+                      date1 + "~" +
+                      date2 + "~" +
+            sessionStorage.setItem("Params", sParams);
+
+            var oProductReconciliationReportDetail= {
+                ErrorMessage : sParams
+            }
+         
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ProductReconciliationReport/AdvSearch",
+                traditional: true,
+                data:  JSON.stringify(oProductReconciliationReportDetail),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    var _oProductReconciliationReportDetails = data;
+                    if (_oProductReconciliationReportDetails.length>0)
+                    {
+                        DynamicRefreshList(_oProductReconciliationReportDetails, 'tblPRs');
+                        RefreshSummary();
+                    }
+                    else {
+                        alert("Data not Found");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        function RefreshByContractor(oContractors)
+        {
+            _sProductIDs="";
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) == 1)//Equ
+            {  
+                date2=date1;
+            }
+
+           
+            if(oContractors.length > 0)
+            {
+                for (i = 0; i < oContractors.length; ++i) {
+                    _sContractorIds = _sContractorIds +  oContractors[i].ContractorID + ',';
+                }
+                _sContractorIds = _sContractorIds.substring(0, _sContractorIds.length - 1);
+            }
+          
+            var sParams = _sProductIDs + "~" +
+                _sContractorIds + "~" +
+                      nDateType + "~" +
+                      date1 + "~" +
+                      date2 + "~" +
+            sessionStorage.setItem("Params", sParams);
+
+            var oProductReconciliationReportDetail= {
+                ErrorMessage : sParams
+            }
+         
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ProductReconciliationReport/AdvSearch",
+                traditional: true,
+                data:  JSON.stringify(oProductReconciliationReportDetail),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    var _oProductReconciliationReportDetails = data;
+                    if (_oProductReconciliationReportDetails.length>0)
+                    {
+                        DynamicRefreshList(_oProductReconciliationReportDetails, 'tblPRs');
+                        RefreshSummary();
+                    }
+                    else {
+                        alert("Data not Found");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+
+
+        function RefreshSummary()
+        {
+            var oRows = $('#tblPRs').datagrid('getRows');
+            if(oRows.length>0)
+            {
+                var nPIQty = 0,nOrderQty=0,nQty=0,nQty_Prod=0,nYetToProduction=0;
+                for(var i=0;i<oRows.length;i++)
+                {
+                    nPIQty = parseFloat(nPIQty)+parseFloat(oRows[i].PIQty);
+                    nOrderQty = parseFloat(nOrderQty)+parseFloat(oRows[i].OrderQty);
+                    nQty = parseFloat(nQty)+parseFloat(oRows[i].Qty);
+                    nQty_Prod = parseFloat(nQty_Prod)+parseFloat(oRows[i].Qty_Prod);
+                    if(parseFloat(oRows[i].YetToProduction)>0)
+                    {
+                        nYetToProduction = parseFloat(nYetToProduction)+parseFloat(oRows[i].YetToProduction);
+                    }
+                }
+                nPIQty = parseFloat(nPIQty).toFixed(2);
+                nOrderQty = parseFloat(nOrderQty).toFixed(2);
+                nQty = parseFloat(nQty).toFixed(2);
+                nQty_Prod = parseFloat(nQty_Prod).toFixed(2);
+                nYetToProduction = parseFloat(nYetToProduction).toFixed(2);
+                debugger
+                var oRow =
+                {
+                    ProductName : 'Total',
+                    PIQty:nPIQty,
+                    OrderQty:nOrderQty,
+                    Qty:nQty,
+                    Qty_Prod:nQty_Prod,
+                    YetToProduction:nYetToProduction
+                }
+                $('#tblPRs').datagrid('appendRow',oRow); 
+            } 
+        }
+
+        $("#btnPrint").click(function(){
+
+            var bIsBasicProduct=document.getElementById("chkIsBasicProduct").checked;
+            var  sTempString =  bIsBasicProduct;
+
+            window.open(_sBaseAddress + '/ProductReconciliationReportDetail/PrintProductReconciliationReportDetaile?sTempString='+sTempString, "_blank");
+        });
+        
+        $("#btnPrintXL").click(function(){
+            debugger;
+            var Date = document.getElementById("cboDateSearch");
+            var nDateType = Date.options[Date.selectedIndex].value;
+            var date1=$('#txtStartDate').datebox('getValue');
+            var date2= $('#txtEndDate').datebox('getValue');
+            if(parseInt(nDateType) == 1)//Equ
+            {  
+                date2=date1;
+            }
+            var sParams = _sProductIDs + "~" +
+                       _sContractorIds + "~" +
+                       nDateType + "~" +
+                       date1 + "~" +
+                       date2 ;
+          
+            window.open(_sBaseAddress + '/ProductReconciliationReport/PrintProductReconciliationReportYetToPOXL?sTempString='+sParams,"_blank");
+        });
+       
+
+
+
+     
+
+
+
+        //Supplier Part
+        $("#txtProduct_Raw").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) // Enter Press
+            {
+                var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:$('#txtProduct_Raw').val()};
+                PickProduct(oProduct);
+            }
+            else if (e.keyCode === 08) 
+            {
+                var txtProduct_Raw = document.getElementById("txtProduct_Raw");
+                txtProduct_Raw.value = '';
+                txtProduct_Raw.style.color = "black";
+                txtProduct_Raw.style.fontWeight = "normal";
+                $("#txtProduct_Raw").removeClass("fontColorOfPickItem");
+                _sProductIDs ="";
+            }
+        });
+        $("#btnProduct_Raw").click(function () {
+            var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:$('#txtProduct_Raw').val()};
+            PickProduct(oProduct);
+
+        });
+        $("#btnclrProduct").click(function () {
+            $("#txtProduct_Raw").removeClass("fontColorOfPickItem");
+            $("#txtProduct_Raw").val("");
+            _sProductIDs ="";
+        });
+      
+        function PickProduct(oProduct)
+        {
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oProduct,
+                ControllerName: "Product",
+                ActionName: "SearchByProductBUWise",
+                IsWinClose: false
+            };
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+            $.icsDataGets(obj, function (response) {
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ProductID > 0) {
+                        var tblColums = [];var oColumn = { field: "ProductCode", title: "ProductCode", width: 80, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "ProductName", title: "Name", width: 250, align: "left" };tblColums.push(oColumn);
+
+                        var oPickerParam = {
+                            winid: 'winProducts',
+                            winclass: 'clsProducts',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblProducts',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'ProductName',
+                            windowTittle: 'Product List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+            });
+        }
+
+
+        $("#txtContractorName").keydown(function (e) {
+            if (e.keyCode === 13) // Enter Press
+            {
+                PickContractor();
+            }
+            else if (e.keyCode === 08) 
+            {
+                $("#txtContractorName").removeClass("fontColorOfPickItem");
+                _sContractorIds ="";
+            }
+        });
+
+        $("#btnclrContractor").click(function () {
+            $("#txtContractorName").removeClass("fontColorOfPickItem");
+            $("#txtContractorName").val("");
+            _sContractorIds ="";
+        });
+
+        $("#btnContractor").click(function () {
+            PickContractor();
+        });
+        function PickContractor() {
+            var oContractor = {
+                Params: '2,3' + '~' + $.trim($("#txtContractorName").val()+"~"+_nBUID)
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+            
+            $.icsDataGets(obj, function (response) {
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "ContractorID", title: "Code", width: 50, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 280, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBuyers',
+                            winclass: 'clsBuyer',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblBuyers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Buyer List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else {
+                    alert("Sorry, No Contactor Found.");
+                }
+            });
+        }
+        function IntializePickerbutton(oPickerobj) {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                //for Single Select
+                SetPickerValueAssign(oPickerobj);
+            });
+            $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    SetPickerValueAssign(oPickerobj);
+
+                }
+            });
+        }
+        function SetPickerValueAssign(oPickerobj) {
+            var oreturnObj = null, oreturnobjs = [];
+            if (oPickerobj.multiplereturn) {
+                oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+            } else {
+                oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+            }
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+            if (oPickerobj.winid == 'winProducts')
+            {
+                if (oreturnobjs != null && oreturnobjs.length > 0)
+                {
+                    debugger;
+                    var txtProduct_Raw = document.getElementById("txtProduct_Raw");
+                    //txtProduct_Raw.value = oreturnobjs[0].ProductCode;
+                    txtProduct_Raw.style.color = "blue";
+                    txtProduct_Raw.style.fontWeight = "bold";
+                    RefreshByProduct(oreturnobjs);
+                    $('#txtProduct_Raw').focus();
+                }
+            }
+            if (oPickerobj.winid == 'winBuyers')
+            {
+                if (oreturnobjs != null && oreturnobjs.length > 0)
+                {
+                    debugger;
+                    var txtProduct_Raw = document.getElementById("txtContractorName");
+                    //txtProduct_Raw.value = oreturnobjs[0].ProductCode;
+                    txtProduct_Raw.style.color = "blue";
+                    txtProduct_Raw.style.fontWeight = "bold";
+                    RefreshByContractor(oreturnobjs);
+                    $('#txtContractorName').focus();
+                }
+            }
+
+        }
+        //Pick PR Part
+        function formatPrice(val,row)
+        {
+   
+            val=parseFloat(val);
+            var test = val.toFixed(2);
+            if (val < 0)
+            {
+                test=(-1*test);
+            }
+            var tests = addComma(test);
+            if (val < 0)
+            {
+                return '<span style="color:red;">('+tests+')</span>';
+            }
+            else 
+            {
+                return tests;
+            }
+
+        }
+
+
+        function addComma(nStr)
+        {
+
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var rgx = /(\d+)(\d{3})/;
+            while (rgx.test(x1)) {
+                x1 = x1.replace(rgx, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+    </script>

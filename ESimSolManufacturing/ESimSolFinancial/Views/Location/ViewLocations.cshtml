@@ -1,0 +1,389 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.TLocation>
+@{
+    ViewBag.Title = "Location List";
+}
+
+
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblLocation" title="Location List" class="easyui-treegrid" fit="true" fitcolumns="true" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th data-options="field:'text',width:300">Location Name</th>
+                <th data-options="field:'code',width:75">Location Code</th>
+                <th data-options="field:'LocationTypeName',width:75">Location Type</th>
+                <th data-options="field:'Activity',width:200">Activity</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:120px" onclick="Clearfield()" />
+        <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:150px" onclick="ClearNamefield()" />
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        @*<a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Activity()">Activity</a>*@
+        @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+        @{var BUID = @ViewBag.BUID;}
+        @Html.ActionLink("Location", "ViewLocations", "Location", new {buid=@BUID, menuid = @MenuID }, null)   ||  @Html.ActionLink("Operation Unit", "RefreshList", "OperationUnit", new { buid = @BUID, menuid = @MenuID }, null) ||  @Html.ActionLink("Working Unit", "RefreshList", "WorkingUnit", new { buid = @BUID, menuid = @MenuID }, null)
+    </div>
+</div>
+
+
+
+
+
+<script type="text/javascript">
+    var _oTLocation=null;
+    var _oTLocations=null;
+    var _oTChildrenLocations=null;
+    var nID =null;
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        // 
+        debugger;
+        _oTLocation=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        _oTLocations =sessionStorage.getItem("Locations");
+        _oTChildrenLocations =sessionStorage.getItem("ChildrenLocations");
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        _oTChildrenLocations=_oTChildrenLocations!=null?jQuery.parseJSON(_oTChildrenLocations):[];
+        _oTLocations=_oTLocations!=null?jQuery.parseJSON(_oTLocations):[];
+
+        if(_oTLocations!=null && _oTLocations.length>0)
+        {
+            
+            if(_nID>0 && _oTChildrenLocations!=null && _oTChildrenLocations.length>0)
+            {
+                _oTLocations=  ChildrenReset(_oTLocations);
+                _oTLocation=_oTLocations;
+            }
+        }
+        else
+        {
+            _oTLocations=_oTLocation;
+        }
+        RefreshList(_oTLocations);
+        if(nID>0)
+        {
+            $('#tblLocation').treegrid('select', nID);
+        }
+        sessionStorage.setItem("ChildrenLocations",null);
+    });
+
+    function ChildrenReset(oChildren){
+        debugger;
+        for(var i=0;i<oChildren.length;i++){
+            if(_nID===oChildren[i].id){
+                oChildren[i].children=[];
+                oChildren[i].children=_oTChildrenLocations;
+                //break;
+            }
+            else{
+                if(oChildren[i].children!=null){
+                    ChildrenReset(oChildren[i].children);
+                }
+            }
+        }
+        return oChildren;
+    }
+
+    $('#txtSearchByCode').keypress(function (e) {
+        // 
+        var c = String.fromCharCode(e.which);
+        var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+        txtSearchByCode = txtSearchByCode + c;
+
+        var bFlag=false;
+        var sAccountHeadCode="";
+        var rows = $('#tblLocation').treegrid('getChildren',1);
+        for(i=0;i<rows.length;++i){
+            sAccountHeadCode=rows[i]['code'].substring(0, txtSearchByCode.length);
+            if(txtSearchByCode.toUpperCase()==sAccountHeadCode.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblLocation').treegrid('select',id);
+                break;
+            }
+        }
+    });
+
+    $('#txtSearchByName').keypress(function (e) {
+        // 
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+
+        var bFlag=false;
+        var sAccountHeadName="";
+        var rows = $('#tblLocation').treegrid('getChildren',1);
+        for(i=0;i<rows.length;++i){
+            sAccountHeadName=rows[i]['text'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sAccountHeadName.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblLocation').treegrid('select',id);
+                break;
+            }
+        }
+    });
+
+
+
+
+    
+
+
+
+
+
+    function Refresh()
+    {
+        // 
+        $('#tblLocation').treegrid('reload');	// reload the all rows
+    }
+
+
+
+
+
+    function Edit()
+    {
+        //debugger;
+        //var oLocation= $('#tblLocation').treegrid('getSelected'); 
+        //if(oLocation==null || oLocation.id<=0)
+        //{
+        //    alert("Please select a item from list!");
+        //    return;
+        //}
+
+      
+        
+        //var oLocations=$('#tblLocation').treegrid('getData');
+        //sessionStorage.setItem("Locations", JSON.stringify(oLocations));        
+        //sessionStorage.setItem("SelectedRowIndex", oLocation.id);   
+        //sessionStorage.setItem("LocationHeader", "Edit Location");
+
+
+       
+
+        //window.location.href = _sBaseAddress+ "/Location/EditLocation?id="+oLocation.id;
+
+        debugger;
+        var oLocation= $('#tblLocation').treegrid('getSelected'); 
+        if(oLocation==null || oLocation.id<=0)
+        {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if(oLocation.LocationType===3){
+            alert('Cannot add Children to Site!');
+            return false;
+        }
+
+      
+        
+        
+        var oLocations=$('#tblLocation').treegrid('getData');
+        var oTempChildren=$('#tblLocation').treegrid('getChildren',oLocation.id);
+        var oChildren=[];
+        if(oTempChildren!=null && oTempChildren.length>0){
+            for(var i=0;i<oTempChildren.length;i++){
+                if(oTempChildren[i].parentid===oLocation.id){
+                    oChildren.push(oTempChildren[i]);
+                }
+            }
+        }
+
+        sessionStorage.setItem("Locations", JSON.stringify(oLocations));
+        sessionStorage.setItem("ChildrenLocations", JSON.stringify(oChildren));
+        sessionStorage.setItem("SelectedRowIndex", oLocation.id);   
+        sessionStorage.setItem("LocationHeader", "Add Location in "+oLocation.text+' ['+oLocation.code+']');
+        sessionStorage.setItem("BackLink", window.location.href);
+               
+        window.location.href = _sBaseAddress+ "/Location/ViewLocation?id="+oLocation.id;
+
+    }
+
+
+    $('#btnAdd').click( function ()
+    {
+        debugger;
+        var oLocation= $('#tblLocation').treegrid('getSelected'); 
+        if(oLocation==null || oLocation.id<=0)
+        {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if(oLocation.LocationType===3){
+            alert('Cannot add Children to Site!');
+            return false;
+        }
+
+      
+        
+        
+        var oLocations=$('#tblLocation').treegrid('getData');
+        var oTempChildren=$('#tblLocation').treegrid('getChildren',oLocation.id);
+        var oChildren=[];
+        if(oTempChildren!=null && oTempChildren.length>0){
+            for(var i=0;i<oTempChildren.length;i++){
+                if(oTempChildren[i].parentid===oLocation.id){
+                    oChildren.push(oTempChildren[i]);
+                }
+            }
+        }
+
+        sessionStorage.setItem("Locations", JSON.stringify(oLocations));
+        sessionStorage.setItem("ChildrenLocations", JSON.stringify(oChildren));
+        sessionStorage.setItem("SelectedRowIndex", oLocation.id);   
+        sessionStorage.setItem("LocationHeader", "Add Location in "+oLocation.text+' ['+oLocation.code+']');
+        sessionStorage.setItem("BackLink", window.location.href);
+               
+        window.location.href = _sBaseAddress+ "/Location/ViewLocation?id="+oLocation.id;
+
+        
+    });
+
+
+    function IsExists(nparentid, id)
+    {
+        var oChildNodes= $('#tblLocation').treegrid('getChildren',nparentid);
+        for(var j=0;j<oChildNodes.length;j++)
+        {
+            if(oChildNodes[j].id==id)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    function ReloadChildData(nparentid)
+    {
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+  "/Location/getchildren",
+            traditional: true,
+            data: {parentid:nparentid},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                 
+                var oTLocations= jQuery.parseJSON(data);
+                if(oTLocations!=null)
+                {
+                    if (oTLocations.length>0) {
+                        for(i=0; i<oTLocations.length; i++)
+                        {
+                            $('#tblLocation').treegrid('append',{ parent: nparentid, data: [oTLocations[i]] });
+                        }
+                        $('#tblLocation').treegrid('select',nparentid);
+                        $('#tblLocation').treegrid('expand',nparentid);
+                    }
+                }
+                else {
+                    //alert('Data not found!!');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    function RefreshList(oTLocation)
+    {
+        data= oTLocation;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblLocation').treegrid('loadData',data);
+    }
+
+    function Delete()
+    {
+         
+        var oLocation= $('#tblLocation').datagrid('getSelected');
+        if(oLocation==null || oLocation.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oLocation.parentid==0 )
+        {
+            alert("Root Location not deletable");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblLocation').datagrid('getRowIndex',oLocation);
+
+        if (oLocation.id > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Location/Delete",
+                data: JSON.stringify({ LocationID: oLocation.id }),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage === "Deleted")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tblLocation').treegrid('remove',oLocation.id);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    @*function Activity()
+    {
+        var oLocation = $('#tblLocation').datagrid('getSelected');
+        if(oLocation==null || oLocation.id<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to " + (oLocation.IsActive==true?" Inactive ?":" Active ?" ))) return ;
+        var SelectedRowIndex=$('#tblLocation').datagrid('getRowIndex',oLocation);
+
+        if (oLocation.id > 0)
+        {
+            debugger;
+
+            $.ajax
+               ({
+                   type: "POST",
+                   dataType: "json",
+                   url: '@Url.Action("ActiveInactive", "Location")',
+                   data:  JSON.stringify(oLocation),
+                   contentType: "application/json; charset=utf-8",
+                   success: function (data)
+                   {
+                       var oLocation = jQuery.parseJSON(data);
+                       $('#tblLocation').datagrid('updateRow',{index: SelectedRowIndex,	row: oLocation});
+                       alert("Updated sucessfully");
+
+                   },
+                   error: function (xhr, status, error)
+                   {
+                       alert(error);
+                   }
+               });
+        }
+    }*@
+
+
+</script>

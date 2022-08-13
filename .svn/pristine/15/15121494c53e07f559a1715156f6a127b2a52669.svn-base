@@ -1,0 +1,177 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "DashBoard Permission";
+    }
+    @model ESimSol.BusinessObjects.DBPermission
+    <div id="divDBPermission" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblDBPermission" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="DashBoardTypeST" width="225" align="left">DashBoard Type</th>
+                        <th field="Remarks" width="225" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                DashBoard Type : <select id="cboDashBoardType" style="width:180px;"></select>
+                Remarks : @Html.TextBoxFor(model => model.Remarks, new { style = "width: 120px;", id = "txtRemarks" })
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+var _oDBPermission = null;
+$(document).ready(function () {
+    _oDBPermission =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+    $('#tblDBPermission').datagrid({ title: ('DashBoard Permission for User : ' +_oDBPermission.UserName)});
+    $('#cboDashBoardType').icsLoadCombo({ List: _oDBPermission.DashBoardTypeObjs, OptionValue: "id", DisplayText: "Value" });
+    RefreshList(_oDBPermission.DBPermissions);
+});
+
+function RefreshList(oDBPermissions) {
+    var data = oDBPermissions;
+    data = {"total":""+ data.length +"", "rows": data};
+    $('#tblDBPermission').datagrid('loadData', data);
+}
+
+function RefreshObject() {
+    var oDBPermission = {
+        DBPermissionID : 0,
+        UserID : parseInt(_oDBPermission.UserID),
+        DashBoardTypeInt : parseInt($('#cboDashBoardType').val()),
+        Remarks : $.trim($('#txtRemarks').val())
+    };
+    return oDBPermission;
+}
+
+function ValidateInput() {
+    var nDashBoardType = parseInt($('#cboDashBoardType').val());
+    if(nDashBoardType === null || nDashBoardType === undefined)
+    {
+        alert("Please select DashBoard Type!");
+        $('#cboDashBoardType').focus();
+        return false;
+    }
+    if(_oDBPermission==null || parseInt(_oDBPermission.UserID)<=0)
+    {
+        alert("Invalid User!");
+        return false;
+    }
+    return true;
+}
+
+$("#btnAdd").click(function(){
+    if(!ValidateInput()) return;
+    var oDBPermission=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/UserPermission/SaveDBPermission",
+        traditional: true,
+        data:  JSON.stringify(oDBPermission),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oDBPermission = jQuery.parseJSON(data);
+            if(parseInt(oDBPermission.DBPermissionID)>0)
+            {
+                alert("Data Saved sucessfully");
+                var nIndex=$('#tblDBPermission').datagrid('getRows').length;
+                $('#tblDBPermission').datagrid('appendRow', oDBPermission);
+                $('#tblDBPermission').datagrid('selectRow', nIndex);
+                $('#cboDashBoardType').val(0);
+                $("#txtRemarks").val('');
+            }
+            else {
+                alert(oDBPermission.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oDBPermission = $('#tblDBPermission').datagrid('getSelected');
+    if(oDBPermission == null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf == false) 
+        return;
+    var SelectedRowIndex = $('#tblDBPermission').datagrid('getRowIndex',oDBPermission);
+    if (parseInt(oDBPermission.DBPermissionID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+ "/UserPermission/DeleteDBPermission",
+            traditional: true,
+            data:  JSON.stringify(oDBPermission),
+            contentType: "application/json; charset=utf-8",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblDBPermission').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+$("#btnRefresh").click(function(){
+    debugger;
+    var data = $('#tblDBPermission').datagrid('getRows');
+    data = {"total" : ""+data.length+"", "rows" : data};
+    $('#tblDBPermission').datagrid('loadData', data);
+});
+
+$("#btnClose").click(function(){
+    window.location.href = sessionStorage.getItem("BackLink");
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+
+</script>

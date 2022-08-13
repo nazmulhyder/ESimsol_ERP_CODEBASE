@@ -1,0 +1,282 @@
+﻿<html>
+<head></head>
+<body>
+    @model ESimSol.BusinessObjects.ChartsOfAccount
+    @{
+        ViewBag.Title = "Charts of Account";
+    }
+    <div id="divChartofAccount" class="easyui-panel" title="Add Employee" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblChartsOfAccount" title="" class="easyui-datagrid" style="width:893px;height:300px"
+                   data-options=" singleSelect: true, fit:true,  fitColumns:true,  rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="AccountCode" width="15%" align="left">Account Code</th>
+                        <th field="AccountHeadName" width="30%" align="left">Account Head Name</th>
+                        <th field="CSymbol" width="7%" align="left">Currency</th>
+                        <th field="AccountTypeInString" width="10%" align="left">Account Type</th>
+                        <th field="AccountOperationTypeSt" width="10%" align="left">Behavior</th>
+                        <th field="Description" width="25%" align="left">Description</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Code : <input type="text" style="width:70px" disabled="disabled" id="txtChartsOfAccountCode" />
+                Name : <input type="text" style="width:280px" id="txtChartsOfAccountName" /> 
+                <select id="cboCurrency" style="width:100px"></select>
+                Remarks : <input type="text" id="txtDescription" style="width:115px" />
+                <label id="lblBehavior">Behavior : </label> <select id="cboAccountOperationType" style="width:100px;"></select>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnCAOConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" onclick="CAOConfigure()" plain="true">Configure</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+
+                        <td style="width:10%"></td>
+                        <td style="width:10%; text-align:right">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>       
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oChartsOfAccount=null;
+    var _sBaseAddress='';
+    var _nMuneID=0;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMuneID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oChartsOfAccount =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oAOTs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AOTs));
+        var oCurrencys = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencys));
+        $("#cboCurrency").icsLoadCombo({List: oCurrencys,OptionValue: "CurrencyID",DisplayText: "Symbol", InitialValue:"--Currency--"});
+        $('#cboAccountOperationType').data('AOTs',oAOTs);
+        $('#cboAccountOperationType').icsLoadCombo({
+            List: oAOTs,
+            OptionValue: "id",
+            DisplayText: "Value",
+            InitialValue:"custom"
+        });
+        if(_oChartsOfAccount.AccountType<4){
+            $('#cboAccountOperationType').hide();
+            $('#lblBehavior').hide();
+        }
+        else if (_oChartsOfAccount.AccountType==5 && _oChartsOfAccount.AccountOperationType===0){
+            $('#cboAccountOperationType').hide();
+            $('#lblBehavior').hide();
+        }
+
+        RefreshList(_oChartsOfAccount.ChildNodes);
+        $('#txtChartsOfAccountCode').val(_oChartsOfAccount.AccountCode);
+        $('#cboAccountOperationType').val(_oChartsOfAccount.AccountOperationType);
+        $('#divChartofAccount').panel({ title: _oChartsOfAccount.DisplayMessage});
+    });
+
+
+    function ValidateInput()
+    {
+        if($('#txtChartsOfAccountCode').val()==null || $('#txtChartsOfAccountCode').val()=="")
+        {
+            alert("Please enter charts of account code!");
+            $('#txtChartsOfAccountCode').focus();
+            return false;
+        }
+
+        if($('#txtChartsOfAccountName').val()==null || $('#txtChartsOfAccountName').val()=="")
+        {
+            alert("Please enter charts of account name!");
+            $('#txtChartsOfAccountName').focus();
+            return false;
+        }
+        if(parseInt($('#cboCurrency').val())<=0){
+            $('#cboCurrency').focus();         
+            alert('Please Select Currency');
+            $('#cboCurrency').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshChartsOfAccount()
+    {
+        var oChartsOfAccount={
+            AccountHeadID : _oChartsOfAccount.AccountHeadID,
+            DAHCID : _oChartsOfAccount.DAHCID,
+            AccountCode :  $('#txtChartsOfAccountCode').val(),
+            AccountHeadName : $('#txtChartsOfAccountName').val(),
+            CurrencyID : parseInt($('#cboCurrency').val()),
+            AccountTypeInInt : parseInt(_oChartsOfAccount.AccountTypeInInt),
+            ReferenceObjectID : 0,
+            Description : $('#txtDescription').val(),
+            IsJVNode : true,
+            IsDynamic : false,
+            ParentHeadID : _oChartsOfAccount.ParentHeadID,
+            AccountOperationType:parseInt($('#cboAccountOperationType').val())
+        };
+        return oChartsOfAccount;
+    }
+
+    $("#btnAdd").click(function(){
+        if(!ValidateInput()) return;
+        var oChartsOfAccount=RefreshChartsOfAccount();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ChartsOfAccount/Save",
+            traditional: true,
+            data:  JSON.stringify(oChartsOfAccount),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                oChartsOfAccount = jQuery.parseJSON(data);
+                if (oChartsOfAccount.AccountHeadID>0) {
+                    alert("Data Saved sucessfully");
+
+                    var oChartsOfAccouts= $('#tblChartsOfAccount').datagrid('getRows');
+                    var nIndex=oChartsOfAccouts.length;
+
+                    $('#tblChartsOfAccount').datagrid('appendRow',oChartsOfAccount);
+                    $('#tblChartsOfAccount').datagrid('selectRow', nIndex);
+
+                    $('#txtChartsOfAccountCode').val(oChartsOfAccount.NewAccountCode);
+                    $('#txtChartsOfAccountName').val('');
+                    $('#cboCurrency').val(0);
+                    $('#txtDescription').val('');
+                    $('#cboAccountOperationType').val(_oChartsOfAccount.AccountOperationType);
+                    $('#txtChartsOfAccountName').focus();
+                }
+                else {
+                    alert(oChartsOfAccount.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+    $("#btnRemove").click(function(){
+        var oChartsOfAccount= $('#tblChartsOfAccount').datagrid('getSelected');
+        if(oChartsOfAccount==null || oChartsOfAccount.AccountHeadID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oChartsOfAccount.ParentHeadID==0 || oChartsOfAccount.ParentHeadID==1)
+        {
+            alert("Deletion not possible ! You can delete Segment/Group/Sub Group/Ledger");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblChartsOfAccount').datagrid('getRowIndex',oChartsOfAccount);
+
+        if (oChartsOfAccount.AccountHeadID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ChartsOfAccount/Delete",
+                data:  JSON.stringify({ AccountHeadID: oChartsOfAccount.AccountHeadID }),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tblChartsOfAccount').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+    function RefreshList(oChartsOfAccounts)
+    {
+        data=oChartsOfAccounts;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblChartsOfAccount').datagrid('loadData',data);
+    }
+
+    function RefreshGrid()
+    {
+
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+  "/ChartsOfAccount/getchildren",
+            traditional: true,
+            data: {parentid:_oChartsOfAccount.ParentHeadID },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                var oChartsOfAccounts = jQuery.parseJSON(data);
+                if(oChartsOfAccounts!=null)
+                {
+                    if (oChartsOfAccounts.length>0) {
+                        data=oChartsOfAccounts;
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblChartsOfAccount').datagrid('loadData',data);
+                    }
+                }
+                else {
+                    //alert('Data not found!!');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    function CAOConfigure()
+    {
+        var oChartsOfAccount= $('#tblChartsOfAccount').datagrid('getSelected');
+        if(oChartsOfAccount==null || oChartsOfAccount.AccountHeadID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oChartsOfAccount.ParentHeadID==0 || oChartsOfAccount.ParentHeadID==1)
+        {
+            alert("Deletion not possible ! You can delete group/sub group/ledger");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var oParameter = new Object();
+        oParameter.Name =oChartsOfAccount.AccountHeadNameCode;
+        oParameter.AccountHeadID = oChartsOfAccount.AccountHeadID;
+        var url =_sBaseAddress+  "/ChartsOfAccount/ViewCAO_Configuration?id="+parseInt(oChartsOfAccount.AccountHeadID)+"&ts="+tsv;
+        var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:220px;dialogWidth:400px;dialogLeft:530;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    function Close()
+    {
+        window.location.href = _sBaseAddress+ "/ChartsOfAccount/ViewChartOfAccounts?menuid="+_nMuneID;
+    }
+</script>

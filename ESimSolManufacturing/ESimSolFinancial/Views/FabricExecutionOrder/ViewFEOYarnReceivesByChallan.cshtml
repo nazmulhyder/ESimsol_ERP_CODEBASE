@@ -1,0 +1,319 @@
+﻿@{
+    ViewBag.Title = "Fabric Receive By Challan";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricInHouseChallan>
+
+<div ng-app="FCModule">
+    <div ng-controller="FCController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline"> 
+                    <select ng-model="UnitId" class="form-control" style="width:120px">
+                        <option value="">--Select Unit--</option>
+                        <option value="1">Dyeing</option>
+                        <option value="2">Spinning</option>
+                        <option value="3">Weaving</option>
+                    </select>
+                    <input type="text" ng-model="FEONo" ng-change="filter()" ng-keyup="searchFEOByKeyUp($event)" class="form-control" style="width:120px" placeholder="Search FEO No" />
+                    <input type="text" ng-model="ChallanNo" ng-change="filter()" ng-keyup="searchChallanByKeyUp($event)" class="form-control" style="width:120px" placeholder="Search Challan No" />
+                   
+                     <div class="input-group">
+                         <input ng-model="ContractorName" ng-keyup="searchContractorByKeyUp($event)" class="form-control" style="width:150px" placeholder="Search Supplier...." ng-disabled="disabled" required />
+                        <span class="input-group-btn">
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-disabled="disabled" ng-click="searchContractor()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                        </span>
+                    </div>
+                    <input type="checkbox" ng-model="chkDate" class="form-control" />
+                    <div class="input-group date date-container">
+                        <input type="text" class="form-control" style="width:110px" ng-model="dtFrom" ng-disabled="!chkDate"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                    </div>
+                    <span>to</span>
+                    <div class="input-group date date-container">
+                        <input type="text" class="form-control" style="width:110px" ng-model="dtTo" ng-disabled="!chkDate"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                    </div>
+
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="search()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="receive()"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span> Receive</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection  class="grid"></div>
+
+        <div class="row">
+            <div class="col-md-2">
+                <div style="background-color:#B5DA69;height:20px;width:20px; float:left"></div>
+                <div style="float:left;">  Fully Received</div>
+            </div>
+            <div class="col-md-2">
+                <div style="background-color:#f1c40f;height:20px;width:20px; float:left"></div>
+                <div style="float:left;"> Partially Received</div>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+
+<style type="text/css">
+    .ui-grid-top-panel .btn-sm{
+        padding:3px 10px;
+    }
+
+    .ui-grid-top-panel .btn-sm, .input-group-addon {
+        padding: 3px 10px;
+    }
+    .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .grid {
+        height: 490px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+
+            .ui-grid-cell.lightGreen {
+        background-color:  #B5DA69!important ;  /*90EE90*/ /*8ab92d*/
+        color: #000 !important;
+        font-size:12px;
+        font-weight:bold;
+    }
+        .ui-grid-cell.blue {
+        background-color:  #f1c40f!important ;  /*90EE90*/ /*8ab92d*/
+        color: #000 !important;
+        font-size:12px;
+        font-weight:bold;
+    }
+       .ui-grid-row-selected
+   .ui-grid-cell {
+     background-color: #3498db !important;
+  }
+         .ui-grid-viewport {
+            overflow-anchor: none;
+        }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFabricInHouseChallans =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+    var  FCModule = angular.module('FCModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+
+    FCModule.controller('FCController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oFabricInHouseChallans= (userSession.getData('FabricInHouseChallans').length>0)? userSession.getData('FabricInHouseChallans'):oFabricInHouseChallans;
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+
+
+
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"} },
+                { field: 'FEONo', name: 'FEO No', width:'8%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'DeliveredUnit', name: 'Unit', width: '10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'ChallanNo', name: 'Challan No', width: '10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'DEONo',  name: 'DEO No', width:'10%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"} },
+                { field: 'ChallanDateStr', name: 'Challan Date', width: '8%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'ContractorName', name: 'Contractor Name', width: '13%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"} },
+                { field: 'GatePassNo', name: 'Gate Pass No', width: '10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'VehicleNo', name: 'Vehicle No', width: '10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+                { field: 'DeliveredByName', name: 'Delivered By', width: '12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.IsALLRcv==true)?"lightGreen": "blue"}  },
+            ],
+            data:oFabricInHouseChallans,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.grid.modifyRows(oFabricInHouseChallans);
+                $scope.gridApi.grid.registerRowsProcessor( $scope.singleFilter, 200 );
+                userSession.clear();
+            }
+        };
+        $scope.FEONo = $scope.ChallanNo = $scope.ContractorName = $scope.ContractorIDs="";
+        $scope.chkDate=false;
+        $scope.dtFrom=$scope.dtTo=icsdateformat(new Date());
+
+        $scope.filter=function(){
+            debugger;
+            $scope.gridApi.grid.refresh();
+        }
+      
+        $scope.singleFilter=function(renderableRows){
+            var matcherFEONo = new RegExp(angular.uppercase($scope.FEONo));
+            var matcherChallanNo = new RegExp(angular.uppercase($scope.ChallanNo));
+            //var matcherContractorName = new RegExp(angular.uppercase($scope.ContractorName));
+            renderableRows.forEach( function( row ) {
+                debugger;
+                var match = false;
+                //&& angular.uppercase(row.entity['ContractorName']).match(matcherContractorName)
+                if (angular.uppercase(row.entity['FEONo']).match(matcherFEONo) && angular.uppercase(row.entity['ChallanNo']).match(matcherChallanNo)){
+                    match = true;
+                }
+                if ( !match ){
+                    row.visible = false;
+                }
+            });
+            return renderableRows;
+        };
+
+        $scope.searchContractorByKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                $scope.getsContractor();
+            }
+            else if(keyEvent.which==08){
+                $scope.ContractorIDs="";
+            }
+        };
+       
+        $scope.searchContractor=function(){
+            $scope.getsContractor();
+        };
+
+        $scope.getsContractor=function(){
+
+            debugger;
+            var obj={
+                Params:'2~'+ (($scope.ContractorName==undefined)?"":$scope.ContractorName)
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/Contractor/ContractorSearchByNameType',$.param(obj), config).then(
+                                    function (response) 
+                                    { 
+                                        var results=jQuery.parseJSON(response.data);
+                                        var modalObj={
+                                            size:'sm',
+                                            title:'Contractor List',
+                                            url:_sBaseAddress+'/Home/Modal',
+                                            modalController:'ContractorModalCtrl', 
+                                            appController:'GRNCtrl', 
+                                            objs:results, 
+                                            multiSelect:true,
+                                            columns:[{ field: 'Name', name: 'Contractor Name' }]
+                                        }
+                                        var modalInstance=msModal.Instance(modalObj);
+                                        modalInstance.result.then(function (result) {
+                                            $scope.ContractorIDs="";
+                                            $scope.ContractorName="";
+                                            if(result.length>0 && result[0].ContractorID>0){
+                                                angular.forEach(result,function(value,index){$scope.ContractorIDs+=value.ContractorID+',';})
+                                                $scope.ContractorIDs=$scope.ContractorIDs.substring(0,$scope.ContractorIDs.length-1);
+                                                $scope.ContractorName=result.length+"'s Buyer Selected";
+                                            }
+                                        }, function () {
+                                            $log.info('Modal dismissed at: ' + new Date());
+                                        });
+                                    },
+                                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                            );
+        };
+
+        
+        $scope.searchFEOByKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                if($.trim($scope.FEONo)!='')
+                    $scope.search();
+            }
+            else if(keyEvent.which==08){
+                $scope.FEONo="";
+            }
+        };
+
+        $scope.searchChallanByKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                if($.trim($scope.ChallanNo)!='')
+                    $scope.search();
+            }
+            else if(keyEvent.which==08){
+                $scope.ChallanNo="";
+            }
+        };
+
+        $scope.search = function () {
+            debugger;
+
+            if($.trim($scope.FEONo)=='' && $.trim($scope.ChallanNo)=='' && $.trim($scope.ContractorIDs)=='' && !$scope.chkDate){
+                msModal.Message({ headerTitle: '', bodyText: "No Searching Criteria Found.", sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                return false;
+            }
+
+            if($scope.chkDate && (new Date($scope.dtFrom)=='Invalid Date' || new Date($scope.dtTo)=='Invalid Date')){
+                msModal.Message({ headerTitle: '', bodyText: "Invalid Date", sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                return false;
+            }
+
+
+            var obj = {
+                Params : $scope.FEONo+'~'+$scope.ChallanNo+'~'+$scope.ContractorIDs+'~'+ $scope.chkDate+'~'+ $scope.dtFrom+'~'+$scope.dtTo+'~'+(($scope.UnitId==undefined || $scope.UnitId=='') ? 0 : $scope.UnitId)
+            };
+            $http.post(_sBaseAddress + '/FabricExecutionOrder/GetsFabricInHouseChallan', JSON.stringify(obj)).then(
+                  function (response) {
+                      debugger;
+                      var result = jQuery.parseJSON(response.data);
+                      if (result.length > 0 && result[0].ChallanID>0) {
+                          $scope.gridOptions.data=result;
+                          $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                      }
+                      else if(result.length > 0) {
+                          msModal.Message({ headerTitle: '', bodyText: result[0].ErrorMessage, sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                      }
+                      else{
+                          msModal.Message({ headerTitle: '', bodyText: "No data found by this searching criteria.", sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                      }
+                  },
+                  function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+            );
+        };
+
+        $scope.receive = function () {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data.length>1){
+                msModal.Message({headerTitle : '', bodyText:"Multiple item doesn't allow.", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            angular.forEach(data,function(value, index){
+                sessionStorage.clear();
+                sessionStorage.setItem("Operation", "New");
+                sessionStorage.setItem("SelectedRowIndex", index);
+                sessionStorage.setItem("FabricInHouseChallanHeader", "Receive Raw Fabric");
+                sessionStorage.setItem("FabricInHouseChallans", JSON.stringify($scope.gridOptions.data));
+                sessionStorage.setItem("BackLink", window.location.href);
+                window.location.href = _sBaseAddress+ "/FabricExecutionOrder/ViewFEOYarnReceiveByChallan?nChallanID="+value.ChallanID+"&nFEOID="+value.FEOID+"&nDEOID="+value.DEOID+"&nTEXUnit="+value.TxtUnit;
+            });
+            
+
+        };
+
+
+    });
+
+
+</script>
+

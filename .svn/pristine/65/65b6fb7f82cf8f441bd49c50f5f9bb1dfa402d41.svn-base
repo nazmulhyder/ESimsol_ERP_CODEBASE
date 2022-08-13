@@ -1,0 +1,329 @@
+﻿
+@model IEnumerable<ESimSol.BusinessObjects.ITransactionGRN>
+@{
+    ViewBag.Title = "Inventory Transaction(Invoice)";
+}
+<body>
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <table id="tblITransactionGRN" title="Inventory Transaction  List" class="easyui-datagrid" style="width:100%;height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="rowStyler: function(index,row){
+                                        if (row.PreviousStockInQtyST=='Total'){
+                                            return 'color:#016B18; font-weight:bold;';
+                                        }
+                                    }
+                    "> 
+        <thead>
+            <tr>
+                <th field="StartDateSt" width="10%" align="left">Date</th>
+                <th field="GRNTypeSt" width="12%" align="left">Invoice Type</th>
+                <th field="ContractorName" width="15%" align="left">Contractor Name</th>
+                <th field="StoreName" width="15%" align="left">Store Name</th>
+                <th field="LCNo" width="10%" align="left">L/C No</th>
+                @*<th field="LCValue" width="100" align="right" formatter="formatPrice">LCValue($)</th>*@
+                <th field="InvoiceNo" width="10%" align="left">InvoiceNo/PINo</th>
+                <th field="GRNNo" width="10%" align="left">GRN No</th>
+                <th field="ProductCode" width="8%" align="left">Product Code</th>
+                <th field="ProductName" width="15%" align="left">Product Name</th>
+                <th field="UnitName" width="10%" align="left">MUnit</th>
+                @*<th field="InvoiceQtyST" width="100" align="right">Invoice Qty</th>
+                <th field="InvoiceValue" width="100" align="right">InvoiceValue($)</th>
+                <th field="PreviousStockInQtyST" width="100" align="right">Previous Stock IN Qty</th>*@
+                <th field="LotNo" width="10%" align="left">Lot No</th>
+                <th field="Qty" width="10%" formatter="formatPrice" align="right">Stock In Qty</th>
+                @*<th field="BalanceST" width="100" align="right">Balance</th>*@
+                @*<th field="UnitPrice" width="100" align="right" formatter="formatPrice">UnitPrice</th>*@
+                @*<th field="StockInValueST" width="100" align="right">StockInValue($)</th>*@
+
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        Product Type:<select id="cboProductType" style="width:120px;font-size:12px;"></select>        
+        GRN Type:<select id="cboGRNType" style="width:100px;font-size:12px;"></select>
+        Date:<select id="cboDateSearch" style="width:100px" ;font-size:12px;" class="_select_changeA"></select>&nbsp;
+        <input id="txtStartDate" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        &nbsp; To &nbsp;<input id="txtEndDate" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <a id="btnSearchITI" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+        <a id="btnExcelITI" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel</a>
+        <a id="btnPrintGRN" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(invoice)</a>
+        @*<a id="btnPrintDelivaryStocks_PDF" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print(PDF)</a>
+        <a id="btnPrintDelivaryStocks_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print(XL)</a>*@
+    </div>
+</body>
+<style>
+    #progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }
+</style>
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oITransactionGRNs=[];
+    var _nBUID=0;
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oITransactionGRNs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oGRNTypes= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.GRNTypes));
+        var oProductUsages= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ImportProducts));
+
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $("#cboGRNType").icsLoadCombo({
+            List: oGRNTypes,
+            OptionValue: "id",
+            DisplayText: "Value"
+        });
+        $("#cboProductType").icsLoadCombo({
+            List: oProductUsages,
+            OptionValue: "ImportProductID",
+            DisplayText: "Name"
+        });
+        RefreshDateSearch();
+    });
+
+    function RefreshDateSearch()
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+        $('#txtEndDate').datebox({disabled: true});
+    }
+
+    $('._select_changeA').change(function () {
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 15);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+
+
+
+
+    function LoadintoGrid(oITransactionGRNs) {
+        data = oITransactionGRNs;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblITransactionGRN').datagrid('loadData', data);
+        setTimeout(hideShow, 1000);
+    }
+
+    function ValidateInput()
+    {
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+        var selectedCbo =document.getElementById("cboDateSearch");
+        var cboDateSearchVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        if(parseInt(cboDateSearchVal) == 5){
+            if(dEndDate < dStartDate) {
+                alert("End date must be grater then start date!!");
+                $('#txtEndDate').focus();
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    $("#btnSearchITI").click(function () {
+
+        // if(!ValidateInput())return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+
+
+        var Date = document.getElementById("cboDateSearch");
+        var nDateType = Date.options[Date.selectedIndex].value;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        if(parseInt(nDateType) == 1)//Equ
+        {
+            date2=date1;
+        }
+
+        var oITransactionGRN={ BUID:_nBUID, StartDate:date1, EndDate:date2,GRNTypeint: parseInt($("#cboGRNType").val()), ProductUsageInt: parseInt($("#cboProductType").val())};
+        sessionStorage.setItem('ITransactionGRN',oITransactionGRN);
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax
+     ({
+         type: "POST",
+         dataType: "json",
+         url : _sBaseAddress+"/ITransactionGRN/SearchITransactionGRN",
+         traditional: true,
+         data:  JSON.stringify(oITransactionGRN),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             //debugger;
+             var oITIs = data;
+             $('#progressbar').progressbar('setValue', 100);
+             clearInterval(intervalID);
+
+             if (oITIs.length>0)
+             {
+                 LoadintoGrid(oITIs);
+                 //ApendTotal();
+             }
+             else
+             {
+                 oITIs=[];
+                 LoadintoGrid(oITIs);
+                 alert("Data Not found");
+             }
+             setTimeout(hideShow, 1000);
+         },
+         error: function (xhr, status, error)
+         {
+             setTimeout(hideShow, 1000);
+             alert(error);
+         }
+     });
+
+    });
+    function ApendTotal()
+    {
+        var oRows = $('#tblITransactionGRN').datagrid('getRows');
+        if(oRows.length>0)
+        {
+            var nTotalQty = 0;
+            var nTotalValue = 0;
+            for(var i=0;i<oRows.length;i++)
+            {
+                nTotalQty = parseFloat(nTotalQty)+parseFloat(oRows[i].Quantity);
+                nTotalValue = parseFloat(nTotalValue)+parseFloat(oRows[i].Quantity*oRows[i].UnitPrice);
+            }
+            var oRow =
+            {
+                TransactionDateInString:'',
+                InvoiceTypeInString:'',
+                ContractorName:'',
+                StoreName:'',
+                LCNo:'',
+                InvoiceNo:'',
+                ProductCode:'',
+                ProductName:'',
+                InvoiceQtyST:'',
+                PreviousStockInQtyST:'Total',
+                QuantityST:nTotalQty.toFixed(2),
+                StockInValueST:nTotalValue.toFixed(2),
+                BalanceST:''
+
+            }
+            $('#tblITransactionGRN').datagrid('appendRow',oRow);
+        }
+
+    }
+
+    $('#btnPrintDelivaryStocks_PDF').click(function (e)
+    {
+        if(!ValidateInput())return;
+        var Date = document.getElementById("cboDateSearch");
+        var nDateType = Date.options[Date.selectedIndex].value;
+        var txtStartDate= $('#txtStartDate').datebox('getValue');
+        var txtEndDate= $('#txtEndDate').datebox('getValue');
+        if(parseInt(nDateType) == 1)//Equ
+        {
+            txtEndDate=txtStartDate;
+        }
+        var nInvoiceType=$("#cboGRNType").val();
+        var tsv = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress+ "/ITransactionGRN/PrintITransactionGRN?txtStartDate="+txtStartDate+"&txtEndDate="+txtEndDate+"&nBUID="+_nBUID+"&nInvoiceType="+nInvoiceType, "_blank");
+    });
+
+    $('#btnPrintDelivaryStocks_XL').click(function (e)
+    {
+        debugger;
+
+        if(!ValidateInput())return;
+        var Date = document.getElementById("cboDateSearch");
+        var nDateType = Date.options[Date.selectedIndex].value;
+        var txtStartDate= $('#txtStartDate').datebox('getValue');
+        var txtEndDate= $('#txtEndDate').datebox('getValue');
+        if(parseInt(nDateType) == 1)//Equ
+        {
+            txtEndDate=txtStartDate;
+        }
+        var nPTMID=$("#cboGroup").val();
+        var nInvoiceType=$("#cboGRNType").val();
+
+
+        window.open(_sBaseAddress+ "/ITransactionGRN/PrintITransactionGRNXL?txtStartDate="+txtStartDate+"&txtEndDate="+txtEndDate+"&nPTMID="+nPTMID+"&nInvoiceType="+nInvoiceType, "_blank");
+    });
+
+    $('#btnExcelITI').click(function (e)
+    {
+        var Date = document.getElementById("cboDateSearch");
+        var nDateType = Date.options[Date.selectedIndex].value;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+
+        if(parseInt(nDateType) == 1)//Equ
+        {
+            date2=date1;
+        }
+        var GRNType =parseInt($("#cboGRNType").val());
+        var sSTemp = _nBUID +'~'+ date1 +'~' +date2 +'~'+ GRNType ;
+        //var obj = JSON.parse (sessionStorage.getItem('ITransactionGRN'));
+        window.open(_sBaseAddress + '/ITransactionGRN/Print_ReportXL?sSTemp=' + sSTemp, "_blank");
+
+    });
+    $("#btnPrintGRN").click(function () {
+        debugger;
+        var oITGRN = $("#tblITransactionGRN").datagrid("getSelected");
+        if (oITGRN == null || parseInt(oITGRN.RefObjectID) <= 0) { alert("Please select an item from list!"); return; }
+        if (oITGRN == null || parseInt(oITGRN.GRNTypeint) !=2) { alert("Please select an item from list!"); return; }
+
+        window.open(_sBaseAddress + '/ImportInvoice/PrintInvoice_GRN?id='+parseInt(oITGRN.RefObjectID), "_blank");
+    });
+
+</script>
+
+

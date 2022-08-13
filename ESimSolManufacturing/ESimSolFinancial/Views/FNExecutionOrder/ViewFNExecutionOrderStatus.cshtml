@@ -1,0 +1,192 @@
+﻿@{
+    ViewBag.Title = "FN Execution Order Status";
+}
+<script src="~/Views/FNExecutionOrder/AdvanceSearch.js"></script>
+@model IEnumerable<ESimSol.BusinessObjects.FNExecutionOrderStatus>
+    <div class="menuMainCollectionTable" ng-app="FNExecutionOrderStatusApp" style="height:520px">
+        <div ng-controller="FNExecutionOrderStatusController">
+            <div title="FNExecutionOrderStatus List" class="ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" ng-model="txtFabricNo" ng-keyup="SearchByOrderNo($event)" placeholder="Search by M K T Ref" style="width:170px"/>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Adv. Search</button>
+                        @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Process()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Process</button>*@
+                        <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Process()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Process</button>
+                        <button type="button" class="btn btn-info btn-sm" aria-label="Left Align" ng-click="Excel()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Excel</button>
+                        <button type="button" class="btn btn-warning btn-sm" aria-label="Left Align" ng-click="PrintPDF()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Print Process</button>
+                    </div>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular" style="width:99%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 95%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    var _oFabricSalesContracts = [];
+    var _sStringExcel = "";
+
+
+    debugger;
+    var oFNExecutionOrderStatuss =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    @*var oFNExecutionOrderStatusTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.FNExecutionOrderStatusTypes));*@
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+     _oFabricSalesContracts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricSalesContracts));
+  
+    @*var oFabricProcessTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.FabricProcessTypes));*@
+    debugger;
+    var CCapp= angular.module('FNExecutionOrderStatusApp', ['ui.grid','ui.grid.selection','ms.service','FNExecutionOrder.service']);
+    CCapp.controller('FNExecutionOrderStatusController',function ($scope,$http, $log, uiGridConstants,userSession, fneoservice)
+    {
+        debugger;
+        $scope.CompareOperators = oCompareOperators;
+        //$scope.FabricProcessTypes=oFabricProcessTypes;
+       
+        _oFabricSalesContracts= (userSession.getData('FNMachines').length>0)? userSession.getData('FNMachines'):_oFabricSalesContracts;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+             { field: 'FabricNo', name:'MKT Ref', width:'10%' },
+             { field: 'SCNo', name:'PO No', width:'10%' },
+             { field: 'DispoNo', name:'Dispo No', width:'10%' },
+             { field: 'ProcessTypeName', name:'Process Type', width:'10%' },
+             { field: 'Construction', name:'Construction', width:'10%' },
+             { field: 'OrderQtyInStr', name:'Order Qty', width:'10%' , cellClass: 'text-right'},
+             { field: 'DispoQtyInStr', name:'Dispo Qty', width:'10%' , cellClass: 'text-right'},
+             { field: 'DispoPercent', name:'Percent', width:'10%' , cellClass: 'text-right'},
+             { field: 'RawFabricRcvQtyInStr', name:'Raw Fabric Rcv Qty', cellClass: 'text-right', width:'15%' },
+             { field: 'PlannedQtyInStr', name:'Plan Qty', cellClass: 'text-right', width:'8%' },
+             { field: 'BatchQtyInStr', name:'Batch Qty',cellClass: 'text-right', width:'8%' },
+             { field: 'DeliveredQtyInStr', name:'Delivered Qty', width:'10%' , cellClass: 'text-right', enableSorting: false},
+             { field: 'BalanceInStr', name:'Balance', width:'9%' , cellClass: 'text-right', enableSorting: false}
+            ],
+            data: _oFabricSalesContracts,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                if(_oFabricSalesContracts.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(_oFabricSalesContracts);
+                    $scope.gridApi.selection.selectRow(_oFabricSalesContracts[userSession.getRowIndex()]);
+                    $scope.RowSelect(_oFabricSalesContracts[userSession.getRowIndex()]);
+                }
+                //userSession.clear(); 
+            }
+        };
+
+        $scope.Process = function()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNExecutionOrder= data[0];//get selected index
+            if(oFNExecutionOrder==null || parseInt(oFNExecutionOrder.FabricSalesContractID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNExecutionOrder);
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = sessionStorage.getItem('BaseAddress')+"/FNExecutionOrder/ViewFNExecutionOrderProcess?id="+oFNExecutionOrder.FabricSalesContractDetailID
+        };
+        $scope.PrintPDF = function()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNExecutionOrder= data[0];//get selected index
+            if(oFNExecutionOrder==null || parseInt(oFNExecutionOrder.FabricSalesContractID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNExecutionOrder==null || parseInt(oFNExecutionOrder.FabricSalesContractDetailID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNExecutionOrder);
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.open(sessionStorage.getItem('BaseAddress')+"/FNExecutionOrder/PrintProcessPDF?id="+oFNExecutionOrder.FabricSalesContractDetailID+"&FNBatchID=0");
+        };
+
+
+        
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'FNExecutionOrderStatusController',
+                CompareOperators:$scope.CompareOperators,
+                FabricProcessTypes: $scope.FabricProcessTypes
+            }
+            var modalInstance=fneoservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.SearchByOrderNo=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                //var OrderNo = $.trim($scope.txtFabricNo);
+                //if(OrderNo==""||OrderNo==null)
+                //{
+                //    alert("Type MKT Ref and Press Enter");
+                //    return;
+                //}
+                
+                var oFNExecutionOrder = {
+                    Params: $.trim($scope.txtFabricNo)+'~'+ '0~28 Jun 2018~28 Jun 2018~0~~~false~false~~'
+                };
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(sessionStorage.getItem('BaseAddress')+'/FNExecutionOrder/GetsStatusForFNExONo',$.param(oFNExecutionOrder), config).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        var results=jQuery.parseJSON(response.data);
+                                        if(results.length>0)
+                                        {
+                                            $scope.gridOptions.data = results;
+                                            _sStringExcel = $.trim($scope.txtFabricNo)+'~'+ '0~28 Jun 2018~28 Jun 2018~0~ ~ ~false~false ~ ~';
+                                        }else
+                                        {
+                                            alert("Data Not Found.");
+                                        }
+                                    },
+                                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                                );
+            }
+        };
+        $scope.Excel=function (e)
+        {
+            debugger;
+            if(_sStringExcel=="")
+            {
+                _sStringExcel=''+'~'+ '0~28 Jun 2018~28 Jun 2018~0~ ~ ~false~false';
+            }
+            sParams = _sStringExcel;
+            window.open(_sBaseAddress + '/FNExecutionOrder/PrintExcel?sParams=' + sParams, "_blank");
+        }
+
+    });
+
+
+</script>

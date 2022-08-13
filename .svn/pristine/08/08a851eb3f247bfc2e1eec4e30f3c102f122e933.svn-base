@@ -1,0 +1,208 @@
+﻿@{
+    ViewBag.Title = "Cash Flow Breakdowns";
+}
+@model ESimSol.BusinessObjects.CashFlowDmSetup
+<div id="divCashFlowBreakdown" class="menuMainCollectionTable" style="height:100%; width:100%">
+    <div style="width:100%; height:88%">
+        <table id="tblCashFlowBreakdown" title="" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" showfooter="true">
+            @*<thead>
+                <tr>
+                    <th field="SubGroupCode" width="200">Sub Group Code</th>
+                    <th field="SubGroupName" width="200">Sub Group Name</th>
+                    <th field="CurrencySymbol" width="200">Currency</th>
+                    <th field="DebitAmount" align="right" formatter="formatPrice" width="80">Debit</th>
+                    <th field="CreditAmount" align="right" formatter="formatPrice" width="200">Credit</th>
+                </tr>
+            </thead>*@
+        </table>
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td id="btnBack" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="true" style="width:10%; text-align:left">Back</td>
+                    <td style="width:80%; text-align:right"></td>
+                    <td style="width: 10%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+<script type="text/javascript">    
+    $(document).ready(function () {        
+        var oCashFlowDmSetup =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));         
+        $('#tblCashFlowBreakdown').datagrid({ title: oCashFlowDmSetup.ErrorMessage});
+
+        $('#divCashFlowBreakdown').data('CashFlowDmSetup', oCashFlowDmSetup);
+        $('#divCashFlowBreakdown').data('BaseAddress', sBaseAddress);
+       
+        MakeGrid(oCashFlowDmSetup);
+        RefreshList(oCashFlowDmSetup.CashFlows);
+        $.icsMakeFooterColumn('tblCashFlowBreakdown',['CurrencySymbol','DebitAmount','CreditAmount']);
+    });
+
+    function MakeGrid(oCashFlowDmSetup)
+    {        
+        var tblColums=[];
+        var oColumn=null;
+        if(parseInt(oCashFlowDmSetup.SubGroupID)<=0)
+        {
+            $('#btnBack').hide();
+            oColumn= { field :"SubGroupCode", title:"Sub Group Code", width:"120"}; tblColums.push(oColumn);
+            oColumn= { 
+                field :"SubGroupName", 
+                title:"Sub Group Name", 
+                width:"200",
+                formatter: function(value, row, index){ return FormatSubGroup(value, row, index); }
+            }; 
+            tblColums.push(oColumn);        
+        }
+        else if(parseInt(oCashFlowDmSetup.SubGroupID)>0)
+        {
+            oColumn= { field :"AccountHeadCode", title:"Account Code", width:"120"}; tblColums.push(oColumn);
+            oColumn= {
+                field :"AccountHeadName", 
+                title:"Account Name", 
+                width:"200",
+                formatter: function(value, row, index){ return FormatAccountHead(value, row, index); }
+            }; 
+            tblColums.push(oColumn);
+        }
+
+        oColumn= { field :"CurrencySymbol", title:"Currency", width:"120"}; tblColums.push(oColumn);        
+        oColumn= { 
+            field :"DebitAmount", 
+            title:"Debit", 
+            width:"200", 
+            align : "right",
+            formatter: function(value, row, index){ return icsFormatPrice(value, row, 2); }
+        };         
+        tblColums.push(oColumn);
+
+        oColumn= { 
+            field :"CreditAmount", 
+            title:"Credit", 
+            width:"200", 
+            align : "right",
+            formatter: function(value, row, index){ return icsFormatPrice(value, row, 2); }
+        };         
+        tblColums.push(oColumn);
+
+        $('#tblCashFlowBreakdown').datagrid({ columns:[tblColums]});
+    }
+
+    function FormatAccountHead(value, oCashFlow, index)
+    {        
+        var sLabel = '';        
+        sLabel = '<label id="lblAccountHead'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="ViewCashFlowBreakDownPrview('+ parseInt(oCashFlow.AccountHeadID) +')">'+value+'</label>';
+        return sLabel;
+    }
+    function FormatSubGroup(value, oCashFlow, index)
+    {        
+        var sLabel = '';        
+        sLabel = '<label id="lblSubGroup'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="ViewCashFlowBreakDown('+ parseInt(oCashFlow.SubGroupID) +')">'+value+'</label>';
+        return sLabel;
+    }
+
+    function ViewCashFlowBreakDown(nSubGroupID)
+    {
+        var oCashFlowDmSetup = $('#divCashFlowBreakdown').data('CashFlowDmSetup');        
+        if(parseInt(oCashFlowDmSetup.BUID)<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if(parseInt(oCashFlowDmSetup.CashFlowHeadID)<=0)
+        {
+            alert("Please Select Cash Flow Head!");
+            return ;
+        }
+
+        if((new Date(oCashFlowDmSetup.StartDateSt)) > (new Date(oCashFlowDmSetup.EndDateSt)))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+
+        var oCashFlowDmSetup = {
+            BUID : parseInt(oCashFlowDmSetup.BUID),
+            StartDate : oCashFlowDmSetup.StartDateSt,
+            EndDate : oCashFlowDmSetup.EndDateSt,
+            CashFlowHeadID : parseInt(oCashFlowDmSetup.CashFlowHeadID),
+            SubGroupID : parseInt(nSubGroupID)
+        };
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/CashFlowDmSetup/SetISSessionData",
+            traditional: true,
+            data:  JSON.stringify(oCashFlowDmSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv = ((new Date()).getTime()) / 1000;
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/CashFlowDmSetup/ViewCashFlowBreakdowns?tv="+tsv;
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function ViewCashFlowBreakDownPrview(nAccountHeadID)
+    {
+        var oCashFlowDmSetup = $('#divCashFlowBreakdown').data('CashFlowDmSetup');        
+        if(parseInt(oCashFlowDmSetup.BUID)<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if(parseInt(oCashFlowDmSetup.CashFlowHeadID)<=0)
+        {
+            alert("Please Select Cash Flow Head!");
+            return ;
+        }
+
+        if((new Date(oCashFlowDmSetup.StartDateSt)) > (new Date(oCashFlowDmSetup.EndDateSt)))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+        var nBUID = parseInt(oCashFlowDmSetup.BUID);
+        var dStartDate = oCashFlowDmSetup.StartDateSt;
+        var dEndDate = oCashFlowDmSetup.EndDateSt;
+        var nCashFlowHeadID = parseInt(oCashFlowDmSetup.CashFlowHeadID);   
+        var sParam= parseInt(nBUID)+"~"+dStartDate+"~"+dEndDate+"~"+parseInt(nCashFlowHeadID)+"~"+parseInt(oCashFlowDmSetup.SubGroupID)+"~"+parseInt(nAccountHeadID);
+        window.open(sessionStorage.getItem("BaseAddress")+'/CashFlowDmSetup/PrintCashFlowBreakdown?Params=' + sParam, "_blank");
+    }
+
+    function RefreshList(oCashFlowBreakdowns)
+    {   
+        data = oCashFlowBreakdowns;
+        data = {"total":""+data.length+"","rows":data};
+        $('#tblCashFlowBreakdown').datagrid('loadData',data);        
+    }
+    
+    
+
+
+    $("#btnClose").click(function(){
+        window.close();
+    });
+    $("#btnBack").click(function(){
+        ViewCashFlowBreakDown(0);
+    });
+
+
+
+</script>

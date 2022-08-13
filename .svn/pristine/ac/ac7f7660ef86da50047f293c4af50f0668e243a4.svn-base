@@ -1,0 +1,158 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.DyeingSolution>
+@{
+    ViewBag.Title = "View DyeingProcess";
+}
+<div class="menuMainCollectionTable">
+    <table id="tblDyeingProcess" title="Dyeing Process" class="easyui-datagrid" style="width:100%; height:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="Name" width="250" align="left">Name</th>
+                <th field="Description" width="300" align="left">Note</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <input id="txtSearch" type="text" style="width:20%" placeholder="Search Process Name" />
+        <input id="txtName" type="text" style="width: 20%" placeholder="Process Name" />
+        <input id="txtNote" type="text" style="width: 30%" placeholder="Note" />
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+        <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Update</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+var _oDyeProcesss = [];
+var _sBaseAddress = "";
+
+$(document).ready(function ()
+{
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oDyeProcesss =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    DynamicRefreshList(_oDyeProcesss, 'tblDyeingProcess');
+});
+
+$('#tblDyeingProcess').datagrid({ onSelect: function (rowIndex, rowData) { RowSelect(rowIndex, rowData); } });
+
+$('#txtSearch').click(function (e)
+{
+    $("#txtSearch")[0].value='';
+});
+
+$('#txtSearch').keypress(function (e) {
+    var c = String.fromCharCode(e.which);
+    var txtSearch = document.getElementById('txtSearch').value;
+    txtSearch = txtSearch + c;
+
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblDyeingProcess').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['Name'].substring(0, txtSearch.length);
+        if(txtSearch.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblDyeingProcess').datagrid('selectRow', i);
+    }
+});
+
+
+function RowSelect(rowIndex, rowData)
+{   
+   $("#txtName").val(rowData.Name);
+   $("#txtNote").val(rowData.Description);
+}
+
+function Validate()
+{
+    if($.trim($('#txtName').val())==""){
+        $('#txtName').focus();
+        $('#txtName').addClass("errorFieldBorder");
+        alert('Process name required.');
+        return false;
+    }
+    else{
+        $('#txtName').removeClass("errorFieldBorder");
+    }
+    return true;    
+}
+
+function SaveDyeProcess(oDyeProcess){
+    var obj = {
+        BaseAddress: _sBaseAddress,
+        Object: oDyeProcess,
+        ObjectId: oDyeProcess.DyeingSolutionID,
+        ControllerName: "DyeingSolutiontemplate",
+        ActionName: "DyeProcess_IU",
+        TableId: "tblDyeingProcess",
+        IsWinClose: false,
+        Message: "Save sucessfully."
+    };
+    $.icsSave(obj, function (response) {
+        if (response.status && response.obj != null) {
+            if (response.obj.DyeingSolutionID > 0) {
+                $("#txtName,#txtNote").val("");
+                $("#txtName").focus();
+            }
+        }
+    });
+}
+
+$('#btnAdd').click(function (e)
+{
+    if (!Validate()) return false;
+
+    var oDyeProcess={
+        DyeingSolutionID:0,
+        Code:"",
+        Name:$.trim($("#txtName").val()),
+        Description: $.trim($("#txtNote").val())
+    };
+
+    SaveDyeProcess(oDyeProcess);
+
+});
+
+$('#btnUpdate').click(function (e)
+{
+    var oDyeProcess=$('#tblDyeingProcess').datagrid('getSelected');
+    if (oDyeProcess==null || oDyeProcess.DyeingSolutionID<=0) { alert('Please select an item from list.'); return false;}
+
+    if (!Validate()) return false;
+    oDyeProcess.Name=$.trim($("#txtName").val());
+    oDyeProcess.Description=$.trim($("#txtNote").val());
+
+    SaveDyeProcess(oDyeProcess);
+
+});
+
+$('#btnDelete').click(function (e)
+{
+    var oDyeProcess=$('#tblDyeingProcess').datagrid('getSelected');
+    if (oDyeProcess==null || oDyeProcess.DyeingSolutionID<=0) { alert('Please select an item from list.'); return false;}
+
+    if (!confirm("Confirm to Delete?")) return ;
+    var obj =
+    {
+        BaseAddress: _sBaseAddress,
+        Object: oDyeProcess,
+        ControllerName: "DyeingSolutiontemplate",
+        ActionName: "DyeProcess_Delete",
+        TableId: "tblDyeingProcess",
+        IsWinClose: false
+    };
+    $.icsDelete(obj, function (response) {
+        if (response.status && response.Message == 'deleted') {
+            $("#txtName,#txtNote").val("");
+            $("#txtName").focus();
+        }
+    });
+});
+
+
+</script>

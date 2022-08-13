@@ -1,0 +1,221 @@
+﻿@model ESimSol.BusinessObjects.MgtDBObj
+<div class="easyui-panel" title="PIvsLC Dashboard" id="PnlMgtDashBoard" style="width:100%;height:100%;float:left" data-options="fit:true,border:false,tools:'#panelMgtDashBoardAccount'">
+
+    <div id="barChartExportReceivableVsImportPayable" style="text-align:center;height:77%; width:100%;margin:0 auto;float:left;"></div><br />
+    <div id="barChartExportReceivableVsImportPayableName" style="width:100%;margin:0 auto; margin-top:5px; text-align:center; font-weight:bold;float:left;padding-top:20px;padding-left:100px">Fig : PI Issued vs LC Received($)</div>
+    <br /><br />
+
+    <fieldset style="height:14%">
+        <legend style="font-weight:bold;"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:12px; font-weight:bold" width="100%">
+            <tr>
+                <td style="width:52%; text-align:left;color:red;"></td>
+                <td style="width:40%"></td>
+                <td style="width:8%">
+                    <a href="javascript:void(0)" id="btnClose" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    <div id="panelMgtDashBoardAccount" style="">
+        <input id="txtReportDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+        <select id="cboBusinessUnit" style="width:100px;height:22px;"></select>
+        <a id="btnSearchDashBoard" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+        &nbsp;&nbsp;
+    </div>
+</div>
+
+<html>
+<body>
+
+</body>
+</html>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+        var oExportRecevableVsImportPayables = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ExportRecevableVsImportPayablesFullView));
+        LoadExportRecevableVsImportPayableChart(oExportRecevableVsImportPayables);
+
+        var oMgtDBObj = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortName", InitialValue:"--Select BU--" });
+        $('#txtReportDate').datebox('setValue', oMgtDBObj.ReportDateSt);
+        $("#cboBusinessUnit").val(parseInt(oMgtDBObj.BUID));
+        $('#PnlMgtDashBoard').data("BaseAddress", sBaseAddress);
+
+    });
+
+    function LoadExportRecevableVsImportPayableChart(oExportRecevableVsImportPayables)
+    {        
+        var oGraphExportRecevableData = [];
+        var oGraphImportPayableData = [];
+        var oGraphTicks=[];
+        var oDataPoint=[]; var x=0; var y=0;
+        var oTickPoint=[]; var xx=0; var yy="";
+
+        oDataPoint.push(0);
+        oDataPoint.push(0)
+        oGraphExportRecevableData.push(oDataPoint);
+
+        oDataPoint=[];
+        oDataPoint.push(0);
+        oDataPoint.push(0)
+        oGraphImportPayableData.push(oDataPoint);
+
+        oTickPoint.push(0);
+        oTickPoint.push('');
+        oGraphTicks.push(oTickPoint);
+
+        
+        for(var i=0; i< oExportRecevableVsImportPayables.length; i++)
+        {
+            oDataPoint=[];
+            x = oExportRecevableVsImportPayables[i].TempID;
+            y = oExportRecevableVsImportPayables[i].ExportRecevableAmount;
+            oDataPoint.push(x);
+            oDataPoint.push(y)
+            oGraphExportRecevableData.push(oDataPoint);
+
+            oDataPoint=[];
+            x = oExportRecevableVsImportPayables[i].TempID;
+            y = oExportRecevableVsImportPayables[i].ImportPayableAmount;
+            oDataPoint.push(x);
+            oDataPoint.push(y)
+            oGraphImportPayableData.push(oDataPoint);
+
+            oTickPoint=[];
+            xx = oExportRecevableVsImportPayables[i].TempID;
+            yy = oExportRecevableVsImportPayables[i].RefCaption;
+            oTickPoint.push(xx);
+            oTickPoint.push(yy);
+            oGraphTicks.push(oTickPoint);
+        }
+
+
+
+        var options = {
+            series: {
+                bars: {
+                    show: true,
+                    barWidth: 0.2,
+                    order: 1,
+                    align: "center"
+                }
+            },
+            points: { show: true },
+            xaxis: {
+                axisLabel: "Month/Week",
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 8,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 5,
+                ticks: oGraphTicks
+
+            },
+
+            yaxis: {
+                axisLabel: "Focast/Commission Value",
+                position: "left",
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 8,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 0,
+                tickFormatter: function (v, axis) {
+                    return formatPrice(v);
+                }
+            },
+
+            legend: {
+                noColumns: 0,
+                labelBoxBorderColor: "#000000",
+                position: "nw"
+            },
+
+            grid: {
+                hoverable: true,
+                borderWidth: 1,
+                backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                }
+            }
+        };
+
+        function gd(year, month, day) {
+            return new Date(year, month, day).getTime();
+        }
+
+        var oGraphDataSet = [
+                             { label: "Export Recevable", data: oGraphExportRecevableData  , color: "#291BF5" },
+                             { label: "Import Payable", data: oGraphImportPayableData, color: "#A4472A" }
+
+        ];
+
+        var oExportRecevableVsImportPayablePlot = $.plot($("#barChartExportReceivableVsImportPayable"), oGraphDataSet, options);
+        $.plot($("#barChartExportReceivableVsImportPayable"), oGraphDataSet, options);
+        $("#barChartExportReceivableVsImportPayable").UseTooltip();
+        $('#barChartExportReceivableVsImportPayableName').html("Fig : Export Recevable vs Import Payable($)");
+        
+    }
+
+    var previousPoint = null, previousLabel = null;
+    $.fn.UseTooltip = function () {
+        $(this).bind("plothover", function (event, pos, item) {
+            if (item) {
+                if ((previousLabel != item.series.label) || (previousPoint != item.dataIndex)) {
+                    previousPoint = item.dataIndex;
+                    previousLabel = item.series.label;
+                    $("#tooltip").remove();
+
+                    var x = item.datapoint[0];
+                    var y = item.datapoint[1];
+                    nValue = false;
+                    var color = item.series.color;
+
+                    showTooltip(item.pageX,
+                        item.pageY,
+                        color,
+                        "<strong>" + item.series.label + "</strong><br>" + item.series.xaxis.ticks[previousPoint].label+ " : <strong>" + formatPrice(y) + "</strong>");
+                }
+            } else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+        });
+    };
+
+    function showTooltip(x, y, color, contents) {
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y - 40,
+            left: x - 120,
+            border: '2px solid ' + color,
+            padding: '3px',
+            'font-size': '9px',
+            'border-radius': '5px',
+            'background-color': '#fff',
+            'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+            opacity: 0.9
+        }).appendTo("body").fadeIn(200);
+    }
+    $('#btnClose').click(function(){
+        window.close();
+    });
+    $("#btnSearchDashBoard").click(function (){
+        if(parseInt($("#cboBusinessUnit").val()) <= 0){
+            alert("Please Enter Business Unit!!");
+            $("#cboBusinessUnit").focus();
+            return false;
+        }
+        var sReportDate = $('#txtReportDate').datebox('getValue');
+        if(sReportDate===null || sReportDate==="")
+        {
+            alert("Please select report date!");
+            $('#txtReportDate').focus();
+            return false;
+        }
+        window.location.href = $('#PnlMgtDashBoard').data("BaseAddress") + "/ManagementDashboard/ViewMgtExportvsImport?nbuid="+parseInt($("#cboBusinessUnit").val())+"&sreportdate="+sReportDate+"&menuid=0";
+    });
+</script>
+
+

@@ -1,0 +1,201 @@
+﻿@{
+    ViewBag.Title = "Product List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Product>
+    <div class="menuMainCollectionTable">
+        <div style="margin-left:0px; height:100%; width:100%">
+            <table id="tblProducts" title="Product List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="ProductCode" width="100" sortable="true" order="asc">Product Code</th>
+                        <th field="ProductName" width="250" sortable="true" order="asc">Product Name</th>
+                        <th field="ProductCategoryName" width="100" sortable="true" order="asc">Product Category</th>
+                        <th field="MUnitName" width="70">Unit</th>
+                        <th field="CurrentStock" width="120" align="right" formatter="formatPrice" sortable="true" order="asc">Current Stock</th>
+                        <th field="Amount" width="90" align="right" formatter="formatPrice" sortable="true" order="asc">Stock Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+                <select id="cboProductCategory" class="easyui-combotree" style="width:160px;"></select>
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:120px" />
+                <input type="text" id="txtSearchByName" placeholder="Search by Product Name" style="width:200px" />
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+            </div>
+        </div>
+        
+    </div>
+    
+
+
+
+    <script type="text/javascript">
+    var _oProducts=[];
+    var _oAuthorizationRolesMapping=[];
+    $(document).ready(function () {
+        _oProducts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        RefreshList(_oProducts);
+        RefreshProductCategory();
+    });
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+    $('#btnPrint').click(function (e) {
+        var oProducts= $('#tblProducts').datagrid('getRows');
+        var ids ="";
+        if(oProducts.length >0)
+        {
+            for(var i =0;i<oProducts.length;i++)
+            {
+                ids =ids+oProducts[i].ProductID+",";
+            }
+            ids= ids.substring(0, ids.length - 1);
+        }
+        else{
+            return;
+        }
+        var tsv = ((new Date()).getTime())/1000;
+        window.open(sessionStorage.getItem("BaseAddress") + '/ProductStock/ProductWiseStock?ids='+ids+"&ts="+tsv, "_blank");
+    });
+
+    $('#tblProducts').datagrid({
+        onSortColumn: function(sort,order){
+            var oProducts = $('#tblProducts').datagrid('getRows');
+            var oTempProducts=[];
+            if(order=="asc")
+            {
+                oTempProducts= oProducts.sort(dynamicSort(sort));
+            }
+            else
+            {
+                oTempProducts= oProducts.sort(dynamicSort("-"+sort));
+            }
+            RefreshList(oTempProducts);
+        }
+    });
+
+
+    function dynamicSort(property) {
+        var sortOrder = 1;
+        if(property[0] === "-") {
+            sortOrder = -1;
+            property = property.substr(1);
+        }
+        return function (a,b) {
+            var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+            return result * sortOrder;
+        }
+    }
+
+    $('#btnSearch').click(function (e) {
+        var nProductCategoryID=0;
+        var nCategoryID = $('#cboProductCategory').combotree('getValue');
+        if(nCategoryID !=null)
+        {
+            nProductCategoryID=nCategoryID;
+        }
+        var oProduct ={  ProductCategoryID: nProductCategoryID };
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress") +  "/ProductStock/GetsCategoryWiseProducts",
+            data:  JSON.stringify(oProduct),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oProducts = jQuery.parseJSON(data);
+                if(_oProducts!=null)
+                {
+                    RefreshList(_oProducts);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $('#txtSearchByCode').keyup(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+
+        var oSearchedProducts = [];  var sTempCode="";
+        var oProductList = $('#tblProducts').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oProductList = _oProducts;
+        }
+        for(i=0;i<oProductList.length;++i){
+            sTempCode=oProductList[i].ProductCode;
+            n=sTempCode.toUpperCase().indexOf(txtSearchByCode.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedProducts.push(oProductList[i]);
+            }
+        }
+        RefreshList(oSearchedProducts);
+    });
+
+    $('#txtSearchByName').keyup(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+
+        var oSearchedProducts = [];  var sTempName="";
+        var oProductList = $('#tblProducts').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oProductList = _oProducts;
+        }
+        for(i=0;i<oProductList.length;++i){
+            sTempName=oProductList[i].ProductName;
+            n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedProducts.push(oProductList[i]);
+            }
+        }
+        RefreshList(oSearchedProducts);
+    });
+
+    function RefreshProductCategory()
+    {
+        var oProductCategory ={  ProductCategoryID: 0 };
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ProductCategory/GetsProductCategoryForCombo",
+            data:  JSON.stringify(oProductCategory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oProductCategorys = jQuery.parseJSON(data);
+                if(oProductCategorys!=null)
+                {
+                    $('#cboProductCategory').combotree('loadData', oProductCategorys);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    function Refresh()
+    {
+        var oProducts = $('#tblProducts').datagrid('getRows');
+        data=oProducts;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProducts').datagrid('loadData',data);
+    }
+
+    function RefreshList(oProducts)
+    {
+        data=oProducts;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProducts').datagrid('loadData',data);
+    }
+    </script>

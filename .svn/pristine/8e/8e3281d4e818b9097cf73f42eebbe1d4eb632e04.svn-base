@@ -1,0 +1,275 @@
+﻿@{
+    ViewBag.Title = "Shelfs List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Shelf>
+<body>
+    <div class="menuMainCollectionTable">
+        <table id="tblShelfs" title="Shelf List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="true" toolbar="#toolbarShelf">
+            <thead>
+                <tr>
+                    @*<th field="ShelfNo" width="30%">Shelf No</th>
+                    <th field="ShelfName" width="40%">Shelf Name</th>
+                    <th field="Remarks" width="20%">Remarks</th>*@
+                    <th field="ShelfNo" width="20%">Shelf No</th>
+                    <th field="ShelfName" width="25%">Shelf Name</th>
+                    <th field="Remarks" width="30%">Remarks</th>
+                    @*<th field="ShelfID" width="65%" formatter="FormatStyle">Production Schedule</th>*@                    
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarShelf">
+            <table>
+                <tr>
+                    <td>                    
+                        <input type="text" id="txtSearchbyShelfNo" placeholder="Search by ShelfNo" />
+                        <input type="text" id="txtSearchByName" placeholder="Search by Name" />
+                        <a id="btnAddShelf" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                        <a id="btnEditShelf" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                        <a id="btnViewShelf" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                        <a id="btnDeleteShelf" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                        <a id="btnRackConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Rack Configure</a>
+                        </td>
+                    <td>
+                        @using (Html.BeginForm("PrintShelfs", "Shelf", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                        {
+                            <input type="text" name="txtShelfCollectionList" id="txtShelfCollectionList" hidden="hidden" />
+                            <input type="submit" id="btnPrintShelf" value="   Print List" class="icon-print PrintList" style="margin-top:2px;" />
+                        }
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oShelf = null;
+    var _oShelfs = [];
+    var _sBaseAddress = "";
+    var _oAuthorizationRolesMapping = [];
+    var _oShelfBranch = null;
+    var _nID=null;
+    var _nBUID = 0;
+    $(document).ready(function() {
+        _oShelfs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oShelfs =sessionStorage.getItem("Shelfs");
+        if(oShelfs!=null)
+        {
+            oShelfs = jQuery.parseJSON(oShelfs);
+        }
+        else
+        {
+            oShelfs=_oShelfs;
+        }
+
+        DynamicRefreshList(oShelfs, 'tblShelfs');
+        if(_nID!=-1)
+        {
+            $('#tblShelfs').datagrid('selectRow', _nID);
+        }
+        RefreshControlLayout();
+    });
+    
+
+    function FormatStyle(value,row,index)
+    {
+        var oOrderInfos = row.OrderInfos;
+        var nSlotCount= oOrderInfos.length;
+        var nSlotWidth = (100/nSlotCount);
+        var sTable = '<table border="0" style="width:100%;height:100%;" cellpadding="0" cellspacing="0"> <tr>';
+        if(nSlotCount>0)
+        {
+            for(var i=0; i<nSlotCount; i++)
+            {
+                if(i%2==0)
+                {
+                    sTable = sTable + '<td style="height:40px;width:'+nSlotWidth+'%;background-color:#BDBDBD">[No:'+oOrderInfos[i].OrderNo+ ', dt:'+ oOrderInfos[i].OrderDateSt+',</br>Qty:'+ oOrderInfos[i].OrderQtySt+' '+oOrderInfos[i].Symbol+' time:8.00-14.00]</td>';
+                }
+                else
+                {
+                    sTable = sTable + '<td style="height:40px;width:'+nSlotWidth+'%;background-color:#E6E6E6">[No:'+oOrderInfos[i].OrderNo+ ', dt:'+ oOrderInfos[i].OrderDateSt+',</br>Qty:'+ oOrderInfos[i].OrderQtySt+' '+oOrderInfos[i].Symbol+' time:14.00-20.00]</td>';
+                }
+            }
+        }
+        else
+        {
+            sTable = sTable + '<td style="width:100%;background-color:white"></td>'
+        }
+        sTable = sTable + '</tr></table>';
+        return sTable;
+    }
+
+
+    $('#txtSearchbyShelfNo').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByNo = document.getElementById('txtSearchbyShelfNo').value;
+        txtSearchByNo = txtSearchByNo + c;
+        var bFlag=false;
+        var sTempName="";
+        var rows = $('#tblShelfs').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sTempName=rows[i]['ShelfNo'].substring(0, txtSearchByNo.length);
+            if(txtSearchByNo.toUpperCase()==sTempName.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblShelfs').datagrid('selectRow', i);
+        }
+    });
+
+    $('#txtSearchByName').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        var bFlag=false;
+        var sTempName="";
+        var rows = $('#tblShelfs').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sTempName=rows[i]['ShelfName'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblShelfs').datagrid('selectRow', i);
+        }
+    });
+
+    $('#btnPrintShelf').click(function(){
+        var oShelfs=$('#tblShelfs').datagrid('getRows');
+        if(oShelfs==null||oShelfs.length<=0){return false;}
+        $("#txtShelfCollectionList").val(JSON.stringify(oShelfs));
+    });
+    $("#btnAddShelf").click(function(){
+        var oShelfs= $('#tblShelfs').datagrid('getRows');
+        sessionStorage.setItem("Shelfs", JSON.stringify(oShelfs));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("ShelfHeader", "Add Shelf");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/Shelf/ViewShelf?id=0";
+    });
+    $("#btnEditShelf").click(function(){
+        var oShelf= $('#tblShelfs').datagrid('getSelected');
+        if(oShelf==null || oShelf.ShelfID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblShelfs').datagrid('getRowIndex',oShelf);
+        var oShelfs= $('#tblShelfs').datagrid('getRows');
+        sessionStorage.setItem("Shelfs", JSON.stringify(oShelfs));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ShelfHeader", "Edit Shelf");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/Shelf/ViewShelf?id="+oShelf.ShelfID;
+    });
+    $("#btnViewShelf").click(function(){
+        var oShelf= $('#tblShelfs').datagrid('getSelected');
+        if(oShelf==null || oShelf.ShelfID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblShelfs').datagrid('getRowIndex',oShelf);
+        var oShelfs= $('#tblShelfs').datagrid('getRows');
+        sessionStorage.setItem("Shelfs", JSON.stringify(oShelfs));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ShelfHeader", "View Shelf");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/Shelf/ViewShelf?id="+oShelf.ShelfID;
+    });
+    $("#btnDeleteShelf").click(function(){
+        debugger;
+        var oShelf= $('#tblShelfs').datagrid('getSelected');
+        if(oShelf==null || oShelf.ShelfID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblShelfs').datagrid('getRowIndex',oShelf);
+        if (oShelf.ShelfID > 0)
+        {
+            $.icsDelete({
+                BaseAddress: _sBaseAddress,
+                Object: oShelf,
+                ControllerName: "Shelf",
+                ActionName: "Delete",
+                TableId: "tblShelfs",
+                IsWinClose: false
+            });
+        }
+    });
+
+    $("#btnRackConfigure").click(function(){
+        var oShelf= $('#tblShelfs').datagrid('getSelected');
+        if(oShelf==null || oShelf.ShelfID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblShelfs').datagrid('getRowIndex',oShelf);
+        var oShelfs= $('#tblShelfs').datagrid('getRows');
+        var sURL=window.location.href;
+        sessionStorage.setItem("ShelfBackTo", sURL);
+        sessionStorage.setItem("Shelfs", JSON.stringify(oShelfs));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RackHeader", "Add Rack");
+        window.location.href = _sBaseAddress+  "/Shelf/ViewRack?id="+oShelf.ShelfID+"&ts="+tsv;
+    });
+
+
+    function RefreshControlLayout() {
+        //Shelf
+        $("#btnAddShelf").hide();
+        $("#btnEditShelf").hide();
+        $("#btnViewShelf").hide();
+        $("#btnDeleteShelf").hide();
+        $("#btnPrintListShelf").hide();
+
+        if (HavePermission('Add', 'Shelf')) { $("#btnAddShelf").show(); }
+        if (HavePermission('Edit', 'Shelf')) { $("#btnEditShelf").show(); }
+        if (HavePermission('View', 'Shelf')) { $("#btnViewShelf").show(); }
+        if (HavePermission('Delete', 'Shelf')) { $("#btnDeleteShelf").show(); }
+        if (HavePermission('PrintList', 'Shelf')) {  $("#btnPrintListShelf").show(); }
+
+    }
+
+    function HavePermission(sOperationType,sModuleName) {
+        var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nUserId === -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeST === sOperationType && _oAuthorizationRolesMapping[i].ModuleNameST === sModuleName)
+                    return  true;
+            }
+            return false;
+        }
+    }
+
+
+</script>

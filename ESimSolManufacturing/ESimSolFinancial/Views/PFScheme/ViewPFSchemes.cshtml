@@ -1,0 +1,230 @@
+﻿<html>
+<head>
+    <title></title>
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.PFScheme>
+        <div class="menuMainCollectionTable">
+            <table id="tblPFScheme" title="PF Scheme List" class="easyui-datagrid" style="width:100%;height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="Name" width="180" align="left">PF Name</th>                        
+                        <th field="ApproveByDateInStr" width="100" align="left">Approve Date</th>
+                        <th field="ApproveByName" width="200" align="left">Approve By</th>
+                        <th field="ActivityStatus" width="150" align="left">Activity</th>
+                    </tr>
+                </thead>
+            </table>
+
+            <div id="toolbar">
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Approve</a>
+                <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"><label id="lblActivityStatus">Active</label></a>
+            </div>
+        </div>
+</body>
+</html>
+<style type="text/css">
+
+</style>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oPFSchemes=[];
+    var _oSalaryHeads=[];
+    var _oCalculationOns=[];
+    var _oRecruitmentEvents=[];
+    var _oPFS=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oPFSchemes =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        if(sessionStorage.getItem("PFSchemes")!=null && sessionStorage.getItem("PFSchemes").lengh>0){
+            _oPFSchemes=sessionStorage.getItem("PFSchemes");
+        }
+        DynamicRefreshList(_oPFSchemes,'tblPFScheme');
+
+       $('#tblPFScheme').datagrid({onSelect: function(rowIndex, rowData){ RowSelect(rowIndex, rowData);}});
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+
+    function RowSelect(rowIndex, rowData)
+    {
+        $('#btnEdit,#btnDelete,#btnApprove,#btnActivity').show();
+        $('#lblActivityStatus').text('Active');
+        if(rowData.ApproveBy<=0)
+        {
+            $('#btnEdit,#btnDelete,#btnApprove').show();
+            $('#btnActivity').hide();
+            $('#lblActivityStatus').text('Active');
+        }
+        else if(rowData.ApproveBy>0 && rowData.IsActive==false){
+            $('#btnEdit,#btnDelete,#btnApprove').hide();
+            $('#lblActivityStatus').text('Active');
+        }
+        else if(rowData.ApproveBy>0 && rowData.IsActive==true){
+            $('#btnEdit,#btnDelete,#btnApprove').hide();
+            $('#btnActivity').show();
+            $('#lblActivityStatus').text('Inactive');
+        }
+    }
+
+    $('#btnAdd').click(function(e){
+        var oPFSchemes= $('#tblPFScheme').datagrid('getRows');
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "New");
+        sessionStorage.setItem("PFSchemes", JSON.stringify(oPFSchemes));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("PFSchemeHeader", "Add PF Scheme");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/PFScheme/ViewPFScheme?nId=0";
+    });
+
+    $('#btnEdit').click(function(e){
+        var oPFScheme = $('#tblPFScheme').datagrid('getSelected');
+        if (oPFScheme == null || oPFScheme.PFSchemeID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        var nIndex=$('#tblPFScheme').datagrid('getRowIndex',oPFScheme);
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "Edit");
+        sessionStorage.setItem("SelectedRowIndex", nIndex);
+        sessionStorage.setItem("PFSchemeHeader", "Edit PF Scheme");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/PFScheme/ViewPFScheme?nId="+oPFScheme.PFSchemeID+"";
+        
+    });
+
+
+    $('#btnView').click(function(e){
+
+        var oPFScheme = $('#tblPFScheme').datagrid('getSelected');
+        if (oPFScheme == null || oPFScheme.ACSID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+
+        var nIndex=$('#tblPFScheme').datagrid('getRowIndex',oPFScheme);
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "View");
+        sessionStorage.setItem("SelectedRowIndex", nIndex);
+        sessionStorage.setItem("PFSchemeHeader", "View PF Scheme");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/PFScheme/ViewPFScheme?nId="+oPFScheme.PFSchemeID+"";
+    });
+
+    $('#btnDelete').click(function(e){
+
+        var oPFScheme = $('#tblPFScheme').datagrid('getSelected');
+
+        if (oPFScheme == null || oPFScheme.PFSchemeID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        else if (oPFScheme.ApproveBy>0) {
+            alert("Approve item can't be delete.");
+            return false;
+        }
+        else if (oPFScheme.IsActive==true) {
+            alert("Active PF Scheme can't be deleted. Please inactive first.");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: {PFSchemeID:oPFScheme.PFSchemeID},
+            ControllerName: "PFScheme",
+            ActionName: "DeletePF",
+            TableId: "tblPFScheme",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnApprove").click(function (e) {
+
+        debugger;
+        var oPFScheme = $('#tblPFScheme').datagrid('getSelected');
+
+        if (oPFScheme == null || oPFScheme.PFSchemeID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        else if (oPFScheme.IsActive) {
+            alert("Already active.");
+            return false;
+        }
+        else if (oPFScheme.ApproveBy>0) {
+            alert("Already Approved.");
+            return false;
+        }
+
+        if (!confirm("Confirm to approve.")) return;
+        var nIndex=$('#tblPFScheme').datagrid('getRowIndex',oPFScheme);
+
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oPFScheme,
+                ObjectId: oPFScheme.PFSchemeID,
+                ControllerName: "PFScheme",
+                ActionName: "ApprovePF",
+                TableId: "tblPFScheme",
+                IsWinClose: false,
+                Message: "Approve Successfully."
+            };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                RowSelect(nIndex,response.obj);
+            }
+        });
+
+    });
+
+    $("#btnActivity").click(function (e) {
+
+        debugger;
+        var oPFScheme = $('#tblPFScheme').datagrid('getSelected');
+
+        if (oPFScheme == null || oPFScheme.PFSchemeID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        else if (oPFScheme.ApproveBy<=0) {
+            alert("Unable to active. Please approve first.");
+            return false;
+        }
+
+        if (!confirm((oPFScheme.IsActive) ?"Confirm to inactive?":"Confirm to active?")) return;
+        var nIndex=$('#tblPFScheme').datagrid('getRowIndex',oPFScheme);
+
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oPFScheme,
+                ObjectId: oPFScheme.PFSchemeID,
+                ControllerName: "PFScheme",
+                ActionName: "ActivityChangePF",
+                TableId: "tblPFScheme",
+                IsWinClose: false,
+                Message: (oPFScheme.IsActive)?"Inactive Successfully." : "Active Successfully."
+            };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                RowSelect(nIndex,response.obj);
+            }
+        });
+
+    });
+
+
+
+
+</script>

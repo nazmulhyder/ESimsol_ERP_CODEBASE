@@ -1,0 +1,152 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ReceivedChequeHistory>
+    @{
+        ViewBag.Title = "ReceivedCheque History";
+    }
+    <html>
+    <body>
+
+        <div id="divReceivedChequeHistorys" class="easyui-panel" title="ReceivedCheque History List" style="font-family:Tahoma; height:100%; width:100%">
+            <table id="tblReceivedChequeHistorys" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="PreviousStatusInString" width="120">Previous Status</th>
+                        <th field="CurrentStatusInString" width="120">Current Status</th>
+                        <th field="OperationByName" width="200">Operation By</th>
+                        <th field="Note" width="120">Remarks</th>
+                        <th field="ChangeLog" width="350">Change Log</th>
+                        <th field="OperationDateTimeInString" width="160">Operation Time</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" placeholder="Write ReceivedCheque ID to Search" id="txtName" style="width:200px" />
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+                <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintReceivedChequeHistory()">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintReceivedChequeHistoryInXL()">Print in XL</a>
+            </div>
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping = [];
+    var _oReceivedChequeHistorys=[];
+    var _oReceivedChequeHistory={ErrorMessage:''};
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oReceivedChequeHistorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        RefreshList(_oReceivedChequeHistorys);
+        RefreshControlLayout();
+    });
+    $('#btnPayment').click(function ()
+    {
+        //RefreshArguments();
+        window.open(_sBaseAddress+'/ReceivedChequeHistory/PrintPayment?id=0', "_blank");
+    });
+    function PrintReceivedChequeHistory()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/ReceivedChequeHistory/PrintReceivedChequeHistorys?arguments='+_oReceivedChequeHistory.ErrorMessage, "_blank");
+    }
+    function PrintReceivedChequeHistoryInXL()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/ReceivedChequeHistory/PrintReceivedChequeHistorysInXL?arguments='+_oReceivedChequeHistory.ErrorMessage, "_blank");
+    }
+    $('#txtName').keypress(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            debugger;
+            var txtName=$("#txtName").val();
+            if(txtName!=null)
+            {
+                RefreshData();
+            }
+        }
+    });
+    function RefreshArguments()
+    {
+        var arg='Arguments;';
+        var txtName=$("#txtName").val();
+        if(txtName!=null)
+        {
+            arg=arg+txtName+'~';
+        }
+        var oCurrentList = $('#tblReceivedChequeHistorys').datagrid('getRows'),sReceivedChequeHistoryIDs="";
+        if(oCurrentList!=null&&oCurrentList.length>0){
+            for(var i=0;i<oCurrentList.length;++i){
+                sReceivedChequeHistoryIDs=sReceivedChequeHistoryIDs+oCurrentList[i].ReceivedChequeHistoryID+",";
+            }
+            arg=arg+sReceivedChequeHistoryIDs.substr(0,sReceivedChequeHistoryIDs.length-1)+'~';
+        }
+        _oReceivedChequeHistory.ErrorMessage=arg;
+    }
+    function RefreshData()
+    {
+        RefreshArguments();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ReceivedChequeHistory/Refresh",
+            traditional: true,
+            data:  JSON.stringify(_oReceivedChequeHistory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oReceivedChequeHistorys = jQuery.parseJSON(data);
+                if(_oReceivedChequeHistorys!=null && _oReceivedChequeHistorys.length>0){
+                    $('#divReceivedChequeHistorys').panel({ title:_oReceivedChequeHistorys[0].ErrorMessage});
+                    RefreshList(_oReceivedChequeHistorys);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function RefreshList(oReceivedChequeHistorys)
+    {
+        data = oReceivedChequeHistorys;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblReceivedChequeHistorys').datagrid('loadData',data);
+    }
+
+
+
+
+    function RefreshControlLayout()
+    {
+
+        document.getElementById('btnPrintList').style.display = 'none';
+        document.getElementById('btnPrintXL').style.display = 'none';
+
+
+        if(HavePermission('PrintList','ReceivedChequeHistory')){document.getElementById('btnPrintList').style.display = '';}
+        if(HavePermission('PrintList','ReceivedChequeHistory')){document.getElementById('btnPrintXL').style.display = '';}
+
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        var nSessionID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check Superuser
+        {
+            return true;
+        }else
+        {
+
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+</script>
+
+
+

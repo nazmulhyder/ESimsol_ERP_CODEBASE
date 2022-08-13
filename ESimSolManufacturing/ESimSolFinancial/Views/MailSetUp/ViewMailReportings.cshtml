@@ -1,0 +1,237 @@
+﻿<html>
+<head>
+    <title></title>
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.MailReporting>
+        <div class="menuMainCollectionTable">
+            <table id="tblMailReporting" title="Mail Report" class="easyui-datagrid" style="width:100%;height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="Name" width="140" align="left">Report Name</th>
+                        <th field="ControllerName" width="200" align="left">Controller Name</th>
+                        <th field="FunctionName" width="300" align="left">Function Name</th>
+                        <th field="ActivityStatus" width="100" align="left">Activity</th>
+                    </tr>
+                </thead>
+            </table>
+
+            <div id="toolbar">
+
+                <input id="txtReportName" class="cls-mr" type="text" style="width:120px;" placeholder="Report Name" />
+
+                <input id="txtControllerName" class="cls-mr" type="text" style="width:150px;" placeholder="Controller Name" />
+
+                <input id="txtFunctionName" class="cls-mr" type="text" style="width:180px;" placeholder="Function Name" />
+
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"><label id="lblActivityStatus">Active</label></a>
+            </div>
+        </div>
+</body>
+</html>
+<style type="text/css">
+
+</style>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oMailReportings=[];
+    var _oMR=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oMailReportings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        DynamicRefreshList(_oMailReportings,'tblMailReporting');
+        $('#tblMailReporting').datagrid({onSelect: function(rowIndex, rowData){ RowSelect(rowIndex, rowData);}});
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+
+    function RowSelect(rowIndex, rowData)
+    {
+        if( !rowData.IsActive)
+        {
+            $('#btnEdit,#btnDelete').show();
+            $('#lblActivityStatus').text('Active');
+        }
+        else{
+            $('#btnEdit,#btnDelete').hide();
+            $('#lblActivityStatus').text('Inactive');
+        }
+    }
+
+    function ResetControl(){
+        _oMR=null;
+        $('.cls-mr').val('');
+    }
+   
+    function RefreshControl(oMailReporting){
+        _oMR=oMailReporting;
+        $('#txtReportName').val(oMailReporting.Name);
+        $('#txtControllerName').val(oMailReporting.ControllerName);
+        $('#txtFunctionName').val(oMailReporting.FunctionName);
+    }
+
+    function GetMailReporting(oMailReporting){
+
+        var oMS={ ReportID:oMailReporting.ReportID };
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oMS,
+                ControllerName: "MailSetUp",
+                ActionName: "GetMR",
+                IsWinClose: false
+            };
+
+        $.icsDataGet(obj, function (response) {
+
+            if (response.status && response.obj != null) {
+                if (response.obj.ReportID > 0) {
+                    RefreshControl(response.obj);
+                }
+                else { alert((response.obj.ErrorMessage!=null || response.obj.ErrorMessage!='')? response.obj.ErrorMessage : "No mail reporting found."); }
+            }
+        });
+    }
+
+    function RefreshObject(){
+        var oMR = {
+            ReportID:(_oMR!=null)? _oMR.ReportID: 0,
+            Name : $('#txtReportName').val(),
+            ControllerName : $('#txtControllerName').val(),
+            FunctionName : $('#txtFunctionName').val(),
+            IsActive : (_oMR!=null)? _oMR.IsActive: true,
+        };
+        return oMR;
+    }
+
+    function Validation(){
+
+        if ($.trim($("#txtReportName").val()).length<=0) {
+            alert("Please enter report name.");
+            $("#txtReportName").addClass("errorFieldBorder");
+            $("#txtReportName").focus();
+            return false;
+        } else {
+            $("#txtReportName").removeClass("errorFieldBorder");
+        }
+
+        if ($.trim($("#txtControllerName").val()).length<=0) {
+            alert("Please enter report name.");
+            $("#txtControllerName").addClass("errorFieldBorder");
+            $("#txtControllerName").focus();
+            return false;
+        } else {
+            $("#txtControllerName").removeClass("errorFieldBorder");
+        }
+
+        if ($.trim($("#txtFunctionName").val()).length<=0) {
+            alert("Please enter report name.");
+            $("#txtFunctionName").addClass("errorFieldBorder");
+            $("#txtFunctionName").focus();
+            return false;
+        } else {
+            $("#txtFunctionName").removeClass("errorFieldBorder");
+        }
+
+        return true;
+    }
+
+
+  
+    $('#btnAdd').click(function(e){
+        debugger;
+        if(!Validation()) return false;
+        var oMR=RefreshObject();
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oMR,
+            ObjectId: oMR.ReportID,
+            ControllerName: "MailSetUp",
+            ActionName: "SaveMR",
+            TableId: "tblMailReporting",
+            IsWinClose: true,
+            Message: (oMR.ReportID>0)?"Update Successfully." : "Save Successfully."
+        };
+        $.icsSave(obj, function (response) {
+            debugger;
+            if (response.status && response.obj != null) {
+                if (response.obj!=null && response.obj.ReportID>0) {
+                    ResetControl();
+                }
+            }
+        });
+    });
+
+    $('#btnEdit').click(function(e){
+
+        debugger;
+        var oMailReporting = $('#tblMailReporting').datagrid('getSelected');
+        if (oMailReporting == null || oMailReporting.ReportID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        ResetControl();
+        GetMailReporting(oMailReporting);
+    });
+
+    $('#btnDelete').click(function(e){
+
+        var oMR = $('#tblMailReporting').datagrid('getSelected');
+
+        if (oMR == null || oMR.ReportID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+        ResetControl();
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oMR,
+            ControllerName: "MailSetUp",
+            ActionName: "DeleteMR",
+            TableId: "tblMailReporting",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+
+    $("#btnActivity").click(function (e) {
+
+        debugger;
+        var oMR = $('#tblMailReporting').datagrid('getSelected');
+
+        if (oMR == null || oMR.ReportID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        if (!confirm((oMR.IsActive) ?"Confirm to inactive?":"Confirm to active?")) return;
+        var nIndex=$('#tblMailReporting').datagrid('getRowIndex',oMR);
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oMR,
+                ObjectId: oMR.ReportID,
+                ControllerName: "MailSetUp",
+                ActionName: "ApproveMR",
+                TableId: "tblMailReporting",
+                IsWinClose: false,
+                Message: (oMR.IsActive)?"Inactive Successfully." : "Active Successfully."
+            };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                RowSelect(nIndex,response.obj);
+            }
+        });
+
+    });
+
+
+
+
+</script>

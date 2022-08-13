@@ -1,0 +1,497 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Production Plan";
+    }
+    @model ESimSol.BusinessObjects.ProductionTimeSetup
+    <div id="divProductionPlan" class="easyui-panel menuMainCollectionTable" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <table id="tblProductionPlan" title="" class="easyui-datagrid" style="width:100%;height:100%" autorowheight="true" data-options="singleSelect: true,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'"></table>
+        <div style="text-align:left" id="toolbar">
+            BU : <select id="cboBU" style="width:120px;"></select>&nbsp;&nbsp;
+            P/U : <select id="cboPUnit" style="width:100px;"></select>&nbsp;&nbsp;
+            Date :<input id="txtStartDate" type="text" class="easyui-datebox" style="width: 100px;" data-options="formatter:icsdateformat,parser:icsdateparser" /> To &nbsp;&nbsp;<input id="txtEndDate" type="text" class="easyui-datebox" style="width: 100px;" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input type="text" id="txtRecapNo" style="width:110px;" placeholder="Enter With PO No" />
+            <a id="btnOrderRecap" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+            <input type="text" id="txtBuyerName" style="width:120px;" placeholder="Enter With Buyer Name " />
+            <a id="btnPickBuyer" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">    </a>
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Refresh</a>
+            <a id="btnCut" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cut" plain="true">Re-Schedule</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Excel</a>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var oColors = ["#ffce33","#33ffb5","#BDBDBD","#d733ff"];
+    var _nColorCount = 0;
+    var _sBaseAddress = "";
+    var _oSelectedBreakDown = [];
+    var _bIsCut = false;
+    $(document).ready(function () {
+        debugger;
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oProductionUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionUnits));
+        var sOrderRecapInfo = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderRecapInfo));
+        var oProductionPlanData = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionPlanData));
+        var nOrderRecapID = sOrderRecapInfo.split('~')[0], sStartDate = sOrderRecapInfo.split('~')[1], sEndDate = sOrderRecapInfo.split('~')[2];
+        $("#cboBU").icsLoadCombo({List: oBUs,OptionValue: "BusinessUnitID",DisplayText: "Name",InitialValue:"--Select One--"});
+        $("#cboPUnit").icsLoadCombo({List: oProductionUnits,OptionValue: "ProductionUnitID",DisplayText: "ShortName",InitialValue:"Default"});
+        $('#txtStartDate').datebox('setValue', sStartDate);
+        $('#txtEndDate').datebox('setValue',sEndDate);
+        $('#divProductionPlan').data("OrderRecapIDs",parseInt(nOrderRecapID)!=0?nOrderRecapID:"");
+        $('#divProductionPlan').data("BuyerIDs","");
+        $('#divProductionPlan').data("OrderRecapID",0);
+        $('#divProductionPlan').data("PLineConfigureID",0);
+        if(parseInt(nOrderRecapID)>0)
+        {
+            RefreshPlan();
+        }
+        if(oProductionPlanData!=null && oProductionPlanData.length>0)
+        {
+            InitialData(oProductionPlanData);
+        }
+    });
+
+    function InitialData(results)
+    {       
+        var TempList = [];
+        for(var i=0; i<results.length;i++)
+        {
+            var dynamicObj=new Object();
+            var obj=results[i];
+            for(var j=0; j<obj.length;j++)
+            {
+                if(j==0)
+                {
+                    dynamicObj[obj[j].Key]=obj[j].Value;
+                    continue;
+                }
+                dynamicObj[obj[j].Key]=obj[j].Value;
+                var oInfos = obj[j].Value.split('~');
+                if(parseInt($('#divProductionPlan').data("OrderRecapID"))==0 && oInfos.length>3)// (obj[j].Value!=undefined && obj[j].Value!="" && obj[j].Value!=null))//just initialize first value
+                {
+                    var nOrderRecapID = oInfos[4];//ORder Recap ID
+                    var nPLineConfigureID = oInfos[5];//Line ID
+                    $('#divProductionPlan').data("OrderRecapID",nOrderRecapID);
+                    $('#divProductionPlan').data("PLineConfigureID",nPLineConfigureID);
+                }
+            }
+            TempList.push(dynamicObj);
+        }
+        MakeDynamicTable();
+        RefreshList(TempList);
+    }
+
+    $('#btnOrderRecap').click(function (e) {
+        PickOrderRecap("");
+    });
+    $('#txtRecapNo').keydown(function (e) {
+        //debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var txtOrderNo = document.getElementById('txtRecapNo').value;
+            if(txtOrderNo!="")
+            {
+                PickOrderRecap(txtOrderNo);
+            }
+        }else  if (code == 8) //backspace=8
+        {
+            //debugger;
+            var txtOrderNo=document.getElementById("txtRecapNo");
+            txtOrderNo.style.color="black";
+            txtOrderNo.style.fontWeight="normal";
+            $('#divProductionPlan').data("OrderRecapIDs","");
+        }
+    });
+    function PickOrderRecap(oTxtName)
+    {
+        debugger;
+        var oTempName=""
+        if (typeof oTxtName != 'undefined')
+            oTempName=oTxtName;
+
+        var oOrderRecap = {
+            OrderRecapNo:oTempName
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oOrderRecap,
+            ControllerName: "OrderRecap",
+            ActionName: "GetOrderRecapsByBU",
+            IsWinClose: false
+        };
+
+        var tblColums = [];
+        var oColumn = { field: "OrderRecapNo", title: "OrderRecap No", width: 180, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "StyleNo", title: "Style No", width: 160, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "BuyerName", title: "Buyer Name", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShipmentDateInString", title: "Shipment Date", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "TotalQuantityInString", title: "Total Quantity", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ProductName", title: "Product Name", width: 100, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('OrderRecap',obj,tblColums,true,'StyleNo','OrderRecapID'); //pickerName(unique),obj,table,multiReturn,SearchingField
+    }
+    $('#btnPickBuyer').click(function (e) {
+        BuyerPiker("");
+    });
+    $('#txtBuyerName').keydown(function (e) {
+        //debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var txtBuyerName = document.getElementById('txtBuyerName').value;
+            if(txtBuyerName!="")
+            {
+                BuyerPiker(txtBuyerName);
+            }
+        }else  if (code == 8) //backspace=8
+        {
+            //debugger;
+            var txtBuyerName=document.getElementById("txtBuyerName");
+            txtBuyerName.style.color="black";
+            txtBuyerName.style.fontWeight="normal";
+            $('#divProductionPlan').data("BuyerIDs","");
+        }
+    });
+    function BuyerPiker(oTxtName)
+    {
+        debugger;
+        var oTempName=""
+        if (typeof oTxtName != 'undefined')
+            oTempName=oTxtName;
+        var oContractor = {
+            Params: '2'+'~'+oTempName
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oContractor,
+            ControllerName: "Contractor",
+            ActionName: "ContractorSearchByNameType",
+            IsWinClose: false
+        };
+        var tblColums = [];
+        var oColumn = { field: "Name", title: "Name", width: 180, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Address", title: "Address", width: 160, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Email", title: "Email", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 100, align: "left" }; tblColums.push(oColumn);
+
+        DynamicPiker('BuyerPiker',obj,tblColums,true,'Name','ContractorID'); //pickerName(unique),obj,table,multiReturn,SearchingField
+    }
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID)
+    {
+        debugger;
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName,
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    DynamicIntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    function DynamicIntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            DynamicSetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                DynamicSetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+    function DynamicSetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+        if (oPickerobj.winid == 'winBuyerPiker')
+        {
+            $('#divProductionPlan').data("BuyerIDs",ICS_PropertyConcatation(oreturnobjs,"ContractorID"));
+            $('#txtBuyerName').val(oreturnobjs.length+"(s) Item Selected.");
+        }
+        else if (oPickerobj.winid == 'winOrderRecap')
+        {
+            $('#divProductionPlan').data("OrderRecapIDs",ICS_PropertyConcatation(oreturnobjs,"OrderRecapID"));
+            $('#txtRecapNo').val(oreturnobjs.length+"(s) Item Selected.");
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+    function RefreshList(oProductionTimeSetups)
+    {
+        var data=oProductionTimeSetups;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductionPlan').datagrid('loadData',data);
+    }
+    function RefreshPlan()
+    {
+        $('#divProductionPlan').data("OrderRecapID",0);
+        $('#divProductionPlan').data("PLineConfigureID",0);
+        _nColorCount = 0;//Reset
+        var dStartDate = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate = new Date($('#txtEndDate').datebox('getValue'));
+        var oProductionExecutionPlanDetail = {
+            StartDate:dStartDate,
+            EndDate:dEndDate,
+            BUID : $('#cboBU').val(),
+            ProductionUnitID:$('#cboPUnit').val(),
+            Params:$('#divProductionPlan').data("BuyerIDs")+"~"+$('#divProductionPlan').data("OrderRecapIDs")
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/ProductionTimeSetup/GetPlans",
+            traditional: true,
+            data:  JSON.stringify(oProductionExecutionPlanDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                // debugger;
+                var results = jQuery.parseJSON(data);
+                var TempList = [];
+                for(var i=0; i<results.length;i++)
+                {
+                    var dynamicObj=new Object();
+                    var obj=results[i];
+                    for(var j=0; j<obj.length;j++)
+                    {
+                        if(j==0)
+                        {
+                            dynamicObj[obj[j].Key]=obj[j].Value;
+                            continue;
+                        }
+                        dynamicObj[obj[j].Key]=obj[j].Value;
+                        var oInfos = obj[j].Value.split('~');
+                        if(parseInt($('#divProductionPlan').data("OrderRecapID"))==0 && oInfos.length>3)// (obj[j].Value!=undefined && obj[j].Value!="" && obj[j].Value!=null))//just initialize first value
+                        {
+                            var nOrderRecapID = oInfos[4];//ORder Recap ID
+                            var nPLineConfigureID = oInfos[5];//Line ID
+                            $('#divProductionPlan').data("OrderRecapID",nOrderRecapID);
+                            $('#divProductionPlan').data("PLineConfigureID",nPLineConfigureID);
+                        }
+                    }
+                    TempList.push(dynamicObj);
+                }
+                MakeDynamicTable();
+                RefreshList(TempList);
+                //   $('#btnPaste*').linkbutton({ iconCls: 'icon-paste', plain: true });
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+    $("#btnRefresh").click(function(){
+        // debugger;
+        RefreshPlan();
+    });
+    function MakeDynamicTable()
+    {
+        var dStartDate = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate = new Date($('#txtEndDate').datebox('getValue'));
+        var tblColums=[], tblFrozenColumns = [];
+        var oColumn=null;
+        oColumn  ={field :"LineNo", title:"Line No", width:220 };
+        tblFrozenColumns.push(oColumn);
+        var count =0;
+        while(dStartDate<=dEndDate)
+        {
+            count++;
+            oColumn= {
+                field:"Date"+count,
+                title:icsdateformat(dStartDate),
+                width:220,
+                align: "left",
+                formatter:function(value,row,index){ return FormatStyle(value,index); }
+            };
+            tblColums.push(oColumn);
+            dStartDate.setDate(dStartDate.getDate()+1);
+        }
+        $('#tblProductionPlan').datagrid({frozenColumns:[tblFrozenColumns], columns:[tblColums]});
+    }
+    function FormatStyle(value,index)
+    {
+        debugger;
+        var oOrderInfos = value.split('~');
+        var sTable = '<table border="0" style="width:100%;height:100%;" cellpadding="0" cellspacing="0"> <tr>';
+        if(oOrderInfos.length>2)
+        {
+            //StyleNo~RecapNo~BuyerName~DailyProduction~OrderRecapID~PLineConfigureID~ProductionExecutionPlanID
+            //oOrderInfos = value.split('~');
+            if(parseInt(oOrderInfos[4])==parseInt($('#divProductionPlan').data("OrderRecapID")))//Order Recap ID
+            {
+
+                if(parseInt(oOrderInfos[5])!=parseInt($('#divProductionPlan').data("PLineConfigureID")))//Set PLine Configure ID
+                {
+                    if(_nColorCount==3){_nColorCount=0;}//Again Reset Color code
+                    _nColorCount++;//Change color
+                    $('#divProductionPlan').data("PLineConfigureID",oOrderInfos[5]); //set PLine configure
+                }
+
+            }else{
+
+                $('#divProductionPlan').data("OrderRecapID",oOrderInfos[4])//set Order Recap ID
+                $('#divProductionPlan').data("PLineConfigureID",oOrderInfos[5]); //set PLine configure
+                if(_nColorCount==3){_nColorCount=0;}//Again Reset Color code
+                _nColorCount++;//Change Color
+            }
+            var sColorCode = oColors[_nColorCount];
+            var dCurrentDate = new Date(icsdateformat(new Date()));
+            var sPlanDate  = oOrderInfos[9].replace(/'/,'');
+            sPlanDate  = sPlanDate.replace(/'/,'');
+            var dPlanDate = new Date(sPlanDate);
+            //oOrderInfos[3] : Target Qty
+            //oOrderInfos[7] : Execution Qty
+            if(dPlanDate < dCurrentDate && parseInt(icsRemoveComma(oOrderInfos[7])) <parseInt(icsRemoveComma(oOrderInfos[3])))
+            {
+                sTable = sTable + '<td style="height:80px;width:200px;background-color:'+sColorCode+'">Style No:'+oOrderInfos[0]+ ',</br>PO No :'+ oOrderInfos[1]+'</br>Buyer:'+ oOrderInfos[2]+',</br> <label style="background-color:#ff6347" > Target Qty :'+oOrderInfos[3]+' Execution Qty:'+oOrderInfos[7]+' </label> </td>';
+            }
+            else
+            {
+                sTable = sTable + '<td style="height:80px;width:200px;background-color:'+sColorCode+'">Style No:'+oOrderInfos[0]+ ',</br>PO No :'+ oOrderInfos[1]+'</br>Buyer:'+ oOrderInfos[2]+',</br> Target Qty :'+oOrderInfos[3]+' Execution Qty:'+oOrderInfos[7]+' </td>';
+            }
+            sTable = sTable+'<td style="height:80px;width:20px;text-align:right; background-color:'+sColorCode+' "><table border=0 cellpading=0 cellspacing=0 width="100%" height=100%><tr><td style="text-align:right;vertical-align:top;"><input type=checkbox  id="chkBox'+oOrderInfos[8]+'"  onclick="if(this.checked){CheckBoxSelect('+oOrderInfos[5]+','+oOrderInfos[8]+','+oOrderInfos[4]+' )}else{CheckBoxUnSelect('+oOrderInfos[8]+')}"/></td></tr><tr> <td style="text-align:right;vertical-align:center;"><input type ="button" Value ="SC" style="width:25px;text-align:left"  id="btnPaste"'+oOrderInfos[5]+' onclick="PlanPaste('+ oOrderInfos[9]+','+oOrderInfos[5]+')"></td> </tr><tr><td style="text-align:right;vertical-align:bottom;"><a style="color:blue;" onclick=PickExecutionPlan('+oOrderInfos[6]+')>Edit</a></td></tr>  </table></td>';
+        }
+        else
+        {
+            //alert(oOrderInfos[0]);
+            sTable = sTable + '<td style="width:220px;height:80px;text-align:center;background-color:white"><input type ="button" Value ="Schedule" style="width:55px;text-align:left"  id="btnPaste"'+oOrderInfos[1]+' onclick="PlanPaste('+ oOrderInfos[0]+','+oOrderInfos[1]+')"></td>'
+        }
+        sTable = sTable + '</tr></table>';
+        return sTable;
+    }
+    function PickExecutionPlan(nExecutionPlanID)
+    {
+        debugger;
+        if(parseInt(nExecutionPlanID)<=0)
+        {
+            alert("Sorry, There is No Execution Plan.");
+            return;
+        }
+        window.open(_sBaseAddress+ "/ProductionExecutionPlan/ViewProductionExecutionPlans?id="+nExecutionPlanID+"&buid=0&menuid="+sessionStorage.getItem('MenuID'),'_blank');
+    }
+    function CheckBoxSelect(nPLineID,PEPDBID, nOrderRecapID)
+    {
+        debugger;
+        for(var i = 0;i<_oSelectedBreakDown.length;i++)
+        {
+            if(parseInt(nPLineID)!= parseInt(_oSelectedBreakDown[i].PLineConfigureID))
+            {
+                alert("Plese Select Only Same Line.");
+                $('#chkBox'+PEPDBID).prop('checked', false);
+                return;
+            }
+            if(parseInt(nOrderRecapID)!= parseInt(_oSelectedBreakDown[i].OrderRecapID))
+            {
+                alert("Plese Select Only Same Order Recap.");
+                $('#chkBox'+PEPDBID).prop('checked', false);
+                return;
+            }
+        }
+        _oSelectedBreakDown.push({PEPDBID:PEPDBID,PLineConfigureID:nPLineID, OrderRecapID:nOrderRecapID});
+        return;
+    }
+    function CheckBoxUnSelect(PEPDBID)
+    {
+        //_oSelectedBreakDown.pop({PEPDBID:PEPDBID,PLineConfigureID:nPLineID});
+        _oSelectedBreakDown.splice( _oSelectedBreakDown.indexOf(PEPDBID), 1 );
+        return;
+    }
+    $('#btnCut').click(function(){
+        debugger;
+        if(_oSelectedBreakDown.length<=0)
+        {
+            alert("Oops! Please Select Minimimum Single Item  From Deshboard.");
+            return;
+        }
+        var nFirstLineID = _oSelectedBreakDown.length>0?_oSelectedBreakDown[0].PLineConfigureID:0;
+        if(nFirstLineID!=0)
+        {
+            for(var i = 0;i<_oSelectedBreakDown.length;i++)
+            {
+                if(nFirstLineID!=_oSelectedBreakDown[i].PLineConfigureID)
+                {
+                    alert("Plese Select Only Single Line Plan not Mulitiple Line.");
+                    return;
+                }
+            }
+        }
+        _btnCut = true;
+    });
+    function PlanPaste(PlanDate, LineID)
+    {
+        debugger;
+        if(_oSelectedBreakDown.length<=0 && _btnCut==false)
+        {
+            alert("Oops! Please Select Minimimum Single Item And Press Cut Button From Deshboard.");
+            return;
+        }
+        var oPEPDB = {PLineConfigureID:LineID, PlanDate:PlanDate, BrekDownIDs:ICS_PropertyConcatation(_oSelectedBreakDown,'PEPDBID')};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/ProductionTimeSetup/PastePlans",
+            traditional: true,
+            data:  JSON.stringify(oPEPDB),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                // debugger;
+                var sMessage = jQuery.parseJSON(data);
+                if(sMessage=="sucessfull")
+                {
+                    alert("Succefully Paste.");
+                    _oSelectedBreakDown = [];
+                    RefreshPlan();
+                }else{
+                    alert(sMessage);
+                    return;
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+        _btnCut =false;
+    }
+    $("#btnPrint").click(function(){
+        // debugger;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress + '/ProductionTimeSetup/ExportToExcel?StartDate='+dStartDate+'&EndDate='+dEndDate+'&BUID='+parseInt($('#cboBU').val())+'&ProductionUnitID='+parseInt($('#cboPUnit').val())+'&BuyerIDs='+$('#divProductionPlan').data("BuyerIDs")+'&OrderRecapIDs='+$('#divProductionPlan').data("OrderRecapIDs")+'&ts='+tsv, "_blank");
+    });
+
+</script>

@@ -1,0 +1,283 @@
+﻿<html>
+<head>
+    <title>Daily Attendance</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.AttendanceDaily
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 310px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Employee Wise Attendance Search </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="width: 125px; text-align: right">
+                        Select Employee :
+                    </td>
+                    <td style="width: 180px">
+                        <input type="text" style="width: 135px;" id="txtEmployee" disabled="disabled" />
+                        <input type="button" value="Pick" style="width: 40px;" onclick="EmployeePicker()" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 125px; text-align: right">
+                        Select Range :
+                    </td>
+                    <td style="width: 180px;">
+                        <select style="width: 180px" class="_select_changeA" id="cboDateMonth">
+                            <option>None</option>
+                            <option>Daily</option>
+                            <option>Monthly</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="txtDate">
+                    <td style="width: 125px; text-align: right">
+                        Select Date :
+                    </td>
+                    <td>
+                        <input id="txtSelectDate" type="text" style="width: 180px" class="easyui-datebox"
+                            required="required" data-options="formatter:icsdateformat" />
+                    </td>
+                </tr>
+                <tr id="txtMonth">
+                    <td style="width: 125px; text-align: right">
+                        Select Month :
+                    </td>
+                    <td>
+                        <input type="text" id="month" name="month" class="monthPicker" 
+                            onclick="ClearNamefield()" style="width: 180px" />
+                        @*<input id="txtSelectMonth" type="text" style="width: 108px" class="easyui-datebox"
+                            required="required" data-options="formatter:icsnewdateformat" />*@
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+        <table>
+            <tr>
+                <td style="width: 305px; height: 100px">
+                </td>
+            </tr>
+        </table>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+            <tr>
+                <td style="width: 210px; text-align: right">
+                </td>
+                <td style="width: 50px">
+                    <input type="button" value="Reset" onclick="Reset()"/>
+                </td>
+                <td style="width: 50px">
+                    <input type="button" value="Refresh" onclick="Search()" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+ var _oAttendanceDaily = null;
+ var _sBaseAddress = "";
+ var _Mon="";
+ var _nEmployeeID=null;
+ var _DateType="";
+ var _month="";
+ var _year="";
+$(document).ready(function() { 
+    //debugger; 
+     _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+     var obj = window.dialogArguments;
+     document.getElementById('lblHeaderName').innerHTML = obj.Name;
+    _oAttendanceDaily = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     $('#txtSelectDate').datebox('setValue', icsdateformat(new Date())); 
+     $("#month")[0].value=icsnewdateformat(new Date());
+     HideUnhideDatePiker(); 
+     //monthpicker
+     $(".monthPicker").datepicker({
+        dateFormat: 'MM yy',
+        changeMonth: true,
+        changeYear: true,
+        showButtonPanel: true,
+        onClose: function(dateText, inst) {
+             _month = $("#ui-datepicker-div .ui-datepicker-month :selected").val();
+             _year = $("#ui-datepicker-div .ui-datepicker-year :selected").val();
+             $(this).val($.datepicker.formatDate('MM yy', new Date(_year, _month, 1)));
+        }
+     });
+
+    $(".monthPicker").focus(function () {
+        $(".ui-datepicker-calendar").hide();
+        $("#ui-datepicker-div").position({
+            my: "center top",
+            at: "center bottom",
+            of: $(this)
+        });
+    });
+    //monthpicker end
+});
+
+function HideUnhideDatePiker()
+{
+    var DateType = $("#cboDateMonth").val();
+    if (DateType == "None" ) 
+    {              
+         document.getElementById("txtMonth").style.display = 'none';
+         document.getElementById("txtDate").style.display = 'none';
+    }
+}
+
+function EmployeePicker() 
+{
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=false;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:930px;dialogLeft:150;dialogRight:150;dialogTop:200;center:yes;resizable:yes;status:no;scroll:no');
+    _nEmployeeID=_oEmployee.EmployeeID;
+    $("#txtEmployee")[0].value=_oEmployee.Name;
+}
+
+$('._select_changeA').change(function () {
+    //debugger;
+    _DateType = $("#cboDateMonth").val();
+    if (_DateType == "Daily" )
+    {          
+         document.getElementById("txtMonth").style.display = 'none';
+         document.getElementById("txtDate").style.display = ''; 
+    }
+    if (_DateType == "None" ) 
+    {            
+         document.getElementById("txtMonth").style.display = 'none';
+         document.getElementById("txtDate").style.display = 'none';        
+    }
+    if (_DateType == "Monthly") 
+    {
+         document.getElementById("txtDate").style.display = 'none';
+         document.getElementById("txtMonth").style.display = ''; 
+    }
+});
+
+function  icsdateformat(date)
+{
+     var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+     var y = date.getFullYear();
+     var m = date.getMonth();
+     var d = date.getDate();
+     var result= d +' '+ mthNames[m]+' '+ y;
+     return result;
+}
+
+function  icsnewdateformat(date)
+{
+     var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+     var y = date.getFullYear();
+     var m = date.getMonth();
+     var result=  mthNames[m]+' '+ y;
+     return result;
+}
+
+function Search()
+{
+
+    var EmployeeID=_nEmployeeID;
+    if(EmployeeID==null)
+    {
+    alert("Please Enter Employee Name !")
+    return;
+    }
+    var Date=$('#txtSelectDate').datebox('getValue');
+    var StartDatem=$("#month")[0].value;
+    _Mon=StartDatem.substring(0,3);
+    StartDatem=_Mon+" "+_year;
+    var StartDate="";
+    var EndDate="";
+    if(_Mon=="Jan" || _Mon=="Mar" || _Mon=="Apr" || _Mon=="May" || _Mon=="Jul" || _Mon=="Aug" || _Mon=="Oct" || _Mon=="Dec")
+    {
+        StartDate="1 "+StartDatem;
+        EndDate="31 "+StartDatem;
+    }
+    else if( _Mon=="Sep" || _Mon=="Apr" || _Mon=="Jun" || _Mon=="Nov")
+    {
+        StartDate="1 "+StartDatem;
+        EndDate="30 "+StartDatem;
+
+    }
+    else if( _Mon=="Feb" )
+    {
+        if(_year%4==0)
+        {
+             StartDate="1 "+StartDatem;
+             EndDate="29 "+StartDatem;
+        }
+        else
+        {
+         StartDate="1 "+StartDatem;
+         EndDate="28 "+StartDatem;
+        
+        }
+     }
+
+    var sTempString = EmployeeID+'~'+Date+'~'+StartDate+'~'+EndDate+'~'+_DateType;
+    $.ajax({
+
+            type: "GET",
+            dataType: "json",
+            url: '@Url.Action("rptGets", "AttendanceDaily")',
+            data: { sTemp: sTempString },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+            //debugger;
+               var  oAttendanceDaily = jQuery.parseJSON(data);
+                if (oAttendanceDaily != null) {                   
+                  if(oAttendanceDaily.length>0)
+                   {
+                        var oReturnObject = new Object();
+                        oReturnObject.AttendanceDaily = oAttendanceDaily;
+                        oReturnObject.TempString = sTempString;
+                        window.returnValue = oReturnObject;
+                        window.close();
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                       
+                    }              
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+}
+
+function ClearNamefield()
+{
+
+    $("#month")[0].value='';
+
+}
+function Reset()
+{
+
+    $("#txtEmployee").val()='';
+    $("#cboDateMonth").val()="None";
+    $('#txtSelectDate').datebox('setValue', icsdateformat(new Date())); 
+    $("#month")[0].value=icsnewdateformat(new Date());
+    document.getElementById("txtMonth").style.display = 'none';
+    document.getElementById("txtDate").style.display = 'none';
+    
+}
+</script>

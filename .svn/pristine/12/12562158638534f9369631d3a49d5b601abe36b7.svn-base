@@ -1,0 +1,340 @@
+﻿@{
+    ViewBag.Title = "Approval Sequence";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ApprovalHead>
+
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+                <div class="col-md-12">
+                    <div class="form-inline">
+                        <label>BU:</label>
+                        <select ng-model="cboBU" class="form-control" ng-change="changeModule()" ng-options="item.BusinessUnitID as item.ShortName for item in BUs" style="width: 120px;"></select>
+                        <label>Module Name: </label>
+                        <select ng-model="cboModule" class="form-control" ng-change="changeModule()" ng-options="item.id as item.Value for item in Module" style="width: 150px;"></select>
+                        <label>Approval Head: </label>
+                        <input class="form-control" type="text" placeholder="Enter Approval Head" ng-model="txtApprovalHead" />
+                        <label>Ref Col Name: </label>
+                        <input class="form-control" type="text" placeholder="Enter Approval Head" ng-model="txtRefColName" />
+
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> </button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-minus" aria-hidden="true"></span></button><br />
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="up()"> <span class="glyphicon glyphicon-arrow-up" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="down()"> <span class="glyphicon glyphicon-arrow-down" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="personAssign()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Person Assign</button>
+
+                    </div>
+                    <div ui-grid="gridOptions1" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 485px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oApprovalHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+    var oModule =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Module));
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+        oApprovalHeads= (userSession.getData('ApprovalHeads').length>0)? userSession.getData('ApprovalHeads'):oApprovalHeads;
+
+        oBUs.push({BusinessUnitID:0,ShortName:"-Select BU-"})
+        $scope.Module = oModule;
+        $scope.BUs = oBUs;
+        $scope.cboModule = $scope.Module[0].id;
+        $scope.cboBU = 0;
+
+        $scope.gridOptions1 ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs: [
+                { field: 'Name', name: 'Approval Head', width: '30%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'Sequence', name: 'Sequence', width: '20%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'RefColName', name: 'RefColName', width: '30%',  cellClass: 'text-left',enableCellEdit:false   }
+            ],
+            data:oApprovalHeads,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+
+            }
+        };
+
+        $scope.EntryApprovalHead = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var Name = $.trim($scope.txtApprovalHead);
+
+                $scope.Save();
+            }
+            else if (code == 8) //backspace=8
+            {
+            }
+        };
+
+        $scope.add =function(){
+            $scope.Save();
+        }
+
+        $scope.Save = function () {
+            debugger;
+            //$scope.cboBU
+            if($scope.cboBU <= 0 || $scope.cboBU == undefined || $scope.cboBU == null) {
+                msModal.Message({headerTitle : '', bodyText:'Select Business Unit', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if($scope.cboModule <= 0 || $scope.cboModule == undefined || $scope.cboModule == null) {
+                msModal.Message({headerTitle : '', bodyText:'Select Module', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(($scope.txtApprovalHead == "" || $scope.txtApprovalHead == undefined)) {
+                msModal.Message({headerTitle : '', bodyText:'Enter Approval Head', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var oApprovalHead = {
+                ApprovalHeadID : 0,
+                ModuleID : $scope.cboModule,
+                BUID:$scope.cboBU,
+                Name: $.trim($scope.txtApprovalHead),
+                RefColName: $.trim($scope.txtRefColName),
+                Sequence : 0
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ApprovalHead/ApprovalHead_IU',$.param(oApprovalHead), config).then(function (response){
+
+                debugger;
+                var result=jQuery.parseJSON(response.data);
+                console.log(result.length);
+                if( result.ApprovalHeadID > 0)
+                {
+                    debugger;
+                    alert("Approval Head Added");
+                    $scope.gridOptions1.data.push(result);
+                    $scope.txtApprovalHead = '';
+                    $scope.txtRefColName = '';
+                }
+                else{
+                    msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                }
+            },
+                             function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage);}
+             );
+        };
+
+        $scope.up = function() {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            $scope.index = $scope.gridOptions1.data.indexOf(data[0]);
+            if(data[0].Sequence <= 1) {
+                return;
+            }
+
+            var obj = {
+                ModuleID:$scope.cboModule,
+                ApprovalHeadID : data[0].ApprovalHeadID,
+                BUID:data[0].BUID,
+                IsUp : true
+            };
+
+            sessionStorage.setItem("upIndex", ($scope.index - 1));
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ApprovalHead/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions1.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions1.data=(results);
+                var n=parseInt(sessionStorage.getItem("upIndex"));
+
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function () {
+                $log.info('ApprovalHead Dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.down = function() {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            $scope.len = $scope.gridOptions1.data.length;
+            $scope.index = $scope.gridOptions1.data.indexOf(data[0]);
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+
+            if($scope.index + 1 ==  $scope.len) {
+                return;
+            }
+
+
+            var obj = {
+                ModuleID:$scope.cboModule,
+                ApprovalHeadID : data[0].ApprovalHeadID,
+                BUID:data[0].BUID,
+                IsUp : false
+            };
+
+            sessionStorage.setItem("downIndex", ($scope.index + 1));
+
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ApprovalHead/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions1.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions1.data=(results);
+
+                var n=parseInt(sessionStorage.getItem("downIndex"));
+
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function () {
+                $log.info('ApprovalHead Dismissed at: ' + new Date());
+            });
+        }
+
+        //$scope.changeBU = function()
+        //{
+        //    $scope.cboModule
+        //}
+
+        $scope.changeModule= function()
+        {
+            debugger;
+            if($scope.cboBU <= 0 || $scope.cboBU == undefined || $scope.cboBU == null) 
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select Business Unit', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return;
+            }
+            if($scope.cboModule<=0)
+            {
+                return;
+            }
+            var obj = {
+                ModuleID:$scope.cboModule,
+                BUID:$scope.cboBU
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ApprovalHead/GetModule',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions1.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions1.data=(results);
+            }, function () {
+                $log.info('ApprovalHead Dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.remove = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post(_sBaseAddress+ '/ApprovalHead/ApprovalHead_Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                var result=jQuery.parseJSON(response.data);
+                                console.log(result);
+                                if( result.length > 0 && result[0].ErrorMessage=="")
+                                {
+
+                                    debugger;
+                                    alert("Deleted Successfully");
+                                    $scope.gridOptions1.data=(result);
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.personAssign = function() {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select any head to assign person.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ApprovalHeadPerson", "Approval Head Person");
+            sessionStorage.setItem("ApprovalHeads", JSON.stringify($scope.gridOptions1.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ApprovalHead/ViewApprovalHeadPerson?id="+data[0].ApprovalHeadID;
+
+        }
+
+
+    });
+
+
+    </script>
+
+
+
+

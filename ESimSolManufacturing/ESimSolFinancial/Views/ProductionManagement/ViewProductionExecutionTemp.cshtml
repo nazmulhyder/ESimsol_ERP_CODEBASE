@@ -1,0 +1,924 @@
+﻿@{ViewBag.Title = "Production Execution";}
+
+<html>
+<body>
+    @model ESimSol.BusinessObjects.GUProductionTracingUnit
+
+<div class="easyui-panel menuMainCollectionTable" style="height: 98%; width:100%" title="Production Order Info:">
+    <fieldset>
+        <legend>Production Order Info:</legend>
+        <table border="0" cellpadding="0" cellspacing="0" style="padding-left: 50px;">
+            <tr>
+                <td>
+                    <table border=" 0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; color: #000000;">
+            <tr style="margin-top:5px">
+                <td id="tdtxtIssueDate111" style="width: 120px; text-align: right;">
+                    Buyer Name:
+                </td>
+                <td style="width: 250px; text-align: left">
+                    <input id="txtBuyerName" type="text" style="width: 197px; margin-left: 10px; margin-top: 5px;" />
+                    <input id="txtBuyerID" type="hidden" />
+                    <input type="button" onclick="BuyerPiker()" value="Pick" id="btnBuyerPiker" />
+                </td>
+            </tr>
+            <tr style="margin-top:5px">
+                <td style="width: 120px; text-align: right;">
+                    Style No:
+                </td>
+                <td style="width: 250px;">
+                    @Html.TextBoxFor(model => model.StyleNo, new { style = "width:197px; margin-left:10px;  margin-top: 5px;", id = "txtStyleNo", disabled = "disabled" })
+                    <input type="button" onclick="GUProductionOrderPiker()" value="Pick" id="btnGUProductionOrderPiker" />
+                </td>
+            </tr>
+            <tr style="margin-top:5px">
+                <td style="width: 120px; text-align: right;">
+                    Note:
+                </td>
+                <td style="width: 250px; text-align: left; font-size: 9px">
+                    <input id="txtNote" type="text" style="width: 250px; margin-left: 10px; margin-top: 5px;" />
+                </td>
+            </tr>
+        </table>
+                </td>
+                <td>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; color: #000000;">
+                        <tr>
+                            <td style="width: 120px; text-align: right;">
+                                Production Order No:
+                            </td>
+                            <td style="width: 250px">
+                                <input id="txtGUProductionOrderNo" type="text" disabled="disabled" style="width: 250px; margin-left: 10px; margin-top: 5px;" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 120px; text-align: right;">
+                                Production Factory:
+                            </td>
+                            <td style="width: 250px;">
+                                <input id="txtProductionFactory" type="text" disabled="disabled" style="width: 250px; margin-left: 10px; margin-top: 5px;" />
+                                <input id="txtProductionFactoryID" type="hidden" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 120px; text-align: right;">
+                                Execute Factory:
+                            </td>
+                            <td style="width: 250px">
+                                <input id="txtExecuteFactory" type="text" disabled="disabled" style="width: 201px; margin-left: 10px; margin-top: 5px;" />
+                                <input id="txtExecuteFactoryID" type="hidden" />
+                                <input type="button" onclick="ExecuteFactoryPicker()" value="Pick" id="btnExecuteFactory" />
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+
+    <div style=" margin-left:1px; height:63%;">
+        <div style="margin:10px 0 0 0; width:100%; height:100%;">
+            <table id="tblPTU" title="" class="easyui-datagrid" fit="true" data-options="
+                    singleSelect: true,
+                    fitColumns:true,
+                    rownumbers:true,
+                    pagination:false,
+                    autoRowHeight:false,
+                    toolbar: '#toolbar',
+                    onClickRow: onClickRow,
+                    showFooter:true
+                    ">
+            </table>
+        </div>
+
+        <fieldset>
+            <table border="0" cellpadding="0" cellspacing="0" style="padding-top:3px; ">
+                <tr>
+                    <td style="width:960px; text-align:right;">
+                        <a id="btnCommit" href="javascript:void(0)" class="easyui-linkbutton" style="font-weight:bold" iconcls="icon-ok" plain="true" onclick="CommitProductionExecution()">Commit Execution</a>
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" style="font-weight:bold" iconcls="icon-print" plain="true" onclick="PrintPreview()">Print</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+       
+    </div>
+    <div id="toolbar" style="font-weight:bold">
+        <table border="0" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="width:450px; text-align:left; padding-left:10px">
+                    Operation Date : <input id="txtOperationDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:114px" />
+                 </td>
+            </tr>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oGUProductionTracingUnit=[];
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping =[];
+    var _oGUProductionTracingUnits=[];
+    var _oSelectedExecutionFactory =null;
+    var _oBuyer=null;
+    var _oGUProductionOrder=null;
+    var _oGUProductionProcedures=null;
+    var _oFieldNames=[];
+    $(document).ready(function () {
+        //debugger;
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    RefreshControlLayout();
+    $('#txtOperationDate').datebox({'disabled': true});
+    $('#txtOperationDate').datebox('setValue', icsdateformat(new Date()));
+});
+
+    function RefreshObject(oPTUTransections)
+    {
+        var nExecuteFactoryID = document.getElementById("txtExecuteFactoryID").value;
+        var oGUProductionTracingUnit = {
+                                        ProductionOperationNote : $("#txtNote").val(),
+                                        OperationDate : $('#txtOperationDate').datebox('getValue'),
+                                        ExecutionFactoryID : parseInt(nExecuteFactoryID),
+                                        GUProductionOrderID : (_oGUProductionOrder.GUProductionOrderID),
+                                        PTUTransections  : oPTUTransections
+                                };
+    return oGUProductionTracingUnit;
+    }
+
+    function GetDynamicObject(oSelectedObj)
+    {
+        var oColorStepRatios=[];
+        for (var key in _oGUProductionProcedures)
+        {
+            var oTempData=new Object();
+            var oStepId = _oGUProductionProcedures[key].ProductionStepID;
+            var oStepName= _oGUProductionProcedures[key].StepName;
+            var nExecuteFactoryID = document.getElementById("txtExecuteFactoryID").value;
+            oTempData.ExecutionQty= oSelectedObj[oStepName+"-TQ"];
+            oTempData.TodayExecuteQty= oSelectedObj[oStepName+"-EQ"];
+            oTempData.YetToExecutionQty= oSelectedObj[oStepName+"-YTQ"];
+            oTempData.ProductionStepID= oSelectedObj[oStepName+"-ID"];
+            oTempData.GUProductionTracingUnitID= oSelectedObj[oStepName+"-TID"];
+            oTempData.OrderQty=oSelectedObj[oStepName+"-OQ"];
+            oTempData.MeasurementUnitID=oSelectedObj[oStepName+"-MU"];
+            oTempData.ExecutionFactoryID=nExecuteFactoryID;
+            oTempData.StepName=oStepName;
+
+            if (typeof oTempData.OrderQty != 'undefined')
+                        oColorStepRatios.push(oTempData);
+        }
+        return oColorStepRatios;
+    }
+
+    function CommitProductionExecution()
+    {
+    var oTempObjs=[];
+    endEditing();
+    var oSelectObjs=$('#tblPTU').datagrid('getRows');
+
+    for(var i=0;i<oSelectObjs.length;i++)
+    {
+        var oColorStepRatios=GetDynamicObject(oSelectObjs[i]);
+        if(IsValidExecutionQty(oColorStepRatios,oSelectObjs[i]['ColorName']))
+        {
+            oTempObjs.push(oColorStepRatios);
+        }
+        else
+            return;
+    }
+
+    var testPTU=[];
+    for(var i=0;i<oTempObjs.length;i++)
+    {
+        var testIndex=oTempObjs[i].length;
+        for(var j=0;j<oTempObjs[i].length;j++)
+        {
+            var test=oTempObjs[i][j].TodayExecuteQty;
+            if(!test==0)
+            {
+                var oGUProductionTracingUnit = MakePTUTransection(oTempObjs[i][j]);
+                testPTU.push(oGUProductionTracingUnit);
+            }
+        }
+    }
+    debugger;
+    if(testPTU.length<=0){alert("ERROR: Invalid Execution Quantity!"); return;}
+
+    var oGUProductionTracingUnits = RefreshObject(testPTU);
+    CommitExecution(oGUProductionTracingUnits);
+    }
+
+    function MakePTUTransection(oSelectedObj)
+    {
+    var oTempData=new Object();
+    var nExecuteFactoryID = document.getElementById("txtExecuteFactoryID").value;
+    var test=_oGUProductionTracingUnit;
+    var test1=_oGUProductionProcedures;
+    oTempData.PTUTransectionID= 0;
+    oTempData.GUProductionTracingUnitID= oSelectedObj.GUProductionTracingUnitID;
+    oTempData.GUProductionTracingUnitDetailID = 0;
+    oTempData.ExecutionFactoryID=nExecuteFactoryID;
+    oTempData.ProductionStepID= oSelectedObj.ProductionStepID;
+    oTempData.MeasurementUnitID = oSelectedObj.MeasurementUnitID;
+    oTempData.OperationDate =  $('#txtOperationDate').datebox('getValue');
+    oTempData.Note = $("#txtNote").val();
+    oTempData.Quantity = oSelectedObj.TodayExecuteQty;
+
+    return oTempData;
+    }
+
+    function CommitExecution(oTempObjs)
+    {
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : _sBaseAddress+"/ProductionManagement/TempCommitProductionExecution",
+        traditional: true,
+        data:  JSON.stringify(oTempObjs),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            alert(' Data Saved Successfully!');
+            var oGUProductionTracingUnit = jQuery.parseJSON(data);
+            MakeDynamicTable(oGUProductionTracingUnit);
+
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+    }
+
+    function LoadColor()
+    {
+    if(_oGUProductionOrder==null || parseInt(_oGUProductionOrder.GUProductionOrderID)<=0)
+    {
+        alert("Please Select a style!");
+        $('#txtStyleNo').focus();
+        return;
+    }
+
+    var oPTU ={
+        GUProductionOrderID : parseInt(_oGUProductionOrder.GUProductionOrderID),
+        GUProductionProcedures : _oGUProductionProcedures, //stepNames
+        GUProductionOrder: _oGUProductionOrder
+    };
+    //_oGUProductionProcedures
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : _sBaseAddress+"/ProductionManagement/GetsDynamicPTU",
+        traditional: true,
+        data:  JSON.stringify(oPTU),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            var oGUProductionTracingUnit= jQuery.parseJSON(data);
+            MakeDynamicTable(oGUProductionTracingUnit);
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+    }
+
+    function formatAttachment(value,index)
+    {
+    debugger;
+    var values;
+    var nGUProductionTracingUnitDetailID=0;
+    var nExecutionQty=0;
+    var sStepName="";
+    if(value!=undefined)
+    {
+        values=value.split("~");
+        nGUProductionTracingUnitDetailID=values[0];
+        nExecutionQty=values[1];
+        sStepName=values[2];
+        sColorName=values[3];
+        bIsClikable=values[4];
+    }
+    var s=nExecutionQty;
+    if(bIsClikable=="true")
+        s = '<a  href="javascript:void(0)"  onclick = PTUHistoryPicker('+nGUProductionTracingUnitDetailID+',"'+sStepName+'",'+index+')>'+nExecutionQty+'</a>';
+    return s;
+    }
+
+    function PTUHistoryPicker(nGUProductionTracingUnitDetailID,sStepName,index)
+    {
+        debugger;
+        $('#tblPTU').datagrid('selectRow',index);
+        var oSelectedObj=$('#tblPTU').datagrid('getSelected');
+        var oFieldColor=oSelectedObj['ColorName'];
+        var sTableName='Execution-Detail-For-'+oFieldColor+'--'+sStepName;
+        var oPTUDetail = {
+            GUProductionTracingUnitDetailID: nGUProductionTracingUnitDetailID
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPTUDetail,
+            ControllerName: "ProductionManagement",
+            ActionName: "ExecutionDetalisPicker",
+            IsWinClose: false
+    };
+
+    var tblColums = [];
+    oColumn = { field: "FullOperationDateTimeInString", title: "Operation Time", width: 180, align: "left" }; tblColums.push(oColumn);
+    oColumn = { field: "OperationBy", title: "Follow-Up By", width: 140, align: "left" }; tblColums.push(oColumn);
+    oColumn = { field: "MeasurementUnitName", title: "Unit", width: 90, align: "center" }; tblColums.push(oColumn);
+    oColumn = { field: "Quantity", title: "Quantity", width: 120, align: "right" }; tblColums.push(oColumn);
+
+    DynamicPiker('PTUHistory',obj,tblColums,false,'FullOperationDateTimeInString','PTUTransectionID',sTableName,600); //pickerName(unique),obj,table,multiReturn,SearchingField
+}
+
+    function MakeDynamicTable(results)
+{
+        debugger;
+        var TempList=[];
+        var tblColums=[];
+        var oColumn=null;
+        var FieldNames=[];
+
+        var StepName='OrderQty'; FieldNames.push(StepName);
+        
+        //Make Table column Name List
+        for(var i = 0;i<_oGUProductionProcedures.length;i++)
+        {
+            //Step Qty Column configure
+            var StepName=_oGUProductionProcedures[i].StepName+'-TQ'; FieldNames.push(StepName);
+            oColumn= {
+                field:_oGUProductionProcedures[i].StepName+'-TQ',
+                title:_oGUProductionProcedures[i].StepName+" Qty",
+                width: "100",
+                align: "Center",
+                formatter:function(value,row,index){ return formatAttachment(value,index); }
+            };
+            tblColums.push(oColumn);
+
+            //Step today Execution Qty Column configure
+            var StepName=_oGUProductionProcedures[i].StepName+'-EQ'; FieldNames.push(StepName);
+            oColumn= {
+                field:_oGUProductionProcedures[i].StepName+'-EQ',
+                title:" Today "+_oGUProductionProcedures[i].StepName,
+                width: "100",
+                align: "right",
+                editor: {type:'numberbox',options:{ precision:0}}
+            };
+            tblColums.push(oColumn);
+
+            // yet to Step Qty Column configure
+            var StepName=_oGUProductionProcedures[i].StepName+'-YTQ'; FieldNames.push(StepName);
+            oColumn= {
+                field:_oGUProductionProcedures[i].StepName+'-YTQ',
+                title:"Yet To "+_oGUProductionProcedures[i].StepName,
+                width: "100",
+                align: "right"
+            };
+            tblColums.push(oColumn);
+        }
+        _oFieldNames=FieldNames; //SetFooterColumn
+
+
+        //Make Dynamic Object Llist
+        for(var i=0; i<results.length;i++)
+        {
+            var dynamicObj=new Object();
+            var obj=results[i];
+            for(var j=0; j<obj.length;j++)
+            {
+                if(j==0){
+                    dynamicObj[obj[j].Key]=obj[j].Value;
+                    continue;
+                }
+                dynamicObj[obj[j].Key]=obj[j].Value;
+            }
+            TempList.push(dynamicObj);
+        }
+
+        $('#tblPTU').datagrid({
+            frozenColumns:[[{field:'ColorName', title:'Color Name'},{field:'OrderQty', title:'Order Qty'}]],
+                columns:[tblColums]
+            });
+
+        data={"total":""+TempList.length+"","rows":TempList};
+        $('#tblPTU').datagrid('loadData',data);
+        MakeFooterColumn();
+    }
+
+    function MakeFooterColumn()
+    {
+        var FooterField=[];
+        var obj=new Object();
+        var FieldNames=_oFieldNames;
+        obj['ColorName']="Gross Total: ";
+        for(var j=0; j<FieldNames.length;j++)
+        {
+            obj[FieldNames[j]]=GetSum(FieldNames[j]);
+        }
+        FooterField.push(obj);
+        $('#tblPTU').datagrid('reloadFooter',FooterField);
+    }
+
+    function GetSum(sFieldName)
+    {
+        debugger;
+        var data=$('#tblPTU').datagrid('getRows').select(sFieldName);
+        var sum = 0;
+        var IsString=false;
+        for (i = 0; i < data.length; i++)
+        {
+            if(isNaN(data[i]) && data[i].split('~').length>0){
+                sum+= parseFloat(data[i].split('~')[1]);
+                IsString=true;
+            }
+            else{
+                sum+=parseFloat(data[i]);
+            }
+        }
+        if(IsString)
+            return '~'+sum+'~'+'~'+'~'+'~'+'false';
+
+        return sum;
+    }
+
+    function MakePTUTable(sStepName, nPreviousSequence, sPreviousStepName)
+    {
+        var tblColums=[];
+        var oColumn=null;
+        if(nPreviousSequence>0)
+        {
+            oColumn= { field :"ColorName", title:"Color Name", width:"220"};
+            tblColums.push(oColumn);
+            oColumn= { field :"MeasurementUnitName", title:"Unit", width:"100"};
+            tblColums.push(oColumn);
+            oColumn= { field :"OrderQty", title:"Order Qty", align: "right", width:"100", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+            oColumn= { field :"PreviousStepExecutionQty", title:sPreviousStepName+" Qty", align: "right", width:"100", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+            oColumn= { field :"ExecutionQty", title:sStepName+" Qty", align: "right", width:"100", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+            oColumn= { field:"Quantity", title: "Today "+sStepName, width: "100", align: "right", editor: {type:'numberbox',options:{ precision:0}}, formatter:function(value,row,index){ return ValueFormat(value);} };
+            tblColums.push(oColumn);
+            oColumn= { field :"YetToExecutionQty", title:"Yet To "+sStepName+" Qty", align: "right", width:"110", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+        }
+        else
+        {
+            oColumn= { field :"ColorName", title:"Color Name", width:"250"};
+            tblColums.push(oColumn);
+            oColumn= { field :"MeasurementUnitName", title:"Unit", width:"120"};
+            tblColums.push(oColumn);
+            oColumn= { field :"OrderQty", title:"Order Qty", align: "right", width:"120", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+            oColumn= { field :"ExecutionQty", title:sStepName+" Qty", align: "right", width:"120", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+            oColumn= { field:"Quantity", title: "Today "+sStepName, width: "120", align: "right", editor: {type:'numberbox',options:{ precision:0}}, formatter:function(value,row,index){ return ValueFormat(value);} };
+            tblColums.push(oColumn);
+            oColumn= { field :"YetToExecutionQty", title:"Yet To "+sStepName+" Qty", align: "right", width:"120", formatter:function(value,row,index){ return ValueFormat(value);}};
+            tblColums.push(oColumn);
+        }
+        $('#tblPTU').datagrid({ columns:[tblColums]});
+    }
+
+    function ValueFormat(val)
+    {
+        return parseFloat(val).toFixed(2);
+    }
+
+    function RefreshSummary(nPreviousSequence)
+    {
+        var oPTUs = $('#tblPTU').datagrid('getRows');
+        var nQty=0; var nTotalTransectionQty=0; var nYetToQty=0; var nTodayQty=0; var nPreviousExecuteQty=0;
+        for(var i=0; i<oPTUs.length; i++)
+        {
+            nQty=nQty +parseInt(oPTUs[i].OrderQty);
+            nPreviousExecuteQty=nPreviousExecuteQty +parseInt(oPTUs[i].PreviousStepExecutionQty);
+            nTotalTransectionQty=nTotalTransectionQty + parseInt(oPTUs[i].ExecutionQty);
+            nTodayQty=nTodayQty+parseInt(oPTUs[i].Quantity);
+            nYetToQty=nYetToQty+parseInt(oPTUs[i].YetToExecutionQty);
+        }
+        var sHTML =  '<table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; color: #000000;">';
+        sHTML=sHTML +'<tr>';
+        if(parseInt(nPreviousSequence)>0)
+        {
+            sHTML=sHTML +'<td style="width: 340px; text-align: right;"> Gross Total: </td>';
+            sHTML=sHTML +'<td style="width: 103px; text-align: right;"> '+ValueFormat(nQty)+'  </td>';
+            sHTML=sHTML +'<td style="width: 103px; text-align: right;"> '+ValueFormat(nPreviousExecuteQty)+'  </td>';
+            sHTML=sHTML +'<td style="width: 103px; text-align: right;"> '+ValueFormat(nTotalTransectionQty)+' </td>';
+            sHTML=sHTML +'<td style="width: 103px; text-align: right">  '+ValueFormat(nTodayQty)+'  </td>';
+            sHTML=sHTML +'<td style="width: 103px; text-align: right">  '+ValueFormat(nYetToQty)+' </td>';
+        }
+        else
+        {
+            sHTML=sHTML +'<td style="width: 390px; text-align: right;"> Gross Total: </td>';
+            sHTML=sHTML +'<td style="width: 120px; text-align: right;"> '+ValueFormat(nQty)+'  </td>';
+            sHTML=sHTML +'<td style="width: 120px; text-align: right;"> '+ValueFormat(nTotalTransectionQty)+' </td>';
+            sHTML=sHTML +'<td style="width: 120px; text-align: right">  '+ValueFormat(nTodayQty)+'  </td>';
+            sHTML=sHTML +'<td style="width: 120px; text-align: right">  '+ValueFormat(nYetToQty)+' </td>';
+        }
+        sHTML=sHTML +'</tr>';
+        sHTML=sHTML +'</table>';
+       // document.getElementById("divSummery").innerHTML=sHTML;
+    }
+
+    function GUProductionOrderPiker()
+    {
+        debugger;
+        var oStyleSearch = {ContractorID:_oBuyer.ContractorID};
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oStyleSearch,
+            ControllerName: "ProductionManagement", //TechnicalSheet
+            ActionName: "ViewGUProductionOrderICSPiker",//ViewStyleSearch
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = { field: "StyleNo", title: "Style No", width: "100px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "GUProductionOrderNo", title: "Production Order", width: "110px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "OrderRecapNo", title: "Recap No", width: "100px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "BuyerName", title: "Buyer Name", width: "130px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ProductionFactoryName", title: "Production Factory", width: "130px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "FabricProductName", title: "Fabrication", width: "130px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "GarmentsProductName", title: "Product Name", width: "120px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShipmentDateInString", title: "Shipment Date", width: "90px", align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "TotalQty", title: "Qty", width: "70px", align: "right" }; tblColums.push(oColumn);
+        DynamicPiker('PickStyle',obj,tblColums,false,'StyleNo','GUProductionOrderID','PO List', 1070); //pickerName(unique),obj,table,multiReturn,SearchingField
+    }
+
+    function SetGUProductionOrder(oGUProductionOrder)
+    {
+        //debugger;
+        _oGUProductionOrder=oGUProductionOrder;
+        if(_oGUProductionOrder!=null)
+        {
+            if(_oGUProductionOrder.GUProductionOrderID>0)
+            {
+                document.getElementById("txtStyleNo").value=  _oGUProductionOrder.StyleNo;
+                document.getElementById("txtGUProductionOrderNo").value=  _oGUProductionOrder.GUProductionOrderNo;
+                document.getElementById("txtProductionFactory").value=  _oGUProductionOrder.ProductionFactoryName;
+                document.getElementById("txtExecuteFactoryID").value=  _oGUProductionOrder.ProductionFactoryID;
+                document.getElementById("txtExecuteFactory").value=  _oGUProductionOrder.ProductionFactoryName;
+
+                $.ajax({
+                    type: "POST",
+                    dataType: "json",
+                    url : _sBaseAddress+"/ProductionManagement/GetProductionStep",
+                    traditional: true,
+                    data:  JSON.stringify(_oGUProductionOrder),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data)
+                    {
+                        debugger;
+                        var oGUProductionOrder= jQuery.parseJSON(data);
+                        var oGUProductionProcedures = oGUProductionOrder.GUProductionProcedures;
+                        var oGUProductionOrderDetails = oGUProductionOrder.GUProductionOrderDetails;
+                        if(oGUProductionProcedures!=null)
+                        {
+                            _oGUProductionProcedures=oGUProductionProcedures;
+                            if(oGUProductionProcedures.length>0)
+                            {
+                                LoadColor();
+                            }else
+                            {
+                                alert("There is no Procdures.");
+                                return;
+                            }
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        }
+    }
+    function RefreshDetails(oProdcutionOrderDetails)
+    {
+        data=oProdcutionOrderDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblGUProductionOrderDetail').datagrid('loadData',data);
+    }
+
+    function PrintPreview()
+    {
+        if( _oGUProductionOrder==null || parseInt(_oGUProductionOrder.GUProductionOrderID)<=0)
+        {
+            alert("Please Pick Production Order!");
+            return;
+        }
+        window.open(_sBaseAddress + '/ProductionManagement/POPriview?sIDs='+_oGUProductionOrder.GUProductionOrderID);
+    }
+
+    function RefreshList(oGUProductionTracingUnits)
+    {
+        var data=oGUProductionTracingUnits;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblPTU').datagrid('loadData',data);
+    }
+
+    //Buyer Piker control
+    function BuyerPiker(oTxtName)
+    {
+        //oParameter.ContractorType="2";}
+        DynamicContractorPicker('2',oTxtName,'BuyerPiker',false);
+    }
+    function SetBuyer(oContractor)
+    {
+        if(oContractor !=null)
+        {
+            if(parseInt(oContractor.ContractorID)>0)
+            {
+                document.getElementById("txtBuyerID").value=  oContractor.ContractorID;
+                var txttBuyerName=document.getElementById("txtBuyerName");
+                txttBuyerName.value=oContractor.Name;
+                txttBuyerName.style.color="blue";
+                txttBuyerName.style.fontWeight="bold";
+                _oBuyer=oContractor;
+            }
+        }
+        else
+        {
+            document.getElementById("txtBuyerID").value=  0;
+            var txttBuyerName=document.getElementById("txtBuyerName");
+            txttBuyerName.style.color="black";
+            txttBuyerName.style.fontWeight="normal";
+            document.getElementById("txtBuyerName").value=  "";
+            _oBuyer=null;
+        }
+        ResetControls();
+        $('#txtBuyerName').focus();
+    }
+
+    function ExecuteFactoryPicker(oTxtName)
+    {
+        // oParameter.ContractorType="3";
+        DynamicContractorPicker('3',oTxtName,'FactoryPiker',false);
+    }
+    function SetExecuteFactory(oSelectedExecutionFactory)
+    {
+        _oSelectedExecutionFactory=oSelectedExecutionFactory
+        if(_oSelectedExecutionFactory!=null)
+        {
+            if(_oSelectedExecutionFactory.ContractorID>0)
+            {
+                document.getElementById("txtExecuteFactoryID").value=  _oSelectedExecutionFactory.ContractorID;
+                document.getElementById("txtExecuteFactory").value=  _oSelectedExecutionFactory.Name;
+            }
+        }
+    }
+
+    function DynamicContractorPicker(ContractorType,oTxtName,pName,pMultiReturn)
+    {
+        debugger;
+        var oTempName=""
+        if (typeof oTxtName != 'undefined')
+            oTempName=oTxtName;
+
+        var oContractor = {
+            Params: ContractorType+'~'+oTempName+'~'+sessionStorage.getItem('BUID')
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oContractor,
+            ControllerName: "Contractor",
+            ActionName: "ContractorSearchByNameType",
+            IsWinClose: false
+        };
+
+        var tblColums = [];
+        var oColumn = { field: "Name", title: "Name", width: 180, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Address", title: "Address", width: 160, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Email", title: "Email", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 100, align: "left" }; tblColums.push(oColumn);
+
+        DynamicPiker(pName,obj,tblColums,pMultiReturn,'Name','ContractorID','Contractor List',600); //pickerName(unique),obj,table,multiReturn,SearchingField
+    }
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,winTitle, nWidth)
+    {
+        debugger;
+        var owinTitle=""
+        if (typeof winTitle != 'undefined')
+            owinTitle=winTitle;
+        else
+            owinTitle=pickerName+' List';
+
+        debugger;
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0)
+            {
+                debugger;
+                if (parseInt(response.objs[0][pID])> 0)
+                {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName+'s',
+                        winclass: 'cls'+pickerName,
+                        winwidth:nWidth,
+                        winheight:500,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: owinTitle
+                    };
+                    $.icsPicker(oPickerParam);
+                    if (pickerName == 'PTUHistory'){$('#btnOk').hide();}
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    function IntializePickerbutton(oPickerobj) {
+        //debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        //debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+            if (oPickerobj.winid == 'winBuyerPikers')
+            {
+                SetBuyer(oreturnObj);
+            }
+            else if (oPickerobj.winid == 'winPickStyles')
+            {
+                SetGUProductionOrder(oreturnObj);
+            }
+            else if (oPickerobj.winid == 'winFactoryPikers')
+            {
+                SetExecuteFactory(oreturnObj);
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    // Search Buyer Start
+    $('#txtBuyerName').keydown(function (e) {
+        ////debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            var txtBuyerName = document.getElementById('txtBuyerName').value;
+            if(txtBuyerName!="")
+            {
+                BuyerPiker(txtBuyerName);
+            }
+        }
+    });
+    $('#txtBuyerName').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 8) //backspace=8
+        {
+            ////debugger;
+            var txtFactoryName=document.getElementById("txtBuyerName");
+            txtFactoryName.style.color="black";
+            txtFactoryName.style.fontWeight="normal";
+            _oBuyer=null;
+            ResetControls();
+        }
+    });
+
+    var editIndex = undefined;
+    function endEditing(){
+        //debugger;
+        var oColorStepRatios=[];
+        if (editIndex == undefined){return true}
+        if ($('#tblPTU').datagrid('validateRow', editIndex))
+        {
+            $('#tblPTU').datagrid('endEdit', editIndex);
+            $('#tblPTU').datagrid('selectRow',editIndex);
+            var oSelectedObj=$('#tblPTU').datagrid('getSelected');
+            var sColorName=oSelectedObj['ColorName'];
+            var oColorStepRatios=[];
+            if(oSelectedObj!=null)
+            {
+                var oColorStepRatios=GetDynamicObject(oSelectedObj);
+                if(IsValidExecutionQty(oColorStepRatios,sColorName))
+                {
+                    //alert("Data Valid! ");
+                }
+            }
+            editIndex = undefined;
+            MakeFooterColumn();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function IsValidExecutionQty(oColorStepRatios,sColorName)
+    {
+        debugger;
+        for(var i=0;i<oColorStepRatios.length;i++)
+        {
+            var TodayEQ=parseFloat(oColorStepRatios[i].TodayExecuteQty);
+            var ExcutionQ=parseFloat(oColorStepRatios[i].ExecutionQty.split('~')[1]);
+            var OrderQ=parseFloat(oColorStepRatios[i].OrderQty);
+
+            //if(ExcutionQ==OrderQ)
+            //{
+            //    continue;
+            //    alert("Production Execution is Already Completed For "+sColorName +'!'); return false;
+            //}
+            if((TodayEQ+ExcutionQ)>OrderQ)
+            {
+                debugger;
+                alert("ERROR: "+oColorStepRatios[i].StepName
+                    +' Execution Quantity ['+oColorStepRatios[i].TodayExecuteQty
+                    +'] is invalid; '+oColorStepRatios[i].StepName+' Order Qty is ['+oColorStepRatios[i].OrderQty+'] For '+sColorName +'!');
+                return false;
+            }
+            if(i>0)
+            {
+                var PreExecutionQ=parseFloat(oColorStepRatios[i-1].ExecutionQty.split('~')[1]);
+                var PreTodayEQ=parseFloat(oColorStepRatios[i-1].TodayExecuteQty);
+                if((TodayEQ+ExcutionQ) > PreExecutionQ+PreTodayEQ)
+                {
+                    alert("ERROR: Today "+oColorStepRatios[i].StepName+' Execution Quantity can not be Greater than '+oColorStepRatios[i-1].StepName+' Quantity For '+sColorName
+                        +'!');
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function onClickRow(index){
+        if (editIndex != index){
+            if (endEditing()){
+                $('#tblPTU').datagrid('selectRow', index).datagrid('beginEdit', index);
+                editIndex = index;
+            } else {
+                $('#tblPTU').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function ResetControls()
+    {
+        var oPTUS=[];
+        $('#cboProductionStep').empty();
+        MakePTUTable("", 0, "");
+        RefreshList(oPTUS);
+
+        var oPTUTHs=[];
+        //MakeHistoryTable([]);
+        document.getElementById("txtStyleNo").value=  "";
+        document.getElementById("txtGUProductionOrderNo").value=  "";
+        document.getElementById("txtProductionFactory").value= "";
+        document.getElementById("txtExecuteFactoryID").value=0;
+        document.getElementById("txtExecuteFactory").value= "";
+        _oGUProductionTracingUnit=null;
+    }
+
+    function RefreshControlLayout()
+    {
+        document.getElementById('btnCommit').style.display = 'none';
+        if(HavePermission('ProductionExecution','GUProductionOrder')){document.getElementById('btnCommit').style.display = '';}
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9)
+        {
+            return true;
+        }else
+        {
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+</script>

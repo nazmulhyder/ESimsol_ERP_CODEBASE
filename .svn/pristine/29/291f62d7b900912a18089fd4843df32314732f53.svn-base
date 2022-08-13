@@ -1,0 +1,424 @@
+﻿@{
+    ViewBag.Title = "Location";
+}
+
+<html>
+
+<body>
+
+    @model ESimSol.BusinessObjects.Location
+    <div id="divLocation" class="easyui-panel" title="Add Location" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%;">
+
+            <table id="tblLocation" class="easyui-datagrid" style="width:100%;height:100%"
+                   data-options="
+                    singleSelect: true,
+                    fitColumns:false,
+                    rownumbers:true,
+                    pagination:false,
+                    autoRowHeight:false,
+                    toolbar: '#toolbar',onClickRow:onClickRow
+                ">
+
+                <thead>
+                    <tr>
+                        <th field="LocCode" width="180" align="left">Location Code</th>
+                        @*<th field="Name" width="300" align="left">Location Name</th>
+                        <th field="NameInBangla" width="300" align="left">Location Name In Bangla</th>
+                        <th field="Description" width="300" align="left">Description</th>*@
+                        <th field="Name" width="300">Location Name</th>
+                        @*<th field="NameInBangla">Location Name In Bangla</th>*@
+                        <th field="Description" width="300">Description</th>
+                        @*,styler:cellStyler*@ 
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Location Name : <input type="text" id="txtLocationName" style="width:170px" />                
+                Location Name In Bangla : <input type="text" id="txtLocationNameInBangla" style="width:170px;" /> 
+                Short Name : <input type="text" id="txtShortName" style="width:120px" /> 
+                Description : <input type="text" id="txtDescription" style="width:150px" />
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshGrid()">Refresh</a>
+                <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Update</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%;">
+                    <tr>
+                        <td style="width:90%; text-align:right"></td>
+
+                        
+                        <td style="width:10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<style>
+    .avro {
+        font-family:Kalpurush;
+    }
+    .bijoy {
+        font-family:SutonnyMJ;
+    }
+</style>
+<script type="text/javascript">
+    var _oLocation=null;
+    var _oLocations=[];
+    var _oParentChartsOfAccount=null;
+    var _sBaseAddress='';
+    var sRemovedids='';
+    var _nLocationID = 0;
+    var _COS = null;
+    $(document).ready(function () {
+        debugger;
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oLocation =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _COS =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COS));
+        _oLocations=_oLocation.ChildNodes;
+        DynamicRefreshList(_oLocations, 'tblLocation');
+        _sLocationHeader=sessionStorage.getItem("LocationHeader");
+        $('#divLocation').panel({ title:_sLocationHeader});
+
+        var el = document.getElementById('txtLocationNameInBangla');
+        var val = parseInt(el.innerText);
+        var class_name;
+        
+        if(parseInt(_COS.Value) == 19) {
+            class_name = 'bijoy';
+        }
+        else {
+            class_name = 'avro';
+        }
+        el.className += ' ' + class_name;
+        //columnTh = $("table th:contains('Location Name In Bangla')");
+        //columnIndex = columnTh.index() + 1;
+        //$('table tr td:nth-child(' + columnIndex + ')').css("color", "#F00");
+        //columnTh.css("color", "#F00");
+        //columnTh.css("font-size", "20");
+        //columnTh.css("font-family", "SutonnyMJ");
+    });
+
+    //function cellStyler(value,row,index){
+    //    return 'background-color:#fff;color:black;font-family:SutonnyMJ';
+    //    //return 'margin: 0;padding: 2px 4px;border: 1px solid #95B8E7;font-size: 12px;outline-style: none;-moz-border-radius: 0 0 0 0;-webkit-border-radius: 0 0 0 0;border-radius: 0 0 0 0;font-family:SutonnyMJ;'
+    //}
+    var editIndex = undefined;
+    function ValidateInput()
+    {
+
+        if(document.getElementById("txtLocationName").value==null || document.getElementById("txtLocationName").value=="")
+        {
+            alert("Please enter location name!");
+            $('#txtLocationName').focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oLocation={
+            LocationID : _oLocation.LocationID,
+            LocCode : _oLocation.LocCode,
+            Name: $('#txtLocationName').val(),
+            NameInBangla: $('#txtLocationNameInBangla').val(),
+            ShortName: $('#txtShortName').val(),
+            Description: $('#txtDescription').val(),
+            ParentID : _oLocation.ParentID,
+            IsActive : true,
+            LocationType:_oLocation.LocationType
+        };
+        return oLocation;
+    }
+
+
+    function endEditing() {
+        if (editIndex == undefined) { return true }
+        if ($('#tblLocation').datagrid('validateRow', editIndex)) {
+
+            $('#tblLocation').datagrid('endEdit', editIndex);
+            $('#tblLocation').datagrid('selectRow', editIndex);
+            var oLocation = $('#tblLocation').datagrid('getSelected');
+            if(oLocation.LocationID>0 )
+            {
+                $('#tblLocation').datagrid('updateRow', { index: editIndex, row: oLocation });
+
+            }
+
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onClickRow(index)
+    {
+        var oLoc = $('#tblLocation').datagrid('getSelected');
+
+        //_nLocationID = oLoc.LocationID;
+        $('#txtLocationName').val(oLoc.Name);
+        $('#txtLocationNameInBangla').val(oLoc.NameInBangla);
+        $('#txtShortName').val(oLoc.ShortName);
+        $('#txtDescription').val(oLoc.Description);
+        //if (editIndex != index) {
+        //    if (endEditing()) {
+        //        debugger;
+        //        $('#tblLocation').datagrid('selectRow', index).datagrid('beginEdit', index);
+        //        var oLoc = $('#tblLocation').datagrid('getSelected');
+
+        //        editIndex = index;
+        //    }
+        //    else {
+        //        $('#tblLocation').datagrid('selectRow', editIndex);
+        //    }
+        //}
+    }
+
+
+    function RefreshObjectForEdit()
+    {
+        debugger;
+        var oLoc = $('#tblLocation').datagrid('getSelected');
+        var oLocation={
+
+            LocationID : oLoc.LocationID,
+            LocCode : oLoc.LocCode,
+            Name: $('#txtLocationName').val(),
+            NameInBangla: $('#txtLocationNameInBangla').val(),
+            ShortName:  $('#txtShortName').val(),
+            Description: $('#txtDescription').val(),
+            ParentID : oLoc.ParentID,
+            IsActive : true,
+            LocationType:oLoc.LocationType
+
+        };
+        return oLocation;
+    }
+
+    $("#btnUpdate").click(function(){
+        debugger;
+        var oLoc=RefreshObjectForEdit();
+
+        var oLocIndex = $('#tblLocation').datagrid('getSelected');
+        var SelectedRowIndex = $('#tblLocation').datagrid('getRowIndex', oLocIndex);
+        $.icsSave({
+            BaseAddress: _sBaseAddress,
+            Object: oLoc,
+            ObjectId: oLoc.LocationID,
+            ControllerName: "Location",
+            ActionName: "Update",
+            TableId: "",
+            IsWinClose: false,
+            Message: "Data Updated Successfully."
+
+        },function (response){
+            if(response.status && response.obj!=null){
+                if(response.obj.LocationID>0){
+                    debugger;
+                    var oLocT =response.obj;
+                    $('#tblLocation').datagrid('updateRow', { index: SelectedRowIndex, row: oLocT });
+                    $('#txtLocationName').val("");
+                    $('#txtLocationNameInBangla').val("");
+                    $('#txtShortName').val("");
+                    $('#txtDescription').val("");
+                }
+            }
+        });
+
+    });
+
+    $("#btnAdd").click(function(){
+
+        if(!ValidateInput()) return;
+        var oLocation=RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/Location/Save",
+            traditional: true,
+            data:  JSON.stringify(oLocation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                oLocation = jQuery.parseJSON(data);
+                if (oLocation.LocationID>0) {
+                    alert("Data Saved sucessfully");
+
+                    var oLocations= $('#tblLocation').datagrid('getRows');
+                    var nIndex=oLocations.length;
+
+                    $('#tblLocation').datagrid('appendRow',oLocation);
+                    $('#tblLocation').datagrid('selectRow', nIndex);
+
+                    var oTChildrenLocations =sessionStorage.getItem("ChildrenLocations");
+
+                    if(oTChildrenLocations!=null)
+                    {
+                        oTChildrenLocations = jQuery.parseJSON(oTChildrenLocations);
+                    }
+                    else
+                    {
+                        oTChildrenLocations=[];
+                    }
+
+                    var oTLocation={
+                        id : oLocation.LocationID,
+                        parentid : oLocation.ParentID,
+                        text : oLocation.Name,
+                        attributes : "",
+                        code :oLocation.LocCode,
+                        Description : oLocation.Description,
+                        Activity :oLocation.Activity,
+                        LocationType : oLocation.LocationType
+                    };
+
+                    oTChildrenLocations.push(oTLocation);
+                    sessionStorage.setItem("ChildrenLocations", JSON.stringify(oTChildrenLocations));
+
+                    $("#txtLocationName").val('');
+                    $("#txtLocationNameInBangla").val('');
+                    $("#txtShortName").val('');
+                    $("#txtDescription").val('');
+                }
+                else {
+                    alert(oLocation.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+
+    $("#btnRemove").click(function(){
+        //
+        var oLocation= $('#tblLocation').datagrid('getSelected');
+        if(oLocation==null || oLocation.LocationID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oLocation.ParentID==0)
+        {
+            alert("Root location is not deletable item");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblLocation').datagrid('getRowIndex',oLocation);
+
+        if (oLocation.LocationID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Location/Delete",
+                data: JSON.stringify(oLocation),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage === "Deleted")
+                    {
+                        alert("Data Delete Successfully");
+                        sRemovedids=sRemovedids+oLocation.LocationID+',';
+                        $('#tblLocation').datagrid('deleteRow',SelectedRowIndex);
+
+                        var oTChildrenLocations =sessionStorage.getItem("ChildrenLocations");
+
+                        if(oTChildrenLocations!=null)
+                        {
+                            oTChildrenLocations = jQuery.parseJSON(oTChildrenLocations);
+                        }
+                        else
+                        {
+                            oTChildrenLocations=[];
+                        }
+                        var oTLocations=[];
+                        for(var i=0;i<oTChildrenLocations.length;i++){
+                            if(oTChildrenLocations[i].id!=oLocation.LocationID){
+                                oTLocations.push(oTChildrenLocations[i]);
+                            }
+                        }
+                        oTChildrenLocations=[];
+                        oTChildrenLocations=oTLocations;
+                        sessionStorage.setItem("ChildrenLocations", JSON.stringify(oTChildrenLocations));
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+
+
+
+
+
+
+    function RefreshGrid()
+    {
+
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+  "/Location/getchildren",
+            traditional: true,
+            data: {parentid:_oLocation.ParentID },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                var oLocations = jQuery.parseJSON(data);
+                if(oLocations!=null)
+                {
+                    if (oLocations.length>0) {
+                        data=oLocations;
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblLocation').datagrid('loadData',data);
+                    }
+                }
+                else {
+                    //alert('Data not found!!');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+
+    function Close()
+    {
+        //window.location.href = _sBaseAddress+ "/Location/ViewLocations?menuid="+_nMenuid;
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+
+</script>

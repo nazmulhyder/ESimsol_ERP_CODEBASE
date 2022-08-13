@@ -1,0 +1,193 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.RosterPlan>
+@{
+    ViewBag.Title = "ViewRosterPlans";
+}
+
+<div style="margin-left:0px; width:100%; height:100%">
+    <table id="tblRosterPlans" title="RosterPlan List"  class="easyui-datagrid" style="width:100%; height:100%" fitColumns="false" rownumbers="true" pagination="false" singleSelect="true" autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr>
+                <th field="Description" width="150" align="left">Plan Description</th>
+                <th field="RosterCycle" width="150" align="left">Roster Cycle</th> 
+                <th field="Activity" width="150"  align="left">Activity</th>
+            </tr>  
+        </thead> 
+    </table>​ 
+     <div id="toolbar">
+         <input type="text" id="txtSearchByName" placeholder="Search by Plan" style="width:300px" />
+         <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="AddRosterPlan()">New</a>
+         <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-edit" plain="true" onclick="EditRosterPlan()">Edit</a>
+         <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+         <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="ViewRosterPlan()">Preview</a>
+         <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="ChangeActiveStatus()">Activity</a>
+     </div>  
+</div>
+
+<script type="text/javascript">
+    var _oRosterPlans=[];
+    var _sBaseAddress="";
+    var _sRosterPlanHeader="";
+
+    $(document).ready(function () {
+        _oRosterPlans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oRosterPlans =sessionStorage.getItem("RosterPlans");
+        _sRosterPlanHeader=sessionStorage.getItem("RosterPlanHeader");
+        if(oRosterPlans!=null)
+        {
+            oRosterPlans = jQuery.parseJSON(oRosterPlans);
+        }
+        else
+        {
+            oRosterPlans=_oRosterPlans;
+        }
+        RefreshList(oRosterPlans);
+        
+        if(_sRosterPlanHeader == "New RosterPlan") {
+            var oRosterPlans = $('#tblRosterPlans').datagrid('getRows');
+            var nIndex = oRosterPlans.length-1;
+            $('#tblRosterPlans').datagrid('selectRow', nIndex);
+        }
+        else if(_sRosterPlanHeader == "Edit RosterPlan" || _sRosterPlanHeader == "View RosterPlan") {
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            $('#tblRosterPlans').datagrid('selectRow', nIndex);
+        }
+
+        sessionStorage.clear();
+    });
+
+    $('#txtSearchByName').keypress(function(e) {
+        
+            var c = String.fromCharCode(e.which);
+            var txtSearchByName = $("#txtSearchByName").val();
+            txtSearchByName = txtSearchByName + c;
+            //if(txtSearchByName.length<3)return;
+            var bFlag = false;
+            var sTempName = "";
+            var rows = $('#tblRosterPlans').datagrid('getRows');
+            for (i = 0; i < rows.length; ++i) {
+                sTempName = rows[i]['Description'].substring(0, txtSearchByName.length);
+                if (txtSearchByName.toUpperCase() == sTempName.toUpperCase()) {
+                    bFlag = true;
+                    break;
+                }
+            }
+            if (bFlag) {
+                $('#tblRosterPlans').datagrid('selectRow', i);
+            }
+    });
+
+    function RefreshList(oRosterPlans) {
+        data = oRosterPlans;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblRosterPlans').datagrid('loadData', data);
+    }
+
+    function AddRosterPlan()
+    {
+        var oRosterPlans= $('#tblRosterPlans').datagrid('getRows');
+        sessionStorage.setItem("RosterPlans", JSON.stringify(oRosterPlans));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("RosterPlanHeader", "New RosterPlan");
+        window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlan?sid=0&sMsg=N/A";
+    }
+
+    function EditRosterPlan()
+    {
+        var oRosterPlan = $('#tblRosterPlans').datagrid('getSelected');
+        if (oRosterPlan == null || oRosterPlan.RosterPlanID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblRosterPlans').datagrid('getRowIndex', oRosterPlan);
+        var oRosterPlans= $('#tblRosterPlans').datagrid('getRows');
+        sessionStorage.setItem("RosterPlans", JSON.stringify(oRosterPlans));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RosterPlanHeader", "Edit RosterPlan");
+        window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlan?sid="+oRosterPlan.EncryptRPID+"&sMsg=N/A";
+    }
+
+    function Delete() {
+        var oRosterPlan = $('#tblRosterPlans').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return;
+
+        if (oRosterPlan == null || oRosterPlan.RosterPlanID <= 0) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex = $('#tblRosterPlans').datagrid('getRowIndex', oRosterPlan);
+
+        if (oRosterPlan.RosterPlanID > 0) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/RosterPlan/RosterPlanDelete",
+                data: { id: oRosterPlan.RosterPlanID },
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "") {
+                        alert("Delete sucessfully");
+                        $('#tblRosterPlans').datagrid('deleteRow', SelectedRowIndex);
+
+                    } else {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }
+
+    function ViewRosterPlan()
+    {
+        var oRosterPlan = $('#tblRosterPlans').datagrid('getSelected');
+        if (oRosterPlan == null || oRosterPlan.RosterPlanID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblRosterPlans').datagrid('getRowIndex', oRosterPlan);
+        var oRosterPlans= $('#tblRosterPlans').datagrid('getRows');
+        sessionStorage.setItem("RosterPlans", JSON.stringify(oRosterPlans));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("RosterPlanHeader", "View RosterPlan");
+        window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlan?sid="+oRosterPlan.EncryptRPID+"&sMsg=N/A";
+    }
+
+    function ChangeActiveStatus() {
+        var oRosterPlan = $('#tblRosterPlans').datagrid('getSelected');
+        if (oRosterPlan == null || oRosterPlan.RosterPlanID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblRosterPlans').datagrid('getRowIndex', oRosterPlan);
+        if (oRosterPlan.IsActive == true) {
+            oRosterPlan.IsActive = false;
+        } else {
+            oRosterPlan.IsActive = true;
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/RosterPlan/ChangeActiveStatus",
+            traditional: true,
+            data: JSON.stringify(oRosterPlan),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                oRosterPlan = jQuery.parseJSON(data);
+                if (oRosterPlan.RosterPlanID > 0) {
+                    alert("Data Saved sucessfully");
+                    $('#tblRosterPlans').datagrid('updateRow', { index: SelectedRowIndex, row: oRosterPlan });
+                } else {
+                    alert(oRosterPlan.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+</script>

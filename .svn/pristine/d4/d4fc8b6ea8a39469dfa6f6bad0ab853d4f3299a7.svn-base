@@ -1,0 +1,209 @@
+﻿@{
+    ViewBag.Title = "Color Category List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ColorCategory>
+
+    <div class="menuMainCollectionTable" ng-app="ColorCategoryApp">
+        <div ng-controller="ColorCategoryController">
+            <div style="margin-bottom:2px; display:block" title="Color Category List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByCategory($event)" placeholder="Search by Category Name" style="width:200px" />
+                <button type="button" id="btnAdd" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnDetails" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                <button type="button" id="btnExportToExcel" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:540px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oColorCategorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+   
+    debugger;
+    var CCapp= angular.module('ColorCategoryApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('ColorCategoryController',function ($scope,uiGridConstants,userSession) 
+    {
+        oColorCategorys= (userSession.getData('ColorCategorys').length>0)? userSession.getData('ColorCategorys'):oColorCategorys;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableRowSelection: true,
+            columnDefs: [
+              { field: 'ColorName', name:'Color Category Name', width:'50%' },
+              { field: 'Note', name:'Note', width:'47%' , enableSorting: false}
+            ],
+            data: oColorCategorys,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.grid.modifyRows(oColorCategorys);
+                $scope.gridApi.selection.selectRow(oColorCategorys[userSession.getRowIndex()]);
+            }
+        };
+        $scope.SearchByCategory = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oColorCategorys;
+            }     
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].ColorName;        
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("ColorCategorys", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ColorCategoryHeader", "Add Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ColorCategory/ViewColorCategory?id=0";
+        }            
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oColorCategory= data[0];//get selected index
+            if(oColorCategory==null || oColorCategory.ColorCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oColorCategory);
+            sessionStorage.setItem("ColorCategorys", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("ColorCategoryHeader", "Edit Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/ColorCategory/ViewColorCategory?id="+oColorCategory.ColorCategoryID
+        }
+                
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oColorCategory= data[0];//get selected index
+            if(oColorCategory==null || oColorCategory.ColorCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oColorCategory);
+            sessionStorage.setItem("ColorCategorys", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("ColorCategoryHeader", "View Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/ColorCategory/ViewColorCategory?id="+oColorCategory.ColorCategoryID;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oColorCategory= data[0];//get selected index
+            if(oColorCategory==null || oColorCategory.ColorCategoryID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oColorCategory);
+            if (oColorCategory.ColorCategoryID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/ColorCategory/Delete",
+                    data: { id: oColorCategory.ColorCategoryID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Data delete successfully")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+        $scope.PrintList = function()
+        {
+            var oColorCategorys= $scope.gridOptions.data;
+            var ids ="";
+            if(oColorCategorys.length >0)
+            {
+                for(var i =0;i<oColorCategorys.length;i++)
+                {
+                    ids =ids+oColorCategorys[i].ColorCategoryID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/ColorCategory/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oColorCategorys=  $scope.gridOptions.data;
+            var ids ="";
+            if(oColorCategorys.length >0)
+            {
+                for(var i =0;i<oColorCategorys.length;i++)
+                {
+                    ids =ids+oColorCategorys[i].ColorCategoryID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/ColorCategory/ColorCategoryExportToExcel?sIDs='+ids);
+        }
+
+        //button hide unhide
+            $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide(); 
+            if(PermissionChecker('Add','ColorCategory',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            if(PermissionChecker('Edit','ColorCategory',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            if(PermissionChecker('View','ColorCategory',oAuthorizationRolesMapping)){$("#btnView").show();}
+            if(PermissionChecker('Delete','ColorCategory',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            if(PermissionChecker('PrintList','ColorCategory',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

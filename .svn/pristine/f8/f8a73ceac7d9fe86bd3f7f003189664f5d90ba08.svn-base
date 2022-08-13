@@ -1,0 +1,134 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "Bill Trunsactions";
+     }
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.VoucherBillTransaction>
+    <div style="margin-left: 0px; height: 80%; width:100%">
+        <table id="tblVBT" title="Voucher Bill Transaction List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="AccountHeadName" width="100" align="left">Account Head Name</th>
+                    <th field="VoucherNoAndID" width="100" align="left" formatter="FormatStyle">Voucher No</th>
+                    <th field="TransactionDateInString" width="100" align="center">Transaction Date</th>
+                    <th field="TrTypeST" width="100" align="left">Transaction Type</th>
+                    <th field="ConversionRateInString" width="100" align="right">Conversion Rate</th>
+                    <th field="DebitAmountInString" width="100" align="right">Debit</th>
+                    <th field="CreditAmountInString" width="100" align="right">Credit</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+        </div>
+    </div>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="text-align:right; font-size:12px; font-weight:bold"></td>
+            <td colspan="2" style="width:100%; text-align:right; font-size:12px; font-weight:bold"><hr /></td>
+        </tr>
+        <tr>
+            <td style="width:63%; text-align:left; font-size:10px; font-weight:bold"></td>
+            <td style="width:20%; text-align:right; font-size:11px; font-weight:bold"><span class="lblBaseCurrency" style="margin-right:2px;"></span><label id="lblTotalDebitAmount">0.00</label></td>
+            <td style="width:17%; text-align:right; font-size:11px; font-weight:bold"><span class="lblBaseCurrency" style="margin-right:2px;"></span><label id="lblTotalCreditAmount" style="margin:0 17px 0 0; "> 0.00</label>&nbsp;&nbsp;</td>
+        </tr>
+        <tr>
+            <td style="text-align:right; font-size:12px; font-weight:bold"></td>
+            <td colspan="2" style="width:100%; text-align:right; font-size:12px; font-weight:bold"><hr /><hr /></td>
+        </tr>
+    </table>
+    <fieldset>
+        <legend style="font-weight:bold">Action</legend>
+        <table border="0" cellpadding="1" cellspacing="1">
+            <tr>
+                <td style="width:95%;"></td>
+                <td style="width:5%; text-align:center"><a id="btnClose" href="javascript:void(0)" id="btnClose" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a> </td>
+            </tr>
+        </table>
+    </fieldset>
+</body>
+</html>
+
+<script type="text/javascript">    
+    var _oVBTs = [];
+    $(document).ready(function () {        
+        _oVBTs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));        
+        RefreshList(_oVBTs);
+        RefreshSummery();
+        var sTrunsactionHeader = sessionStorage.getItem("VoucherBillNo");
+        //$("#tblVBT").datagrid('setTitle', {title : sTrunsactionHeader});
+    });
+
+    $('#btnPreview').click(function(){
+        var oVoucherBillTransaction= $('#tblVBT').datagrid('getSelected');
+        if(oVoucherBillTransaction==null || parseInt(oVoucherBillTransaction.VoucherID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }        
+        window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintVoucher?id=' + parseInt(oVoucherBillTransaction.VoucherID)+'&buid=0', "_blank");
+    });
+
+    function RefreshSummery()
+    {
+        var nTotalDebitAmount=0; 
+        var nTotalCreditAmount=0;
+        var nAmount = 0;
+        var oVBTs = $("#tblVBT").datagrid('getRows');
+
+        if(oVBTs === null) oVBTs =[];
+        if(oVBTs.length>0)
+        {
+            for(var i=0; i<oVBTs.length; i++)
+            {
+
+                if(oVBTs[i].CurrencyID != _oVBTs.BaseCurrencyID)
+                {
+                    nAmount = parseFloat(oVBTs[i].ConversionRate) * parseFloat(oVBTs[i].Amount);
+                }
+                else
+                {
+                    nAmount = parseFloat(oVBTs[i].Amount);
+                }
+
+                if(parseFloat(oVBTs[i].DebitAmountInString) == 0)
+                {
+                    nTotalCreditAmount = parseFloat(nTotalCreditAmount) + parseFloat(nAmount);
+                }
+                else
+                {
+                    nTotalDebitAmount = parseFloat(nTotalDebitAmount) + parseFloat(nAmount);
+                }
+            }
+            document.getElementById('lblTotalDebitAmount').innerHTML = _oVBTs[0].BaseCurrencySymbol + " " + formatPrice(nTotalDebitAmount, null) ;
+            document.getElementById('lblTotalCreditAmount').innerHTML = _oVBTs[0].BaseCurrencySymbol + " " +formatPrice(nTotalCreditAmount, null);
+        }
+    }
+    $("#btnClose").click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+
+    function RefreshList(oVBTs)
+    {
+        var data=oVBTs;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVBT').datagrid('loadData',data);
+    }
+    function FormatStyle(value){   
+        var values=value.split("~");
+        var sVoucherNo = values[0];
+        var nVoucherBillID = values[1];
+        var s = '<label id="lblOpening~'+nVoucherBillID+'" style="color:Blue;cursor:pointer"  onclick="Detail('+nVoucherBillID+')">'+sVoucherNo+'</label>';
+        return s;       
+    }
+
+    function Detail(nVoucherBillID)
+    {
+        sessionStorage.setItem("VoucherHeader", "View Voucher");                
+        sessionStorage.setItem("BackURL", window.location.href);
+        window.location.href =  sessionStorage.getItem('BaseAddress') +'/Voucher/ViewMultiCurrencyVoucher?buid=0&id='+parseInt(nVoucherBillID)+'&nvtid=0&copyid=0';
+    } 
+
+</script>

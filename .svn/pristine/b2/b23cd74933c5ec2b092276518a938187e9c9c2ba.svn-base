@@ -1,0 +1,166 @@
+﻿@{
+	ViewBag.Title = "General Working Day";
+}
+
+<html>
+<body>
+	@model IEnumerable<ESimSol.BusinessObjects.GeneralWorkingDay>
+
+		<div class="menuMainCollectionTable" style="height:100%; width:1013px;">
+			<table id="tblGeneralWorkingDays" title="General Working Day List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+				<thead>
+                    <tr>
+                        <th field="AttendanceDateInString" width="100">Attendance Date</th>
+                        <th field="GWDTitle" width="100">Title</th>
+                        <th field="GWDApplyOnSt" width="100">Apply On</th>
+                        <th field="Remarks" width="100">Remarks</th>
+                    </tr>
+				</thead>
+			</table>
+            <div id="toolbar">
+                <input id="dtStartDate" type="text" style="width: 11%" class="easyui-datebox" required="required" data-options="formatter:icsdateformat, parser:icsdateparser" />
+                &nbsp; To &nbsp;
+                <input id="dtEndDate" type="text" style="width: 11%" class="easyui-datebox" required="required" data-options="formatter:icsdateformat, parser:icsdateparser" />
+                <a id="btnAdvSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">AdvSearch</a>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+		</div>
+</body>
+</html>
+
+<script type="text/javascript">
+   
+	$(document).ready(function () {
+        var oGeneralWorkingDays = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oTempGeneralWorkingDays = sessionStorage.getItem("GeneralWorkingDays");
+
+        var nowdate = new Date();
+        $('#dtStartDate').datebox('setValue', icsdateformat(new Date(nowdate.getFullYear(), nowdate.getMonth(), 1)));
+        $('#dtEndDate').datebox('setValue', icsdateformat(new Date(nowdate.getFullYear(), nowdate.getMonth() + 1, 0)));
+
+        if (oTempGeneralWorkingDays != null)
+        {
+            oGeneralWorkingDays = jQuery.parseJSON(oTempGeneralWorkingDays);
+        }
+        RefreshList(oGeneralWorkingDays);
+    });
+
+    function RefreshList(oGeneralWorkingDays)
+    {
+        data = { "total": "" + oGeneralWorkingDays.length + "", "rows": oGeneralWorkingDays };
+        $('#tblGeneralWorkingDays').datagrid('loadData',data);
+        var nSelectedRowIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(nSelectedRowIndex!=-1)
+        {
+            $('#tblGeneralWorkingDays').datagrid('selectRow', nSelectedRowIndex);
+        }
+    }
+
+    $("#btnAdvSearch").click(function () {
+        var sParam = $('#dtStartDate').datebox('getValue') + "~" + $('#dtEndDate').datebox('getValue');
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/GeneralWorkingDay/AdvSearch",
+            traditional: true,
+            data: JSON.stringify({ sParam: sParam }),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oGWDs = jQuery.parseJSON(data);
+                if (oGWDs != null) {
+                    if (oGWDs.length > 0) {
+                        DynamicRefreshList(oGWDs,'tblGeneralWorkingDays');
+                    }
+                    else {
+                        alert("Data Not Found!");
+                        DynamicRefreshList([],'tblGeneralWorkingDays');
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+	$('#btnAdd').click(function(){
+        var oGeneralWorkingDays = $('#tblGeneralWorkingDays').datagrid('getRows');
+        sessionStorage.setItem("GeneralWorkingDays", JSON.stringify(oGeneralWorkingDays));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("GeneralWorkingDayHeader", "Add General Working Day");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem("BaseAddress") + "/GeneralWorkingDay/ViewGeneralWorkingDay?id=0";
+    });
+
+    $('#btnEdit').click(function(){
+        var oGeneralWorkingDay = $('#tblGeneralWorkingDays').datagrid('getSelected');
+        if(oGeneralWorkingDay==null || oGeneralWorkingDay.GWDID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblGeneralWorkingDays').datagrid('getRowIndex', oGeneralWorkingDay);
+        var oGeneralWorkingDays = $('#tblGeneralWorkingDays').datagrid('getRows');
+        sessionStorage.setItem("GeneralWorkingDays", JSON.stringify(oGeneralWorkingDays));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("GeneralWorkingDayHeader", "Edit General Working Day");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/GeneralWorkingDay/ViewGeneralWorkingDay?id="+oGeneralWorkingDay.GWDID;
+    });
+
+    $('#btnView').click(function(){
+        var oGeneralWorkingDay = $('#tblGeneralWorkingDays').datagrid('getSelected');
+        if(oGeneralWorkingDay==null || oGeneralWorkingDay.GWDID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblGeneralWorkingDays').datagrid('getRowIndex',oGeneralWorkingDay);
+        var oGeneralWorkingDays = $('#tblGeneralWorkingDays').datagrid('getRows');
+        sessionStorage.setItem("GeneralWorkingDays", JSON.stringify(oGeneralWorkingDays));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("GeneralWorkingDayHeader", "View General Working Day");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/GeneralWorkingDay/ViewGeneralWorkingDay?id="+oGeneralWorkingDay.GWDID;
+    });
+
+    $('#btnDelete').click(function () {        
+        var oGeneralWorkingDay = $('#tblGeneralWorkingDays').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return;
+
+        if (oGeneralWorkingDay == null || oGeneralWorkingDay.GWDID <= 0) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex = $('#tblGeneralWorkingDays').datagrid('getRowIndex', oGeneralWorkingDay);
+        if (oGeneralWorkingDay.GWDID > 0) 
+        {
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: sessionStorage.getItem('BaseAddress') + "/GeneralWorkingDay/Delete",
+                data: JSON.stringify(oGeneralWorkingDay),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {                    
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted") 
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblGeneralWorkingDays').datagrid('deleteRow', SelectedRowIndex);
+                    }
+                    else 
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    });
+</script>

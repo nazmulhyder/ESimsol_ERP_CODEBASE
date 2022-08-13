@@ -1,0 +1,195 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+@{
+    ViewBag.Title = "User Menu Permission";  
+}
+@model ESimSol.BusinessObjects.User         
+<body>
+    <div style="font-family: Tahoma">
+        <div class="easyui-panel" title="User Menu List" style="width: 545px; height: 400px;
+            overflow: auto">
+            <ul id="tt" data-options="checkbox:true">
+            </ul>
+        </div>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="width: 400px; text-align: right">
+                    </td>
+                    <td style="width: 50px">
+                        <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                            plain="true">Ok</a>
+                    </td>
+                    <td style="width: 50px">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel"
+                            plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oUser=null;
+    var _oSelectedMenuKeys=null;    
+    var _UserMenu=null;
+    var _sBaseAddress='';
+    $(document).ready(function () {    
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress])); 
+        _oUser =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+        LoadUserMenu();       
+    });
+    
+    function LoadUserMenu()
+    {
+        var oUser= {
+            UserID:_oUser.UserID
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("GetsUserMenuTree", "User")',     
+            traditional: true,
+            data:  JSON.stringify(oUser),                   
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                _oUser = jQuery.parseJSON(data);
+                _oSelectedMenuKeys = _oUser.Permissions;
+                _UserMenu =_oUser.Menu;
+                if (_UserMenu != null) {
+                    $('#tt').tree({
+                        data: [_UserMenu]
+                    });
+                    RefreshControl();
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+
+
+    //Checked Selected Items
+    function RefreshControl()
+    {  
+        //var node = $('#tt').tree('find', 1);
+        //$('#tt').tree('check', node.target);  
+           
+        var oAllNodes=$('#tt').tree('getChecked', 'unchecked');         
+        if(oAllNodes!=null)
+        {
+            for(var n=0;n<oAllNodes.length;n++)
+            {
+                if(AlreadySelected(oAllNodes[n].id))
+                {
+                    if($('#tt').tree('isLeaf', oAllNodes[n].target))
+                    {
+                        $('#tt').tree('check', oAllNodes[n].target); 
+                    }
+                }
+            }
+        }    
+    }
+        
+    function AlreadySelected(nKey)
+    {    
+        for(var j=0;j<_oSelectedMenuKeys.length;j++)
+        {
+            if(_oSelectedMenuKeys[j] ==nKey)
+            {
+                return true;    
+            }
+        }
+        return false;
+    }
+
+
+
+
+  
+
+
+    
+
+    $("#btnOk").click(function () {        
+        if(_oUser==null)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+
+        if(_oUser.UserID<=0)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+
+
+        var _oSelectedMenus= [];
+        _oSelectedMenus= $('#tt').tree('getChecked');        
+        if(_oSelectedMenus==null)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+        var sMenuKeys="";
+        for(var i=0; i<_oSelectedMenus.length;i++)
+        {
+            sMenuKeys=sMenuKeys+_oSelectedMenus[i].id+',';        
+        }      
+
+        //get indeterminate items
+        _oSelectedMenus= [];
+        _oSelectedMenus= $('#tt').tree('getChecked', 'indeterminate'); 
+         for(var i=0; i<_oSelectedMenus.length;i++)
+        {
+            sMenuKeys=sMenuKeys+_oSelectedMenus[i].id+',';        
+        }   
+        
+        var oUser= {
+                        UserID:_oUser.UserID,
+                        AccountHolderTypeInInt : _oUser.AccountHolderTypeInInt,
+                        Keys : sMenuKeys
+                   }
+                       
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("ConfirmMenuPermission", "User")',
+            traditional: true,
+            data:  JSON.stringify(oUser),   
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var aaaa = jQuery.parseJSON(data);
+                if(aaaa=='Data save successfully')
+                {
+                    alert(aaaa);
+                    window.close();
+                }
+                alert(aaaa);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });        
+                
+    })
+
+     $("#btnClose").click(function () {          
+         window.close();
+    })
+</script>

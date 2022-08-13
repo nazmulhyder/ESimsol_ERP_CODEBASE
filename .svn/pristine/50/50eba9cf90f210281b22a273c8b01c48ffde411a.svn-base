@@ -1,0 +1,231 @@
+﻿
+@model IEnumerable<ESimSol.BusinessObjects.ReportLayout>
+<head>
+    <title>Report Layouts</title>
+    <script src="@Url.Content("~/Views/ReportLayout/ReportLayout.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Views/ReportLayout/ReportLayouts.js")" type="text/javascript"></script>
+</head>
+  <body>
+      <div id="winReportLayout" class="easyui-window" title="Edit Menu" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+          <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+              <tr>
+                  <td style="width:150px; text-align:right">
+                      Report Name:
+                  </td>
+                  <td style="width:300px">
+                      <input type="text" style="width: 550px;" id="txtReportName" />
+                  </td>
+              </tr>
+              <tr>
+                  <td style="width:150px; text-align:right">
+                      Operation :
+                  </td>
+                  <td style="width:300px">
+                      <select id="cboOperationType" style="width: 550px; font-size: 12px;" />
+                  </td>
+              </tr>
+
+              <tr>
+                  <td style="width:150px; text-align:right">
+                      Report Type :
+                  </td>
+                  <td style="width:300px">
+                      <select id="cboReportType" style="width: 550px; font-size: 12px;" />
+                  </td>
+              </tr>
+          </table>
+
+          <fieldset class="actionfieldsetstyle">
+              <legend>Actions : </legend>
+              <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" >Save</a>&nbsp;&nbsp;
+              <a id="btnCloseReportLayout" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+          </fieldset>
+
+      </div>
+
+      <div class="menuMainCollectionTable">
+          <table id="tblReportLayouts" title="Report Layout List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true"  autorowheight="false" toolbar="#toolbar">
+              <thead>
+                  <tr>
+                      <th field="ReportNo" width="300">Report No</th>
+                      <th field="ReportName" width="200">Report Name</th>
+                      <th field="OperationTypeInString" width="200">Operation Name</th>
+                  </tr>
+              </thead>
+          </table>
+          <div id="toolbar">
+              <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"  >Refresh</a>
+              <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" id="btnAdd" plain="true" >Add</a>
+              <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" id="btnEdit" plain="true" >Edit</a>
+              <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" >View</a>
+              <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" >Delete</a>
+          </div>
+      </div>
+ </body>
+
+<style type="text/css">
+    #winReportLayout{width:720px;}
+</style>
+
+<script type="text/javascript">
+    var _oReportLayouts=[];
+    var _oReportLayout = null;
+    var _sBaseAddress="";
+    var _oReportTypes = [];
+    var  _oOperationTypes = [];
+    var _oAuthorizationRolesMapping = [];
+    $(document).ready(function () {
+        //debugger;
+        _oReportLayouts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oReportTypes=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportTypes));
+        _oOperationTypes=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OperationTypes));
+        InitializeReportLayouts();
+        LoadReportLayout();
+        // RefreshControlLayout();
+    });
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#winReportLayout').icsWindow('close'); } });
+    function Add()
+    {
+        //debugger;
+        var oParameter = new Object();
+        oParameter.Name = "Add Report Layout";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+ "/ReportLayout/ViewReportLayout?id=0&ts="+tsv;
+        var oReportLayout = window.showModalDialog(url, oParameter, 'dialogHeight:220px;dialogWidth:705px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+        //debugger
+        if(oReportLayout!=null)
+        {
+            if(oReportLayout.ReportLayoutID>0)
+            {
+                var oReportLayouts = $('#tblReportLayouts').datagrid('getRows');
+                var nIndex=oReportLayouts.length;
+                $('#tblReportLayouts').datagrid('appendRow',oReportLayout);
+                $('#tblReportLayouts').datagrid('selectRow', nIndex);
+            }
+        }
+    }
+
+
+    function Edit()
+    {
+        //debugger;
+        var oReportLayout= $('#tblReportLayouts').datagrid('getSelected');
+        if(oReportLayout==null || oReportLayout.ReportLayoutID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblReportLayouts').datagrid('getRowIndex',oReportLayout);
+        var oParameter = new Object();
+        oParameter.Name = "Edit Report Layout";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+  "/ReportLayout/ViewReportLayout?id="+oReportLayout.ReportLayoutID+"&ts="+tsv;
+        oReportLayout = window.showModalDialog(url, oParameter, 'dialogHeight:220px;dialogWidth:705px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+        //debugger
+        if(oReportLayout!=null)
+        {
+            if(oReportLayout.ReportLayoutID>0)
+            {
+                $('#tblReportLayouts').datagrid('updateRow',{index: SelectedRowIndex,	row: oReportLayout});
+            }
+        }
+    }
+
+
+    function Details()
+    {
+        //debugger;
+        var oReportLayout= $('#tblReportLayouts').datagrid('getSelected');
+        if(oReportLayout==null || oReportLayout.ReportLayoutID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var oParameter = new Object();
+        oParameter.Name = "View Report Layout";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+  "/ReportLayout/ViewReportLayout?id="+oReportLayout.ReportLayoutID+"&ts="+tsv;
+        oReportLayout = window.showModalDialog(url, oParameter, 'dialogHeight:220px;dialogWidth:705px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+
+    }
+
+    function Delete()
+    {
+        //debugger;
+        var oReportLayout= $('#tblReportLayouts').datagrid('getSelected');
+        if(oReportLayout==null || oReportLayout.ReportLayoutID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblReportLayouts').datagrid('getRowIndex',oReportLayout);
+        if (oReportLayout.ReportLayoutID > 0)
+        {
+            var tsv=((new Date()).getTime())/1000;
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/ReportLayout/Delete",
+                data: { id: oReportLayout.ReportLayoutID, ts:tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblReportLayouts').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+
+
+
+   
+
+    function RefreshControlLayout()
+    {
+        document.getElementById('btnAdd').style.display = 'none';
+        document.getElementById('btnEdit').style.display = 'none';
+        document.getElementById('btnDelete').style.display = 'none';
+        document.getElementById('btnView').style.display = 'none';
+        if(HavePermission('Add','Menu')){document.getElementById('btnAdd').style.display = '';}
+        if(HavePermission('Edit','Menu')){document.getElementById('btnEdit').style.display = '';}
+        if(HavePermission('Delete','Menu')){document.getElementById('btnDelete').style.display = '';}
+        if(HavePermission('Delete','Menu')){document.getElementById('btnView').style.display = '';}
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check SuperUser
+        {
+            return true;
+        }else
+        {
+
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+</script>

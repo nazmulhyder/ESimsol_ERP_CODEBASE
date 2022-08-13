@@ -1,0 +1,188 @@
+﻿
+@model ESimSol.BusinessObjects.GUProductionTracingUnit
+<div style="margin-left: 0px; height: 100%; width:100%">
+<table id="tblSaleOrders" title="Yarn Update Report" class="easyui-datagrid" fit = "true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false"
+    autorowheight="false" toolbar="#toolbar">
+    <thead>
+        <tr>
+            <th field="GUProductionOrderNo" width="150">
+                Production Order No
+            </th>
+            <th field="StyleNo" width="150">
+                Style No
+            </th>
+            <th field="BuyerName" width="180">
+                Buyer
+            </th>
+            <th field="BuyerContactPerson" width="180">
+                Buyer Contact Person
+            </th>
+            <th field="OrderQty" width="180">
+                Order Qty
+            </th>
+        </tr>
+    </thead>
+</table>
+​
+<div id="toolbar" style="height: 60px;">
+                Buyer :<select id="cboBuyer" style="width: 150px; font-size: 12" />
+                Production Order :
+                <input id="txtGUProductionOrderNo" type="text" style="width: 143px;" />
+                Production Factory :
+                <select id="cboProductionFactory" style="width: 150px; font-size: 12" />
+             <a id="btnRefresh" onclick="Refresh()" href="javascript:void(0)" class="easyui-linkbutton"
+                    iconcls="icon-reload" plain="true" style="width: 80px; font-size: 12" />Refresh</a>
+                Style No :
+             <input id="txtStyleNo" type="text" style="width: 143px;" />
+                Date :
+            <input id="txtStartDate" type="text" style="width: 150px;" class="easyui-datebox"
+                    required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            To :<input id="txtEndDate" type="text" style="width: 150px;" class="easyui-datebox" required="required"
+                    data-options="formatter:icsdateformat,parser:icsdateparser" />
+            
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print"
+                    plain="true" onclick="Print()" style="width: 80px; font-size: 12" />Print </a>
+            
+</div>
+</div>
+<script type="text/javascript">
+    var _oGUProductionTracingUnit=[];
+    var _sBaseAddress ="";
+    var _sMenuIdentify ="";    
+    $(document).ready(function () {
+       //   debugger;
+          
+          _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+          _oGUProductionTracingUnit =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+          var oBuyers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BuyerList));
+        //  var oSuppliers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.SupplierList));
+          var oProductionFacotys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.ProductionFactoryList));
+          $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+          $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+          
+          LoadBuyers(oBuyers);
+         // LoadSuppliers(oSuppliers);
+        LoadFactorys(oProductionFacotys);
+    });
+
+ function Refresh()
+  {
+       var scboBuyer =document.getElementById("cboBuyer");
+       var nBuyerID = scboBuyer.options[scboBuyer.selectedIndex].value;
+       var scboProductionFactory =document.getElementById("cboProductionFactory");
+       var ncboProductionFactory = scboProductionFactory.options[scboProductionFactory.selectedIndex].value;
+
+       var Param= document.getElementById("txtGUProductionOrderNo").value + "~" + document.getElementById("txtStyleNo").value + "~";
+       if ( document.getElementById("txtStartDate").value !="" || document.getElementById("txtStartDate").value !=null)
+       {
+              Param=Param+  document.getElementById("txtStartDate").value + "~";
+       }
+        if ( document.getElementById("txtEndDate").value !="" || document.getElementById("txtEndDate").value !=null)
+       {
+              Param=Param+  document.getElementById("txtEndDate").value + "~"
+       }
+       
+        Param=Param+  +nBuyerID + "~"+ ncboProductionFactory;
+        
+        
+       if(Param== "" || Param==null)
+        { 
+            alert("Please Select At Least One Item  ");
+            $('#cboBuyer').focus();
+            return false; 
+        }
+
+       $.ajax
+             ({
+                type: "GET",
+                dataType: "json",            
+                url : _sBaseAddress+  "/ProductionManagement/GetProdcutionTracingUnit",
+                data: { sParam:Param},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    var data = jQuery.parseJSON(data);
+                    var OGUProductionTracingUnit= data.GUProductionTracingUnits;
+                    if (OGUProductionTracingUnit.length>0) 
+                    {                  
+                        RefreshList(OGUProductionTracingUnit);
+                       
+                    }
+                    else
+                    {
+                      alert("Data Could not found !");
+                      return;
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+  }
+
+
+  function Print()
+  {
+    var OproductionTracing = $('#tblSaleOrders').datagrid('getRows');
+    if(OproductionTracing.length<=0)
+    {
+        alert("There have no Production Order ");
+        return;
+    }
+    var sGUProductionOrderIDS="";
+    for(var i =0;i<OproductionTracing.length;i++)
+    {
+        sGUProductionOrderIDS=sGUProductionOrderIDS+OproductionTracing[i].GUProductionOrderID+",";
+    }
+    sGUProductionOrderIDS= sGUProductionOrderIDS.substring(0, sGUProductionOrderIDS.length - 1);
+    window.open(_sBaseAddress + '/ProductionManagement/ViewPrintProdcutionProgressReport?sProductionIDS='+sGUProductionOrderIDS, "_blank");        
+  }
+
+  function LoadBuyers(oBuyers)
+   {
+      $('#cboBuyer').empty();
+        var listItems =  "<option value ="+0+">---Select Buyer---</option>";  ;  
+        var i =0;       
+        if(oBuyers.length>0)
+        {
+            for (i = 0; i < oBuyers.length; i++) {
+                listItems += "<option value='" + oBuyers[i].ContractorID+"'>" + oBuyers[i].Name+"</option>";
+            }
+        }
+        $("#cboBuyer").html(listItems);
+   }
+
+  function LoadFactorys(oProductionFacotys)
+  {
+      $('#cboProductionFactory').empty();
+        var listItems =  "<option value ="+0+">---Select Factory---</option>";  ;  
+        var i =0;       
+        if(oProductionFacotys.length>0)
+        {
+            for (i = 0; i < oProductionFacotys.length; i++) {
+                listItems += "<option value='" + oProductionFacotys[i].ContractorID+"'>" + oProductionFacotys[i].Name+"</option>";
+            }
+        }
+        $("#cboProductionFactory").html(listItems);
+   }
+   
+ function  icsdateformat(date)
+ {  
+    var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var y = date.getFullYear();
+	var m = date.getMonth();
+	var d = date.getDate();
+	var result= d +' '+ mthNames[m]+' '+ y;
+    return result
+  }
+
+
+function RefreshList(OGUProductionTracingUnit)
+{    
+    data=OGUProductionTracingUnit;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblSaleOrders').datagrid('loadData',data);
+}  
+</script>

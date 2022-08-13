@@ -1,0 +1,293 @@
+﻿
+<html>
+<body>
+
+@model ESimSol.BusinessObjects.ConsumptionRequisition
+
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+    <tr>
+        <td style="text-align:center; width:460px; color:White">
+            <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline; width:460px;text-color:black;"> Search Product Cost</label>
+        </td>
+    </tr>
+</table>    
+<fieldset style="width:350px; text-align:center; height:120px;margin-left:250px; border:0"> 
+  <div style="height:120px; overflow:auto; width:350px; text-align:center; ">
+  <table>
+    <tr>
+        <td>Project Name:</td>
+        <td>
+            @Html.TextBox("txtCCName", "",new { style = "width: 200px;", id = "txtCCName" })
+            @Html.Hidden("txtCCID", new { style = "width: 200px;", id = "txtCCID" })
+        </td>
+    </tr>
+    <tr>
+        <td>Disburse Date:</td>
+        <td>
+            @Html.DropDownList("cboOpenDate", new SelectList(Enum.GetValues(typeof(ICS.Base.Client.Utility.EnumCompareOperator))), new { id = "cboOpenDate", style = "width: 206px;", @class = "_select_changeA" })
+        </td>
+    </tr>
+    <tr id="trDateFrom">
+        <td id="fromDate">Date From:</td>
+        <td>
+            <input id="txtOpenStartDate" type="text" class="easyui-datebox" style="width: 206px;"
+            data-options="formatter:icsdateformat" />
+        </td>
+    </tr>
+    <tr id="trDateTo">
+        <td id= "enddateT">To:</td>
+        <td>
+            <input id="txtOpenEndDate" type="text" class="easyui-datebox" style="width: 206px;"
+            data-options="formatter:icsdateformat" />
+        </td>
+    </tr>
+    <tr>
+        <td></td>
+        <td style="text-align:right">
+            <input  type="button" value="Search" id="btnOk" style="width:60px;"/> 
+        </td>
+    </tr>
+  </table>
+     
+ </div>
+</fieldset>
+
+ <div id="PageBody" style="width:900px; height:350px; margin-left:0px;margin-right:0px"> 
+
+<table id="tblPCosts" title="Product Cost List"  
+class="easyui-datagrid" style="width:895px;height:350px" 
+fitColumns="false" rownumbers="true" toolbar="#toolbar" 
+pagination="false" singleSelect="true", 
+autoRowHeight="false",autoRowWidth="false">        
+                <thead>                   
+                    <tr>  
+                        @*<th field="ck" checkbox="true"></th>*@
+                        <th field="ProjectName"  width="100">Project</th>                        
+                        <th field="RequiredQty" width="200">Quantity</th>
+                        <th field="TotalValuePrice" width="150">Value (BDT)</th>
+                    </tr>  
+                </thead>        
+ </table>​ 
+ <div id="toolbar"> 
+
+                <a id="btnReset" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true" onclick="Print()">Print </a>
+                <a id="btnDetail" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="Detail()">Details </a>
+                @*<label id="lblProject"></label>*@
+                        
+            </div>   
+</div>         
+</div>
+</body>
+</html>
+<script type="text/javascript">
+ var _oReturnObject = new Object();
+var _ROWS = [];
+var _sBaseAddress ='';
+var _sCCName="";
+var _sCCIDs=0;
+var _sParam="";
+var _nWUID=0;
+ $(document).ready(function () {
+     debugger;
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+     _ROWS =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+     data = _ROWS;     
+     data={"total":""+data.length+"","rows":data};
+     $('#tblPCosts').datagrid('loadData',data); 
+     $('#tblPCosts').datagrid({selectOnCheck:true, checkOnSelect:true})
+
+     $('#txtOpenStartDate').datebox('setValue', icsdateformat(new Date()));
+     $('#txtOpenEndDate').datebox('setValue', icsdateformat(new Date()));
+     
+
+     HideUnhideDatePiker(); 
+     document.getElementById("PageBody").style.display = 'none';
+     $("#txtCCName")[0].value = 'Press Enter';
+       //document.getElementById('lblProject').innerHTML=_sCCName;
+});
+
+function HideUnhideDatePiker()
+{
+    var DateType = $("#cboOpenDate").val();
+    if (DateType == "None" ) 
+    {              
+          document.getElementById("trDateFrom").style.display = 'none';
+          document.getElementById("trDateTo").style.display = 'none';   
+     
+    }
+}
+
+$('._select_changeA').change(function () {
+        //debugger
+        var DateType = $("#cboOpenDate").val();
+        if (DateType == "EqualTo" || DateType == "NotEqualTo" || DateType == "GreaterThen" || DateType == "SmallerThen") {            
+              document.getElementById("trDateTo").style.display = 'none'; 
+              document.getElementById("trDateFrom").style.display = '';      
+        }
+        if (DateType == "None" ) 
+        {            
+          document.getElementById("trDateFrom").style.display = 'none';
+          document.getElementById("trDateTo").style.display = 'none';        
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  ) 
+        {
+          document.getElementById("trDateFrom").style.display = '';
+          document.getElementById("trDateTo").style.display = ''; 
+        }
+});
+
+//------------------
+
+$("#btnOk").click(function(){
+   //debugger;
+       // alert('Hello World !!');
+        var obj = window.dialogArguments;
+        _sCCIDs = $("#txtCCID").val();
+        _sCCName=$("#txtCCName").val();
+        var Date = document.getElementById("cboOpenDate");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var sDateopen = $('#txtOpenStartDate').datebox('getValue');
+        var sDateclose = $('#txtOpenEndDate').datebox('getValue');
+//        var dDateopen=new Date(sDateopen);
+//        var dDateClose=new Date(sDateclose);
+
+//        if (DateType == "Between" ||DateType == "NotBetween"  ) 
+//        {
+//            if(dDateopen>dDateClose)
+//            {
+//                alert('Date Range is Not Valid');
+//                return;
+//            }
+//        }
+
+
+        if ($("#txtCCName").val()=="Press Enter" || $("#txtCCName").val()=="")
+        {
+            alert("Please Select a Project");
+            $("#txtCCName").focus();
+            return;
+        }
+        
+       //debugger;     
+       _sParam = _sCCIDs + '~' + dDateType + '~' + $('#txtOpenStartDate').datebox('getValue') + '~' 
+                        + $('#txtOpenEndDate').datebox('getValue') + '~' + _nWUID ;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url: _sBaseAddress+ "/Report/GetProjectCostSummary",
+            traditional: true,
+            data: JSON.stringify({sParam:_sParam}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+            debugger;
+                _oReturnObject = jQuery.parseJSON(data);
+                if (_oReturnObject != null) {
+                if (_oReturnObject.length <= 0){
+                    alert ("Nothing Found by given parameter");
+                     document.getElementById("PageBody").style.display = '';
+                     document.getElementById("tblPCosts").style.display = '';
+                     $("#txtCCName").removeAttr("disabled");
+//                     $("#txtCCName")[0].value = 'Press Enter';
+                }
+                else {
+                       $("#txtCCName").removeAttr("disabled");
+                       $("#txtCCName")[0].value = 'Press Enter';
+                       document.getElementById("PageBody").style.display = ''; 
+                       RefreshList(_oReturnObject);
+                    }
+                    
+                }
+                
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        }); 
+});
+
+function RefreshList(oReturnObject)
+{ 
+//debugger;   
+    data=oReturnObject;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblPCosts').datagrid('loadData',data);   
+}
+
+function clearTextBox()
+{
+   document.getElementById("textboxId").value= "";
+   
+}
+function Print()
+{
+   window.open(_sBaseAddress + '/Report/PrintProjectCostSummary?sParam='+_sParam, "_blank");
+}
+
+$('#txtCCName').keypress(function (e) {
+    //debugger;
+    var keyCode = e.keyCode || e.which;
+    if (keyCode == 13) {
+       
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = true;
+        var url = _sBaseAddress+"/CostCenter/ProjectPiker";
+        var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:300px;dialogLeft:500;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+        //debugger;
+        if (oReturnObjects.length>0) {
+            var sCCNames="";
+            _sCCIDs="";
+            for (i = 0; i < oReturnObjects.length; ++i) {
+                _sCCIDs = _sCCIDs + oReturnObjects[i].id + ',';
+                sCCNames= sCCNames + oReturnObjects[i].text + ',';
+            }
+            _sCCIDs = _sCCIDs.substring(0, _sCCIDs.length - 1);
+            sCCNames = sCCNames.substring(0, sCCNames.length - 1);
+
+            document.getElementById('txtCCName').value =sCCNames;
+            document.getElementById('txtCCID').value = _sCCIDs;
+        }
+        else {
+            $('#txtCCName').focus();
+        }
+        return false;
+    }
+
+})
+
+function icsdateformat(date) {
+    //debugger;
+    var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    var d = date.getDate();
+    //return m+'/'+d+'/'+y;
+    var result = d + ' ' + mthNames[m] + ' ' + y;
+    return result
+}
+
+function Detail()
+{
+    var oRow= $('#tblPCosts').datagrid('getSelected'); 
+    if(oRow==null || oRow.ProductID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var Date = document.getElementById("cboOpenDate");
+    var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var sDateopen = $('#txtOpenStartDate').datebox('getValue');
+    var sDateclose = $('#txtOpenEndDate').datebox('getValue');
+    var nProductID=0;
+    var sParam = nProductID.toString() + '~' + oRow.CCID.toString()
+                              +'~'+ dDateType 
+                              +'~'+ sDateopen 
+                              +'~'+ sDateclose;
+
+    var oParameter = new Object();
+    oParameter.Param=sParam;
+    var url =_sBaseAddress+ "/ConsumptionChallan/ViewCCDetailsForProjectSummary?sParam="+sParam;
+    var oCCDs = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:740px;dialogLeft:375;dialogTop:130;center:yes;resizable:no;status:no;scroll:no');
+}
+</script>

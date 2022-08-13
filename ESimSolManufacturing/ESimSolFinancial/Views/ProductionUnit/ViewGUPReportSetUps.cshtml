@@ -1,0 +1,247 @@
+﻿@{
+    ViewBag.Title = "GU Report Setup";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.GUPReportSetUp>
+
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+                <div class="col-md-12">
+                    <div class="form-inline">
+                        <label>Production Step Name: </label>
+                        <select ng-model="cboProductionStep" class="form-control" ng-options="item.ProductionStepID as item.StepName for item in ProductionSteps" style="width: 180px;">
+                        </select>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Save()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Add</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="up()"> <span class="glyphicon glyphicon-arrow-up" aria-hidden="true"></span>Up</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="down()"> <span class="glyphicon glyphicon-arrow-down" aria-hidden="true"></span>Down</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Remove</button>
+                    </div>
+                    <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 485px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oGUPReportSetUps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oProductionSteps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionSteps));
+
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+        $scope.ProductionSteps = oProductionSteps;
+
+        $scope.gridOptions ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs: [
+                { field: 'StepName', name: 'Step Name', width: '30%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'Sequence', name: 'Sequence', width: '20%',  cellClass: 'text-left',enableCellEdit:false   }
+            ],
+            data:oGUPReportSetUps,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+
+            }
+        };
+
+      
+
+
+        $scope.Save = function () {
+            debugger;
+            if($scope.cboProductionStep <= 0 || $scope.cboProductionStep == undefined || $scope.cboProductionStep == null) {
+                msModal.Message({headerTitle : '', bodyText:'Select ProductionStep', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+          
+
+            var oGUPReportSetUp = {
+                GUPReportSetUpID : 0,
+                ProductionStepID : $scope.cboProductionStep,
+                Sequence : 0
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ProductionUnit/SaveGUPReportSetUp',$.param(oGUPReportSetUp), config).then(function (response){
+              
+                debugger;
+                var result=jQuery.parseJSON(response.data);
+                console.log(result.length);
+                if( result.GUPReportSetUpID > 0)
+                {
+                    debugger;
+                    alert("Production Step Added");
+                    $scope.gridOptions.data.push(result);
+                }
+                else{
+                    msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                }
+            },
+                             function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage);}
+             );
+        };
+
+        $scope.up = function() {
+            debugger;
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.index = $scope.gridOptions.data.indexOf(data[0]);
+            if(data[0].Sequence <= 1)
+            {
+                return;
+            }
+            var obj = {
+                ProductionStepID:$scope.cboProductionStep,
+                GUPReportSetUpID : data[0].GUPReportSetUpID,
+                IsUp : true
+            };
+
+            sessionStorage.setItem("upIndex", ($scope.index - 1));
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ProductionUnit/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions.data=(results);
+                var n=parseInt(sessionStorage.getItem("upIndex"));
+                
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+                
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+                //$scope.gridApi.selection.selectRow(n);
+            }, function () {
+                $log.info('GUPReportSetUp Dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.down = function() {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            $scope.len = $scope.gridOptions.data.length;
+            $scope.index = $scope.gridOptions.data.indexOf(data[0]);
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select one item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+
+            if($scope.index + 1 ==  $scope.len) {
+                return;
+            }
+
+            
+            var obj = {
+                ProductionStepID:$scope.cboProductionStep,
+                GUPReportSetUpID : data[0].GUPReportSetUpID,
+                IsUp : false
+            };
+
+            sessionStorage.setItem("downIndex", ($scope.index + 1));
+
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ProductionUnit/UpDown',$.param(obj), config).then(
+            function (response) {
+                debugger;
+                $scope.gridOptions.data=[];
+                results=jQuery.parseJSON(response.data);
+                $scope.gridOptions.data=(results);
+
+                var n=parseInt(sessionStorage.getItem("downIndex"));
+                
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.grid.modifyRows(results);
+                
+                $scope.gridApi.selection.selectRow(results[n]);
+                $scope.RowSelect(results[n]);
+
+            }, function () {
+                $log.info('GUPReportSetUp Dismissed at: ' + new Date());
+            });
+        }
+
+  
+        $scope.remove = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/ProductionUnit/DeleteGUPReportSetUp',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted') 
+                                {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.GUPReportSetUpID == data[0].GUPReportSetUpID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+ 
+
+    });
+
+
+    </script>
+
+
+
+

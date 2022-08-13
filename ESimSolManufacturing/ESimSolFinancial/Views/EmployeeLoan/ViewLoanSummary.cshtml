@@ -1,0 +1,211 @@
+﻿@{
+    ViewBag.Title = "Loan Summary";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.LoanSummary>
+
+    <head>
+        <title>Loan Summary</title>
+    </head>
+
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tblLoanSummary" title="Loan Summary List" class="easyui-datagrid" fit="true" fitcolumn="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarEmployeeLoan">
+                <thead>
+                    <tr>
+                        <th field="DepartmentName" width="15%" align="left">Department</th>
+                        <th field="LoanAmount" width="10%" formatter="formatPrice" align="right">Loan Amount</th>
+                        <th field="InstallmentDeduction" width="10%" formatter="formatPrice" align="right">Inst. Deduction</th>
+                        <th field="InterestDeduction" width="12%" formatter="formatPrice" align="right">Interest Deduction</th>
+                        <th field="RefundAmount" width="10%" formatter="formatPrice" align="right">Refund Amount</th>
+                        <th field="RefundCharge" width="10%" formatter="formatPrice" align="right">Refund Interest</th>
+                        <th field="LoanBalance" width="10%" formatter="formatPrice" align="right">Loan Balance</th>
+                        <th field="TotalExtra" width="10%" formatter="formatPrice" align="right">Total Interest</th>
+                    </tr>
+                </thead>
+
+            </table>
+
+            <div id="toolbarEmployeeLoan">
+                <input id="dtFrom" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /> To
+                <input id="dtTo" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <input type="text" id="txtDepartment" placeholder="Search Department" style="width:20%;" />
+                <a id="btnPickDepartment" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                <a id="btnResetDepartment" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-clear" plain="true"></a>
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                <a id="btnExcel" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-excel" plain="true">Excel</a>
+            </div>
+        </div>
+
+
+    </body>
+
+
+    <script type="text/javascript">
+        var _sBaseAddress="";
+        var _oLoanSummarys=[];
+
+        $(document).ready(function () {
+            _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oLoanSummarys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            $('#dtFrom, #dtTo').datebox('setValue', icsdateformat(new Date()));
+            $('#txtDepartment').data('DepartmentIDs','');
+            DynamicRefreshList(_oLoanSummarys, 'tblLoanSummary');
+        });
+
+        $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+
+        /*.......... Searching ............. */
+
+
+        $('#btnSearch').click(function(e){
+            var oLoanSummaryInfo={
+                Params:  $('#dtFrom').datebox('getValue')+'~'+$('#dtTo').datebox('getValue')+'~'+ $.trim($('#txtDepartment').data('DepartmentIDs'))+'~'+0
+            };
+            GetsLoanSummary(oLoanSummaryInfo) ;
+        });
+
+        function GetsLoanSummary(oLoanSummary) {
+            var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oLoanSummary,
+                ControllerName: "EmployeeLoan",
+                ActionName: "GetsLoanSummary",
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs != null) {
+                    if (response.objs.length > 0) {
+                        if(response.objs[0].DepartmentID>0){
+                            _oLoanSummarys=response.objs;
+                            DynamicRefreshList(response.objs, "tblLoanSummary");
+                        }
+                        else{DynamicRefreshList([], "tblLoanSummary"); alert(response.objs[0].ErrorMessage);}
+                    }
+                    else { DynamicRefreshList([], "tblLoanSummary"); alert("No loan summary information found."); }
+                }
+            });
+        }
+
+        /*.......... XL ............. */
+
+        $('#btnExcel').click(function (e)
+        {
+            var tsv=((new Date()).getTime())/1000;
+            var sParam=$('#dtFrom').datebox('getValue')+'~'+$('#dtTo').datebox('getValue')+'~'+ $.trim($('#txtDepartment').data('DepartmentIDs'))+'~'+0;
+            window.open(_sBaseAddress+ "/EmployeeLoan/ExcelLoanSummary?sParams="+sParam+"&nts="+tsv, "_blank");
+        });
+
+
+        /*.......... Department Picker ............. */
+
+        $("#btnResetDepartment").click(function () {
+            $("#txtDepartment").val("");
+            $('#txtDepartment').data('DepartmentIDs','');
+        });
+
+        $("#btnPickDepartment").click(function () {
+
+            var sDeptName=$.trim($("#txtDepartment").val());
+            if(sDeptName==""){ alert("Type department name to search."); return false; }
+            GetDepartments(sDeptName);
+        });
+
+        $("#txtDepartment").keydown(function (e) {
+            var nkeyCode = e.keyCode || e.which;
+            if(nkeyCode==13){
+                var sDeptName=$.trim($("#txtDepartment").val());
+                if(sDeptName==""){ alert("Type department name to search."); return false; }
+                GetDepartments(sDeptName);
+            }
+            else if(nkeyCode==8){
+                $("#txtDepartment").val("");
+                $('#txtDepartment').data('DepartmentIDs','');
+            }
+        });
+
+        function GetDepartments(sDeptName){
+
+            var oDepartment = { Name:sDeptName};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oDepartment,
+                ControllerName: "Department",
+                ActionName: "GetsDepartment",
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].DepartmentID > 0) {
+                        debugger;
+                        var tblColums = [];
+                        var oColumn = { field: "Name", title: "Name", width: 200, align: "left" };tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winDepartmentPicker',
+                            winclass:'clsDepartmentPicker',
+                            winwidth: 280,
+                            winheight: 400,
+                            tableid: 'tblDepartmentPicker',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName:'Name',
+                            windowTittle: 'Department List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializeDepartmentPickerbutton(oPickerParam);//multiplereturn, winclassName
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+                else{
+                    alert("No department found.");
+                }
+            });
+
+
+        }
+
+        function IntializeDepartmentPickerbutton(oPickerobj)
+        {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                DepartmentSelect(oPickerobj);
+            });
+            $(document).find('.' +oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    DepartmentSelect(oPickerobj);
+                }
+            });
+        }
+
+        function DepartmentSelect(oPickerobj){
+            var oDepartments = $('#'+oPickerobj.tableid).datagrid('getChecked');
+            if (oPickerobj.winid == 'winDepartmentPicker')
+            {
+                if(oDepartments !=null  && oDepartments.length>0 && oDepartments[0].DepartmentID>0){
+                    $("#"+oPickerobj.winid).icsWindow("close");
+                    $("#" + oPickerobj.winid).remove();
+                    var Ids="";
+                    
+                    for(var i=0; i<oDepartments.length;i++){
+                        Ids+=oDepartments[i].DepartmentID+',';
+                    }
+                    Ids=Ids.substring(0,Ids.length-1);
+                    $('#txtDepartment').data('DepartmentIDs',Ids);
+                    $('#txtDepartment').val((oDepartments.length>1)? oDepartments.length +" Departments Selected": oDepartments[0].Name );
+                }
+                else
+                {
+                    alert("Please select department.");
+                }
+            }
+        }
+
+
+    </script>

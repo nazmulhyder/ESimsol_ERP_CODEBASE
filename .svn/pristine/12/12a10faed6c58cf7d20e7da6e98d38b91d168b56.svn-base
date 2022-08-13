@@ -1,0 +1,245 @@
+﻿<!DOCTYPE html />
+<html>
+<head>
+    <title>Advance Edit</title>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.EmployeeProduction
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 380px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                        Advance Edit
+                    </label>
+                </td>
+            </tr>
+            <tr id="trHeader">
+                <td style="background-color: #cfb53b; text-align: center; width: 380px; color: White">
+                    <label id="lblHeader" style="font-size: 12px; font-weight: bold; text-decoration: Underline">
+                        Advance Edit
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Advance Edit</legend>@* table1 start*@
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold;">
+                <tr>
+                    <td style="width: 70px; text-align: right;">
+                        Issue Qty :
+                    </td>
+                    <td>
+                        <input id="txtIssueQty" type="text" style="width: 80px;" />
+                    </td>
+                    <td style="width: 70px; text-align: right;">
+                       Issue Date:
+                    </td>
+                    <td>
+                        <input id="dtDate" type="text" style="width: 100px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                </tr>
+            </table>
+           <div style="margin-left:12px">
+            <table id="tblReceiveDetail" title="Receive"  class="easyui-datagrid" style="width:330px;height:150px;" 
+                data-options="
+                singleSelect: false, 
+                fitColumns:false, 
+                rownumbers:true,
+                pagination:false,
+                autoRowHeight:false,
+                showFooter: true,
+                onClickRow: onClickRowForRcv         
+                ">
+                <thead>
+                    <tr>
+                        <th data-options="field:'RcvQty',width:130,align:'right',editor:{type:'numberbox',options:{precision:0}}" align="center">Rcv(Pcs)</th>
+                        <th data-options="field:'RcvByDateInString',width:150,align:'center', editor:{type:'datebox'}" >Date</th>
+                    </tr>
+                </thead>
+            </table>
+            ​</div>
+       
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold;">
+                <tr>
+                    <td style="width: 120px;">
+                    </td>
+                    <td style="width: 210px; text-align: right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Edit</a>
+                        <a id="btnCancel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" >Close</a>
+                    </td>
+                </tr>
+            </table>
+            @* table1 end*@
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+var _oEmployeeProduction=null;
+var _opEmployeeProduction=null;
+var _sBaseAddress="";
+var _obj=null;
+var _oEmployee=null;
+var _nEmployeeID = 0;
+
+$(document).ready(function ()
+{
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    _oEmployeeProduction =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    //alert( _oEmployeeProduction.OrderRecapDetails[0].ColorAndSizeInString);
+    _obj = window.dialogArguments;
+    if(_obj.Name == "EPS Advance Edit(Knitting)")
+    {
+        document.getElementById("lblHeader").innerHTML= "Order No : "+_obj.oOrderRecape.OrderRecapNo+", Style : "+_obj.oOrderRecape.StyleNo+", Buyer : "+_obj.oOrderRecape.BuyerName;
+    }
+    else
+    {
+        document.getElementById("trHeader").style.display = 'none';
+    }
+    $("#txtIssueQty").numberbox();
+    
+    RefreshControl();
+});
+
+function RefreshControl()
+{
+    //document.getElementById("txtIssueQty").value = _oEmployeeProduction.IssueQty;
+    $('#txtIssueQty').numberbox('setValue',_oEmployeeProduction.IssueQty);
+    $('#dtDate').datebox('setValue', _oEmployeeProduction.IssueDateInString);
+    RefreshList();
+}
+
+var editIndexForRcv = undefined;  
+function endEditingForRcv()
+{  
+    if (editIndexForRcv == undefined){return true}  
+    if ($('#tblReceiveDetail').datagrid('validateRow', editIndexForRcv))
+    { 
+        $('#tblReceiveDetail').datagrid('endEdit', editIndexForRcv);                   
+        editIndexForRcv = undefined;  
+        return true;  
+    } 
+    else
+    {  
+        return false;  
+    }  
+}  
+
+function onClickRowForRcv(index)
+{  
+    if (editIndexForRcv != index)
+    {  
+        if (endEditingForRcv())
+        {
+            $('#tblReceiveDetail').datagrid('selectRow', index).datagrid('beginEdit', index);  
+            editIndexForRcv = index;  
+        } 
+        else
+        {  
+            $('#tblReceiveDetail').datagrid('selectRow', editIndexForRcv);  
+        }  
+    }  
+} 
+
+function  icsdateformat(date)
+{
+    var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    var d = date.getDate();
+    var result= d +' '+ mthNames[m]+' '+ y;
+    return result;
+}
+
+function RefreshList()
+{
+    data =_oEmployeeProduction.EmployeeProductionReceiveDetails ;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblReceiveDetail').datagrid('loadData', data);
+}
+
+function Save()
+{
+    endEditingForRcv();
+    var oEmployeeProductionReceiveDetails = $('#tblReceiveDetail').datagrid('getRows')
+    var nTotalRcvQty = 0;
+    var dtIssueDate = new Date($('#dtDate').datebox('getValue'));
+
+    for(var i=0; i<oEmployeeProductionReceiveDetails.length; i++)
+    {
+        nTotalRcvQty +=parseFloat(oEmployeeProductionReceiveDetails[i].RcvQty);
+        oEmployeeProductionReceiveDetails[i].RcvByDate = new Date(oEmployeeProductionReceiveDetails[i].RcvByDateInString);
+        if(dtIssueDate > new Date(oEmployeeProductionReceiveDetails[i].RcvByDateInString))
+        {
+            alert("Issue date must not be greater than the receive date !");
+            return;
+        }
+    }
+    
+    if(nTotalRcvQty > document.getElementById("txtIssueQty").value)
+    {
+        alert("Receive qty must not be greater than Issue qty !");
+        return;
+    }
+
+    var oEmployeeProduction = 
+    {
+        EPSID : _oEmployeeProduction.EPSID,
+        IssueQty : document.getElementById("txtIssueQty").value,
+        IssueDate : $('#dtDate').datebox('getValue'),
+        RcvQty : nTotalRcvQty,
+        EmployeeProductionReceiveDetails : oEmployeeProductionReceiveDetails
+    };
+    
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/EmployeeProduction/AdvanceEdit",
+            traditional: true,
+            data: JSON.stringify(oEmployeeProduction),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+              
+                var oEmployeeProduction = jQuery.parseJSON(data);
+                if (oEmployeeProduction.ErrorMessage == "") 
+                {
+                    alert("Data edited sucessfully");
+                    window.returnValue = oEmployeeProduction;
+                    window.close();
+                } 
+                else 
+                {
+                    alert(oEmployeeProduction.ErrorMessage);
+                }
+             },
+             error: function(xhr, status, error)
+             {
+                alert(error);
+             }
+          });
+}
+
+$('#btnCancel').click(function (e) 
+{
+    window.close();
+});
+$(document).keydown(function (e)
+{
+    var keyCode = e.keyCode || e.which;
+    if (keyCode == 27)
+    {
+        window.close();
+    }
+});
+</script>

@@ -1,0 +1,146 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Daily Production Report";
+    }
+    @model ESimSol.BusinessObjects.GUPReportSetUp
+    <div id="divProductionPlan" class="easyui-panel menuMainCollectionTable" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <table id="tblProductionPlan" title="" class="easyui-datagrid" style="width:100%;height:100%" autorowheight="true" data-options="singleSelect: true,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'"></table>
+        <div style="text-align:left" id="toolbar"> 
+            BU : <select id="cboBU" style="width:120px;"></select>&nbsp;&nbsp;
+            P/U : <select id="cboPUnit" style="width:100px;"></select>&nbsp;&nbsp;
+            Date :<input id="txtStartDate" type="text" class="easyui-datebox" style="width: 100px;" data-options="formatter:icsdateformat,parser:icsdateparser" /> To &nbsp;&nbsp;<input id="txtEndDate" type="text" class="easyui-datebox" style="width: 100px;" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To Excel</a>
+        </div>
+    </div>    
+   </body>
+</html>
+<script type="text/javascript">
+    var _oGUPReportSetUps = [];
+    var _sBaseAddress = "";
+    $(document).ready(function () {
+        debugger;
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        _oGUPReportSetUps = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.GUPReportSetUps));
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oProductionUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionUnits));
+        $("#cboBU").icsLoadCombo({List: oBUs,OptionValue: "BusinessUnitID",DisplayText: "Name",InitialValue:"--Select One--"});
+        $("#cboPUnit").icsLoadCombo({List: oProductionUnits,OptionValue: "ProductionUnitID",DisplayText: "ShortName",InitialValue:"Default"});
+        $('#txtStartDate,#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+    });
+
+    function RefreshList(oProductionTimeSetups)
+    {
+        var data=oProductionTimeSetups;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductionPlan').datagrid('loadData',data);
+    }
+    $("#btnRefresh").click(function(){
+        // debugger;
+        var dStartDate = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate = new Date($('#txtEndDate').datebox('getValue'));
+        var oPTUTransection = {
+            BUID:parseInt($("#cboBU").val()),
+            ProductionUnitID: parseInt($("#cboPUnit").val()),
+            StartDate:dStartDate,
+            EndDate:dEndDate
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DailyProductionReport/GetReports",
+            traditional: true,
+            data:  JSON.stringify(oPTUTransection),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                // debugger;
+                var results = jQuery.parseJSON(data);
+                var TempList = [];
+                for(var i=0; i<results.length;i++)
+                {
+                    var dynamicObj=new Object();
+                    var obj=results[i];
+                    for(var j=0; j<obj.length;j++)
+                    {
+                        if(j==0)
+                        {
+                            dynamicObj[obj[j].Key]=obj[j].Value;
+                            continue;
+                        }
+                        dynamicObj[obj[j].Key]=obj[j].Value;
+                    }
+                    TempList.push(dynamicObj);
+                }
+                MakeDynamicTable();
+                RefreshList(TempList);
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+    });
+    function MakeDynamicTable()
+    {
+        var dStartDate = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate = new Date($('#txtEndDate').datebox('getValue'));
+        var tblColums=[], tblFrozenColumns = [];
+        var oColumn=null;
+        oColumn  ={field :"ProductionUnitName", title:"Floor No", width:100 };tblFrozenColumns.push(oColumn);
+        oColumn  ={field :"LineNo", title:"Line No", width:80 };tblFrozenColumns.push(oColumn);
+        oColumn  ={field :"BuyerName", title:"Buyer", width:100 };tblFrozenColumns.push(oColumn);
+        oColumn  ={field :"StyleNo", title:"Style No", width:100 };tblFrozenColumns.push(oColumn);
+        oColumn  ={field :"RecapQty", title:"Order Qty", width:70, align:"right" };tblFrozenColumns.push(oColumn);
+
+        oColumn  ={field :"GarmentsName", title:"Item", width:100, align:"left" };tblColums.push(oColumn);
+        oColumn  ={field :"ShipmentDate", title:"Del. Date", width:100, align:"left" };tblColums.push(oColumn);
+        oColumn  ={field :"InputDate", title:"Input Date", width:100, align:"left" };tblColums.push(oColumn);
+        oColumn  ={field :"PlanQty", title:"Plan Target", width:70, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"PlanWorkingHour", title:"Plan W.Hr", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"ActualWorkingHour", title:"Actual W.Hr", width:80, align:"right" };tblColums.push(oColumn);
+
+        for(var i = 0;i<_oGUPReportSetUps.length;i++)
+        {
+
+            oColumn= {
+                field:"PreCol"+_oGUPReportSetUps[i].ProductionStepID,
+                title:"Previous Of "+ _oGUPReportSetUps[i].StepName,
+                width:100,
+                align: "right"
+            };tblColums.push(oColumn);
+
+            oColumn= {
+                field:"TodayCol"+_oGUPReportSetUps[i].ProductionStepID,
+                title:"Today Of "+ _oGUPReportSetUps[i].StepName,
+                width:100,
+                align: "right"
+            };tblColums.push(oColumn);
+
+            oColumn= {
+                field:"TotalCol"+_oGUPReportSetUps[i].ProductionStepID,
+                title:"Total Of "+ _oGUPReportSetUps[i].StepName,
+                width:100,
+                align: "right"
+            };tblColums.push(oColumn);
+
+        }
+
+        oColumn  ={field :"UseHelper", title:"Use Helper", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"UseOperator", title:"Use Operator", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"SMV", title:"SMV", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"DailyLineEfficiency", title:"Daily Line Efficiency", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"DailyFloorEfficiency", title:"Daily Floor Efficiency", width:80, align:"right" };tblColums.push(oColumn);
+        oColumn  ={field :"Remarks", title:"Remarks", width:80, align:"left" };tblColums.push(oColumn);
+        $('#tblProductionPlan').datagrid({frozenColumns:[tblFrozenColumns], columns:[tblColums]});
+
+    }
+    $("#btnPrint").click(function(){
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress + '/DailyProductionReport/ExportToExcel?StartDate='+dStartDate+'&EndDate='+dEndDate+'&BUID='+parseInt($('#cboBU').val())+'&ProductionUnitID='+parseInt($("#cboPUnit").val())+'&ts='+tsv, "_blank");
+    });
+
+</script>

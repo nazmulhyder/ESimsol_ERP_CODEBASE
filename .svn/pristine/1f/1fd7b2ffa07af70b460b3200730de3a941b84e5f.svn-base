@@ -1,0 +1,180 @@
+﻿@{
+    ViewBag.Title = "Poly Measurements";
+}
+@model IEnumerable<ESimSol.BusinessObjects.PolyMeasurement>
+    <div class="menuMainCollectionTable" style="height:100%">
+        <table id="tblPolyMeasurements" title="Poly Measurement List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="PolyMeasurementID" width="80">Code</th>
+                    <th field="PolyMeasurementTypeSt" width="100">Poly Measurement Type</th>
+                    <th field="Measurement" width="100">Measurement</th>
+                    <th field="Note" width="100">Note</th>
+                    
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <select style="width: 200px;height:21px" id="cboPolyMeasurementType"></select>
+            <input type="text" id="txtPolyMeasurement" style="width:200px" placeholder="Search By Measurement" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>
+        </div>
+    </div>
+
+
+
+    <script type="text/javascript">
+
+        $(document).ready(function () {
+            var oMeasurements =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            var oPolyMeasurementTyps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PolyMeasurementTypes));
+            $("#cboPolyMeasurementType").icsLoadCombo({List: oPolyMeasurementTyps, OptionValue: "id", DisplayText: "Value" });
+
+            $('#tblPolyMeasurements').data('BaseAddress', sBaseAddress);
+            var oTempMeasurements =sessionStorage.getItem("Measurements");
+            if(oTempMeasurements!=null)
+            {
+                oMeasurements = jQuery.parseJSON(oTempMeasurements);
+            }
+            RefreshList(oMeasurements);
+        });
+
+        $('#txtPolyMeasurement').keypress(function (e){
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) 
+            {
+                var oPolyMeasurement = {
+                    Measurement : $('#txtPolyMeasurement').val(),
+                    PolyMeasurementTypeInt : parseInt($('#cboPolyMeasurementType').val())
+                };
+                $.ajax({
+                    type: "POST",
+                    dataType: "json",
+                    url : $('#tblPolyMeasurements').data('BaseAddress')+"/PolyMeasurement/SearchByMeasurement",
+                    data: JSON.stringify(oPolyMeasurement),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {                         
+                        var oPolyMeasurements = jQuery.parseJSON(data);
+                        if (oPolyMeasurements.length>0)
+                        {
+                            RefreshList(oPolyMeasurements);
+                        }
+                        else
+                        {
+                            alert("Data Not found");
+                            RefreshList([]);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+
+
+
+        $('#btnAdd').click(function(){
+            var oMeasurements= $('#tblPolyMeasurements').datagrid('getRows');
+            sessionStorage.setItem("Measurements", JSON.stringify(oMeasurements));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("MeasurementHeader", "Add Measurement");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = $('#tblPolyMeasurements').data('BaseAddress')+ "/PolyMeasurement/ViewPolyMeasurement?id=0";
+        });
+
+        $('#btnEdit').click(function(){
+            var oMeasurement= $('#tblPolyMeasurements').datagrid('getSelected');
+            if(oMeasurement==null || oMeasurement.PolyMeasurementID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblPolyMeasurements').datagrid('getRowIndex',oMeasurement);
+            var oMeasurements= $('#tblPolyMeasurements').datagrid('getRows');
+            sessionStorage.setItem("Measurements", JSON.stringify(oMeasurements));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("MeasurementHeader", "Edit Measurement");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href =  $('#tblPolyMeasurements').data('BaseAddress')+  "/PolyMeasurement/ViewPolyMeasurement?id="+oMeasurement.PolyMeasurementID;
+        });
+
+        $('#btnView').click(function(){
+            var oMeasurement= $('#tblPolyMeasurements').datagrid('getSelected');
+            if(oMeasurement==null || oMeasurement.PolyMeasurementID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblPolyMeasurements').datagrid('getRowIndex',oMeasurement);
+            var oMeasurements= $('#tblPolyMeasurements').datagrid('getRows');
+            sessionStorage.setItem("Measurements", JSON.stringify(oMeasurements));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("MeasurementHeader", "View Measurement");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href =  $('#tblPolyMeasurements').data('BaseAddress')+  "/PolyMeasurement/ViewPolyMeasurement?id="+oMeasurement.PolyMeasurementID;
+        });
+
+        $('#btnDelete').click(function(){
+            var oMeasurement= $('#tblPolyMeasurements').datagrid('getSelected');
+            if (!confirm("Confirm to Delete?")) return ;
+
+            if(oMeasurement==null || oMeasurement.PolyMeasurementID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var SelectedRowIndex=$('#tblPolyMeasurements').datagrid('getRowIndex',oMeasurement);
+
+            if (oMeasurement.PolyMeasurementID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : $('#tblPolyMeasurements').data('BaseAddress')+  "/PolyMeasurement/Delete",
+                    data: { id: oMeasurement.PolyMeasurementID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Data delete successfully")
+                        {
+                            alert("Delete sucessfully");
+                            $('#tblPolyMeasurements').datagrid('deleteRow',SelectedRowIndex);
+
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        });
+
+        $('#btnPrintList').click(function(){
+            window.open($('#tblPolyMeasurements').data('BaseAddress')+ "/PolyMeasurement/PrintList");
+        });
+
+        function RefreshList(oMeasurements)
+        {
+            data={"total":""+oMeasurements.length+"","rows":oMeasurements};
+            $('#tblPolyMeasurements').datagrid('loadData',data);
+            var nSelectedRowIndex =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if(nSelectedRowIndex!=-1)
+            {
+                $('#tblPolyMeasurements').datagrid('selectRow', nSelectedRowIndex);
+            }
+        }
+    </script>

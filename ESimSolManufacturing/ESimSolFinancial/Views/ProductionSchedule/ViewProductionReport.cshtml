@@ -1,0 +1,324 @@
+﻿    @model IEnumerable<ESimSol.BusinessObjects.ProductionScheduleDetail>
+    @{
+        ViewBag.Title = "Production Report";
+    }
+    <div style="margin-left: 0px; height: 565px">
+        <table id="tblProductionReport" title="Production Report" class="easyui-datagrid" style="width: 100%; height: 565px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="MachineName" width="120" align="left"> Machine Name</th>
+                    <th field="UsesWeight" width="80" align="center"> Capacity (KG)</th>
+                    <th field="BuyerName" width="120" align="left"> Buyer Name</th>
+                    <th field="Shade" width="120" align="left"> Shade</th>
+                    <th field="ProductName" width="100" align="Left"> Yarn Count</th>
+                    <th field="BatchCardNo" width="110" align="left">Batch</th>
+                    <th field="ProductionQty" width="100" align="center">Weight (KG)</th>
+                    <th field="Loading" width="100" align="center">Loading(%) </th>
+                    <th field="ShadePercentage" width="70" align="right">Shade(%) </th>
+                    <th field="DurationInString" width="100" align="center"> Duration </th>
+                    <th field="PRRemarks" width="130" align="left"> Remarks</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <table>
+                <tr>
+                    <td>
+                        <span> <input type="text" id="txtMachineName" placeholder="Select Machine" style=" width:120px; font-size:11px; " /> <input type="button" value="P" id="btnPickMachine" style="width:25px; font-size:11px;" /><input type="button" value="R" id="btnReset" style="width:25px; font-size:11px;" /> </span>
+                        <span>Issue Date</span>
+                        <span>@Html.DropDownList("cboDateformation", new SelectList(Enum.GetValues(typeof(ICS.Core.Utility.EnumCompareOperator))), new { id = "cboDateformation", style = "width:95px;font-size:12px;text-align:left", @class = "_select_change" })</span>
+                        @*   <span>
+                            <input id="txtStartDate" type="text" style="width: 105px;" class="easyui-datebox"
+                                  data-options="formatter:icsdateformat" />&nbsp;<label id="lblToEndDate">To&nbsp;
+                                      <input id="txtEndDate" type="text" style="width: 105px;" class="easyui-datebox" data-options="formatter:icsdateformat" /></label></span>*@
+                        <span id="regionStartDate">
+                            <input id="txtStartDate" type="text" style="width: 105px;" class="easyui-datebox"
+                                   data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </span>
+                        <span id="regionEndDate">
+                            <label id="lblToEndDate">
+                                To&nbsp;
+                                <input id="txtEndDate" type="text" style="width: 105px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                            </label>
+                        </span>
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                        <a id="btnPrintWithCost" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">With Cost</a>
+                        <a id="btnProductionSummary" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Summary</a>
+                        <a id="btnAdvanceSummary" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">With Shade Group</a>
+                        <a id="btnPrintProAnalysisByMachine" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Machine Log</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+
+        var _sBaseAddress="";
+        var _oProductions=[];
+        var _sSrcValue="";
+        var _nPSSID=0;
+        var _nLocationID=0;
+        $(document).ready(function ()
+        {
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            var bSummaryReport =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Summary));
+           
+            $('#txtStartDate').datebox('setValue',icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue',icsdateformat(new Date()));
+
+            var x = $("#cboDateformation").val();
+            if (x == "None")
+            {
+                document.getElementById("regionStartDate").style.display = 'none';
+                document.getElementById("regionEndDate").style.display = 'none';
+            }
+
+            if (!bSummaryReport)
+            {
+                document.getElementById("btnProductionSummary").style.display = 'none';
+            }
+        });
+
+
+
+
+
+        $('._select_change').change(function () {
+
+            var x = $("#cboDateformation").val();
+            if (x == "None")
+            {
+                document.getElementById("regionStartDate").style.display = 'none';
+                document.getElementById("regionEndDate").style.display = 'none';
+            }
+            else if (x == "EqualTo" || x == "NotEqualTo" || x == "GreaterThen" || x == "SmallerThen")
+            {
+                document.getElementById("regionStartDate").style.display = '';
+                document.getElementById("regionEndDate").style.display = 'none';
+            }
+            else
+            {
+                document.getElementById("regionStartDate").style.display = '';
+                document.getElementById("regionEndDate").style.display = '';
+            }
+        });
+
+        function RefreshList(oProductions)
+        {
+            data = oProductions;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblProductionReport').datagrid('loadData', data);
+        }
+
+
+        $('#btnSearch').click(function (e)
+        {
+            var sDateType=$("#cboDateformation").val();
+            if(sDateType=='None')
+            {
+                alert("Please select another issue date type.");
+                document.getElementById('cboDateformation').focus();
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+
+            var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+            var nts=(new Date()).getTime()/1000;
+
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress+ "/ProductionSchedule/SearchForProductionReport",
+                data: { sValue: sTempString,nts:nts },
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    debugger;
+                    var oPSDs=[];
+                    oPSDs = jQuery.parseJSON(data);
+
+                    if(oPSDs.length>0)
+                    {
+                        RefreshList(oPSDs);
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                        RefreshList([]);
+                    }
+
+                },
+            });
+        });
+
+        $('#btnPrint').click(function (e)
+        {
+            var sDateType=$("#cboDateformation").val();
+            if(sDateType=='None')
+            {
+                alert("Please select another issue date type.");
+                document.getElementById('cboDateformation').focus();
+                return;
+            }
+
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionSchedule/PrintProductionScheduleReport?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+
+
+        $('#btnPrintWithCost').click(function (e)
+        {
+            var sDateType=$("#cboDateformation").val();
+            if(sDateType=='None')
+            {
+                alert("Please select another issue date type.");
+                document.getElementById('cboDateformation').focus();
+                return;
+            }
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionSchedule/PrintProductionWithCost?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+
+        $('#btnPrintProAnalysisByMachine').click(function (e)
+        {
+
+            if(_nPSSID>0 && _nLocationID>0)
+            {
+                var sDateType=$("#cboDateformation").val();
+                if(sDateType=='None')
+                {
+                    alert("Please select another issue date type.");
+                    document.getElementById('cboDateformation').focus();
+                    return;
+                }
+                var StartDate= $('#txtStartDate').datebox('getValue');
+                var EndDate= $('#txtEndDate').datebox('getValue');
+                var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+                var nts=(new Date()).getTime()/1000;
+                window.open(_sBaseAddress + "/ProductionSchedule/PrintProductionWithDuration?sValue="+sTempString+"&nts="+nts, "_blank");
+
+            }
+            else
+            {
+                alert("Please select a machine.");
+            }
+
+        });
+
+
+        $('#btnPickMachine').click(function(e)
+        {
+            var oParameter = new Object();
+
+            oParameter.Name = "Add New Machine";
+            var url =_sBaseAddress+ "/ProductionSchedule/ViewMachine";
+            var oMachineLocation=window.showModalDialog(url, oParameter,'dialogHeight:400px;dialogWidth:600px;dialogLeft:450;dialogTop:150;center:yes;resizable:no;status:no;scroll:yes');
+            if(oMachineLocation!=null)
+            {
+                _nPSSID = oMachineLocation.DyeMachines.PSSID;
+                _nLocationID = oMachineLocation.LocationID;
+                document.getElementById("txtMachineName").value=oMachineLocation.DyeMachines.MachineName;
+            }
+
+
+        });
+
+
+        $('#txtMachineName').keypress(function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sName=document.getElementById("txtMachineName").value;
+
+            if (code == 13)//Enter key-13
+            {
+
+                if($.trim(sName)!="")
+                {
+                    var nts=(new Date()).getTime()/1000;
+                    var oParameter = new Object();
+                    oParameter.MultipleItemReturn = false;
+                    oParameter.Name=sName;
+                    var url = _sBaseAddress + "/ProductionSchedule/ViewMachineByName?sStr="+$.trim(sName)+"&nts="+nts;
+                    var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:400px;dialogWidth:400px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                    if (oReturnObject!=null)
+                    {
+                        $("#txtMachineName")[0].value=oReturnObject.MachineName;
+                        _nPSSID=oReturnObject.PSSID;
+                        _nLocationID = oReturnObject.LocationID;
+                    }
+                }
+                else
+                {
+                    alert("Please enter somethig to seach machine.");
+                    Reset();
+                }
+            }
+
+        });
+
+        $('#btnReset').click(function(e)
+        {
+            Reset();
+        });
+
+        function Reset()
+        {
+            _nPSSID=0;
+            _nLocationID=0;
+            $("#txtMachineName")[0].value="";
+        }
+
+        $('#btnProductionSummary').click(function (e)
+        {
+            var sDateType=$("#cboDateformation").val();
+            if(sDateType=='None')
+            {
+                alert("Please select another issue date type.");
+                document.getElementById('cboDateformation').focus();
+                return;
+            }
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionSchedule/PrintProductionSummary?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+
+        $('#btnAdvanceSummary').click(function (e)
+        {
+            var sDateType=$("#cboDateformation").val();
+            if(sDateType=='None')
+            {
+                alert("Please select another issue date type.");
+                document.getElementById('cboDateformation').focus();
+                return;
+            }
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var sTempString=sDateType+'~'+StartDate+'~'+EndDate+'~'+_nPSSID+'~'+_nLocationID;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionSchedule/PrintProductionSummaryWithShadeGroup?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+
+
+    </script>

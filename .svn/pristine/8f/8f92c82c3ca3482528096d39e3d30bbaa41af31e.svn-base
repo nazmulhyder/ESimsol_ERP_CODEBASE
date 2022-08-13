@@ -1,0 +1,280 @@
+﻿@{
+    ViewBag.Title = "Bill Wise Detail";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VoucherRefReport>
+   <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblGeneralJournal" title="General Ledger List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="BillDateInString" width="90" align="left">  Date</th>
+                    <th field="RefObjName" width="100" align="left">Ref. No</th>
+                    <th field="OpeningBalanceSt" width="120" align="right">Opening Amount</th>
+                    <th field="DebitAmount" width="120" align="right" formatter="formatPrice">Dr Amount</th>
+                    <th field="CreditAmount" width="120" align="right" formatter="formatPrice">Cr Amount</th>
+                    <th field="ClosingBalanceSt" width="120" align="right">Pending Amount</th>
+                    <th field="DueDateInString" width="90" align="left"> Due Date</th>
+                    <th field="CreditDays" width="100" align="left">Overdue By Days</th>
+                </tr>
+            </thead>
+        </table>
+
+        <div id="toolbar">
+            <table style="width: 100%;">
+                <tr>
+                    <td style="width: 330px; text-align: left; font-size: 12px">
+                        <table border="0" style="font-size: 12px">
+                            <tr>
+                                <td style="width: 425px; text-align: left; font-size: 12px">
+                                    Account Head :  <input type="text" id="txtAccountHeadName" placeholder="Type part of ledger then press enter" style="width:325px" />
+                                </td>
+                                <td style="width: 30px; text-align: left; font-size: 12px"> 
+                                Date 
+                                </td>
+                                <td style="width: 100px; font-size: 12px; text-align: left">
+                                    <select id="cboDateSearch" style="width:100px;font-size:12px;" class="_select_changeA" />
+                                </td>
+                                <td style="width: 110px; font-size: 12px">
+                                    <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                </td>
+                                <td style="width: 9px; font-size: 12px" id="tdSearchStartDate">
+                                    To
+                                </td>
+                                <td style="width: 110px; font-size: 12px" id="tdSearchEndDate">
+                                    <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                </td>
+                                                  
+                                <td>
+                                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()">Refresh</a>
+                                </td>
+                        </table>
+                    </td>
+                                    
+                </tr>
+                @*<tr>
+                    <td colspan="3" style="text-align: left; font-size: 12px"></td>
+                </tr>*@
+                @*<tr>
+                    <td colspan="3" style="text-align: left; font-size: 12px">
+                        <label id="lblInfo"></label>
+
+                            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true">Print General Ledger</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true">Print Cost Break Up</a>
+                    </td>
+                </tr>*@
+            </table>
+        </div>
+    </div>
+<script type="text/javascript">
+    var _oVoucherRefReports=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _nAccountHeadID=0;
+    var _nSessionCurrentCompanyID=0;
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oVoucherRefReports =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        RefreshList(_oVoucherRefReports)
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        RefreshDateSearch();
+    });
+$('#txtAccountHeadName').keypress(function (e) {
+     
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        //if(parseInt(_nSessionCurrentCompanyID) == 0)
+        //{
+        //    alert("Invalid Company.");
+        //    return
+        //}
+        var txtAccountHead = document.getElementById('txtAccountHeadName').value;
+        if(txtAccountHead!="")
+        {
+            // 
+            var tsv=((new Date()).getTime())/1000;
+            _oAccountHead=null;
+            var oParameter = new Object();
+            oParameter.EnteredText=txtAccountHead;
+            var url =_sBaseAddress+ "/ChartsOfAccount/ViewAccountsHead?sTemp="+txtAccountHead+"&ts="+tsv;
+            _oCreditChartOfAccount = window.showModalDialog(url, oParameter, 'dialogHeight:270px;dialogWidth:383px;dialogLeft:520;dialogTop:310;center:yes;resizable:no;status:no;scroll:no');
+            _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+             
+            if(_oCreditChartOfAccount !=null)
+            {
+                if(parseInt(_oCreditChartOfAccount.AccountHeadID)>0)
+                {
+                 _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+                   // var txttempAccountHead=document.getElementById("txtAccountHead");
+                    document.getElementById("txtAccountHeadName").value=_oCreditChartOfAccount.AccountHeadName;
+                    //  document.getElementById("txtAccountHeadName").value=_oAccountHead.AccountHeadName;
+//                    txttempAccountHead.value=sLedgerName;
+//                    txttempAccountHead.style.color="blue";
+//                    txttempAccountHead.style.fontWeight="bold";
+//                    document.getElementById("txtAmount").focus();
+//                    $('#txtAmount').numberbox('clear');
+                }
+                else
+                {
+               _nAccountHeadID=0;
+                }
+            }
+        }
+    }
+    if (code == 8) //backspace=8
+    {
+        var txtAccountHead = document.getElementById('txtAccountHeadName').value;
+        if(txtAccountHead=="")
+        {
+            document.getElementById('txtAccountHeadName').focus();
+        }
+    }
+});
+
+
+function RefreshDateSearch()
+{
+    document.getElementById("tdSearchStartDate").style.display = 'none';
+    document.getElementById("tdSearchEndDate").style.display = 'none';
+    $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+    $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+    $('#cboDateSearch').empty();
+    var listDates= "<option value='"+0+"'>" +"None" + "</option>";
+    listDates+= "<option value='"+1+"'>" + "EqualTo" + "</option>";
+    listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+    listDates+= "<option value='"+6+"'>" + "NotBetween" + "</option>";
+    $("#cboDateSearch").html(listDates);
+    $('#cboContractorType').empty();
+    var listDates= "<option value='"+2+"'>" +"Buyer" + "</option>";
+    listDates+= "<option value='"+1+"'>" + "Suplier" + "</option>";
+    $("#cboContractorType").html(listDates);
+}
+
+ $('._select_changeA').change(function () {
+    var DateTypes = document.getElementById("cboDateSearch");
+    var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+    if (DateType == "EqualTo") {
+        document.getElementById("txtStartDate").style.display = 'none';
+        document.getElementById("txtEndDate").style.display = 'none';
+        document.getElementById("tdSearchStartDate").style.display = 'none';
+        document.getElementById("tdSearchEndDate").style.display = 'none';
+    }
+    if (DateType == "None" )
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        document.getElementById("txtStartDate").style.display = 'none';
+        document.getElementById("txtEndDate").style.display = 'none';
+        document.getElementById("tdSearchStartDate").style.display = 'none';
+        document.getElementById("tdSearchEndDate").style.display = 'none';
+    }
+    if (DateType == "Between" ||DateType == "NotBetween"  )
+    {
+        document.getElementById("tdSearchStartDate").style.display = '';
+        document.getElementById("tdSearchEndDate").style.display = '';
+    }
+});
+
+function ValidateInput()
+ {
+    if (_oCreditChartOfAccount ==null ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if (_oCreditChartOfAccount.AccountHeadID <=0 ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if ( $('#txtStartDate').datebox('getValue')=="") {
+       alert("please select start date!");
+       $('#txtStartDate').focus();
+       return false;
+    }
+
+    if ( $('#txtEndDate').datebox('getValue')=="") {
+        alert("Please select end date!!");
+         $('#txtEndDate').focus();
+        return false;
+    }
+
+    var sStartDate=$('#txtStartDate').datebox('getValue');
+    var sEndDate = $('#txtEndDate').datebox('getValue');
+    var dStartDate = new Date(sStartDate);
+    var dEndDate = new Date(sEndDate);
+    var selectedCbo =document.getElementById("cboDateSearch");
+    var cboDateSearchVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+    if(parseInt(cboDateSearchVal) == 5 || parseInt(cboDateSearchVal) == 6){  //Between OR Not Between
+        if(dEndDate < dStartDate) {
+            alert("End date must be grater then start date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+    }
+    return true;
+ }
+
+
+function Refresh()
+{
+    //if(parseInt(_nSessionCurrentCompanyID) == 0)
+    //{
+    //    alert("Invalid Company.");
+    //    return
+    //}
+    if(!ValidateInput())return;
+    var Date = document.getElementById("cboDateSearch");
+    var dDateType = Date.options[Date.selectedIndex].innerHTML;
+    var oVoucherRefReport= {
+                    DateType:dDateType,
+                    AccountHeadID : _oCreditChartOfAccount.AccountHeadID,
+                    StartDate:$('#txtStartDate').datebox('getValue'),
+                    EndDate:$('#txtEndDate').datebox('getValue')
+                }
+
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("RefreshVoucherRefReport", "VoucherBill")',
+            data: JSON.stringify(oVoucherRefReport),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oVoucherRefReports = jQuery.parseJSON(data);
+                if (_oVoucherRefReports != null) {
+                    if(_oVoucherRefReports.length>0)
+                    {
+                        if(_oVoucherRefReports[0].ErrorMessage!="")
+                        {
+                            alert(_oVoucherRefReports[0].ErrorMessage);
+                        }
+                        else
+                        {
+                            data =_oVoucherRefReports;
+                            data={"total":""+data.length+"","rows":data};
+                            $('#tblGeneralJournal').datagrid('loadData',data);
+                        }
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function RefreshList(oVoucherRefReports)
+    {
+        var data=oVoucherRefReports;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblGeneralJournal').datagrid('loadData',data);
+    }
+</script>

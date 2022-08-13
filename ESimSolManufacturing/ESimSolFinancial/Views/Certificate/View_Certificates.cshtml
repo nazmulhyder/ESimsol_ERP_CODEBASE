@@ -1,0 +1,208 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.Certificate>
+    @{
+        ViewBag.Title = "View_Certificate";
+    }
+
+    <div style="margin-left:0px;  width:100%; height:100%">
+        <table id="tblCertificate" title="Employee Salary Structure List" class="easyui-datagrid" style=" width:100%; height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="CertificateTypeInString" width="200" align="left">Certificate Type</th>
+                    <th field="Description" width="180" align="left">Description</th>
+                    <th field="RequiredFor" width="180" align="left">RequiredFor</th>
+                    <th field="ActivityStatus" width="180" align="left">Activity</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:25px;">
+
+            <input type="text" id="txtSearchByName" placeholder="Search by name" style="width: 180px" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Preview</a>
+            <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Activity</a>
+
+        </div>
+    </div>
+
+    <script type="text/javascript">
+var _oCertificates=null;
+var _sBaseAddress="";
+$(document).ready(function ()
+{
+    _oCertificates =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    RefreshList(_oCertificates);
+
+});
+
+function RefreshList(oCertificates )
+{
+    data = oCertificates ;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblCertificate').datagrid('loadData', data);
+
+}
+
+$('#btnAdd').click(function (e)
+{
+    //debugger;
+    var oParameter = new Object();
+    oParameter.Name = "New Certificate";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/Certificate/View_Certificate?nId=0&ts=" + tsv;
+    var oCertificate = window.showModalDialog(url, oParameter, 'dialogHeight:200px;dialogWidth:420px;dialogLeft:350;dialogRight:150;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+
+    if (oCertificate != null)
+    {
+        if (oCertificate.CertificateID > 0)
+        {
+            var oCertificates = $('#tblCertificate').datagrid('getRows');
+            var nIndex = oCertificates.length;
+            $('#tblCertificate').datagrid('appendRow', oCertificate);
+            $('#tblCertificate').datagrid('selectRow', nIndex);
+        }
+    }
+});
+
+$('#btnEdit').click(function (e)
+{
+    var oCertificate = $('#tblCertificate').datagrid('getSelected');
+    if (oCertificate == null || oCertificate.CertificateID <= 0)
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+
+    var SelectedRowIndex = $('#tblCertificate').datagrid('getRowIndex', oCertificate);
+    var oParameter = new Object();
+    oParameter.Name = "Edit Certificate";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/Certificate/View_Certificate?nId=" + oCertificate.CertificateID + "&ts=" + tsv;
+    var oCertificate = window.showModalDialog(url, oParameter, 'dialogHeight:200px;dialogWidth:420px;dialogLeft:350;dialogRight:150;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+
+    if (oCertificate != null)
+    {
+        if (oCertificate.CertificateID > 0)
+        {
+            $('#tblCertificate').datagrid('updateRow', { index: SelectedRowIndex, row: oCertificate });
+        }
+    }
+});
+
+$('#btnView').click(function (e)
+{
+    //debugger;
+    var oCertificate = $('#tblCertificate').datagrid('getSelected');
+    if (oCertificate == null || oCertificate.CertificateID <= 0)
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    var oParameter = new Object();
+    oParameter.Name = "Preview Certificate";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/Certificate/View_Certificate?nId=" + oCertificate.CertificateID + "&ts=" + tsv;
+    var oCertificate = window.showModalDialog(url, oParameter, 'dialogHeight:200px;dialogWidth:420px;dialogLeft:350;dialogRight:150;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+});
+
+$('#btnActivity').click(function (e)
+{
+    //debugger;
+    var Act="";
+    oCertificate = $('#tblCertificate').datagrid('getSelected');
+    if (oCertificate == null || oCertificate.CertificateID <= 0)
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    if(oCertificate.IsActive==false)
+    {
+        Act=true;
+
+    }
+    if(oCertificate.IsActive==true)
+    {
+        Act=false;
+
+    }
+    oCertificate.IsActive=Act;
+    var SelectedRowIndex = $('#tblCertificate').datagrid('getRowIndex', oCertificate);
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/Certificate/Certificate_Activity",
+    traditional: true,
+    data: JSON.stringify(oCertificate),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+
+                oCertificate = jQuery.parseJSON(data);
+                if (oCertificate.CertificateID > 0)
+                {
+
+                    if(oCertificate.IsActive==true)
+                    {
+                    msg="Activated";
+                    }
+                    if(oCertificate.IsActive==false)
+                    {
+                    msg="InActivated";
+                    }
+                    alert(msg+" Successfully!");
+                    $('#tblCertificate').datagrid('updateRow', { index: SelectedRowIndex, row: oCertificate });
+
+                }
+                else
+                {
+                    alert(oCertificate.ErrorMessage);
+                }
+            }
+
+        });
+
+});
+
+$('#btnDelete').click(function (e)
+{
+    var oCertificate = $('#tblCertificate').datagrid('getSelected');
+    if (oCertificate == null || oCertificate.CertificateID <= 0)
+    {
+        alert("Please select an item from the list!");
+        return false;
+    }
+    if (!confirm("Confirm to Delete?")) return;
+    var SelectedRowIndex = $('#tblCertificate').datagrid('getRowIndex', oCertificate);
+    var tsv = ((new Date()).getTime()) / 1000;
+    if (oCertificate.CertificateID > 0)
+    {
+        $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/Certificate/Certificate_Delete",
+                data: { nCertificateID: oCertificate.CertificateID,ts: tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCertificate').datagrid('deleteRow', SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                    },
+                    error: function(xhr, status, error)
+                    {
+                    alert(error);
+                    }
+                });
+    }
+});
+
+    </script>

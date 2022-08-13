@@ -1,0 +1,189 @@
+﻿@{
+    ViewBag.Title = "Comments History";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comments History</title>
+</head>
+<body>
+
+    <div class="menuMainCollectionTable" id="divPanel" style="width:1030px">
+    <div style="height:83%;">
+        <table id="tblCommentsHistory" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="CommentsBy" width="15%">User</th>
+                    <th field="CommentsText" width="65%">Comments</th>
+                    <th field="CommentsDateSt" width="15%">Date</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <table>
+                <tr>
+                    <td>
+                        <input id="txtCommentsBy" type="text" style="width: 120px;" placeholder="Write a Comments By" />
+                        <input id="txtCommentsText" type="text" style="width: 450px;" placeholder="Write a comment name & press Add button" />
+                        Date: <input id="txtDateTime" type="text" class="easyui-datetimebox" data-options="formatter:icsdatetimeformat,parser:icsdatetimeparser,showSeconds:false" required="required" style="width:30%" />
+                        <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Update</a>
+                        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset >
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" id="btnClose" class="btn btn-danger btn-sm" aria-label="Left Align" onclick="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oCommentsHistorys=[];
+    var _oUser=[];
+    var _sTitle="";
+    var _oCommentsHistory=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCommentsHistorys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oUser =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.User));
+        _sTitle =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Header));
+        _oCommentsHistory =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CommentsHistory));
+        debugger;
+        $("#btnUpdate").hide();
+        DynamicRefreshList(_oCommentsHistorys,"tblCommentsHistory");
+        $("#txtCommentsBy").val(_oUser.UserName);
+        $('#divPanel').panel({
+            title:_sTitle
+        });
+    });
+
+    function Validation()
+    {
+        if($.trim($("#txtCommentsText").val()) == "")
+        {
+            alert("Please Type Comment and Press Add Button");
+            $("#txtCommentsText").addClass("errorFieldBorder");
+            $("#txtCommentsText").focus();
+            return false;
+        }else{
+            $("#txtCommentsText").removeClass("errorFieldBorder");
+        }
+        return true;
+    }
+
+    function RefreshObject() {
+        var oCommentsHistory = {
+            CommentsHistoryID  : (_oCommentsHistory == null ? 0 : _oCommentsHistory.CommentsHistoryID),
+            CommentsBy:$.trim($("#txtCommentsBy").val()),
+            CommentsText : $.trim($("#txtCommentsText").val()),
+            CommentsDateTime:  $('#txtDateTime').datetimebox('getValue'),
+            ModuleID:(_oCommentsHistory == null ? 0 : _oCommentsHistory.ModuleID),
+            ModuleObjID:(_oCommentsHistory == null ? 0 : _oCommentsHistory.ModuleObjID)
+        };
+        return oCommentsHistory;
+    }
+
+    $("#btnAdd").click(function(){
+        //_oCommentsHistory= null;
+        AddNew();
+    });
+
+    $("#txtCommentsText").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            //_oCommentsHistory = null;
+            AddNew();
+        }
+    });
+
+    function AddNew()
+    {
+        if (!Validation())
+        {
+            return false;
+        }
+        else
+        {
+            var oCommentsHistory = RefreshObject();
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oCommentsHistory,
+                ObjectId: oCommentsHistory.CommentsHistoryID,
+                ControllerName: "CommentsHistory",
+                ActionName: "SaveCommentsHistory",
+                TableId: "tblCommentsHistory",
+                IsWinClose: true,
+                Message:""
+            };
+            debugger;
+            $.icsSave(obj, function (response)
+            {
+                debugger;
+                if (response.status && response.obj != null) {
+                    if (response.obj.CommentsHistoryID > 0)
+                    {
+                        $("#txtCommentsText").val("");
+                        $("#txtCommentsText").focus();
+                        $("#btnUpdate").hide();
+                    }
+                }
+            });
+        }
+    }
+
+    $("#btnDelete").click(function(){
+        var oCommentsHistory = $("#tblCommentsHistory").datagrid("getSelected");
+        if(oCommentsHistory == null || oCommentsHistory.CommentsHistoryID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oCommentsHistory,
+            ControllerName: "CommentsHistory",
+            ActionName: "DeleteCommentsHistory",
+            TableId: "tblCommentsHistory",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnEdit").click(function(){
+        var oCommentsHistory = $("#tblCommentsHistory").datagrid("getSelected");
+        if(oCommentsHistory== null || oCommentsHistory.CommentsHistoryID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+        _oCommentsHistory= oCommentsHistory;
+        $("#txtCommentsText").removeClass("errorFieldBorder");
+        $("#txtCommentsText").val(oCommentsHistory.CommentsText);
+        $('#txtDateTime').datetimebox('setValue', icsdatetimeformat(new Date(oCommentsHistory.CommentsDateSt)));
+        $("#btnUpdate").show();
+    });
+
+    $("#btnUpdate").click(function(){
+        AddNew();
+    });
+
+    $("#btnClose").click(function(){
+        debugger;
+        window.location.href =sessionStorage.getItem("BackLink");
+    });
+
+</script>

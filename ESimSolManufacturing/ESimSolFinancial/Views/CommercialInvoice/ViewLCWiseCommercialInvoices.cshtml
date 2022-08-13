@@ -1,0 +1,299 @@
+﻿<html>
+@{
+    ViewBag.Title = "Commercial Invoice(s)";
+}
+<body>
+@model IEnumerable<ESimSol.BusinessObjects.CommercialInvoice>
+<script src="~/Views/CommercialInvoice/PrintDocument.js"></script>
+<div class="menuMainCollectionTable" ng-app="CommercialInvoiceApp">
+    <div ng-controller="CommercialInvoiceController" title="Commercial Invoice(s)">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <button type="button" ng-show="btnAdd" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEdit" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnDelete" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnAttachDocument" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="DocumentAttachment()"><span class="glyphicon glyphicon-share-alt" aria-hidden="true"> Attach Document(s)</span></button>
+            
+            <button type="button" ng-show="btnPreView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Doc Preview</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection class="grid-angularCI"></div>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <div style="font-size: 11px; width:100%; font-weight: bold; font-size:12px;text-align:right">
+                <button type="button" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="close()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span></button>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .grid-angularCI {
+        width: 99%;
+        height:470px;
+    }
+</style>
+
+
+<script type="text/javascript">
+    var oCommercialInvoices =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oLCTransfer =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LCTransfer));
+    var oMasterLC =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MasterLC));
+    var oClientOperationSetting =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ClientOperationSetting));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    debugger;
+    var CInvoiceapp= angular.module('CommercialInvoiceApp', ['ui.grid','ui.grid.selection', 'ms.service','PrintDocument.service']);
+    CInvoiceapp.controller('CommercialInvoiceController',  function ($scope,$http,$log,uiGridConstants,userSession,PrintDocumentservice) {
+        $scope.CommercialInvoices = [];
+        if(userSession.getData('CommercialInvoices').length>0)
+        {
+            oCommercialInvoices=userSession.getData('CommercialInvoices');
+            $scope.CommercialInvoices = oCommercialInvoices;
+        }else
+        {
+            
+            $.icsProgressBar(true);//prog start
+            var oCommercialInvoice = {MasterLCID:oMasterLC.MasterLCID};
+            $http.post(sessionStorage.getItem('BaseAddress')+'/CommercialInvoice/GetInvoicesByLC', JSON.stringify(oCommercialInvoice)).then(
+                           function (response) 
+                           {
+                               $.icsProgressBar(false);//prog close
+                               //debugger;
+                               if (response.data.length>0 )
+                               {
+                                   if(response.data[0].ErrorMessage=="" || response.data[0].ErrorMessage==null)
+                                   {
+                                       $scope.CommercialInvoices = response.data;//set data
+                                       $scope.gridOptions.data = response.data;//set data
+                                   } else {
+                                       alert(response.data[0].ErrorMessage);
+                                   }    
+                               }
+                               
+                           },
+                           function (response) { alert(response.data[0].ErrorMessage); }
+
+                       );
+
+        }
+        
+      //  oCommercialInvoices= (userSession.getData('CommercialInvoices').length>0)? userSession.getData('CommercialInvoices'):oCommercialInvoices;
+        debugger;
+        $scope.gridOptions = {
+            enableRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: false,
+            enableRowSelection: true,
+            columnDefs: [
+              { field: 'InvoiceNo', name:'Invoice No', width:'10%' },
+              { field: 'InvoiceDateInString', name:'Invoice Date', width:'10%' },
+              { field: 'InvoiceStatusInString', name: 'Status', width: '7%', enableSorting: false },
+              { field: 'ReceiptNo', name: 'Receipt No', width: '8%', enableSorting: false },
+              { field: 'TransportNo', name: 'Transport No', width: '10%' },
+              { field: 'DriverName', name: 'Driver Name', width: '8%', enableSorting: false },
+              { field: 'ApprovedByName', name: 'Approve By', width: '10%', enableSorting: false },
+              { field: 'InvoiceQty', name: 'Invoice Qty',cellClass: 'text-right', width: '8%', enableSorting: false },
+              { field: 'InvoiceAmount', name: 'Invoice Amount',cellClass: 'text-right',cellFilter: 'number: 2', width:'10%',align:'right',enableSorting: false},
+             { field: 'AnnualBonus', name: 'Annual Bonus',cellClass: 'text-right', cellFilter: 'number: 2',width:'10%',align:'right',enableSorting: false},
+             { field: 'DiscountAmount', name: 'Discount Amount',cellClass: 'text-right',cellFilter: 'number: 2', width:'10%',align:'right',enableSorting: false},
+             { field: 'AdditionAmount', name: 'Addition Amount',cellClass: 'text-right', cellFilter: 'number: 2',width:'10%',align:'right',enableSorting: false},
+             { field: 'NetInvoiceAmount', name: 'Net Amount',cellClass: 'text-right',cellFilter: 'number: 2', width:'10%',align:'right',enableSorting: false}
+            ],
+            data: $scope.CommercialInvoices,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.grid.modifyRows($scope.CommercialInvoices);
+                $scope.gridApi.selection.selectRow($scope.CommercialInvoices[parseInt(sessionStorage.getItem("CISelectedRowIndex"))]);
+
+            }
+        };
+
+        $scope.MasterLC = oMasterLC;
+        $scope.LCTransfer = oLCTransfer;
+
+        $scope.Add  = function ()
+        {
+            debugger;
+            sessionStorage.setItem("CommercialInvoices", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("CISelectedRowIndex", -1);
+            sessionStorage.setItem("CommercialInvoiceHeader", "Add Commercial Invoice");
+            sessionStorage.setItem("BackLink", window.location.href);
+            var nId = (parseInt(oClientOperationSetting.Value)==16)?$scope.MasterLC.MasterLCID:$scope.LCTransfer.LCTransferID;
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/CommercialInvoice/ViewCommercialInvoice?id="+nId+"&nCommercialInvoiceID="+0;
+        }
+        $scope.Edit =  function ()
+        {
+            debugger;
+            var data = $scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.CommercialInvoiceID == data[0].CommercialInvoiceID)
+                {
+                    var oCommercialInvoice = data[0];
+                    if(oCommercialInvoice.InvoiceStatus!=0)
+                    {
+                        alert("Wothout Initialized Item can't Update!");
+                        return;
+                    }
+                    sessionStorage.setItem("CommercialInvoices", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("CISelectedRowIndex", index);
+                    sessionStorage.setItem("CommercialInvoiceHeader", "Edit Commercial Invoice");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/CommercialInvoice/ViewCommercialInvoice?id=0"+0+"&nCommercialInvoiceID="+oCommercialInvoice.CommercialInvoiceID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var data = $scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.CommercialInvoiceID == data[0].CommercialInvoiceID)
+                {
+                    var oCommercialInvoice = data[0];
+                    sessionStorage.setItem("CommercialInvoices", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("CISelectedRowIndex", index);
+                    sessionStorage.setItem("CommercialInvoiceHeader", "View Commercial Invoice");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/CommercialInvoice/ViewCommercialInvoice?id=0"+0+"&nCommercialInvoiceID="+oCommercialInvoice.CommercialInvoiceID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.PrintPreview = function ()
+        {
+            var oCommercialInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oCommercialInvoice==null || parseInt(oCommercialInvoice.CommercialInvoiceID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/CommercialInvoice/GetExportDocs',$.param(oCommercialInvoice), config).then(
+            function (response)
+            {
+                debugger;
+              
+                var results=jQuery.parseJSON(response.data);
+                var modalObj={
+                    appcontroller:'CommercialInvoiceController',
+                    ExportDocSetups:results,
+                    InvoiceID:oCommercialInvoice.CommercialInvoiceID,
+                    ObjectControllerName:'CommercialInvoice',
+                    ObjectActionName:'PrintExportDoc'
+                }
+                var modalInstance= PrintDocumentservice.Instance(modalObj);
+
+            },
+                    function (response) { alert(jQuery.parseJSON(response.data).Message);}
+            );
+
+        };
+
+        $scope.Delete= function ()
+        {
+            debugger;
+            var oCommercialInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oCommercialInvoice==null || parseInt(oCommercialInvoice.CommercialInvoiceID)<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oCommercialInvoice.InvoiceStatus!=0)
+            {
+                alert("Please select Only Initialized Item from List!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/CommercialInvoice/Delete', JSON.stringify(oCommercialInvoice)).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted') {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.CommercialInvoiceID == parseInt(oCommercialInvoice.CommercialInvoiceID))
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+        //$scope.DocumentAttachment = function()
+        //{
+        //    var data = $scope.gridApi.selection.getSelectedRows();
+        //    if(data==null || data.length<=0)
+        //    {
+        //        alert("Please Select an item from list");
+        //        return;
+        //    }
+        //    angular.forEach($scope.gridOptions.data, function (value, index) {
+        //        if (value.CommercialInvoiceID == data[0].CommercialInvoiceID)
+        //        {
+        //            var oCommercialInvoice = data[0];
+        //            sessionStorage.setItem("CommercialInvoices", JSON.stringify($scope.gridOptions.data));
+        //            sessionStorage.setItem("CISelectedRowIndex", index);
+        //            sessionStorage.setItem("CommercialInvoiceHeader", "Attach Document");
+        //            sessionStorage.setItem("BackLink", window.location.href);
+        //            window.location.href =sessionStorage.getItem('BaseAddress')+"/CommercialInvoice/AttachDocument?id="+oCommercialInvoice.CommercialInvoiceID;
+        //        }
+        //    }, $scope.gridOptions.data);
+        //}
+        $scope.DocumentAttachment =function () {
+            var oCommercialInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oCommercialInvoice==null || parseInt(oCommercialInvoice.CommercialInvoiceID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            //ref type :17
+            window.open(sessionStorage.getItem('BaseAddress')+ '/AttachDocument/Attachment?id='+oCommercialInvoice.CommercialInvoiceID+'&RefType=17&OperationInfo= Attachment of Commercial Invoice No : '+oCommercialInvoice.InvoiceNo, '_blank');
+        };
+
+        $scope.close = function()
+        {
+            sessionStorage.setItem('CommercialInvoices',[]);
+            window.location.href =sessionStorage.getItem("BackLinkCI");
+        }
+
+        //button hide
+        $scope.btnAdd = $scope.btnAttachDocument= $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnPreView= false;
+
+        //button show
+        if(PermissionChecker('Add','CommercialInvoice',oAuthorizationRolesMapping)){$scope.btnAdd = $scope.btnAttachDocument =  true; }
+        if(PermissionChecker('Edit','CommercialInvoice',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','CommercialInvoice',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Delete','CommercialInvoice',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Preview','CommercialInvoice',oAuthorizationRolesMapping)){$scope.btnPreView = true;}
+
+
+    });
+
+
+   
+    
+
+</script>

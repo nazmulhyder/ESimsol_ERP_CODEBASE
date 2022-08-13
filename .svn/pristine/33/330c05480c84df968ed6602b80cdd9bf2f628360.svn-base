@@ -1,0 +1,258 @@
+﻿@{
+	ViewBag.Title = "Non Negative Ledger";
+}
+@model IEnumerable<ESimSol.BusinessObjects.NonNegativeLedger>
+
+    <div class="menuMainCollectionTable" style="height:100%;width:1015px">
+        <table id="tblNonNegativeLedgers" title="Non Negative Ledger Configure" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="BUName" width="60" align="center">BU Name</th>
+                    <th field="AccountCode" width="60" align="right">A/C Head Code</th>
+                    <th field="AccountHeadName" width="180" align="center">A/C Head Name</th>
+                    <th field="CategoryName" width="140" align="center">Category Name</th>
+                    <th field="Remarks" width="70" align="center">Remarks</th>
+                    <th field="UserName" width="50" align="center">Entry User</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <select style="width:130px" id="cboBusinessUnit"></select>&nbsp;
+            A/C Head <input type="text" placeholder="Search by Account Head Name/Code" style="width:210px" id="txtAccountHead" />
+            <input type="button" id="btnPickAccount" style="width:25px;" value="P" />
+            <input type="button" id="btnClearAccount" style="width:25px;" value="C" />&nbsp;
+            <input type="text" placeholder="Remarks" style="width:200px" id="txtRemarks" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var oNonNegativeLedgers =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BusinessUnits));
+            $("#cboBusinessUnit").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortName", InitialValue: "- - Business Unit - -" });
+            $('#tblNonNegativeLedgers').data('AccountHeadID', 0);
+            RefreshList(oNonNegativeLedgers);
+        });
+
+        function RefreshList(oNonNegativeLedgers) {
+            DynamicRefreshList(oNonNegativeLedgers, 'tblNonNegativeLedgers');
+            var nSelectedRowIndex = parseInt(sessionStorage.getItem("selectedRowIndex"));
+            if (nSelectedRowIndex != -1) {
+                $('#tblNonNegativeLedgers').datagrid('selectRow', nSelectedRowIndex);
+            }
+        }
+
+        function ValidateInput() {
+            var nAccountHeadID = parseInt($('#tblNonNegativeLedgers').data('AccountHeadID'));
+            if (nAccountHeadID <= 0) {
+                alert("Please Pick A/C Head First!");
+                return false;
+            }
+            if ($('#txtAccountHead').val() === null || $('#txtAccountHead').val() === "") {
+                alert("Please Enter A/C Head First!");
+                $('#txtAccountHead').focus();
+                return false;
+            }
+            var nBusinessUnit = parseInt($("#cboBusinessUnit").val());
+            if (nBusinessUnit == null || nBusinessUnit == 0) {
+                alert("Please Select A Business Unit!");
+                $('#cboBusinessUnit').focus();
+                return false;
+            }
+            return true;
+        }
+
+        function RefreshObject() {
+            var oAccountHead = $('#txtAccountHead').data('AccountHead');
+            var oNonNegativeLedger = {
+                NonNegativeLedgerID: 0,
+                BUID: parseInt($('#cboBusinessUnit').val()),
+                AccountHeadID: parseInt(oAccountHead.AccountHeadID),
+                Remarks: $.trim($('#txtRemarks').val())
+            }
+            return oNonNegativeLedger;
+        }
+
+        $('#btnAdd').click(function () {
+            if (!ValidateInput()) return;
+            var oNonNegativeLedger = RefreshObject();
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: sessionStorage.getItem('BaseAddress') + "/NonNegativeLedger/Save",
+                traditional: true,
+                data: JSON.stringify(oNonNegativeLedger),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    oNonNegativeLedger = jQuery.parseJSON(data);
+                    if (oNonNegativeLedger.ErrorMessage == "" || oNonNegativeLedger.ErrorMessage == null) {
+                        debugger;
+                        alert("Data Saved sucessfully");
+                        $('#tblNonNegativeLedgers').datagrid('appendRow', oNonNegativeLedger);
+                        $('#cboBusinessUnit').val("");
+                        $('#txtAccountHead').val("");
+                        $('#txtRemarks').val("");
+                        $('#tblNonNegativeLedgers').data('AccountHeadID', 0);
+                    }
+                    else {
+                        alert(oNonNegativeLedger.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+
+        $('#btnRemove').click(function () {
+            var oNonNegativeLedger = $('#tblNonNegativeLedgers').datagrid('getSelected');
+            if (oNonNegativeLedger == null || oNonNegativeLedger.NonNegativeLedgerID <= 0) {
+                alert("Please select an item from list!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return;
+
+            var SelectedRowIndex = $('#tblNonNegativeLedgers').datagrid('getRowIndex', oNonNegativeLedger);
+
+            if (oNonNegativeLedger.NonNegativeLedgerID > 0) {
+                $.ajax
+                    ({
+                        type: "POST",
+                        dataType: "json",
+                        url: sessionStorage.getItem('BaseAddress') + "/NonNegativeLedger/Delete",
+                        data: JSON.stringify(oNonNegativeLedger),
+                        contentType: "application/json; charset=utf-8",
+                        success: function (data) {
+                            debugger;
+                            feedbackmessage = jQuery.parseJSON(data);
+                            if (feedbackmessage == "Data deleted successfully") {
+                                alert("Data deleted successfully");
+                                $('#tblNonNegativeLedgers').datagrid('deleteRow', SelectedRowIndex);
+                            }
+                            else {
+                                alert(feedbackmessage);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert(error);
+                        }
+                    });
+            }
+        });
+
+	///AccountHead Pick
+        $('#btnPickAccount').click(function () {
+            var oChatOfAccount = {
+                AccountHeadCodeName: 0
+            }
+            PickAccountHeads(oChatOfAccount);
+        });
+
+        $("#txtAccountHead").keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) // Enter Press
+            {
+                var sAccountHeadName = $.trim($('#txtAccountHead').val())
+                if (sAccountHeadName === null || sAccountHeadName === "") {
+                    alert("Please enter payable account Name!");
+                    $('#txtAccountHead').focus();
+                    return;
+                }
+
+                var oChatOfAccount = {
+                    AccountHeadCodeName: sAccountHeadName
+                }
+                PickAccountHeads(oChatOfAccount);
+            }
+        });
+
+        $('#txtAccountHead').keydown(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 8) //backspace=8
+            {
+                $("#txtAccountHead").removeClass("fontColorOfPickItem");
+                $('#txtAccountHead').data('AccountHead', null);
+            }
+        });
+
+        function PickAccountHeads(oChatOfAccount) {
+            var obj = {
+                BaseAddress: sessionStorage.getItem("BaseAddress"),
+                Object: oChatOfAccount,
+                ControllerName: "AccountsBookSetup",
+                ActionName: "GetsCOAByCodeOrName",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].AccountHeadID > 0) {
+                        var tblColums = [];
+                        var oColumn = { field: "AccountCode", title: "Account Code", width: "100", align: "center" }; tblColums.push(oColumn);
+                        oColumn = { field: "AccountHeadName", title: "Account Name", width: "360", align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ParentHeadName", title: "Category Name", width: "190", align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winAccountHead',
+                            winclass: 'clsAccountHead',
+                            winwidth: 720,
+                            winheight: 460,
+                            tableid: 'tblAccountHeads',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: false,
+                            searchingbyfieldName: 'AccountHeadName',
+                            windowTittle: 'Account Head List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                } else {
+                    alert("Data Not Found.");
+                    return;
+                }
+            });
+        }
+    //End AccountHead Picker
+
+        function IntializePickerbutton(oPickerobj) {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                //for Single Select
+                SetPickerValueAssign(oPickerobj);
+            });
+            $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    SetPickerValueAssign(oPickerobj);
+                }
+            });
+        }
+
+        function SetPickerValueAssign(oPickerobj) {
+            var oreturnObj = null, oreturnobjs = [];
+            if (oPickerobj.multiplereturn) {
+                oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+            } else {
+                oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+            }
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+
+            if (oPickerobj.winid === 'winAccountHead') {
+                if (oreturnObj != null && parseInt(oreturnObj.AccountHeadID) > 0) {
+                    $('#txtAccountHead').val(oreturnObj.AccountHeadName);
+                    $('#txtAccountHead').addClass('fontColorOfPickItem');
+                    $('#txtAccountHead').data('AccountHead', oreturnObj);
+                    $("#cboComponentType").val(parseInt(oreturnObj.ComponentID));
+                    $('#txtAccountHead').focus();
+                    $('#tblNonNegativeLedgers').data('AccountHeadID', oreturnObj.AccountHeadID);
+                }
+            }
+        }
+
+        $('#btnClearAccount').click(function () {
+            $('#txtAccountHead').val("");
+            $('#txtAccountHead').removeClass('fontColorOfPickItem');
+        });
+    </script>

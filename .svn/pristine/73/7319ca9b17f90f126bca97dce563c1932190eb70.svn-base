@@ -1,0 +1,196 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "Attendance Com Process";
+    }
+</head>
+<body>
+    @model ESimSol.BusinessObjects.AttendanceProcessManagement
+    <div id="divAttendanceProcess" class="easyui-panel" title="Manual Compliance Attendance Process" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <fieldset style="height:97%">
+                <table style="width:100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="width:35%">
+                            <table id="tblAttProcessWinBU" class="easyui-datagrid" title="Business Unit" style="width:100%; height: 400px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false">
+                                <thead>
+                                    <tr>
+                                        <th data-options="field:'Selected',checkbox:true"></th>
+                                        <th field="Name" width="100%" align="left">BU Name</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </td>
+                        <td style="width:22%">
+                            <table id="tblAttProcessWinLocation" class="easyui-datagrid" title="Location" style="width:100%; height: 400px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false">
+                                <thead>
+                                    <tr>
+                                        <th data-options="field:'Selected',checkbox:true"></th>
+                                        <th field="Name" width="100%" align="left">Location Name</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </td>
+                        <td style="width:22%">
+                            <table id="tblAttProcessWinDept" class="easyui-datagrid" title="Department" style="width:100%; height:400px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false">
+                                <thead>
+                                    <tr>
+                                        <th data-options="field:'Selected',checkbox:true"></th>
+                                        <th field="Name" width="100%" align="left">Department Name</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </td>
+                        <td style="width:20%">
+                            <table id="tblMaxOTConfigurations" class="easyui-datagrid" title="Time Card" style="width:100%; height:400px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false">
+                                <thead>
+                                    <tr>
+                                        <th data-options="field:'Selected',checkbox:true"></th>
+                                        <th field="TimeCardName" width="100%" align="left">Time Card Name</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="width:100%; height:10px"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="width:100%">
+                            <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+                                <tr>
+                                    <td style="width:10%; text-align:right">Process Date :</td>
+                                    <td style="width:12%">
+                                        <input id="txtProcessStartDate" type="text" style="width:100%" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                    </td>
+                                    <td style="width:6%; text-align:center">-to-</td>
+                                    <td style="width:12%">
+                                        <input id="txtProcessEndDate" type="text" style="width:100%" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                    </td>
+                                    <td style="width:60%"> </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%">
+                            <a id="btnAttendanceProcess" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-setting" plain="true">Process</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+    <div id="progress"></div>
+    <div id="result"></div>
+</body>
+</html>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        var oAPM =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));        
+        DynamicRefreshList(oAPM.BusinessUnits, "tblAttProcessWinBU");
+        DynamicRefreshList(oAPM.Locations, "tblAttProcessWinLocation");
+        DynamicRefreshList(oAPM.Departments, "tblAttProcessWinDept");
+        DynamicRefreshList(oAPM.TimeCards, "tblMaxOTConfigurations");
+
+        $('#txtProcessStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtProcessEndDate').datebox('setValue', icsdateformat(new Date()));
+    });
+
+    function ValidateInput()
+    {
+        var sStartDate = $('#txtProcessStartDate').datebox('getValue');
+        var sEndDate =  $('#txtProcessEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var sEndDate =  new Date(sEndDate);
+        if(sEndDate<dStartDate)
+        {
+            alert("Start Date Mustbe Smaller than End Date");
+            return false;
+        }
+        var dateDiff = sEndDate.getTime() - dStartDate.getTime();
+        var Difference_In_Days = dateDiff / (1000 * 3600 * 24); 
+        if( Difference_In_Days >31)
+        {
+            alert("Please Select Maximum One Month");
+            return false;
+        }
+        var oBusinessUnits = $('#tblAttProcessWinBU').datagrid('getChecked');
+        if(oBusinessUnits == null || oBusinessUnits.length<=0)
+        {
+            alert("Please select at least one Business Unit!");
+            return false;
+        }
+
+        var oLocations = $('#tblAttProcessWinLocation').datagrid('getChecked');
+        if(oLocations == null || oLocations.length<=0)
+        {
+            alert("Please select at least one Location!");
+            return false;
+        }
+
+        var oDepartments = $('#tblAttProcessWinDept').datagrid('getChecked');
+        if(oDepartments == null || oDepartments.length<=0)
+        {
+            alert("Please select at least one Department!");
+            return false;
+        }
+
+        var oMaxOTConfigurations = $('#tblMaxOTConfigurations').datagrid('getChecked');
+        if(oMaxOTConfigurations == null || oMaxOTConfigurations.length<=0)
+        {
+            alert("Please select at least one Time Card!");
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnAttendanceProcess").click(function(e){
+
+        if(!ValidateInput()) return;
+        var oAPM =  {
+            BusinessUnits : $('#tblAttProcessWinBU').datagrid('getChecked'),
+            Locations : $('#tblAttProcessWinLocation').datagrid('getChecked'),
+            Departments : $('#tblAttProcessWinDept').datagrid('getChecked'),
+            TimeCards : $('#tblMaxOTConfigurations').datagrid('getChecked'),
+            StartDate : $('#txtProcessStartDate').datebox('getValue'),
+            EndDate : $('#txtProcessEndDate').datebox('getValue')
+        };
+        InitializeProgressBar();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ProcessManagementV2/ManualCompAttendanceProcess",
+            traditional: true,
+            data:  JSON.stringify(oAPM),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oAPMs = jQuery.parseJSON(data);
+                if(oAPMs!=null && oAPMs.length==0)
+                {
+                    alert("Data Process Successfully.");                    
+                }
+                else
+                {
+                    alert(oAPMs[0].ErrorMessage);                    
+                }
+                ProgressBarHide();
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+</script>

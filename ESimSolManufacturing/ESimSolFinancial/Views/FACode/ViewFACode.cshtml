@@ -1,0 +1,366 @@
+﻿@{
+    ViewBag.Title = "FA Code Generate Policy";
+}
+@model ESimSol.BusinessObjects.FACode
+
+<div id="divFACode" class="easyui-panel menuMainCollectionTable" title="" style="height:100%; ">
+    <div style="width:100%; height:88%; text-align:center" title="" id="panelFACode" class="easyui-panel">
+        <table id="tblFACode" title=""  class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="CodingPartTypeSt" width="30%">Coding Part Type</th>
+                    <th field="CodingPartValue" width="20%">Coding Part Value</th>
+                    <th field="ValueLength" width="10%">Value Length</th>
+                    <th field="Sequence" width="8%">Sequence</th>
+                    <th field="Remarks" width="30%">Remarks</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <select id="cboFACodeType" style="width:120px;"></select>
+            <label>Coding Value:</label>
+            <input id="txtCodingPartValue" style="width:130px;" type="text" placeholder="Type Coding Value / Label" />
+            <input id="txtRemarks" style="width:100px;" type="text" placeholder="Type Remarks / Note" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+            <a id="btnUp" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true">Up</a>
+            <a id="btnDown" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true">Down</a>
+        </div>
+
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right"></td>
+                    <td style="width: 10%">
+                        <a id="btnUpdate_FACode" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                    </td>
+                    <td style="width: 10%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var _sBaseAddress ="";
+    var _oFACode = null;
+    var _sFACodeFull = "";
+    var _sBackTo = "";
+    var _oFACodes = [];
+    $(document).ready(function () {
+   
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFACode =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oFACodingPartTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FACodingPartType));
+        _sBackTo=sessionStorage.getItem("BackLink_FARule");
+        DynamicRefreshList(_oFACode.FACodes,'tblFACode');
+        _oFACodes = _oFACode.FACodes;
+        $('#divFACode').panel({title:'FA Code Generate Policy for :'+_oFACode.ProductName+' ['+_oFACode.ProductCode+']'});
+        $('#tblFACode').datagrid({title:'Coding Sample Preview :'});
+        $('#btnUpdate_FACode').show();
+        $("#cboFACodeType").icsLoadCombo({List: oFACodingPartTypes, OptionValue: "id",DisplayText: "Value", InitialValue:"--Select Coding Part Type--"});
+        Make_Preview();
+    });
+
+    $('#cboFACodeType').change(function()
+    {
+        debugger;
+        if(parseInt($('#cboFACodeType').val())>0 )//&& $scope.FACode.CodingPartValue=='')
+        {
+            if($('#cboFACodeType').val()==1) {$("#txtCodingPartValue").val('@@BU');$('#txtCodingPartValue').attr('disabled',true); return;}//bu
+            if($('#cboFACodeType').val()==4) {$("#txtCodingPartValue").val('@@Location');$('#txtCodingPartValue').attr('disabled',true);return;}//Location
+            if($('#cboFACodeType').val()==7) {$("#txtCodingPartValue").val('@@ProductShortName');$('#txtCodingPartValue').attr('disabled',true);return;}//ProductShortName
+            $('#txtCodingPartValue').attr('disabled',false);//editable
+            var oExisList = $('#tblFACode').datagrid('getRows');
+            for(var i=0; i<oExisList.length; i++)
+            {
+                if(oExisList[i].CodingPartType==$('#cboFACodeType').val())
+                {
+                    $("#txtCodingPartValue").val(oExisList[i].CodingPartValue);return;
+                }
+            }
+            $("#txtCodingPartValue").val('');
+        }else $("#txtCodingPartValue").val('');
+    });
+
+
+    $("#txtCodingPartValue").keydown(function (e) {
+        //debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13)
+        {
+            Add_FACode();
+        }
+    });
+    $('#btnAdd').click(function() {
+        debugger;
+        if(!parseInt(_oFACode.ProductID)>0)
+        {
+            alert("Product Not Found!"); return;
+        }
+        if(parseInt($("#cboFACodeType").val())<=0)
+        {
+            alert("Please select Coding part type & try again!"); return;
+        }
+        if($("#txtCodingPartValue").val()=='')
+        {
+            alert("Please type Coding part value & try again!"); return;
+        }
+        var oFACode = { FACodeID :0,
+            ProductID : parseInt(_oFACode.ProductID),
+            CodingPartType : parseInt($("#cboFACodeType").val()),
+            CodingPartValue : $("#txtCodingPartValue").val(),
+            Sequence :parseInt($('#tblFACode').datagrid('getRows').length)+1,
+            Remarks :$("#txtRemarks").val()
+        };
+
+        $.ajax
+({
+    type: "POST",
+    dataType: "json",
+    url : _sBaseAddress+  "/FACode/Save",
+    data:  JSON.stringify(oFACode),
+    contentType: "application/json; charset=utf-8",
+    success: function (data) {
+        debugger;
+        var result=jQuery.parseJSON(data);
+        if(result.FACodeID>0)
+        {
+            alert('Save Successfully.');
+            Reset();
+            _oFACode.FACodes.push(result);
+            DynamicRefreshList(_oFACode.FACodes,'tblFACode');
+            Make_Preview();
+
+        }
+    },
+    error: function (xhr, status, error)
+    {
+        alert(error);
+    }
+});
+
+
+    });
+
+    function Reset()
+    {
+        $("#cboFACodeType").val(0);
+        $("#txtCodingPartValue, #txtRemarks").val('');
+    };
+
+    function Make_Preview()
+    {
+        if(_oFACode.FACodes.length>0)
+        {
+            _sFACodeFull='';
+            for(var i=0; i<_oFACode.FACodes.length; i++)
+            {
+                _sFACodeFull+= _oFACode.FACodes[i].CodingPartValue;
+            }
+        }
+        //tblFACode
+        $('#tblFACode').datagrid({title:"Coding Sample Preview :"+_sFACodeFull});
+        var oList=jQuery.parseJSON(sessionStorage.getItem('FARules'));
+        var nIndex=parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(oList.length > nIndex)
+        {
+            oList[nIndex].FACodeFull=_sFACodeFull;
+            sessionStorage.setItem("FARules", JSON.stringify(oList));
+        }
+    };
+
+
+    $('#btnRemove').click(function() {
+        debugger;
+        var oFACode= $('#tblFACode').datagrid('getSelected');
+        if(oFACode==null || oFACode.FACodeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblFACode').datagrid('getRowIndex',oFACode);
+        $.ajax
+ ({
+     type: "POST",
+     dataType: "json",
+     url : _sBaseAddress+  "/FACode/Delete",
+     data:  JSON.stringify(oFACode),
+     contentType: "application/json; charset=utf-8",
+     success: function (data) {
+         var feedbackmessage = jQuery.parseJSON(data);
+         if (feedbackmessage == "Deleted")
+         {
+             Reset_Sequence(SelectedRowIndex);
+             alert("Delete sucessfully");
+             $('#tblFACode').datagrid('deleteRow',SelectedRowIndex);
+             Make_Preview();
+         }
+         else
+         {
+             alert(feedbackmessage);
+         }
+     },
+     error: function (xhr, status, error)
+     {
+         alert(error);
+     }
+ });
+
+
+
+    });
+
+    function Reset_Sequence(nIndex)
+    {
+        debugger;
+        var oFACodes = $('#tblFACode').datagrid('getRows');
+        if(oFACodes.length!=nIndex+1)
+        {
+            for(var i=0; i<oFACodes.length; i++)
+            {
+                if(oFACodes[i].Sequence>oFACodes[nIndex].Sequence)
+                {
+                    oFACodes[i].Sequence--;
+                }
+            }
+            Update_FACode();
+        }
+    };
+
+
+    $('#btnUp').click(function()
+    {
+        debugger;
+        var oFACode= $('#tblFACode').datagrid('getSelected');
+        if(oFACode==null || oFACode.FACodeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblFACode').datagrid('getRowIndex',oFACode);
+        if(SelectedRowIndex==0)return;
+        var oFACodes=[];
+        oFACodes=_oFACodes;
+        _oFACodes=[];
+        for(var i=0; i<oFACodes.length; i++)
+        {
+            if(i==(SelectedRowIndex-1))
+            {
+                _oFACodes[i]=oFACodes[i+1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oFACodes[i]=oFACodes[i-1];
+            }
+            else
+            {
+                _oFACodes[i]=oFACodes[i];
+            }
+            _oFACodes[i].Sequence=i+1;
+        }
+        data = _oFACodes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFACode').datagrid('loadData',data);
+        var newSelectedRowIndex=SelectedRowIndex-1;
+        $('#tblFACode').datagrid('selectRow',newSelectedRowIndex);
+
+        Make_Preview();
+        $('#btnUpdate_FACode').show();
+    });
+    $('#btnDown').click(function()
+    {    debugger;
+        var oFACode= $('#tblFACode').datagrid('getSelected');
+        if(oFACode==null || oFACode.FACodeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblFACode').datagrid('getRowIndex',oFACode);
+        if(SelectedRowIndex==(_oFACodes.length-1))return;
+        var oFACodes=[];
+        oFACodes=_oFACodes;
+        _oFACodes=[];
+        for(var i=0; i<oFACodes.length; i++)
+        {
+            if(i==(SelectedRowIndex+1))
+            {
+                _oFACodes[i]=oFACodes[i-1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oFACodes[i]=oFACodes[i+1];
+            }
+            else
+            {
+                _oFACodes[i]=oFACodes[i];
+            }
+            _oFACodes[i].Sequence=i+1;
+        }
+        data = _oFACodes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFACode').datagrid('loadData',data);
+        var newSelectedRowIndex=SelectedRowIndex+1;
+        $('#tblFACode').datagrid('selectRow',newSelectedRowIndex);
+
+        Make_Preview();
+        $('#btnUpdate_FACode').show();
+    });
+  
+    $('#btnUpdate_FACode').click(function(){
+    Update_FACode();
+});
+
+    function Update_FACode  () {
+        debugger;
+        var oFACodes = $('#tblFACode').datagrid('getRows');
+        if(oFACodes.length<=0)
+        {
+            alert("No Code Found To Update!"); return;
+        }
+        _oFACode.FACodes=oFACodes;
+
+        $.ajax
+({
+    type: "POST",
+    dataType: "json",
+    url : _sBaseAddress+  "/FACode/Update",
+    data:  JSON.stringify(_oFACode.FACodes),
+    contentType: "application/json; charset=utf-8",
+    success: function (data) {
+        debugger;
+        var result=jQuery.parseJSON(data);
+        if(result.ErrorMessage=='')
+        {
+            debugger;
+            alert('Update Successfully.');
+            $('#btnUpdate_FACode').hide();
+        }
+        else
+        {
+            alert(result.ErrorMessage);
+        }
+    },
+    error: function (xhr, status, error)
+    {
+        alert(error);
+    }
+});
+
+
+    };
+
+    $('#btnClose').click(function()
+    {
+        window.location.href = _sBackTo;
+
+    });
+
+</script>

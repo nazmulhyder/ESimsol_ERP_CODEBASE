@@ -1,0 +1,390 @@
+﻿<html>
+
+<body>
+
+    @model ESimSol.BusinessObjects.ProductionProcedureTemplate
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Production Procedure Template" style="font-family:Tahoma; text-align:center; height:89%;">
+            <fieldset>
+                <legend> Template Information </legend>
+                <table border="0" style="font-size:12px; width:100%;">
+                    <tr>
+                        <td style="width:15%; text-align:right">Template No:</td>
+                        <td style="width:35%; text-align:left">
+                            @Html.TextBoxFor(model => model.TemplateNo, new { style = "width:100%;", id = "txtTemplateNo", disabled = "disabled" })
+                        </td>
+                        <td style="width:15%; text-align:right">Template Name:</td>
+                        <td style="width:35%; text-align:left">
+                            @Html.TextBoxFor(model => model.TemplateName, new { style = "width: 100%;", id = "txtTemplateName" })
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:15%; text-align:right">Remarks :</td>
+                        <td style="width:85%; text-align:left" colspan="3">
+                            @Html.TextBoxFor(model => model.Remarks, new { style = "width: 100%;", id = "txtRemarks" })
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div title="Production Procedure Template Details" style="padding:0px;">
+                <table id="tblProductionProcedureTemplateDetail" title="Production Procedure Template Detail" class="easyui-datagrid"  style="width:100%; height:380px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#DetailtoolBar"
+                       data-options="onClickRow: onClickRow">
+                    <thead>
+                        <tr>
+                            <th field="StepName" width="350" align="left">Step Name</th>
+                            <th field="Sequence" width="100" align="center">Sequence</th>
+                            <th width="290" align="left" data-options="field:'Remarks',editor:{type:'text'}"> Remarks </th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="DetailtoolBar">
+                    Production Step : <select id="cboProductionStep" style="width:200px"></select>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddDetail()">Add</a>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="RemoveDetail()">Delete</a>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshDetail()">Refresh</a>
+                    <a id="btnUp" style=" text-align:left;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+                    <a id="btnDown" style=" text-align:left;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+                </div>
+            </div>
+
+</div>
+            <fieldset style="font-weight:bold; ">
+                <legend> Action : </legend>
+                <table border="0" style="font-size:11px;font-weight:bold; width:100%">
+                    <tr>
+                        <td style="width:85%; text-align:right"></td>
+                        <td style="width:15%; text-align:right;">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+</body>
+</html>
+
+<script type="text/javascript"> 
+ var _oProductionProcedureTemplate=null;
+ var _oProductionProcedureTemplateDetails = []; 
+ var _oProductionSteps=[];
+ var _sBaseAddress="";
+ $(document).ready(function () {
+     debugger;     
+     var obj = window.dialogArguments;
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+     _oProductionProcedureTemplate =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+     _oProductionProcedureTemplateDetails = _oProductionProcedureTemplate.ProductionProcedureTemplateDetails;
+     _oProductionSteps =  _oProductionProcedureTemplate.ProductionSteps;
+     RefreshListDetails(_oProductionProcedureTemplateDetails);
+     RefreshCboProductionStep();
+});
+
+function RefreshCboProductionStep()
+{
+    var listItems= "<option value='"+0+"'>" +"--Select Production Step--" + "</option>";
+    for (i = 0; i < _oProductionSteps.length; i++) 
+    {
+        listItems += "<option value='" + _oProductionSteps[i].ProductionStepID+"'>" + _oProductionSteps[i].StepName+"</option>";
+    }
+    $("#cboProductionStep").html(listItems);     
+}
+
+
+
+function RefreshListDetails(oProductionProcedureTemplateDetails)
+{
+    data=oProductionProcedureTemplateDetails;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedureTemplateDetail').datagrid('loadData',data);
+ }
+ 
+
+
+  function AddDetail()
+ {
+    debugger;
+    var cboProductionStep = document.getElementById("cboProductionStep");
+    var nProductionStepID=cboProductionStep.options[cboProductionStep.selectedIndex].value;
+    if(parseInt(nProductionStepID)<=0)
+    {
+        alert("Please Select Production Step!");
+        return;
+    }
+    if(IsExists(nProductionStepID) == true)
+    {
+         alert("Your Selected Production Step Already Exists");
+         return;
+    }    
+    
+    var oPSTDetail ={
+                        ProductionProcedureTemplateDetailID : 0,
+                        ProductionProcedureTemplateID : _oProductionProcedureTemplate.ProductionProcedureTemplateID,
+                        ProductionStepID : nProductionStepID,
+                        Sequence : ($('#tblProductionProcedureTemplateDetail').datagrid('getRows')).length + 1,
+                        Remarks : "",
+                        StepName : cboProductionStep.options[cboProductionStep.selectedIndex].text
+                     };
+    $('#tblProductionProcedureTemplateDetail').datagrid('appendRow',oPSTDetail);       
+ }
+
+ function IsExists(nProductionStepID)
+ {
+    var oProductionProcedureTemplateDetails = $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+    for(var i =0;i<oProductionProcedureTemplateDetails.length;i++)
+    {
+        if(oProductionProcedureTemplateDetails[i].ProductionStepID==nProductionStepID)
+        {
+            return true;
+        }
+    }
+    return false;
+ }
+
+
+function RemoveDetail()
+{
+    var oPSTDetail =$('#tblProductionProcedureTemplateDetail').datagrid('getSelected'); 
+    if(oPSTDetail==null)
+    {
+        alert("Select At least One item !");
+        return;
+    }
+    var SelectedRowIndex=$('#tblProductionProcedureTemplateDetail').datagrid('getRowIndex',oPSTDetail);
+    if (!confirm("Confirm to Delete?")) return ;
+    $('#tblProductionProcedureTemplateDetail').datagrid('deleteRow',SelectedRowIndex);
+    
+    //Reset Sequence Number
+    var oProductionProcedureTemplateDetails = $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+    for(var i =0;i<oProductionProcedureTemplateDetails.length;i++)
+    {
+        oProductionProcedureTemplateDetails[i].Sequence = i+1;        
+    }
+    RefreshListDetails(oProductionProcedureTemplateDetails);
+}
+
+function UP()
+{
+    debugger;
+    var oProductionProcedureTemplateDetail = $('#tblProductionProcedureTemplateDetail').datagrid('getSelected'); 
+    if(oProductionProcedureTemplateDetail==null || parseInt(oProductionProcedureTemplateDetail.ProductionStepID)<=0)
+    {
+        alert("Please select a production Step");
+        return;
+    }
+         
+    var SelectedRowIndex=$('#tblProductionProcedureTemplateDetail').datagrid('getRowIndex',oProductionProcedureTemplateDetail);    
+    if(SelectedRowIndex==0) return;        
+    _oProductionProcedureTemplateDetails =[];
+    _oProductionProcedureTemplateDetails = $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+    var oProductionProcedureTemplateDetails=[];          
+    oProductionProcedureTemplateDetails=_oProductionProcedureTemplateDetails;
+    _oProductionProcedureTemplateDetails=[];       
+    for(var i=0; i<oProductionProcedureTemplateDetails.length; i++)
+    {
+        if(i==(SelectedRowIndex-1))
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i+1];                
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i-1];    
+        }
+        else
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i]; 
+        }
+        _oProductionProcedureTemplateDetails[i].Sequence=i+1;
+    }
+
+    data = _oProductionProcedureTemplateDetails;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedureTemplateDetail').datagrid('loadData',data);    
+    var newSelectedRowIndex=SelectedRowIndex-1;
+    $('#tblProductionProcedureTemplateDetail').datagrid('selectRow',newSelectedRowIndex); 
+    
+}
+
+
+
+function Down()
+{
+    debugger;
+    var oProductionProcedureTemplateDetail = $('#tblProductionProcedureTemplateDetail').datagrid('getSelected'); 
+    if(oProductionProcedureTemplateDetail==null || parseInt(oProductionProcedureTemplateDetail.ProductionProcedureTemplateID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }                       
+    var SelectedRowIndex=$('#tblProductionProcedureTemplateDetail').datagrid('getRowIndex',oProductionProcedureTemplateDetail);    
+    if(SelectedRowIndex==(_oProductionProcedureTemplateDetails.length-1))return; 
+    
+    _oProductionProcedureTemplateDetails =[];
+    _oProductionProcedureTemplateDetails = $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+
+    var oProductionProcedureTemplateDetails=[];          
+    oProductionProcedureTemplateDetails=_oProductionProcedureTemplateDetails;
+    _oProductionProcedureTemplateDetails=[];       
+    for(var i=0; i<oProductionProcedureTemplateDetails.length; i++)
+    {
+        if(i==(SelectedRowIndex+1))
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i-1];                
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i+1];    
+        }
+        else
+        {
+            _oProductionProcedureTemplateDetails[i]=oProductionProcedureTemplateDetails[i]; 
+        }
+        _oProductionProcedureTemplateDetails[i].Sequence=i+1;
+    }            
+    data = _oProductionProcedureTemplateDetails;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedureTemplateDetail').datagrid('loadData',data);
+    var newSelectedRowIndex=SelectedRowIndex+1;
+    $('#tblProductionProcedureTemplateDetail').datagrid('selectRow',newSelectedRowIndex);                   
+ } 
+
+
+function RefreshDetail()
+{
+    endEditing();
+    var oPTDetails = $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+    if(oPTDetails!=null)
+    {
+        RefreshListDetails(oPTDetails);
+    }
+}
+
+var editIndex = undefined;  
+function endEditing(){  
+        if (editIndex == undefined){return true}  
+        if ($('#tblProductionProcedureTemplateDetail').datagrid('validateRow', editIndex)){ 
+
+            $('#tblProductionProcedureTemplateDetail').datagrid('endEdit', editIndex);  
+            editIndex  = undefined;  
+            return true;  
+        } 
+        else
+        {  
+            return false;  
+        }  
+}  
+
+function onClickRow(index){
+    if (editIndex != index){  
+        if (endEditing())
+        {  
+            $('#tblProductionProcedureTemplateDetail').datagrid('selectRow', index)  
+                    .datagrid('beginEdit', index);  
+            editIndex  = index;  
+        } 
+        else
+        {  
+            $('#tblProductionProcedureTemplateDetail').datagrid('selectRow', editIndex);  
+        }  
+    }  
+}  
+
+function Save()
+{
+    debugger;
+    endEditing();
+    if(!ValidateInput()) return;
+    var oProductionProcedureTemplate=RefreshObject();
+    $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+"/ProductionProcedureTemplate/Save",
+            traditional: true,
+            data:  JSON.stringify(oProductionProcedureTemplate),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oProductionProcedureTemplate= jQuery.parseJSON(data);
+                if (oProductionProcedureTemplate.ErrorMessage=="") 
+                {                    
+                    alert("Data Save Successfully!!");
+                    var oProductionProcedureTemplates = sessionStorage.getItem("ProductionProcedureTemplates");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oProductionProcedureTemplates != null) {
+                        oProductionProcedureTemplates = jQuery.parseJSON(oProductionProcedureTemplates);
+                    }
+                    else {
+                        oProductionProcedureTemplates = [];
+                    }
+                    if (nIndex != -1) {
+                        oProductionProcedureTemplates[nIndex] = oProductionProcedureTemplate;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oProductionProcedureTemplates.length);
+                        oProductionProcedureTemplates.push(oProductionProcedureTemplate);
+                    }
+                    sessionStorage.setItem("ProductionProcedureTemplates", JSON.stringify(oProductionProcedureTemplates));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else 
+                {
+                    alert(oProductionProcedureTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+}
+
+
+
+function ValidateInput()
+{
+  debugger;
+   if(document.getElementById("txtTemplateName").value==null || document.getElementById("txtTemplateName").value=="") 
+   { 
+        alert("Please enter template Name!"); 
+        $('#txtTemplateName').focus(); 
+        return false; 
+   }
+
+   var oPTDetails =  $('#tblProductionProcedureTemplateDetail').datagrid('getRows');
+   if(oPTDetails.length<=0)
+   {
+        alert("Please Add at least one Production Step!");
+        return false;
+   }  
+   return true;
+}
+
+function RefreshObject()
+{  
+    debugger;
+    var oProductionProcedureTemplate= { 
+                                            ProductionProcedureTemplateID:_oProductionProcedureTemplate.ProductionProcedureTemplateID,
+                                            TemplateNo :_oProductionProcedureTemplate.TemplateNo,
+                                            TemplateName:$("#txtTemplateName").val(),
+                                            Remarks :$("#txtRemarks").val(),
+                                            ProductionProcedureTemplateDetails:$('#tblProductionProcedureTemplateDetail').datagrid('getRows') 
+                                      };
+   return oProductionProcedureTemplate;
+}
+    
+function Close()
+{
+    window.location.href = sessionStorage.getItem("BackLink");
+}
+
+
+$(document).keydown(function(e) {    
+    //debugger;
+    if(e.which == 27)//escape=27
+    {
+        //debugger;        
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>

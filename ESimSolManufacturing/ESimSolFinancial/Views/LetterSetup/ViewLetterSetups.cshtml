@@ -1,0 +1,264 @@
+﻿@{
+    ViewBag.Title = "Letter Setup";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.LetterSetup>
+    <head>
+        <title></title>
+
+    </head>
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tblLetterSetup" title="Letter Setup" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarLetterSetup">
+                <thead>
+                    <tr>
+                        <th field="Name" width="50%">Name</th>
+                        <th field="Remark" width="30%">Remark</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarLetterSetup">
+                <div>
+                    <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                    <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                    <a id="btnCopy" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-copy" plain="true">Copy</a>
+                    <a id="btnPrintPad" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print Pad</a>
+                    <input type="text" placeholder="Enter Employee Name or Code" id="txtEmployee" style="width:180px"/>
+                    <input type="button" value="C" id="btnEmployeeClear"/>
+                    <input type="button" value="P" id="btnEmployeePick" />
+                </div>
+            </div>
+        </div>
+    </body>
+    <style type="text/css">
+    </style>
+
+    <script type="text/javascript">
+        var _sBaseAddress = "";
+        var _oLetterSetups = [];
+        var _nEmployeeID = 0;
+
+        $(document).ready(function() {
+            debugger;
+            _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oLetterSetups = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            DynamicRefreshList(_oLetterSetups, "tblLetterSetup");
+
+        });
+
+
+        $("#btnNew").click(function () {
+            sessionStorage.setItem("LetterSetupHeader", "Add Letter Template");
+            sessionStorage.setItem('Action','Add')
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/LetterSetup/ViewLetterSetup?id=0";
+        });
+
+
+        $('#btnEdit').click(function (e) {
+            debugger;
+            var oSetUp= $('#tblLetterSetup').datagrid('getSelected');
+            if(oSetUp==null || oSetUp.LSID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblLetterSetup').datagrid('getRowIndex',oSetUp);
+            var oSetups= $('#tblLetterSetup').datagrid('getRows');
+            sessionStorage.setItem("LetterSetups", JSON.stringify(oSetups));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("LetterSetupHeader", "Edit Letter Setup");
+            sessionStorage.setItem('Action','Edit')
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/LetterSetup/ViewLetterSetup?id="+oSetUp.LSID;
+        });
+
+
+
+
+
+
+
+        //$.ajax({
+        //    type: "POST",
+        //    dataType: "json",
+        //    url : sessionStorage.getItem('BaseAddress')+  "/LetterSetup/LetterSetup_IU",
+        //    traditional: true,
+        //    data:  JSON.stringify(oSetup),
+        //    contentType: "application/json; charset=utf-8",
+        //    success: function (data) {
+        //        debugger;
+        //        var oLSetup = jQuery.parseJSON(data);
+        //        if (oLSetup.ErrorMessage == '' || oLSetup.ErrorMessage == null)
+        //        {
+        //            if(oLSetup.LSID>0)
+        //            {
+        //                alert("Data Save Successfully");
+        //                window.location.href = sessionStorage.getItem("BackLink");
+
+        //            }
+        //            else
+        //            {
+        //                alert("Invalid Operation!");
+        //            }
+        //        }
+        //    },
+        //    error: function (xhr, status, error)
+        //    {
+        //        alert(xhr+'~' +status+'~'+error);
+        //    }
+        //});
+        $("#btnCopy").click(function(){
+            var oSetup= $('#tblLetterSetup').datagrid('getSelected');
+            if(oSetup==null || oSetup.LSID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if (!confirm("Confirm to Copy?")) return ;
+            var SelectedRowIndex=$('#tblLetterSetup').datagrid('getRowIndex',oSetup);
+            if (oSetup.LSID > 0)
+            {
+                $.ajax
+                ({
+                    type: "POST",
+                    dataType: "json",
+                    url : _sBaseAddress+  "/LetterSetup/LetterSetup_Copy",
+                    data: JSON.stringify(oSetup),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        var oData = jQuery.parseJSON(data);
+                        if(oData!=null && oData.LSID>0)
+                        {
+                            alert("Copy sucessfully");
+                            $('#tblLetterSetup').datagrid('appendRow',oData);
+                            $('#tblLetterSetup').datagrid('selectRow', $('#tblLetterSetup').datagrid('getRows').length-1);
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+        
+        $("#btnDelete").click(function(){
+            var oSetup= $('#tblLetterSetup').datagrid('getSelected');
+            if(oSetup==null || oSetup.LSID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex=$('#tblLetterSetup').datagrid('getRowIndex',oSetup);
+            if (oSetup.LSID > 0)
+            {
+                $.ajax
+                ({
+                    type: "POST",
+                    dataType: "json",
+                    url : _sBaseAddress+  "/LetterSetup/LetterSetup_Delete",
+                    data: JSON.stringify(oSetup),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        var feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage.toLowerCase() == "deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $('#tblLetterSetup').datagrid('deleteRow',SelectedRowIndex);
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+
+        $("#btnPrintPad").click(function(){
+            if(_nEmployeeID==0)
+            {
+                alert("Please Select an Employee");
+                $('#txtEmployee').focus();
+                return false;
+            }
+            var oSetup= $('#tblLetterSetup').datagrid('getSelected');
+            if(oSetup==null || oSetup.LSID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var tsv = ((new Date()).getTime()) / 1000;
+            sUrl= _sBaseAddress+ "/LetterSetup/PrintLetter?nLetterSetupID="+oSetup.LSID+"&nLetterSetupEmployeeID="+_nEmployeeID+"&isBangla=true"+"&ts="+tsv;
+            window.open(sUrl, "_blank");
+        });
+        /*---------------End---------------*/
+        /*---------------------Employee Search------------------------*/
+        $("#btnEmployeeClear").click(function () {
+            $('#txtEmployee').val("");
+            _nEmployeeID = 0;
+        });
+        $('#txtEmployee').keyup(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) //enter
+            {
+                GetsEmployee();
+            }
+        });
+        function SetEmployee(oResult)
+        {
+            debugger;
+            $('#txtEmployee').val(oResult.NameCode);
+            _nEmployeeID = oResult.EmployeeID;
+        }
+        $("#btnEmployeePick").click(function () {
+            GetsEmployee();
+        });
+
+        function GetsEmployee()
+        {
+            var oEmployee = {
+                Code : $('#txtEmployee').val(),
+                Name : $('#txtEmployee').val()
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oEmployee,
+                ControllerName: "Employee",
+                ActionName: "GetsEmployee",
+                IsWinClose: false
+            };
+
+            debugger;
+            var tblColums = []; var oColumn = { field: "Code", title: "Code", width: 200, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "Name", title: "Name", width: 120, align: "left" }; tblColums.push(oColumn);
+
+            var oPickerParam = {
+                winid: 'winEmployees',
+                winclass: 'clsEmployee',
+                winwidth: 600,
+                winheight: 460,
+                tableid: 'tblEmployees',
+                tablecolumns: tblColums,
+                multiplereturn: false,
+                searchingbyfieldName: 'EmployeeName',
+                windowTittle: 'Employee List',
+                paramObj: obj,
+                pkID: 'EmployeeID',
+                callBack: SetEmployee
+            };
+            $.icsDynamicPicker(oPickerParam);
+        }
+    </script>

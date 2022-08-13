@@ -1,0 +1,218 @@
+﻿@model ESimSol.BusinessObjects.AuthorizationRole
+<div style="font-family: Tahoma">
+    <table border="0" cellspacing="2" cellpadding="2">
+        <tr>
+            <td style="background-color: #CFB53B; text-align: center; width: 845px; color: White">
+                <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline; width: 845px"> Add Authorization Role</label>
+            </td>
+        </tr>
+    </table>
+    <fieldset>
+        <table border="0" style="font-size: 12px">
+            <tr>
+                <td style="width: 150px; text-align: right"> Module Name: </td>
+                <td style="width: 300px; text-align: left">
+                    @Html.DropDownListFor(model => model.ModuleNameInt, Model.ModuleNameObjs.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboModuleName", style = "width: 300px;" })
+                </td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <td style="width: 150px; font-size: 12px; text-align: right; vertical-align:top;">
+                    Operation:
+                </td>
+                <td>
+                    <div id="toolbar" style="height: 30px;"  >
+                        <table border="0" cellpadding="0" cellspacing ="0" style="font-size: 12">
+                            <tr>
+                                <td style="width: 230px; text-align: right">
+                                    <a id="btnAddDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddOperation()">Add Operation</a>
+                                </td>
+                                <td style="width: 50px; text-align: right">
+                                    <a id="btnRemoveDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Remove()">Remove</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td style="width: 250px; text-align: left">
+                    <table id="tblOperation"  class="easyui-datagrid" style="width: 300px; height: 260px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                        <thead>
+                            <tr>
+                                <th field="Value" width="230">
+                                    Operation Name
+                                </th>
+                            </tr>
+                        </thead>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <td style="width: 150px; font-size: 12px; text-align: right"> Note : </td>
+                <td style="width: 300px; text-align: left">
+                    @Html.TextBoxFor(model => model.Note, new { style = "width: 300px;", id = "txtNote" })
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    <fieldset>
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width: 400px; font-weight:bold">
+            <tr>
+                <td style="width: 300px; text-align: left"> </td>
+                <td style="width: 50px"> 
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                </td>
+                <td style="width: 50px">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript"> 
+ var _oAuthorizationRole=null;  
+ var _value ="";
+ var _sBaseAddress="";
+ $(document).ready(function () {    
+     _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+     _oAuthorizationRole =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+ });
+
+ function AddOperation()
+ {
+        var oParameter = new Object();
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/AuthorizationRole/OperationPicker?ts="+tsv;
+        var oRoleOperations= window.showModalDialog(url, oParameter, 'dialogHeight:370px;dialogWidth:400px;dialogLeft:575;dialogTop:220;center:yes;resizable:no;status:no;scroll:no');        
+        if(oRoleOperations.length>0)
+        {
+            var IsExist = false;
+             var oPrevieousOperationList = $('#tblOperation').datagrid('getRows');
+             for(var i =0;i<oRoleOperations.length;i++)
+             {
+                    IsExist =false;
+                    for(var j =0;j<oPrevieousOperationList.length;j++)
+                    {
+                        
+                        if(oPrevieousOperationList[j].OperationTypeInt==oRoleOperations[i].id)
+                        {
+                            IsExist = true;
+                            break;
+                        }
+                        else
+                        {
+                            IsExist =false;
+                        }
+                    }
+                    if(IsExist== false)
+                    {
+                        var oOperationRole = oRoleOperations[i];
+                        oOperationRole.OperationTypeInt = oRoleOperations[i].id;
+                        $('#tblOperation').datagrid('appendRow',oOperationRole);                        
+                                            
+                    }
+             }
+       }
+ }
+
+ function Remove()
+ {
+    var oOperationRole = $('#tblOperation').datagrid('getSelected'); 
+    if(oOperationRole==null || oOperationRole.OperationTypeInt<=0)
+    {
+         alert("Please select a item from list!");
+         return;
+    }
+    if (!confirm("Confirm to Delete?")) return ;
+    var SelectedRowIndex=$('#tblOperation').datagrid('getRowIndex',oOperationRole);
+    $('#tblOperation').datagrid('deleteRow',SelectedRowIndex);
+ }
+
+
+function Save()
+{   
+    if(!ValidateInput()) return;
+    var oAuthorizationRole = {};
+    oAuthorizationRole.AuthorizationRoles=RefreshObjects();
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : _sBaseAddress+"/AuthorizationRole/Save",
+        traditional: true,
+        data:  JSON.stringify(oAuthorizationRole),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {               
+            var _oAuthorizationRoles= jQuery.parseJSON(data);
+            if (_oAuthorizationRoles.length >0 && _oAuthorizationRoles[0].ErrorMessage == "") 
+            {                    
+                    alert("Data Save Successfully!!");
+                    window.returnValue= _oAuthorizationRoles;
+                    window.close();
+            }
+            else 
+            {
+                    alert(_oAuthorizationRoles[0].ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) 
+        {
+            alert(error);
+        }
+    });
+}
+
+function ValidateInput()
+{   
+    if($('#cboModuleName').val()===null || $('#cboModuleName').val()===undefined || parseInt($('#cboModuleName').val())<=0)
+    {
+        alert("Please Choose Module Name "); 
+        $('#cboModuleName').focus(); 
+        return false;
+    }
+    var oOperationTypes = $('#tblOperation').datagrid('getRows');  
+    if(oOperationTypes.length<=0)
+    {
+        alert("Please Add at least one Operation.");
+        return false;
+    }
+    return true;
+}
+
+function RefreshObjects()
+{        
+      var scboModuleName =document.getElementById("cboModuleName");
+      var oAuthorizations =[];
+      var oOperationTypes = $('#tblOperation').datagrid('getRows');
+
+      for (var i =0; i<oOperationTypes.length;i++ )
+      {
+        var oAuthorizationRole= { 
+                AuthorizationRoleID:_oAuthorizationRole.AuthorizationRoleID,
+                RoleNo:"",
+                ModuleNameInt : parseInt($("#cboModuleName").val()),
+                OperationTypeInt:oOperationTypes[i].OperationTypeInt,                
+                Note : $("#txtNote").val()
+          };
+          oAuthorizations.push(oAuthorizationRole);
+      }
+   return oAuthorizations;
+} 
+    
+function Close()
+{    
+    window.close();
+}
+
+$(document).keydown(function(e) {        
+    if(e.which == 27)//escape=27
+    {
+        window.close();
+    }
+});
+
+</script>

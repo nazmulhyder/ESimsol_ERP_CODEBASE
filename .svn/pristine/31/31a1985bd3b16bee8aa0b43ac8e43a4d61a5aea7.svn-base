@@ -1,0 +1,249 @@
+﻿@{
+    ViewBag.Title = "SoftWinding Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.DUSoftWinding>
+
+    <div class="menuMainCollectionTable" ng-app="DUSoftWindingApp" style="height:535px; width:99.4%">
+        <div ng-controller="DUSoftWindingController">
+            <div style="margin-bottom:2px; display:block" title="SoftWinding Report" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByNo" ng-keyup="SearchByNo($event)" placeholder="Search by Order No" style="width:190px" />
+
+                <button type="button" class="btn btn-xs btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()" ng-hide="btnAdvSearch"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Adv.Search</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-primary btn-xs" aria-label="Left Align" ng-click="printView()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                @*<button type="button" id="btnExportToExcel" class="btn btn-primary btn-xs" aria-label="Left Align" ng-click="printExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export To Excel</span></button>*@
+                <button type="button" id="btnPrintList" class="btn btn-primary btn-xs" aria-label="Left Align" ng-click="printStock()"><span class="glyphicon glyphicon-print" aria-hidden="true">Preview(Stock)</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-primary btn-xs" aria-label="Left Align" ng-click="printStatement()"><span class="glyphicon glyphicon-print" aria-hidden="true">Preview(Order Statement)</span></button>
+           </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular" style="width:100%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script src="~/Views/DUSoftWinding/AdvSearchDUSoftWinding_Rpt.js"></script>
+<script type="text/javascript">
+    debugger;
+    var oDUSoftWindings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    //$('#btnExportToExcel,#btnPrintList').hide();
+    debugger;
+    var CCapp= angular.module('DUSoftWindingApp', ['ui.grid','ui.grid.selection','ms.service','DUSoftWindingReport.service']);
+    CCapp.controller('DUSoftWindingController',function ($scope,$http,uiGridConstants,userSession,DUSoftWindingReportservice)
+    {
+        oDUSoftWindings= (userSession.getData('DUSoftWindings').length>0)? userSession.getData('DUSoftWindings'):oDUSoftWindings;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'OrderDateST', name:'Order Date', width:'10%' },
+              { field: 'DyeingOrderNo', name:'Order No', width:'10%' },
+              { field: 'ContractorName', name:'Buyer', width:'15%' , enableSorting: false},
+              { field: 'ProductName', name:'Product', width:'18%' , enableSorting: false},
+              { field: 'LotNo', name:'Raw Lot No', width:'10%' },
+              { field: 'MUnit', name:'MUnit', width:'7%' },
+              { field: 'Qty_Order', name:'Order Qty', width:'10%' ,cellClass:'text-right',cellFilter:'number:2', enableSorting: false},
+              { field: 'QtySRS', name:'SRS Qty', width:'10%' ,cellClass:'text-right',cellFilter:'number:2', enableSorting: false},
+              { field: 'QtySRM', name:'SRM Qty', width:'10%' ,cellClass:'text-right',cellFilter:'number:2', enableSorting: false},
+              { field: 'Qty_Req', name:'Receive Qty', width:'10%' ,cellClass:'text-right',cellFilter:'number:2', enableSorting: false},
+              { field: 'Qty_RSOut', name:'Issue Qty',cellClass:'text-right',cellFilter:'number:2', width:'10%' },
+              { field: 'Qty_SW', name:'Balance',cellClass:'text-right',cellFilter:'number:2', width:'10%' },
+            ],
+            data: oDUSoftWindings,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+
+                debugger;
+                if(oDUSoftWindings.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oDUSoftWindings);
+                    $scope.gridApi.selection.selectRow(oDUSoftWindings[userSession.getRowIndex()]);
+                    $scope.RowSelect(oDUSoftWindings[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+
+            }
+        };
+        sessionStorage.setItem("BUID",_nBUID);
+        sessionStorage.setItem('BaseAddress',_sBaseAddress);
+        $scope.BUID=_nBUID;
+        $scope.SearchByNo = function(e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) 
+            {
+                var txtSearchByNo = $.trim($scope.txtSearchByNo);
+                if(txtSearchByNo=="" || txtSearchByNo==null)
+                {
+                    alert("Type Order No and Press Enter");
+                    return;
+                }
+                var oDUSoftWinding={
+                               DyeingOrderNo:txtSearchByNo
+                };
+
+                $http.post(_sBaseAddress+'/DUSoftWinding/SearchByNo_Rpt',JSON.stringify(oDUSoftWinding)).then(
+                 function (response)
+                 {
+                     var oDUSoftWindings= jQuery.parseJSON(response.data);
+
+                     if(oDUSoftWindings.length<=0)
+                     {
+                         alert("No Data Found!");return;
+                     }
+
+                     if (oDUSoftWindings[0].ErrorMessage=="" || oDUSoftWindings[0].ErrorMessage==null)
+                     {
+                        sTemp = 0 + '~' + icsdateformat(new Date()) + '~' + icsdateformat(new Date()) + '~'
+                                + 0 + '~' + icsdateformat(new Date()) + '~' + icsdateformat(new Date()) + '~'
+                                  + 0 + '~' + icsdateformat(new Date()) + '~' + icsdateformat(new Date()) + '~'
+                                + txtSearchByNo + '~' + "" + '~'
+                                + false + '~' + false + '~' + false
+                                + '~' + sessionStorage.getItem('BUID')
+                                + '~' + "";
+
+                         sessionStorage.setItem("sTempString", sTemp);
+                         $scope.gridOptions= {data: oDUSoftWindings};
+                     }
+                     else
+                     {
+                         alert(oDUSoftWindings[0].ErrorMessage);
+                     }
+                 },
+                     function (response) { alert(response.statusText);}
+             );
+            }
+        }
+
+        $scope.PrintList = function()
+        {
+            var oDUSoftWindings= $scope.gridOptions.data;
+            var ids ="";
+            if(oDUSoftWindings.length >0)
+            {
+                for(var i =0;i<oDUSoftWindings.length;i++)
+                {
+                    ids =ids+oDUSoftWindings[i].DUSoftWindingID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/DUSoftWinding/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oDUSoftWindings=  $scope.gridOptions.data;
+            var ids ="";
+            if(oDUSoftWindings.length >0)
+            {
+                for(var i =0;i<oDUSoftWindings.length;i++)
+                {
+                    ids =ids+oDUSoftWindings[i].DUSoftWindingID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/DUSoftWinding/DUSoftWindingExportToExcel?sIDs='+ids);
+        }
+
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+            $scope.MRNo ="";
+            var modalObj={
+                modalcontroller:'ModalDUSoftWindingAdvanceSearchCtrl',
+                appcontroller:'DUSoftWindingController',
+                CompareOperators:oCompareOperators,
+                //RequisitionTypes:$scope.RequisitionTypes,
+                //IssueStores:$scope.IssueStores,
+                //ReceiveStores: $scope.ReceiveStores
+            }
+            var modalInstance=DUSoftWindingReportservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                //$log.info('Modal dismissed at: ' + icsdateformat(new Date()));
+            });
+        };
+        $scope.printStock = function()
+        {
+            debugger;
+            var  sTemp = _nBUID;
+           
+            window.open(_sBaseAddress + '/DUSoftWinding/PrintDUSoftWinding_Stock?sTemp='+sTemp, "_blank");
+        };
+        
+        $scope.printView = function()
+        {
+            var  sTemp = sessionStorage.getItem("sTempString");debugger;
+            if(sTemp==null)
+            {
+                //sTemp= 0 + '~' + icsdateformat(new Date()) + '~' + icsdateformat(new Date()) + '~'
+                //                + 0 + '~' + icsdateformat(new Date())+ '~' + icsdateformat(new Date()) + '~'
+                //                + "" + '~' + "" + '~'
+                //                + false+ '~' + false  + '~' + false
+                //                + '~' +sessionStorage.getItem('BUID') ;
+                alert("Please select any searching criteria and try again!"); return;
+            }
+            window.open(_sBaseAddress + '/DUSoftWinding/PrintDUSoftWinding_Report?sTemp='+sTemp, "_blank");
+        };
+        $scope.printStatement = function ()
+        {
+            var oDURPTSU = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDURPTSU==null || oDURPTSU.DyeingOrderID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            // window.open(_sBaseAddress + '/FabricExecutionOrderSpecification/PrintFabricSpecification?nId='+oFabricLotAssign.FEOSID+"&nBUID="+_nBUID);
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress+ "/DUSoftWinding/PrintOrderSWStatement?nID="+oDURPTSU.DyeingOrderID+"&nBUID="+_nBUID, "_blank");
+        };
+        $scope.printExcel = function()
+        {
+            var  sTemp = sessionStorage.getItem("sTempString");debugger;
+            if(sTemp==null)
+            {
+                //sTemp= 0 + '~' + icsdateformat(new Date()) + '~' + icsdateformat(new Date()) + '~'
+                //                + 0 + '~' + icsdateformat(new Date())+ '~' + icsdateformat(new Date()) + '~'
+                //                + "" + '~' + "" + '~'
+                //                + false+ '~' + false  + '~' + false
+                //                + '~' +sessionStorage.getItem('BUID') ;
+                
+                alert("Please select any searching criteria and try again!"); return;
+            }
+            window.open(_sBaseAddress + '/DUSoftWinding/ExportToExcelDUSoftWinding?sTemp='+sTemp, "_blank");
+        };
+        
+        //if(PermissionChecker('Add','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+        //if(PermissionChecker('Edit','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+        //if(PermissionChecker('Edit','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnYarnOut").show();}
+        //if(PermissionChecker('Edit','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnDetails").show();}
+        //if(PermissionChecker('View','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnView").show();}
+        //if(PermissionChecker('Delete','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+        //if(PermissionChecker('Print','DUSoftWinding',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

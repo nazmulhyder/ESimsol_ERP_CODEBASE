@@ -1,0 +1,186 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ImportProduct>
+@{
+    ViewBag.Title = "View Import PI";
+}
+<div class="menuMainCollectionTable" id="divImportProducts" style="margin-left: 0px; height:100%; width:100%">
+    <table id="tblImportProducts" title="Import PI List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="BUName" width="120" align="left">Unit </th>
+                <th field="Name" width="120" align="left">Name</th>
+                
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">        
+        
+        
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()" id="btnAdd">New</a>
+        <a href="javascript:void(0)" id="btnEdit" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+        <a href="javascript:void(0)" id="btnEdit" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+        <a href="javascript:void(0)" id="btnDelete" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        <a id="btnActivate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Activate</a>
+        
+    </div>
+</div>
+
+  <script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function ()
+    {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oImportProducts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nBUID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+        var oTempImportProducts =sessionStorage.getItem("ImportProducts");
+        if(oTempImportProducts!=null )
+        {
+            oTempImportProducts = jQuery.parseJSON(oTempImportProducts );
+        }
+        else
+        {
+            oTempImportProducts =oImportProducts;
+        }
+       
+        LoadintoGrid(oTempImportProducts);
+       
+  });
+
+
+        function Add()
+        {
+            var oImportProducts= $('#tblImportProducts').datagrid('getRows');
+            sessionStorage.setItem("ImportProducts", JSON.stringify(oImportProducts));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ImportProductHeader", "Add Import PI");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportProduct/ViewImportProduct?id=0";
+        }
+
+        function View() {
+            var oImportProduct = $('#tblImportProducts').datagrid('getSelected');
+            var nSelectedIndex = $('#tblImportProducts').datagrid('getRowIndex', oImportProduct);
+
+            if (oImportProduct == null || oImportProduct.ImportProductID <= 0) {
+                alert("Please select an item from list!");
+                return;
+            }
+            var oImportProducts= $('#tblImportProducts').datagrid('getRows');
+            sessionStorage.setItem("ImportProducts", JSON.stringify(oImportProducts));
+            sessionStorage.setItem("SelectedRowIndex", nSelectedIndex);
+            sessionStorage.setItem("ImportProductHeader", "View ImportProduct");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportProduct/ViewImportProduct?id="+oImportProduct.ImportProductID;
+        }
+        function Edit() {
+            var oImportProduct = $('#tblImportProducts').datagrid('getSelected');
+            var nSelectedIndex = $('#tblImportProducts').datagrid('getRowIndex', oImportProduct);
+
+            if (oImportProduct == null || oImportProduct.ImportProductID <= 0) {
+                alert("Please select an item from list!");
+                return;
+            }
+            if (parseInt(oImportProduct.ApprovedBy)>0) {
+                alert("Already Approved!");
+                return;
+            }
+            var oImportProducts= $('#tblImportProducts').datagrid('getRows');
+            sessionStorage.setItem("ImportProducts", JSON.stringify(oImportProducts));
+            sessionStorage.setItem("SelectedRowIndex", nSelectedIndex);
+            sessionStorage.setItem("ImportProductHeader", "Edit ImportProduct");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/ImportProduct/ViewImportProduct?id="+oImportProduct.ImportProductID;
+        }
+
+       
+        $("#btnActivate").click(function () {
+            debugger;
+            var oImportProduct = $("#tblImportProducts").datagrid("getSelected");
+            if (!confirm("Confirm to Active?")) return false;
+            if (oImportProduct == null || oImportProduct.ImportProductID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oImportProduct,
+                ObjectId: oImportProduct.ImportProductID,
+                ControllerName: "ImportProduct",
+                ActionName: "Activate_Setup",
+                TableId: "tblImportProducts",
+                IsWinClose: false
+            };
+            $.icsSave(obj);
+            var SelectedRowIndex = $('#tblImportProducts').datagrid('getRowIndex', oImportProduct);
+            $('#tblImportProducts').datagrid('updateRow', { index: SelectedRowIndex, row: oImportProduct });
+        });
+
+
+    
+        function Delete() {
+
+            var oImportProduct = $('#tblImportProducts').datagrid('getSelected');
+            if (oImportProduct == null || oImportProduct.ImportProductID <= 0) {
+                alert("Please select a item from list!");
+                return false;
+            }
+            if (parseInt(oImportProduct.ImportProductStatusInt)== 1) {
+                alert("Sorry, Can't delete an Approved ImportProduct!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return;
+
+            var SelectedRowIndex = $('#tblImportProducts').datagrid('getRowIndex', oImportProduct);
+
+            if (oImportProduct.ImportProductID > 0) {
+
+                $.ajax
+                ({
+                    type: "POST",
+                    dataType: "json",
+                    url: _sBaseAddress + "/ImportProduct/Delete",
+                    traditional: true,
+                    data: JSON.stringify(oImportProduct),
+                    contentType: "application/json; charset=utf-8",
+                    success: function(data) {
+
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted") {
+                            $('#tblImportProducts').datagrid('deleteRow', SelectedRowIndex);
+                            alert("Delete sucessfully");
+
+                        } else {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert(error);
+                    }
+
+                });
+
+            }
+        }
+        function LoadintoGrid(oImportProducts) {
+            data = oImportProducts;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblImportProducts').datagrid('loadData', data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if(nIndex!=null)
+            {
+                $('#tblImportProducts').datagrid('selectRow',nIndex);
+            }
+        }
+
+        $(document).keydown(function (e) {
+            //debugger;
+            if (e.which == 27)//escape=27
+            {
+                //debugger;
+                $("#winAdvSearchImportProduct").icsWindow('close');
+            }
+        });
+
+    </script>
+
+

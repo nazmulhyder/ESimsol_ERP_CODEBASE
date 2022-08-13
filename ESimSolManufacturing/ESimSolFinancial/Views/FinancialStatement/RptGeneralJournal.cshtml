@@ -1,0 +1,138 @@
+﻿
+@model ESimSol.BusinessObjects.SP_GeneralJournal
+@{
+    ViewBag.Title = "General Journal";
+}
+<div style="margin-left:0px; height:550px">
+    <table id="tblGeneralJournal" title="General Journal List"  class="easyui-datagrid" style="width:897px;height:548px" fitColumns="false" rownumbers="true" pagination="true" singleSelect="true", autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr> 
+                <th field="VoucherDateInString" width="90" align="left"> Voucher Date</th>  
+                <th field="VoucherNo" width="110"  align="left">Voucher No</th>
+                <th field="AccountCode" width="100"  align="left">Account Code</th>
+                <th field="AccountHeadName" width="300"  align="left">Particulars</th>                
+                <th field="DebitAmountInString" width="120"  align="right">Debit</th>  
+                <th field="CreditAmountInString" width="120"  align="right">Credit</th>                  
+            </tr>  
+        </thead> 
+    </table>​  
+    <div id="toolbar">        
+        Journal Date : <input type="text" id="txtStartDate" style="width:150px""/> to <input type="text" id="txtEndDate" style="width:150px""/>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="Refresh()">Refresh</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true">Print</a>
+    </div>  
+</div>
+<script type="text/javascript">
+var _oGeneralJournals=[];
+var _sBaseAddress="";
+var _oCreditChartOfAccount=null;
+$(document).ready(function () {
+        //debugger;          
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));            
+        $('#txtStartDate').datebox({required: true});
+        $('#txtEndDate').datebox({required: true});
+});     
+    
+function formatPrice(val,row){  
+//debugger;
+
+    if(val==null)
+    {
+        val=0.00;
+    }
+    val=parseFloat(val);
+    var test = val.toFixed(2);
+    var tests = addComma(test);
+    return tests;       
+} 
+function addComma(nStr)
+{
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var process = /(\d+)(\d{3})/;
+	while (process.test(x1)) {
+		x1 = x1.replace(process, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
+} 
+
+
+function ValidateInput()
+ {
+
+    if ( $('#txtStartDate').datebox('getValue')=="") {
+       alert("please select start date!");
+       $('#txtStartDate').focus();
+       return false;
+    }
+
+    if ( $('#txtEndDate').datebox('getValue')=="") {
+        alert("Please select end date!!");
+         $('#txtEndDate').focus();
+        return false;
+    }   
+    return true;
+ }
+
+   
+function Refresh()
+{ 
+//debugger;  
+    if(!ValidateInput())return;        
+    var oGeneralJournal= {                            
+                            StartDate:$('#txtStartDate').datebox('getValue'),
+                            EndDate:$('#txtEndDate').datebox('getValue')
+                        }
+                 
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("RefreshGeneralJournal", "FinancialStatement")',
+        data: JSON.stringify(oGeneralJournal),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            _oGeneralJournals = jQuery.parseJSON(data);
+            if (_oGeneralJournals != null) {                   
+                if(_oGeneralJournals.length>0)
+                {
+                    if(_oGeneralJournals[0].ErrorMessage!="")
+                    {
+                        alert(_oGeneralJournals[0].ErrorMessage);
+                    }
+                    else
+                    {
+                        data =_oGeneralJournals;       
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblGeneralJournal').datagrid('loadData',data);
+                    }
+                }    
+                else
+                {
+                    alert("Data not found!!");
+                }              
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+}    
+
+    function RefreshList(oGeneralJournals)
+    {    
+          data=oGeneralJournals;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblGeneralJournal').datagrid('loadData',data);          
+    }
+    
+    
+    $("#btnPrint").click(function(){
+        if(!ValidateInput())return;                
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');    
+        window.open(_sBaseAddress+'/FinancialStatement/GeneralJournal?date1=' + date1 + '&date2=' + date2, "_blank");
+     });
+</script>

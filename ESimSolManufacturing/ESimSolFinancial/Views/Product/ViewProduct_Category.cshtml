@@ -1,0 +1,358 @@
+﻿<html>
+<head>  
+  
+</head>
+<body>
+
+@{
+    ViewBag.Title = "Add Product";
+}
+@model ESimSol.BusinessObjects.Product
+
+    <div id="divProduct" class="easyui-panel" title="Add Item" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <fieldset >
+                <table border="0" cellpadding="2">
+
+                    <tr>
+                        <td style="width:100px; font-size:12px; text-align:right">
+                            Code
+                        </td>
+                        <td colspan="3" style="width:367px; text-align:left">
+                            @Html.TextBoxFor(model => model.ProductCode, new { style = "width: 100px;", id = "txtProductCode", disabled = "disabled" })
+                        </td>
+
+                    </tr>
+                    <tr>
+                        <td style="width:100px; font-size:12px; text-align:right">
+                            Barnd
+                        </td>
+                        <td colspan="3" style="width:367px;  text-align:left">
+                            @Html.TextBoxFor(model => model.Note, new { style = "width: 367px;", id = "txtNote" })
+                        </td>
+
+                    </tr>
+
+                    <tr>
+                        <td style="width:100px; font-size:12px; text-align:right">
+                            Item
+                        </td>
+                        <td colspan="3" style="width:367px; text-align:left">
+                            @Html.TextBoxFor(model => model.ProductName, new { style = "width: 367px;", id = "txtProductName" })
+                        </td>
+
+                    </tr>
+
+
+                    <tr>
+                        <td style="width:100px; font-size:12px; text-align:right">
+                            Part No
+                        </td>
+                        <td colspan="3" style="width:367px; text-align:left">
+                            @Html.TextBoxFor(model => model.ShortName, new { style = "width: 367px;", id = "txtShortName" })
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:100px; font-size:12px; text-align:right">
+                            Unit Type
+                        </td>
+                        <td style="width:150px;  text-align:left">
+                            @Html.DropDownListFor(model => model.UnitType, new SelectList(Enum.GetValues(typeof(ICS.Core.Utility.EnumUniteType))), new { id = "cboMeasurmentUniteType", style = "width: 150px;", @class = "_ChangeIssueA" })
+                        </td>
+                        <td style="width:60px; font-size:12px; text-align:right">
+                            Unit
+                        </td>
+                        <td style="width:150px;  text-align:left">
+                            <select id="cboMeasurmentUnit" style="width:150px;"></select>
+                        </td>
+                    </tr>
+
+
+                </table>
+            </fieldset>
+            <fieldset>
+                <table>
+                    <tr>
+                        <td style=" text-align:left; width:20px"></td>
+                        <td style=" text-align:right; width:80px;"><label id="lblCaption" style="font-size:13px; font-weight:bold"> Full Name: </label></td>
+                        <td style="background-color:#CFB53B; text-align:left; width:370px; color:White"><label id="lblFullName" style="font-size:13px; font-weight:bold">  </label></td>
+
+
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight: bold">Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                        <tr>
+                            <td style="width:80%; text-align:right"></td>
+                            <td style="width: 10%">
+                                <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                            </td>
+                            <td style="width: 10%">
+                                <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+     </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+    var _oMeasurementUnits = [];
+    var _sBaseAddress ="";
+    var _oUnitTypes = [];
+    var _oProduct =null;
+    var _nMenuid=0;
+    var _sProductHeader="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+      _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oProduct =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oMeasurementUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.MeasurementUnits));
+
+        if(parseInt(_oProduct.ProductID)>0)
+        {
+            LoadUnits();
+        }
+
+        _sProductHeader=sessionStorage.getItem("ProductBaseHeader");
+        $('#divProduct').panel({ title:_sProductHeader+" "+_oProduct.ProductCategoryName});
+        if(_sProductHeader=="View ProductBase")
+        {
+            document.getElementById('btnSave').style.display = 'none';
+        }
+        RefreshFullName();
+    });
+
+
+    $('._ChangeIssueA').change(function () {
+
+
+        LoadUnits();
+    })
+
+
+    function LoadUnits()
+    {
+        var scboMeasurmentUniteType=document.getElementById("cboMeasurmentUniteType");
+        var nUnitType= scboMeasurmentUniteType.options[scboMeasurmentUniteType.selectedIndex].index;
+        $('#cboMeasurmentUnit').empty();
+        var listItems= "<option value='"+0+"'>" +"--Select Unit--" + "</option>";
+        if (_oMeasurementUnits !=null)
+        {
+            if(_oMeasurementUnits.length>0)
+            {
+                for (var i = 0; i < _oMeasurementUnits.length; i++)
+                {
+                    if(_oMeasurementUnits[i].UnitType==nUnitType)
+                    {
+                        listItems += "<option value='" + _oMeasurementUnits[i].MeasurementUnitID+"'>" + _oMeasurementUnits[i].UnitName+"</option>";
+                    }
+                }
+            }
+            $("#cboMeasurmentUnit").html(listItems);
+            $('#cboMeasurmentUnit').val(_oProduct.MeasurementUnitID);
+        }
+    }
+
+
+
+    function RefreshObject()
+    {
+        var oProduct= {
+            ProductID : _oProduct.ProductID,
+            ProductCategoryID : _oProduct.ProductCategoryID,
+            ProductName: $.trim($("#txtProductName").val()), 
+            ShortName :  $.trim($("#txtShortName").val()),
+            UnitTypeInInt:parseInt($("#cboMeasurmentUniteType").val()),
+            MeasurementUnitID : parseInt($("#cboMeasurmentUnit").val()),
+            ProductBaseID: _oProduct.ProductBaseID,
+            Note :   $.trim($("#txtNote").val())
+        };
+        return oProduct;
+    }
+
+    function ValidateInput()
+    {
+        if(_oProduct==null)
+        {
+            alert("Invalid Product Category!");
+            return false;
+        }
+        if(document.getElementById('txtProductName').value ==null || document.getElementById('txtProductName').value =="")
+        {
+            alert("Please Type Product Name");
+            $('#txtProductName').focus();
+            return false;
+        }
+        //if(parseInt(_oProduct.ProductCategoryID)<=0)
+        //{
+        //  alert("Invalid Product Category!");
+        //  return false;
+        //}
+        var cboMeasurmentUniteType =document.getElementById("cboMeasurmentUniteType");
+        var nUnitType = cboMeasurmentUniteType.options[cboMeasurmentUniteType.selectedIndex].index;
+        if(parseInt(nUnitType)<=0)
+        {
+            alert("Please Select Unit Type");
+            $('#cboMeasurmentUniteType').focus();
+            return false;
+        }
+        var cboMeasurmentUnit =document.getElementById("cboMeasurmentUnit");
+        var nUnitID = cboMeasurmentUnit.options[cboMeasurmentUnit.selectedIndex].value;
+
+        if( parseInt(nUnitID)==0)
+        {
+            alert("Please select Unit");
+            $('#cboMeasurmentUnit').focus();
+            return false;
+        }
+        return true;
+    }
+
+    $('#btnSave').click(function () {
+        if(!ValidateInput()) return false;
+        var oProduct = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Save", "Product")',
+            data:  JSON.stringify(oProduct),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var _oProduct = jQuery.parseJSON(data);
+                if (_oProduct!=null)
+                {
+                    if(_oProduct.ErrorMessage!="")
+                    {
+                        alert(_oProduct.ErrorMessage);
+                        return;
+                    }
+                    else
+                    {
+                        document.getElementById("txtProductCode").value = _oProduct.ProductCode;
+                        alert("Data Saved sucessfully");
+                        var oProducts =sessionStorage.getItem("ProductBases");
+                        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if(oProducts!=null)
+                        {
+                            oProducts = jQuery.parseJSON(oProducts);
+                        }
+                        else
+                        {
+                            oProducts=[];
+                        }
+                        if(nIndex!=-1)
+                        {
+                            oProducts[nIndex]=_oProduct;
+                        }
+                        else
+                        {
+                            sessionStorage.setItem("SelectedRowIndex", oProducts.length);
+                            oProducts.push(_oProduct);
+                        }
+                        sessionStorage.setItem("ProductBases", JSON.stringify(oProducts));
+                        window.location.href = _sBaseAddress+ "/ProductBase/ViewProductBases?menuid="+_nMenuid;
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+
+    $("#btnClose").click(function(){
+        window.location.href = _sBaseAddress+ "/ProductBase/ViewProductBases?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/ProductBase/ViewProductBases?menuid="+_nMenuid;
+        }
+    });
+
+    
+    $("#txtProductName").keyup(function (e){
+
+        FullName_keyup()
+    });
+
+    $("#txtShortName").keyup(function (e){
+
+        FullName_keyup()
+    });
+
+    $("#txtProductName").keyup(function (e){
+
+        FullName_keyup()
+    });
+
+    $("#txtNote").keyup(function (e){
+
+        FullName_keyup()
+    });
+
+
+
+    function FullName_keyup()
+    { 
+        var sFullName="";
+        var sTemp="";
+        sFullName=_oProduct.ProductCategoryName;
+        sTemp=$("#txtNote").val();
+        if( sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+        sTemp=$("#txtProductName").val();
+        if( sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+        sTemp=$("#txtShortName").val();
+        if( sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+
+        document.getElementById("lblFullName").innerHTML = sFullName;
+    }
+
+    function RefreshFullName()
+    { 
+        //  document.getElementById("lblFullName").innerHTML = _oProduct.GroupName+" - " +_oProduct.Note+" - "+_oProduct.ProductName+" - "+_oProduct.ShortName;
+        var sFullName="";
+        var sTemp="";
+        sFullName=_oProduct.ProductCategoryName;
+        sTemp=_oProduct.Note;
+        if(sTemp!=null || sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+        sTemp=_oProduct.ProductName;
+        if(sTemp!=null || sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+        sTemp=_oProduct.ShortName;
+        if(sTemp!=null || sTemp.length>0)
+        {
+            sFullName=sFullName+" - "+sTemp;
+        }
+
+        document.getElementById("lblFullName").innerHTML = sFullName;
+    }
+
+</script>

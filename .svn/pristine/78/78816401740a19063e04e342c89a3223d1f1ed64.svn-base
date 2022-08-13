@@ -1,0 +1,272 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Update Party Info";
+    }
+    @model ESimSol.BusinessObjects.ExportPartyInfoDetail
+    <div id="divExportPartyInfoDetail" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">        
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblExportPartyInfoDetail" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="IsBankSt" width="10%" align="left"></th>
+                        <th field="InfoCaption" width="25%" align="left">Party Info</th>
+                        <th field="RefNo" width="25%" align="left">RefNo</th>
+                        <th field="RefDate" width="15%" align="left">RefDate</th>
+                        <th field="ActivitySt" width="10%" align="left">Is-Active</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                <select style="width:10%;" id="cboIsBank">
+                    <option value="false">Applicant</option>
+                    <option value="true">Bank</option>
+                </select>
+                Party Info : @Html.DropDownListFor(model => model.ExportPartyInfoID, Model.ExportPartyInfos.Select(x => new SelectListItem() { Text = x.Name, Value = x.ExportPartyInfoID.ToString() }), new { id = "cboPartyInfo", style = "width:150px;" })                
+                Ref No : @Html.TextBoxFor(model => model.RefNo, new { style = "width: 200px;", id = "txtRefNo" })
+                Ref Date : @Html.TextBoxFor(model => model.RefDate, new { style = "width: 100px;", id = "txtRefDate" })                
+                <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Update</a>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>                
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript"> 
+ var _oExportPartyInfoDetail=null; 
+ $(document).ready(function () {     
+     _oExportPartyInfoDetail =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));                 
+     $('#tblExportPartyInfoDetail').datagrid({ title: ('Applicant : ' +_oExportPartyInfoDetail.PartyName)});
+     RefreshList(_oExportPartyInfoDetail.ExportPartyInfoDetails);
+     $('#tblExportPartyInfoDetail').data('PartyID',parseInt(_oExportPartyInfoDetail.ContractorID));
+     $('#btnUpdate').hide();
+ }); 
+
+ function ValidateInput()
+ {
+    if($('#cboPartyInfo').val()===null || $('#cboPartyInfo').val()===undefined || parseInt($('#cboPartyInfo').val())<=0)
+    {        
+        alert("Please select Party Info Caption!");
+        $('#cboPartyInfo').focus();
+        return false;
+    }
+    if($.trim($('#txtRefNo').val())==="")
+    {        
+        alert("Please Enter Ref No!");
+        $('#txtRefNo').focus();
+        return false;
+    }
+    if(parseInt($('#tblExportPartyInfoDetail').data('PartyID'))<=0)
+    {        
+        alert("Invalid Party!");        
+        return false;
+    }
+    return true;
+ }
+
+ function GetIsBankTypes(nId){
+     if(nId==true)
+         return "Applicant";
+     return 'Bank';
+ }
+
+function RefreshObject()
+{
+    var oExportPartyInfoDetail=   {
+                                ExportPartyInfoDetailID : parseInt(_oExportPartyInfoDetail.ExportPartyInfoDetailID),
+                                ExportPartyInfoID : parseInt($('#cboPartyInfo').val()),
+                                ContractorID : parseInt($('#tblExportPartyInfoDetail').data('PartyID')),
+                                RefNo : $.trim($('#txtRefNo').val()),
+                                RefDate : $.trim($('#txtRefDate').val()),
+                                IsBank:$('#cboIsBank').val(),
+                                IsBankSt:GetIsBankTypes($('#cboIsBank').val()),
+                                Activity : true
+                            };
+    return oExportPartyInfoDetail;
+} 
+
+$("#btnAdd").click(function(){    
+    if(!ValidateInput()) return;
+    var oExportPartyInfoDetail=RefreshObject(); 
+    oExportPartyInfoDetail.ExportPartyInfoDetailID=0;
+  
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : sessionStorage.getItem("BaseAddress")+  "/ExportPartyInfo/SavePartyWiseExportInfo",
+        traditional: true,
+        data:  JSON.stringify(oExportPartyInfoDetail),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oExportPartyInfoDetail = jQuery.parseJSON(data);
+            if(parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)>0)
+            {
+                alert("Data Saved sucessfully");    
+                var nIndex=$('#tblExportPartyInfoDetail').datagrid('getRows').length;
+                $('#tblExportPartyInfoDetail').datagrid('appendRow',oExportPartyInfoDetail); 
+                $('#tblExportPartyInfoDetail').datagrid('selectRow', nIndex);
+                
+                $("#cboPartyInfo").val(0);                
+                $("#txtRefNo,#txtRefDate").val('');
+                _oExportPartyInfoDetail.ExportPartyInfoDetailID=0;    $('#btnUpdate').hide();
+            }
+            else {
+                alert(oExportPartyInfoDetail.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$("#btnEdit").click(function(){    
+    var oExportPartyInfoDetail = $('#tblExportPartyInfoDetail').datagrid('getSelected'); 
+    if(oExportPartyInfoDetail==null ||  parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    _oExportPartyInfoDetail.ExportPartyInfoDetailID = parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID);
+    $("#cboPartyInfo").val(oExportPartyInfoDetail.ExportPartyInfoID); 
+    debugger;
+  
+    if(oExportPartyInfoDetail.IsBank==true){ $("#cboIsBank").val('true');} else {$("#cboIsBank").val('false');}
+    
+    $("#txtRefNo").val(oExportPartyInfoDetail.RefNo);
+    $("#txtRefDate").val(oExportPartyInfoDetail.RefDate);
+    $('#btnUpdate').show();
+});
+    
+$("#btnUpdate").click(function(){    
+
+    if(!ValidateInput()) return;
+    var oExportPartyInfoDetail=RefreshObject(); 
+    //var nDetailID = parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID);
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : sessionStorage.getItem("BaseAddress")+  "/ExportPartyInfo/SavePartyWiseExportInfo",
+        traditional: true,
+        data:  JSON.stringify(oExportPartyInfoDetail),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oExportPartyInfoDetail = jQuery.parseJSON(data);
+            if(parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)>0)
+            {
+                alert("Data Saved sucessfully");               
+                
+                var oTempExportPartyInfoDetail = $('#tblExportPartyInfoDetail').datagrid('getSelected'); 
+                var nIndex =$('#tblExportPartyInfoDetail').datagrid('getRowIndex',oTempExportPartyInfoDetail);
+                $('#tblExportPartyInfoDetail').datagrid('updateRow',{index: nIndex,	row: oExportPartyInfoDetail});
+                
+                $("#cboPartyInfo").val(0);                
+                $("#txtRefNo,#txtRefDate").val('');
+                _oExportPartyInfoDetail.ExportPartyInfoDetailID=0;     $('#btnUpdate').hide();
+            }
+            else {
+                alert(oExportPartyInfoDetail.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+ 
+$("#btnEdit").click(function(){    
+    var oExportPartyInfoDetail = $('#tblExportPartyInfoDetail').datagrid('getSelected'); 
+    if(oExportPartyInfoDetail==null ||  parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    _oExportPartyInfoDetail.ExportPartyInfoDetailID = parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID);
+    $("#cboPartyInfo").val(oExportPartyInfoDetail.ExportPartyInfoID);                
+    $("#txtRefNo").val(oExportPartyInfoDetail.RefNo);
+    $("#txtRefDate").val(oExportPartyInfoDetail.RefDate);
+    $('#btnUpdate').show();
+});
+$('#btnDelete').click(function(e){
+    var oExportPartyInfoDetail = $('#tblExportPartyInfoDetail').datagrid('getSelected'); 
+    if(oExportPartyInfoDetail==null ||  parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }        
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex=$('#tblExportPartyInfoDetail').datagrid('getRowIndex',oExportPartyInfoDetail);
+    if (parseInt(oExportPartyInfoDetail.ExportPartyInfoDetailID)> 0) 
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",                    
+            url : sessionStorage.getItem("BaseAddress")+  "/ExportPartyInfo/DeleteExportPartyInfoDetail",
+            traditional: true,
+            data:  JSON.stringify(oExportPartyInfoDetail),
+            contentType: "application/json; charset=utf-8",            
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted") 
+                {
+                    alert("Delete sucessfully");                        
+                    $('#tblExportPartyInfoDetail').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+    }
+});
+   
+function RefreshList(oExportPartyInfoDetails)
+{    
+    var data=oExportPartyInfoDetails;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblExportPartyInfoDetail').datagrid('loadData',data);         
+}    
+
+$("#btnRefresh").click(function(){
+    var data=$('#tblExportPartyInfoDetail').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblExportPartyInfoDetail').datagrid('loadData',data);
+});
+
+     
+$("#btnClose").click(function(){
+    window.location.href = sessionStorage.getItem("BackLink");
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>

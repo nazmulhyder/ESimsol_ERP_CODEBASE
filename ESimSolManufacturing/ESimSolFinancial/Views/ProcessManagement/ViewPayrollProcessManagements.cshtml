@@ -1,0 +1,353 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.PayrollProcessManagement>
+    @{
+        ViewBag.Title = "ViewPayrollProcessManagements";
+    }
+
+    <div style="margin-left:0px; height:550px">
+        <table id="tblPayrollProcessManagement" title="Payroll Process List" class="easyui-datagrid" style="width:1030px;height:548px" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="LocationName" width="200" align="left">Location</th>
+                    <th field="StatusInString" width="125" align="left">Status</th>
+                    <th field="ProcessDateInString" width="150" align="left">Process Date</th>
+                    <th field="SalaryForInString" width="210" align="left">Salary For</th>
+                    <th field="SalaryMonthInString" width="155" align="left">Salary Month</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            @*<input id="dtSearch" type="text" style="width: 120px;" class="easyui-datebox" data-options="formatter:icsdateformat" />*@
+            <span id="regionDateFrom">
+                <span>
+                    <select id="cboYear" style="width:70px;"></select>
+                </span><span>
+                    <select id="cboMonth"></select>
+                </span><span>
+                    <select id="cboDay" style="width:60px;"></select>
+                </span>
+            </span>
+            <a id="btnSearchByDate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"> Search</a>
+            <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+            @*<a id="btnRollBack" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >RollBack</a>*@
+            @*<a id="btnReProcess" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >Re-Process</a>*@
+            <a id="btnFreeze" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Freeze</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Delete</a>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _oPayrollProcessManagements=[];
+        var _sBaseAddress="";
+        $(document).ready(function ()
+        {
+            _oPayrollProcessManagements =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            //$('#dtSearch').datebox('setValue', icsdateformat(new Date()));
+            RefreshList(_oPayrollProcessManagements);
+
+            SetDateTime();
+            var oDate=new Date();
+            SetStartTime(oDate);
+
+        });
+
+        //function icsdateformat(date)
+        //{
+        //    var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        //    var y = date.getFullYear();
+        //    var m = date.getMonth();
+        //    var d = date.getDate();
+        //    var result = d + ' ' + mthNames[m] + ' ' + y;
+        //    return result;
+        //}
+
+        //sagor datetime start
+        function SetDateTime()
+        {
+            var oDate=new Date();
+            oDate.setFullYear(2014);
+            /*---------------------------------------- Start Set Year-------------------------------------------*/
+            var sYear="";
+            sYear +="<option value='0'>"+'Year'+"</option>";
+            for(var i=0; i<=10; i++)
+            {
+                sYear += "<option value='" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"'>" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"</option>";
+            }
+            $('#cboYear').html(sYear);
+
+            /*---------------------------------------- End Set Year-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Month-------------------------------------------*/
+            var sMonth="";
+            var oMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            sMonth +="<option value='0'>"+'Month'+"</option>";
+            for(var i=0; i<oMonths.length; i++)
+            {
+                sMonth += "<option value='" +(parseInt(i)+1)+"'>" + oMonths[i] +"</option>";
+            }
+            $('#cboMonth').html(sMonth);
+
+            /*---------------------------------------- End Set Month-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Date-------------------------------------------*/
+            var sDay ="<option value='0'>"+'Day'+"</option>";
+            $('#cboDay').html(sDay);
+
+            /*---------------------------------------- End Set Date-------------------------------------------*/
+        }
+
+        $('#cboYear').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+
+        $('#cboMonth').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        function SetDateEvent(nYear, nMonth)
+        {
+
+            var oDate=new Date();
+            var sDay="";
+            if( parseInt(nMonth)>0)
+            {
+                var nDay= new Date(parseInt(nYear), parseInt(nMonth), 0).getDate();
+                sDay +="<option value='0'>"+'Day'+"</option>";
+                for(var i=1; i<=parseInt(nDay); i++)
+                {
+                    if(i<10)
+                    {
+                        sDay += "<option value='" +i+"'>" + '0'+i +"</option>";
+                    }
+                    else
+                    {
+                        sDay += "<option value='" +i+"'>" + i +"</option>";
+                    }
+
+                }
+            }
+            return sDay;
+        }
+
+        function SetStartTime(oDate)
+        {
+
+            var nyear=oDate.getFullYear();
+            var nmonth=oDate.getMonth()+1;
+            var nday=oDate.getDate();
+            $('#cboYear').val(nyear);
+            $('#cboMonth').val(nmonth);
+            $('#cboDay').html(SetDateEvent(nyear,nmonth));
+            $('#cboDay').val(nday);
+        }
+
+
+        function GenerateStartTimeInString()
+        {
+            var sDate=  $('#cboMonth').val() +'/'+ $('#cboDay').val() +'/'+ $('#cboYear').val();
+            return sDate;
+        }
+
+        function ValidationOfStartTime()
+        {
+            if($('#cboYear').val()==0)
+            {
+                alert("Please select a year.");
+                document.getElementById('cboYear').focus();
+                return false;
+            }
+            if($('#cboMonth').val()==0)
+            {
+                alert("Please select a month.");
+                document.getElementById('cboMonth').focus();
+                return false;
+            }
+            if($('#cboDay').val()==0)
+            {
+                alert("Please select a day.");
+                document.getElementById('cboDay').focus();
+                return false;
+            }
+            return true;
+        }
+
+        //sagor datetime end
+
+        function RefreshList(_oPayrollProcessManagements)
+        {
+            data = _oPayrollProcessManagements;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblPayrollProcessManagement').datagrid('loadData', data);
+        }
+
+        $('#btnNew').click(function (e)
+        {
+            var oParameter = new Object();
+            oParameter.Name = "Process SalaryStructure";
+            var url = _sBaseAddress + "/ProcessManagement/ViewProcessSalaryStructure";
+            var oPayrollProcessManagement = window.showModalDialog(url, oParameter, 'dialogHeight:270px;dialogWidth:330px;dialogLeft:500;dialogRight:150;dialogTop:200;center:yes;resizable:yes;status:no;scroll:no');
+            if (oPayrollProcessManagement != null)
+            {
+                if (oPayrollProcessManagement.PPMID > 0)
+                {
+                    var oPayrollProcessManagements = $('#tblPayrollProcessManagement').datagrid('getRows');
+                    var nIndex = oPayrollProcessManagements.length;
+                    $('#tblPayrollProcessManagement').datagrid('appendRow', oPayrollProcessManagement);
+                    $('#tblPayrollProcessManagement').datagrid('selectRow', nIndex);
+                }
+            }
+
+        });
+
+        $('#btnSearchByDate').click(function (e)
+        {
+            //debugger
+            //var ProcessDate=$('#dtSearch').datebox('getValue');
+            if(!ValidationOfStartTime()) return;
+
+            var ProcessDate = GenerateStartTimeInString();
+
+            var oPayrollProcessManagement={ProcessDate:ProcessDate};
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/ProcessManagement/SearchPayrollByPDate",
+                traditional: true,
+                data: JSON.stringify(oPayrollProcessManagement),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    //debugger
+                    var oPayrollProcessManagements=[];
+                    oPayrollProcessManagements = jQuery.parseJSON(data);
+                    if (oPayrollProcessManagements.length>0 && oPayrollProcessManagements[0].ErrorMessage=="")
+                    {
+                        RefreshList(oPayrollProcessManagements);
+                    }
+                    else
+                    {
+                        alert(oPayrollProcessManagements[0].ErrorMessage);
+                        oPayrollProcessManagements=[];
+                        RefreshList(oPayrollProcessManagements);
+
+                    }
+                },
+
+            });
+        });
+
+        //$('#btnRollBack').click(function (e)
+        //{
+        //    if (!confirm("Confirm to Rollback?")) return
+        //    PPMStatusUpdate("Rollback",2);//RollBack
+
+        //});
+
+        //$('#btnReProcess').click(function (e)
+        //{
+        //    if (!confirm("Confirm to Re-Process?")) return
+        //    PPMStatusUpdate("Re-Process",3);//Re-Process
+
+        //});
+
+        $('#btnFreeze').click(function (e)
+        {
+            if (!confirm("Confirm to freeze?")) return
+            PPMStatusUpdate("Freeze",4);//freeze
+        });
+
+        $('#btnDelete').click(function (e)
+        {
+            var oPPM=$('#tblPayrollProcessManagement').datagrid('getSelected');
+            if (oPPM==null)
+            {
+                alert('Please select an item from list.');
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return
+
+            var SelectedRowIndex=$('#tblPayrollProcessManagement').datagrid('getRowIndex',oPPM);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/ProcessManagement/PayrollProcessDelete",
+                traditional: true,
+                data: JSON.stringify({nPPMID:oPPM.PPMID}),
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    var oNewPPM = jQuery.parseJSON(data);
+                    if (oNewPPM.ErrorMessage !="")
+                    {
+                        alert(oNewPPM.ErrorMessage);
+                    }
+                    else
+                    {
+                        alert('Deleted Successfully.!!');
+                        $('#tblPayrollProcessManagement').datagrid('deleteRow',SelectedRowIndex);
+                    }
+
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+
+        });
+
+        function PPMStatusUpdate(sAction,nStatus)
+        {
+            var oPPM=$('#tblPayrollProcessManagement').datagrid('getSelected');
+            if (oPPM==null)
+            {
+                alert('Please select an item from list.');
+                return;
+            }
+            var SelectedRowIndex=$('#tblPayrollProcessManagement').datagrid('getRowIndex',oPPM);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/ProcessManagement/PPM_StatusUpdate",
+                traditional: true,
+                data: JSON.stringify({nPPM:oPPM.PPMID,nStatus:nStatus}),
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    debugger;
+                    var oNewPPM = jQuery.parseJSON(data);
+                    if (oNewPPM.ErrorMessage !="")
+                    {
+                        alert(oNewPPM.ErrorMessage);
+                    }
+                    else
+                    {
+                        $('#tblPayrollProcessManagement').datagrid('updateRow',{index: SelectedRowIndex,	row: oNewPPM});
+                    }
+
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    </script>

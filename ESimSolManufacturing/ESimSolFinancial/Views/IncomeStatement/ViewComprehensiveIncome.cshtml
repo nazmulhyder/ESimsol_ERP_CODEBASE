@@ -1,0 +1,452 @@
+﻿@model ESimSol.BusinessObjects.IncomeStatement
+@{
+    ViewBag.Title = "Statement of Comprehensive Income";
+}
+
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%;padding:5px; height:65px; overflow:hidden">
+            <div style="margin-bottom:5px">
+                <select id="cboBUs" style="width:210px;"></select>
+                <input id="txtStartDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <input id="txtEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />                
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Comprehensive Income</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+                <a id="btnNotePrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Comprehensive Income Note</a>
+                <a id="btnNotePrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL(Note)</a>
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table  id="tblComprehensiveIncome" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="7" style="width:100%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>                        
+                    </tr>
+                    <tr>                        
+                        <td colspan="7" style="width:100%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Statement of Comprehensive Income</label>
+                        </td>                        
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="width:100%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;">As at 31 December 2015</label>
+                        </td>                        
+                    </tr>                   
+                    <tr>
+                        <td style="width: 30%; padding-left: 5px; text-align:left">
+                            <label style="font-size:15px; font-weight:bold">Particulars</label>                        
+                        </td>
+                        <td style="width:17%; text-align:center; font-weight:bold">
+                            <label style="font-size:13px; font-weight:bold">Note</label>  
+                        </td>
+                        <td style="width:5%;"></td>
+                        <td  style="width:20%; text-align:right; border:1px solid black">
+                            <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold">31 Dec 2015-BDT</label>
+                        </td>
+                        <td style="width:6%"></td>
+                        <td style="width:20%; text-align:right; border:1px solid black">
+                            <label id="lblSessionName" style="font-size:13px; font-weight:bold">2015-2016-BDT</label>
+                        </td>
+                        <td style="width:2%"></td>
+                    </tr>    
+                    <tr style="height:10px">
+                        <td style="width:30%"></td>
+                        <td style="width:17%; text-align:center; font-weight:bold"></td>
+                        <td style="width:5%;"></td>
+                        <td  style="width:20%; text-align:right; border:0px solid black"></td>
+                        <td style="width:6%"></td>
+                        <td style="width:20%; text-align:right; border:0px solid black"></td>
+                        <td style="width:2%"></td>
+                    </tr>                
+                </table>
+            </div>
+        </div>        
+    </div>
+</div>
+
+<style>    
+    .segmentclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;
+        font-weight:bold;
+        font-style:italic;
+    }
+    .subgroupclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;           
+    }
+    .segmentsummeryclass {        
+        color: black;
+        font-size : 13px;
+        font-family : Tahoma;  
+        font-weight:bold;         
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblComprehensiveIncome tr:hover td,
+    #tblComprehensiveIncome tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oIncomeStatement=null;
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {        
+        _oIncomeStatement =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({ List: oBUs, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Select Business Unit--" });
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtStartDate').datebox('setValue', _oIncomeStatement.StartDateSt);
+        $('#txtEndDate').datebox('setValue', _oIncomeStatement.EndDateSt);
+        $('#cboBUs').val(_oIncomeStatement.BUID);
+       
+        RefreshControl(_oIncomeStatement);
+        RefreshTable(_oIncomeStatement);        
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+   
+    $("#btnRefresh").click(function(){
+        var obj={
+            BUID:parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/IncomeStatement/SetISSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/IncomeStatement/ViewComprehensiveIncome?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshControl(oIncomeStatement)
+    {
+        $('#lblCompanyName').text(oIncomeStatement.Company.Name);
+        $('#lblStatementDate').text('For the Year Ended '+ oIncomeStatement.EndDateFullSt);
+        $('#lblStatementDateWithCurrency').text(oIncomeStatement.SessionDate+' '+oIncomeStatement.Company.CurrencyName);
+        $('#lblSessionName').text(oIncomeStatement.PriviosSessoinName!=""? oIncomeStatement.PriviosSessoinName+' '+oIncomeStatement.Company.CurrencyName:"No Privious Session");
+        var nMaxRowIndex = document.getElementById('tblComprehensiveIncome').rows.length-1;
+        for(var i=nMaxRowIndex; i>4; i--)
+        {
+            document.getElementById("tblComprehensiveIncome").deleteRow(i);
+        }
+    }
+
+    function RefreshTable(_oIncomeStatement)
+    {
+        debugger;
+        //Segment = 2, SubGroup = 4,
+        var oCIStatementSetups = _oIncomeStatement.CIStatementSetups;
+        var bIsFistSegment=false;
+        var bIsImmediateSegment =false;
+        var IsFirstBorderTop=true;
+        var IsColspan=true;
+        var nPreviousLabel=0;
+
+        for(var i=0;  i<oCIStatementSetups.length; i++ )
+        {
+            var sACCName=oCIStatementSetups[i].AccountHeadName.toUpperCase();
+            var bIsTotal = sACCName==='TURNOVER' ||sACCName==='GROSS PROFIT'||sACCName==='PROFIT FROM OPERATIONS' ||sACCName==='PROFIT BEFORE WPPF'||sACCName==='PROFIT BEFORE TAX' ||sACCName==='PROFIT AFTER TAX'||sACCName==='PROFIT FOR THE YEAR' || sACCName==='TOTAL COMPHREHENSIVE INCOME FOR THE YEAR'|| sACCName==='PROFIT AFTER FINANCIAL COST';
+            var table = document.getElementById('tblComprehensiveIncome');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellAccountHead = row.insertCell(0);
+            cellAccountHead.width= "30%";
+            if(parseInt(oCIStatementSetups[i].Label)==3)
+            {
+                debugger;
+                if(sACCName!='TURNOVER')
+                {
+                    if(IsColspan)
+                    {
+                        var cellBlank = row.insertCell(0);
+                        cellBlank.colspan=7;cellBlank.width= "100%";
+                        cellBlank.innerHTML = '';cellBlank.height = '25';
+                        IsColspan=false;i--;
+                        continue;
+                    }
+                }
+
+                if(i>0 && parseInt(oCIStatementSetups[i-1].Label)==2)
+                {
+                    cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'
+                                            +oCIStatementSetups[i].AccountHeadName+'</label>';
+                }
+                else
+                {
+                    cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'
+                                            +oCIStatementSetups[i].AccountHeadName+'</label>';
+                }
+            }
+            else if(parseInt(oCIStatementSetups[i].Label)==2)
+            {
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;font-weight:bold;padding-left:30px;">'
+                                            +oCIStatementSetups[i].AccountHeadName+'</label>';
+            }
+            else
+            {
+                IsColspan=true;
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;padding-left:30px;">'
+                                            +oCIStatementSetups[i].AccountHeadName+'</label>';
+            }
+            cellAccountHead.style.textAlign = 'left';
+
+            var cellAccountHead = row.insertCell(1);
+            cellAccountHead.width= "17%";//cellAccountHead.width= "23%";
+            cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="NoteWiseDetails('+oCIStatementSetups[i].AccountHeadID+');" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oCIStatementSetups[i].Note+'</label>';
+            cellAccountHead.style.textAlign = 'center';
+            
+            if(parseInt(oCIStatementSetups[i].Label)==1)
+            {
+                var cellBlank = row.insertCell(2);
+                cellBlank.width= "5%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;width:125px;">'+oCIStatementSetups[i].AccountHeadValueSt+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+
+                var cellBlank = row.insertCell(4);
+                cellBlank.width= "6%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+                debugger;
+
+                var cellAmountSession = row.insertCell(5);
+                cellAmountSession.width= "20%";
+                cellAmountSession.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;width:125px;">'+oCIStatementSetups[i].AccountHeadValue_ForSessionSt+'</label>';
+                cellAmountSession.style.textAlign = 'right';
+
+                if(IsFirstBorderTop)
+                {
+
+                    cellAmount.style.borderTop = "1px solid black";
+                    cellAmount.style.borderLeft = "1px solid black";
+                    cellAmount.style.borderRight = "1px solid black";
+
+                    cellAmountSession.style.borderTop = "1px solid black";
+                    cellAmountSession.style.borderLeft = "1px solid black";
+                    cellAmountSession.style.borderRight = "1px solid black";
+                    IsFirstBorderTop=false;
+                }
+                if(parseInt(oCIStatementSetups[i+1].Label)==3 || parseInt(oCIStatementSetups[i+1].Label)==2)
+                {
+                    cellAmount.style.borderBottom = "1px solid black";
+                    cellAmount.style.borderLeft = "1px solid black";
+                    cellAmount.style.borderRight = "1px solid black";
+
+                    cellAmountSession.style.borderBottom = "1px solid black";
+                    cellAmountSession.style.borderLeft = "1px solid black";
+                    cellAmountSession.style.borderRight = "1px solid black";
+                    IsFirstBorderTop=true;
+                }
+                else
+                {
+                    cellAmount.style.borderLeft = "1px solid black";
+                    cellAmount.style.borderRight = "1px solid black";
+
+                    cellAmountSession.style.borderLeft = "1px solid black";
+                    cellAmountSession.style.borderRight = "1px solid black";
+                }
+
+            }
+            else  if(parseInt(oCIStatementSetups[i].Label)==2)
+            {
+                var cellBlank = row.insertCell(2);
+                cellBlank.width= "5%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;width:125px;font-weight:bold;">'+oCIStatementSetups[i].AccountHeadValueSt+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                var cellBlank = row.insertCell(4);
+                cellBlank.width= "6%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(5);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px;width:125px;font-weight:bold;">'+oCIStatementSetups[i].AccountHeadValue_ForSessionSt+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                debugger;
+            }
+            else
+            {
+                var cellBlank = row.insertCell(2);
+                cellBlank.width= "5%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; width:125px; font-weight:bold;">'+oCIStatementSetups[i].AccountHeadValueSt+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+
+                var cellBlank = row.insertCell(4);
+                cellBlank.width= "6%";
+                cellBlank.innerHTML = '';
+                cellBlank.style.textAlign = 'right';
+
+                var cellAmount = row.insertCell(5);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; width:125px; font-weight:bold;">'+oCIStatementSetups[i].AccountHeadValue_ForSessionSt+'</label>';
+                cellAmount.style.textAlign = 'right';
+            }
+            
+            var cellBlank = row.insertCell(6);
+            cellBlank.width= "2%";
+            cellBlank.innerHTML = '';
+
+            IsColspan=true;
+        }
+
+        var table = document.getElementById('tblComprehensiveIncome');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAccountHead = row.insertCell(0);
+        cellAccountHead.width= "52%";
+        cellAccountHead.colSpan =3;
+        cellAccountHead.innerHTML = '';
+        cellAccountHead.style.textAlign = 'left';
+        cellAccountHead.height = '2';
+
+        var cellAmount = row.insertCell(1);        
+        cellAmount.width= "20%";
+        cellAmount.innerHTML = '';
+        cellAmount.style.textAlign = 'right';
+        cellAmount.style.borderTop = "1px solid black"; 
+        cellAmount.style.borderBottom = "1px solid black"; 
+        cellAmount.height = '2';
+        
+        var cellBlank = row.insertCell(2);
+        cellBlank.width= "6%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '2';
+
+        
+        var cellAmountFor_Session = row.insertCell(3);        
+        cellAmountFor_Session.width= "20%";
+        cellAmountFor_Session.innerHTML = '';
+        cellAmountFor_Session.style.textAlign = 'right';
+        cellAmountFor_Session.style.borderTop = "1px solid black"; 
+        cellAmountFor_Session.style.borderBottom = "1px solid black"; 
+        cellAmountFor_Session.height = '2';
+        
+        var cellBlank = row.insertCell(4);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '2';
+
+        var table = document.getElementById('tblComprehensiveIncome');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colspan=7
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '55';
+    }
+
+    function NoteWiseDetails(nAccountHeadID)
+    {
+
+        var obj={
+            BUID:parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            ParentAccountHeadID:nAccountHeadID
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/IncomeStatement/SetISSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/IncomeStatement/ViewNotesOfComprehensiveIncome?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnPrint").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/PrintComprehensiveIncome?Params=' + sParam, "_blank");
+    });
+
+    $("#btnNotePrint").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate;
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+"~"+0;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/PrintNotesOfComprehensiveIncome?Params=' + sParam, "_blank");
+    });
+
+   
+    $("#btnPrintXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/ExportComprehensiveIncomeToExcel?Params=' + sParam, "_blank");
+    });
+
+    $("#btnNotePrintXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');        
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+"~"+0;
+        window.open(sessionStorage.getItem("BaseAddress")+'/IncomeStatement/ExportNotesOfComprehensiveIncomeToExcel?Params=' + sParam, "_blank");
+    });
+</script>

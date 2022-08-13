@@ -1,0 +1,177 @@
+﻿<html>
+<body>
+
+    @{
+        ViewBag.Title = "Working Unit";
+    }
+    @model ESimSol.BusinessObjects.WorkingUnit
+    <div class="menuMainCollectionTable" id="divWO">
+        <div class="easyui-panel" title="Working Unit" style="font-family:Tahoma; text-align:center; height:89%;">
+            <fieldset>
+                <legend style="font-weight:bold; font-size:12px;">Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:80%; text-align:center;" >
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Working Unit Code :
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.TextBoxFor(model => model.WorkingUnitCode, new { style = "width: 100%;", id = "txtWorkingUnitCode", disabled = "disabled" })
+                        </td>
+                        <td></td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Operation Unit Name:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.DropDownListFor(model => model.OperationUnitID, Model.OperationUnitList.Select(x => new SelectListItem() { Text = x.OperationUnitName, Value = x.OperationUnitID.ToString() }), new { id = "cboOperationUnit", style = "width: 100%;" })
+                        </td>
+                        <td></td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Location Name:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.DropDownListFor(model => model.LocationID, Model.LocationList.Select(x => new SelectListItem() { Text = x.LocationNameCode, Value = x.LocationID.ToString() }), new { id = "cboLocation", style = "width: 100%;" })
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Unit Type:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+
+                            @Html.DropDownListFor(model => model.UnitTypeInt, Model.UnitTypeObjs.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboUnitType", style = "width: 100%;" })
+                        </td>
+                        <td></td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oWorkingUnit =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divWO').data('WorkingUnit',oWorkingUnit);
+        debugger;
+        chkIsChecked();
+    });
+
+    function chkIsChecked()
+    {
+        if (sessionStorage.getItem('OperationName')=="View Working Unit")
+        {
+            debugger;
+            $("#btnOk").hide();
+             $("#txtWorkingUnitCode").attr("disabled", "disabled");
+             $("#cboOperationUnit").attr("disabled", "disabled");
+             $("#cboLocation").attr("disabled", "disabled");
+             $("#txtWorkingUnitCode").attr("disabled", "disabled");
+        }
+    }
+
+    $('#btnClose').click(function (e) 
+    {
+       window.location.href = sessionStorage.getItem("BackLink");
+    })
+
+
+    function ValidateInput()
+    {
+        var sUnitType = document.getElementById("cboOperationUnit");
+        var nUnitType = sUnitType.options[sUnitType.selectedIndex].value;
+        if(nUnitType<=0)
+        {
+            alert("Please Select Unit Type");return false;
+        }
+        var sLocation = document.getElementById("cboLocation");
+        var nLocation = sLocation.options[sLocation.selectedIndex].value;
+        if(nLocation<=0)
+        {
+            alert("Please Select Location");return false;
+        }
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+        var sUnitType = document.getElementById("cboOperationUnit");
+        var sLocation = document.getElementById("cboLocation");
+        var oWorkingU= {
+            WorkingUnitID : $('#divWO').data('WorkingUnit').WorkingUnitID,
+            WorkingUnitCode : $("#txtWorkingUnitCode").val(),
+            LocationID : sLocation.options[sLocation.selectedIndex].value,
+            OperationUnitID : sUnitType.options[sUnitType.selectedIndex].value,
+            UnitTypeInt: parseInt($("#cboUnitType").val()),
+            BUID:sessionStorage.getItem('BUID')
+        };
+        return oWorkingU;
+    }
+    
+    $('#btnOk').click(function (e) {
+        if(!ValidateInput()) return;
+        var oWorkingUnit=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Save", "WorkingUnit")',
+            traditional: true,
+            data:  JSON.stringify(oWorkingUnit),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                 
+                oWorkingUnit = jQuery.parseJSON(data);
+                if (oWorkingUnit.ErrorMessage == '' || oWorkingUnit.ErrorMessage == null) 
+                {
+                    alert("Data Saved sucessfully");
+                    var oWorkingUnits = sessionStorage.getItem("WorkingUnits");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oWorkingUnits != null) 
+                    {
+                        oWorkingUnits = jQuery.parseJSON(oWorkingUnits);
+                    }
+                    else {
+                        oWorkingUnits = [];
+                    }
+                    if (nIndex != -1) {
+                        oWorkingUnits[nIndex] = oWorkingUnit;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oWorkingUnits.length);
+                        oWorkingUnits.push(oWorkingUnit);
+                    }
+                    sessionStorage.setItem("WorkingUnits", JSON.stringify(oWorkingUnits));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oWorkingUnit.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    })
+
+</script>

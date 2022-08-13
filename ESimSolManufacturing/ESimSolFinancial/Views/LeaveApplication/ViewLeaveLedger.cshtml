@@ -1,0 +1,99 @@
+﻿<html>
+    <head>  
+        <title></title>
+    </head>
+    <body>
+
+    @model IEnumerable<ESimSol.BusinessObjects.LeaveLedger>
+     <div class="menuMainCollectionTable">
+        <table id="tblLeaveLedger" title="AttendanceCalendarSession List" class="easyui-datagrid" style="width:100%;height:100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="LeaveName" width="10%" align="left" rowspan="2">Leave</th>
+                    <th field="RemainingLeave" width="7%" align="center" rowspan="2">Total Days</th>
+                    <th field="TransferLeaveInStr" style="width: 15%;" align="left" rowspan="2">Leave Transfer</th>
+                    <th width="15%" align="center" colspan="3">Applied</th>
+                    <th width="15%" align="center" colspan="3">Recommended</th>
+                    <th width="15%" align="center" colspan="3">Approved</th>
+                </tr>
+                <tr>
+                    <th field="AppliedFull" width="40" align="center">Full</th>
+                    <th field="AppliedHalf" width="40" align="center">Half</th>
+                    <th field="AppliedShort" width="40" align="center">Short</th>
+                    <th field="RecommendedFull" width="40" align="center">Full</th>
+                    <th field="RecommendedHalf" width="40" align="center">Half</th>
+                    <th field="RecommendedShort" width="40" align="center">Short</th>
+                    <th field="ApprovedFull" width="40" align="center">Full</th>
+                    <th field="ApprovedHalf" width="40" align="center">Half</th>
+                    <th field="ApprovedShort" width="40" align="center">Short</th>
+
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a id="btnBack" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="true">Back</a>
+            <label id="lblEmployeeName"></label>
+            <span><select id="cboACS" style="width:250px;"></select></span>
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+        </div>
+     </div>
+    </body>
+</html>
+
+<style type="text/css">
+    #cboACS{
+        margin-left:5px;
+        margin-top:3px;
+    }
+    #lblEmployeeName{
+        margin-left:5px;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oEmployee=null;
+    $(document).ready(function() {
+        debugger;
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oLeaveLedgers = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oEmployee = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Employee));
+        var oACSs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.ACSs));
+
+        $("#cboACS").icsLoadCombo({ List: oACSs, OptionValue: "ACSID", DisplayText: "Session" });
+        DynamicRefreshList(oLeaveLedgers,'tblLeaveLedger');
+    });
+
+    $('#btnBack').click(function(e){
+        window.location.href=sessionStorage['BackLink'];
+    });
+
+    $("#btnSearch").click(function(e){
+
+        if(_oEmployee==null || _oEmployee.EmployeeID<0){ alert("No valid employee found."); return;}
+        if($('#cboACS').val()<=0){ alert("Please select an attendance calendar session."); return; }
+        var oLeaveLedger={
+            Params:_oEmployee.EmployeeID+'~'+$('#cboACS').val()
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oLeaveLedger,
+            ControllerName: "LeaveApplication",
+            ActionName: "GetLeaveLedger",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs!=null) {
+                if (response.objs.length> 0 && response.objs[0].LeaveName!="") {
+                    DynamicRefreshList(_oLeaveLedgers,'tblLeaveLedger');
+                }
+                else{
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+        });
+    });
+
+
+</script>

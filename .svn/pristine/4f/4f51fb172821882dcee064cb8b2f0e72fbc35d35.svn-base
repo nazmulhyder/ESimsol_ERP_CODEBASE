@@ -1,0 +1,173 @@
+﻿<html>
+
+@{
+    ViewBag.Title = "Business Location Assign";  
+}
+@model ESimSol.BusinessObjects.BusinessUnit         
+<body>
+       
+            <div id="divLocationTree" class="easyui-panel" title="Assign Operation Unit" style="font-family:Tahoma; height:100%; width:100%">
+                <div class="easyui-panel"  style="width:100%;height:88%;overflow:auto">
+                    <ul id="ttBLocation" data-options="checkbox:true"></ul>
+                </div>
+
+
+                <div style="width:100%; height:10%">
+                    <fieldset>
+                        <legend style="font-weight: bold">Action : </legend>
+                        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                            <tr>
+                                <td style="width:80%; text-align:right"></td>
+                                <td style="width: 10%">
+                                    <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="false">Commit</a>
+                                </td>
+                                <td style="width: 10%">
+                                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false">Close</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </fieldset>
+                </div>
+            </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oBusinessUnit=null;
+    var _oSelectedMenuKeys=null;
+    var _oTLocation=null;
+    var _sBaseAddress='';
+    var _nMenuid=0;
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oBusinessUnit =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        LoadBusinessLocation();
+
+        _sBusinessUnitHeader=sessionStorage.getItem("BusinessUnitHeader");
+        _sBusinessUnitHeader="Assign Operation Unit for->"+_sBusinessUnitHeader
+        $('#divLocationTree').panel({ title:_sBusinessUnitHeader});
+    });
+
+
+
+    function LoadBusinessLocation()
+    {
+        
+        _oTLocation =_oBusinessUnit.TLocation;
+        if (_oTLocation != null) {
+            $('#ttBLocation').tree({
+                data: [_oTLocation]
+            });
+            RefreshControl();
+        }
+    }
+
+
+
+    //Checked Selected Items
+    function RefreshControl()
+    {
+
+        var oAllNodes=$('#ttBLocation').tree('getChecked', 'unchecked');
+        if(oAllNodes!=null)
+        {
+            for(var n=0;n<oAllNodes.length;n++)
+            {
+                if(oAllNodes[n].IsChecked)
+                {
+                    if($('#ttBLocation').tree('isLeaf', oAllNodes[n].target))
+                    {
+                      $('#ttBLocation').tree('check', oAllNodes[n].target);
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
+    $("#btnOk").click(function () {
+        debugger;
+        if(_oBusinessUnit==null)
+        {
+            alert("Invalid BusinessUnit please try again!");
+            return;
+        }
+
+        if(_oBusinessUnit.BusinessUnitID<=0)
+        {
+            alert("Invalid Business Unit please try again!");
+            return;
+        }
+
+
+        var _oSelectedLocations= [];
+        _oSelectedLocations= $('#ttBLocation').tree('getChecked', ['checked','indeterminate']);
+        if(_oSelectedLocations==null || _oSelectedLocations.length<=0)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+
+        var oBusinessLocations=[];
+        //get indeterminate items
+        //_oSelectedLocations= [];
+        //_oSelectedLocations= $('#ttBLocation').tree('getChecked', 'indeterminate');
+        for(var i=0; i<_oSelectedLocations.length;i++)
+        {
+            var oBusinessLocationTemp= {
+                BusinessLocationID:_oSelectedLocations[i].BLID,
+                BusinessUnitID:_oBusinessUnit.BusinessUnitID,
+                LocationID : _oSelectedLocations[i].id
+            }
+            oBusinessLocations.push(oBusinessLocationTemp);
+        }
+
+        var oBusinessLocation= {
+            BusinessUnitID:_oBusinessUnit.BusinessUnitID,
+            BusinessLocations:oBusinessLocations
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("SaveBL", "BusinessUnit")',
+            traditional: true,
+            data:  JSON.stringify(oBusinessLocation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oBusinessLocation = jQuery.parseJSON(data);
+                if (oBusinessLocation.ErrorMessage=="" ||oBusinessLocation.ErrorMessage==null)
+                {
+                    alert("Data Save Succesfully!!");
+
+                    window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+
+                }
+                else{
+                    alert(oBusinessLocation.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    })
+
+    $("#btnClose").click(function(){
+        window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/BusinessUnit/ViewBusinessUnits?menuid="+_nMenuid;
+        }
+    });
+</script>

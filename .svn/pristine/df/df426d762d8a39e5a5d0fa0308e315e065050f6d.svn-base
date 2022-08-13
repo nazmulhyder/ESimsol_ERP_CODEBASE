@@ -1,0 +1,276 @@
+﻿<html>
+@{
+    ViewBag.Title = "Recycle Process";
+}
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.RecycleProcess>
+<script src="~/Views/RecycleProcess/AdvanceSearch.js"></script>
+<div class="menuMainCollectionTable" ng-app="RecycleProcessApp">
+    <div ng-controller="RecycleProcessController" title="Recycle Process">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <button type="button" ng-show="btnAdvSearch" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+            <button type="button" ng-show="btnAdd" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEdit" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnDelete" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnApprove" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Approve()"><span class="glyphicon glyphicon-ok" aria-hidden="true">Approve</span></button>
+            <button type="button" ng-show="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style=" width: 100%; height: 485px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+  
+</style>
+
+ <script type="text/javascript">
+    var oRecycleProcesList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var nProductNature =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductNature));
+    var oWorkingUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WorkingUnits));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+     oWorkingUnits.push({WorkingUnitID:0,WorkingUnitName:'--Select One--'});
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+     debugger;
+     sessionStorage.setItem('ProductNature', nProductNature);
+
+    var CInvoiceapp= angular.module('RecycleProcessApp', ['ui.grid','ui.grid.selection', 'ui.grid.cellNav','RPAdvanceSearch.service','ms.service']);
+    CInvoiceapp.controller('RecycleProcessController',  function ($scope,$http,$log,uiGridConstants,RPAdvanceSearchservice,userSession) {
+        oRecycleProcesList= (userSession.getData('RecycleProcesList').length>0)? userSession.getData('RecycleProcesList'):oRecycleProcesList;
+        debugger;
+        $scope.gridOptions = {
+            //enableRowSelection: true,
+            //enableSelectAll: false,
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+                { field: 'RefNo', name:'Ref No', width:'15%' },
+                { field: 'ProcessDateInString', name:'Process Date', width:'12%' },
+                { field: 'ApprovedByName', name: 'Approve By', width: '25%', enableSorting: false },
+                { field: 'Note', name: 'Note', width: '20%' },
+                { field: 'RecycleProcessTypeINST', name: 'Recycle Type', width: '20%' }
+            ],
+            data: oRecycleProcesList,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                //$scope.gridApi.grid.modifyRows(oRecycleProcesList);
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+
+                if(oRecycleProcesList.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oRecycleProcesList);
+                    $scope.gridApi.selection.selectRow(oRecycleProcesList[userSession.getRowIndex()]);
+                    $scope.RowSelect(oRecycleProcesList[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        $scope.ProductNature = nProductNature;
+        $scope.BUIID = sessionStorage.getItem("BUID");
+        $scope.CompareOperators = oCompareOperators;
+        $scope.WorkingUnits = oWorkingUnits;
+
+        $scope.AdvanceSearch =  function ()
+        {
+            debugger;
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'RecycleProcessController',
+                CompareOperators:$scope.CompareOperators,
+                WorkingUnits:$scope.WorkingUnits
+            }
+            var modalInstance=RPAdvanceSearchservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.Add  = function ()
+        {
+            debugger;
+            sessionStorage.setItem('RecycleProcesList', JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem('SelectedRowIndex', -1);
+            sessionStorage.setItem('RecycleProcessHeader', "Add Commercial Invoice");
+            sessionStorage.setItem('BackLink', window.location.href);
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/RecycleProcess/ViewRecycleProces?id=0&buid="+$scope.BUIID;
+        }
+        $scope.Edit =  function ()
+        {
+            debugger;
+            var oRecycleProcess = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRecycleProcess.ApprovedByName!=''&& oRecycleProcess.ApprovedByName!=null){
+                alert("It's already Approved");
+                return;
+            }
+            if(oRecycleProcess==null || oRecycleProcess.RecycleProcessID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.RecycleProcessID == oRecycleProcess.RecycleProcessID)
+                {
+                    sessionStorage.setItem('RecycleProcesList', JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem('SelectedRowIndex', index);
+                    sessionStorage.setItem('RecycleProcessHeader', "Edit Recycle Process");
+                    sessionStorage.setItem('BackLink', window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RecycleProcess/ViewRecycleProces?id="+oRecycleProcess.RecycleProcessID+"&buid="+$scope.BUIID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var oRecycleProcess = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRecycleProcess==null || oRecycleProcess.RecycleProcessID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.RecycleProcessID == oRecycleProcess.RecycleProcessID)
+                {
+                    sessionStorage.setItem('RecycleProcesList', JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem('SelectedRowIndex', index);
+                    sessionStorage.setItem('RecycleProcessHeader', "View Recycle Process");
+                    sessionStorage.setItem('BackLink', window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RecycleProcess/ViewRecycleProces?id="+oRecycleProcess.RecycleProcessID+"&buid="+$scope.BUIID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.Approve =  function ()
+        {
+            debugger;
+            var oRecycleProcess = $scope.gridApi.selection.getSelectedRows()[0];
+
+            if(oRecycleProcess==null || oRecycleProcess.RecycleProcessID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oRecycleProcess.ApprovedByName!=''&& oRecycleProcess.ApprovedByName!=null){
+                alert("It's already Approved");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index)
+            {
+                if (value.RecycleProcessID == oRecycleProcess.RecycleProcessID)
+                {
+                    sessionStorage.setItem('RecycleProcesList', JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem('SelectedRowIndex', index);
+                    sessionStorage.setItem('RecycleProcessHeader', "Approve Recycle Process");
+                    sessionStorage.setItem('BackLink', window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RecycleProcess/ViewRecycleProces?id="+oRecycleProcess.RecycleProcessID+"&buid="+$scope.BUIID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.PrintPreview = function ()
+        {
+            debugger;
+            var oRecycleProcess = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRecycleProcess==null || oRecycleProcess.RecycleProcessID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/RecycleProcess/PrintRecycleProcessPreview?id='+oRecycleProcess.RecycleProcessID);
+        };
+        $scope.PrintList = function ()
+        {
+            var oRecycleProcesss=  $scope.gridOptions.data;//$('#tblRecycleProcess').datagrid('getRows');
+            var ids ="";
+            if(oRecycleProcesss.length >0)
+            {
+
+                for(var i =0;i<oRecycleProcesss.length;i++)
+                {
+                    ids =ids+oRecycleProcesss[i].RecycleProcessID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/RecycleProcess/PrintList?sIDs='+ids);
+        };
+
+        $scope.Delete= function ()
+        {
+            debugger;
+            var oRecycleProcess = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRecycleProcess==null || oRecycleProcess.RecycleProcessID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oRecycleProcess.ApprovedByName!=''&& oRecycleProcess.ApprovedByName!=null){
+                alert("It's already Approved");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RecycleProcess/Delete', JSON.stringify(oRecycleProcess)).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted') {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.RecycleProcessID == oRecycleProcess.RecycleProcessID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+
+
+        $scope.close = function()
+        {
+            window.location.href =sessionStorage.getItem("BackLink");
+        }
+
+        //button hide
+        $scope.btnAdd = $scope.btnAdvSearch= $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnApprove = $scope.btnPrintList= $scope.btnPriview = false;
+
+        //button show
+        if(PermissionChecker('AdvSearch','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnAdvSearch = true; }
+        if(PermissionChecker('Add','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnAdd = true; }
+        if(PermissionChecker('Edit','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Delete','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Approved','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnApprove = true;}
+        if(PermissionChecker('Preview','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+        if(PermissionChecker('Print','RecycleProcess',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+
+
+    });
+
+
+
+
+
+</script>

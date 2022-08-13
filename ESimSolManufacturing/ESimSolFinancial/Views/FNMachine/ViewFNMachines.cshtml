@@ -1,0 +1,295 @@
+﻿@{
+    ViewBag.Title = "Machine List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FNMachine>
+
+    <div class="menuMainCollectionTable" ng-app="FNMachineApp" style="height:520px; width:100%;overflow:hidden;">
+        <div ng-controller="FNMachineController">
+
+            <div title="FNMachine List" class="ui-grid-top-panel" >
+               
+                    <div class="form-inline">
+                        <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Name" style="width:170px"/>
+                        <select ng-model="FNMachineType" ng-change="ChangeMachineType()" ng-options="oItem.id as oItem.Value for oItem in FNMachineTypes" style="width:130px;height:22px;"></select>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="View()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Activity()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Activity</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Process()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Process</button>
+                        @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Configuration()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Configuration</button>*@
+                    </div>
+             
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular" style="width:100%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:510px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oFNMachines =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oFNMachineTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.FNMachineTypes));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    debugger;
+    var CCapp= angular.module('FNMachineApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('FNMachineController',function ($scope,$http,uiGridConstants,userSession)
+    {
+        oFNMachines= (userSession.getData('FNMachines').length>0)? userSession.getData('FNMachines'):oFNMachines;
+        oFNMachineTypes[0].Value='--Select One--';
+        $scope.FNMachineTypes = oFNMachineTypes;
+        $scope.FNMachineType = 0;
+
+        $scope.ChangeMachineType = function()
+        {
+            debugger;
+            var oTempFNMachines = oFNMachines;
+            if($scope.FNMachineType>0)
+            {
+                oTempFNMachines = ICS_FindObjects(oFNMachines,'FNMachineTypeInt',$scope.FNMachineType);
+            }
+            $scope.gridOptions.data = oTempFNMachines;
+        }
+
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'Code', name:'Code', width:'15%' },
+              { field: 'Name', name:'Name', width:'25%' },
+              { field: 'NoOfBathString', name:'Bath', width:'10%' },
+              { field: 'FNMachineTypeSt', name:'Machine Type', width:'18%' },
+              { field: 'IsAtiveString', name:'Activity', width:'8%' },
+              { field: 'Note', name:'Note', width:'20%' , enableSorting: false}
+
+            ],
+            data: oFNMachines,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+
+                if(oFNMachines.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFNMachines);
+                    $scope.gridApi.selection.selectRow(oFNMachines[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFNMachines[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+
+
+                //$scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                //userSession.clear();
+            }
+        };
+        $scope.SearchByName = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oFNMachines;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].Name;
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("FNMachineHeader", "Add FNMachine");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/FNMachine/ViewFNMachine?id=0";
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMachine= data[0];//get selected index
+            if(oFNMachine==null || oFNMachine.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNMachine);
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNMachineHeader", "Edit FNMachine");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNMachine/ViewFNMachine?id="+oFNMachine.FNMachineID
+        }
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMachine= data[0];//get selected index
+            if(oFNMachine==null || oFNMachine.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNMachine);
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNMachineHeader", "View FNMachine");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNMachine/ViewFNMachine?id="+oFNMachine.FNMachineID;
+        }
+        $scope.Activity= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMachine= data[0];//get selected index
+            if(oFNMachine==null || oFNMachine.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNMachine.IsAtive)
+            {
+                if (!confirm("Confirm to In Active?")) return ;
+            }else{
+                if (!confirm("Confirm to Active?")) return ;
+            }
+
+            $scope.index = $scope.gridOptions.data.indexOf(oFNMachine);
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNMachine/ChangeActivety',$.param(oFNMachine), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    var oFNMachine=jQuery.parseJSON(response.data);
+                                    alert("Sucessfully Updated");
+                                    if(parseInt(oFNMachine.FNMachineID)>0)
+                                    {
+                                        $scope.gridOptions.data[$scope.index]=oFNMachine;
+                                    }
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMachine= data[0];//get selected index
+            if(oFNMachine==null || oFNMachine.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNMachine);
+            if (oFNMachine.FNMachineID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/FNMachine/Delete",
+                    data: { id: oFNMachine.FNMachineID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+
+        $scope.Process = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMachine= data[0];//get selected index
+            if(oFNMachine==null || oFNMachine.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNMachine);
+            sessionStorage.setItem("FNMachines", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNMachine/ViewFNMachineProcess?id="+oFNMachine.FNMachineID
+        }
+        $scope.PrintList = function()
+        {
+            var oFNMachines= $scope.gridOptions.data;
+            var ids ="";
+            if(oFNMachines.length >0)
+            {
+                for(var i =0;i<oFNMachines.length;i++)
+                {
+                    ids =ids+oFNMachines[i].FNMachineID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress+'/FNMachine/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oFNMachines=  $scope.gridOptions.data;
+            var ids ="";
+            if(oFNMachines.length >0)
+            {
+                for(var i =0;i<oFNMachines.length;i++)
+                {
+                    ids =ids+oFNMachines[i].FNMachineID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/FNMachine/FNMachineExportToExcel?sIDs='+ids);
+        }
+
+        $scope.Configuration=function()
+        {
+            window.open(_sBaseAddress+"/ReportConfigure/ViewReportConfigure?reportconfiguretype=5", '_blank');
+        }
+
+
+    });
+
+
+</script>

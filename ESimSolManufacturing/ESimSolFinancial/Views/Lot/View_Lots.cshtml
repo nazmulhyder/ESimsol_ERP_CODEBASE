@@ -1,0 +1,509 @@
+﻿
+@{
+    ViewBag.Title = "Lot List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Lot>
+
+  <div class="menuMainCollectionTable">
+
+      <table id="tblLots" title="Lot List" class="easyui-datagrid" style="width:100%;height:100%" fitcolumns="false" rownumbers="true" toolbar="#toolbar" pagination="false" singleselect="true" , autorowheight="false" ,autorowwidth="false" selectoncheck="false" checkonselect="false">
+          <thead>
+              <tr>
+                  <th data-options="field:'Selected',checkbox:true"></th>
+                  <th field="LotNo" width="15%">Lot No</th>
+                  <th field="BalanceSt" width="10%">Balance</th>
+                  <th field="MUName" width="100">Unit</th>
+                  <th field="ProductCode" width="10%">Code</th>
+                  <th field="ProductName" width="15%">Product</th>
+                  <th field="BuyerName" width="12%">Buyer</th>
+                  <th field="WorkingUnitName" width="20%">Store</th>
+                  <th field="LotStatusSt" width="6%">Is running</th>
+
+              </tr>
+          </thead>
+      </table>
+
+            <div id="toolbar">
+                <table>
+                    <tr>
+                        <td style="width:80%; text-align:left">
+                            <input id="txtProduct" style="width:150px;" type="text" placeholder="Type Product & Press Enter" />
+                            <a id="btnPickProduct" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                            <input id="txtWorkingUnit" style="width:150px;" type="text" placeholder="Type store & Press Enter" />
+                            <a id="btnPickWorkingUnit" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+
+                            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="Print()">Print</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="XLPrint()">XL Print</a>
+                            <a id="btnCommitRunning" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Running</a>
+                            <select id="cboStatus" style="width:80px;"></select>
+                            <a id="btnUpdateStatus" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Update</a>
+                        </td>
+                        <td style="width:20%; text-align:right">
+                            @using (Html.BeginForm("ImportFromExcel", "Lot", FormMethod.Post, new { enctype = "multipart/form-data" }))
+                            {
+                            <table style="width:100%;">
+                                <tr>
+                                    <td style="width:50%;text-align:left;">
+                                        <input type="file" id="fileLots" name="fileLots" />
+                                    </td>
+                                    <td style="width:50%;text-align:left;">
+                                        <input type="submit" id="btnImportLot" value="Import List" class="icon-up PrintList" style="margin-top: 4px;" />
+                                    </td>
+                                </tr>
+                            </table>
+                            }
+                        </td>
+                    </tr>
+                </table>
+          </div>
+    </div>
+
+
+<script type="text/javascript">
+var _oLots = [];
+var _nBUID=0;
+var _sBaseAddress ='';
+var _nProductIDs="";
+var _nWorkingUnitIDs="";
+$(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oLotS =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+    _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oLotStatusList = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LotStatusList));
+    $("#cboStatus").icsLoadCombo({ List:oLotStatusList, OptionValue: "id", DisplayText: "Value", InitialValue: "Fixed" });
+    sessionStorage.setItem("ParamsLD", "");
+});
+
+    $("#btnResetProduct").click(function () {
+        _nProductIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickProduct").click(function () {
+        var sProductName=$.trim($("#txtProduct").val());
+        if(sProductName==""){ alert("Type product name to search."); return false; }
+        GetProducts(sProductName);
+    });
+
+    $("#txtProduct").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sProductName=$.trim($("#txtProduct").val());
+            if(sProductName==""){ alert("Type product name to search."); return false; }
+            GetProducts(sProductName);
+        }
+        else if(nkeyCode==8){
+            _nProductIDs=0;
+           
+            //$("#txtProduct").val("");
+        }
+    });
+
+    function GetProducts(sProductName){
+        
+        var oProduct = {
+            BUID:_nBUID,
+            ProductName:sProductName,
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oProduct,
+            ControllerName: "Product",
+            ActionName: "SearchByProductBUWise",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "ProductCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "MUnit", title: "Unit", width: 70, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winProductPicker',
+                        winclass:'clsProductPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblProductPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName:'ProductName',
+                        windowTittle: 'Product List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+
+    }
+    /////WUnit
+    $("#btnResetWorkingUnit").click(function () {
+        _nWorkingUnitIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickWorkingUnit").click(function () {
+        var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+        GetWorkingUnits(txtWorkingUnit);
+    });
+
+    $("#txtWorkingUnit").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+            if(txtWorkingUnit==""){ alert("Type product name to search."); return false; }
+            GetWorkingUnits(txtWorkingUnit);
+        }
+        else if(nkeyCode==8){
+            _nWorkingUnitIDs=0;
+            //$("#txtWorkingUnit").val("");
+        }
+    });
+
+    function GetWorkingUnits(txtWorkingUnit){
+       
+        var oWorkingUnit = {
+            BUID:_nBUID,
+            ProductName:txtWorkingUnit,
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oWorkingUnit,
+            ControllerName: "WorkingUnit",
+            ActionName: "GetsBUWiseWorkingUnit",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].WorkingUnitID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "WorkingUnitCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winWorkingUnitPicker',
+                        winclass:'clsWorkingUnitPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblWorkingUnit',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName:'WorkingUnitName',
+                        windowTittle: 'Store List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+    }
+
+   
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winWorkingUnitPicker')
+        {
+            if (oreturnObjs != null && oreturnObjs.length> 0)
+            { 
+
+                _nWorkingUnitIDs=''; var sMessage='';
+                sMessage=(oreturnObjs.length>1)? oreturnObjs.length +" store Selected" : oreturnObjs[0].WorkingUnitName;
+                $('#txtWorkingUnit').val(sMessage);
+                $("#txtWorkingUnit").addClass("fontColorOfPickItem");
+
+                for(var i=0;i<oreturnObjs.length;i++){
+                    _nWorkingUnitIDs=_nWorkingUnitIDs+oreturnObjs[i].WorkingUnitID+',';
+                }
+                _nWorkingUnitIDs=_nWorkingUnitIDs.substring(0,_nWorkingUnitIDs.length-1);
+
+            }
+            else
+            {
+                alert("Please select a Working unit.");
+                return false;
+            }
+        }
+
+        else if (oPickerobj.winid == 'winProductPicker')
+        {
+            if (oreturnObjs!= null && oreturnObjs.length> 0)
+            {
+              
+                _nProductIDs=''; var sMessage='';
+                sMessage=(oreturnObjs.length>1)? oreturnObjs.length +" ProductName Selected" : oreturnObjs[0].ProductName;
+                $('#txtProduct').val(sMessage);
+                $("#txtProduct").addClass("fontColorOfPickItem");
+
+                for(var i=0;i<oreturnObjs.length;i++){
+                    _nProductIDs=_nProductIDs+oreturnObjs[i].ProductID+',';
+                }
+                _nProductIDs=_nProductIDs.substring(0,_nProductIDs.length-1);
+               
+            }
+            else
+            {
+                alert("Please select a Product.");
+                return false;
+            }
+
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    $("#btnSearch").click(function () {
+        debugger;
+        var sLotNo="";
+        var _nBUID=_nBUID;
+        var sParams = 
+                       _nProductIDs + "~" +
+                       _nWorkingUnitIDs + "~" +
+                       sLotNo+"~"+
+                       _nBUID;
+        sessionStorage.setItem("ParamsSO", sParams);
+        var oLot = {
+            ErrorMessage : sParams
+        };
+        Search(oLot);
+    });
+    function Search(oLot)
+    {
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Lot/AdvSearch",
+            traditional: true,
+            data: JSON.stringify(oLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLots = data;
+                debugger;
+                if (oLots != null) {
+                    if (oLots.length > 0)
+                    {
+                        DynamicRefreshList(oLots, "tblLots");
+                    }
+                    else
+                    {
+                        alert("Sorry, No data found.");
+                        DynamicRefreshList([], "tblLots");
+                    }
+
+                } else {
+                    alert("Sorry, No data found.");
+                    DynamicRefreshList([], "tblLots");
+                }
+                //$(".lblLoadingMessage").hide();
+            }
+        });
+    }
+    $("#btnImport").click(function(){
+        var sURL=window.location.href;
+       
+        //sessionStorage.setItem("SelectedRowIndex", -1);
+        //sessionStorage.setItem("LotHeader", "Import Lots");
+        //sessionStorage.setItem("BackLink", sURL);
+        window.location.href = _sBaseAddress+ "/Lot/ImportFromExcel";
+    });
+
+    $('#btnImportLot').click( function ()
+    {
+        if ($.trim($("#fileLots").val()) == "") {
+            alert("Please select a file.");
+            $("#fileLots").addClass("errorFieldBorder");
+            $("#fileLots").focus();
+            return false;
+        } else {
+            $("#fileLots").removeClass("errorFieldBorder");
+        }
+
+        return true;
+    });
+    function Print()
+    {
+        debugger
+        //var oLots=$('#tblLots').datagrid('getRows');
+        //if(oLots.length<=0)
+        //{
+        //    alert("Sorry, there is no data to Print");
+        //}
+        //var ids = ICS_PropertyConcatation(oLots, 'LotID');
+        var sParams=sessionStorage.getItem("ParamsSO");
+        if(sParams=="" || sParams==null)
+        {
+            alert("Sorry, there is no data to Print");
+            return
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+ "/Lot/LotPrintList?sIDs="+sParams+"&ts="+tsv);
+    }
+
+    function XLPrint()
+    {
+        //var oLots=$('#tblLots').datagrid('getRows');
+        //if(oLots.length<=0)
+        //{
+        //    alert("Sorry, there is no data to Print");
+        //}
+        //var ids = ICS_PropertyConcatation(oLots, 'LotID');
+        var sParams=sessionStorage.getItem("ParamsSO");
+        if(sParams=="" || sParams==null)
+        {
+            alert("Sorry, there is no data to Print");
+            return
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+ "/Lot/ExportToExcel?sIDs="+sParams+"&ts="+tsv);
+    }
+
+    $("#btnCommitRunning").click(function () {
+        
+        var oLot = $("#tblLots").datagrid("getSelected");
+        if (oLot.LotStatus==1) {
+            alert("Already running! You can not running again!!");
+            return false;
+        }
+        if (!confirm("Confirm to Make running?")) return false;
+        if (oLot == null || oLot.LotID <= 0) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex = $('#tblLots').datagrid('getRowIndex', oLot);
+        oLot.LotStatus=1;
+        //var obj = {
+        //    BaseAddress: _sBaseAddress,
+        //    Object: oLot,
+        //    ObjectId: oLot.LotID,
+        //    ControllerName: "Lot",
+        //    ActionName: "CommitIsRunning",
+        //    TableId: "tblLots",
+        //    IsWinClose: false
+        //};
+        //$.icsSave(obj);
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Lot/CommitIsRunning",
+            traditional: true,
+            data: JSON.stringify(oLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oLot = jQuery.parseJSON(data);
+                debugger;
+                if(oLot.LotID > 0){
+                    alert("Running Successfully!!");
+                    $('#tblLots').datagrid('updateRow', { index: SelectedRowIndex, row: oLot });
+                    var oLots=$('#tblLots').datagrid('getRows');
+                    if(oLots.length>0)
+                    {
+                        for(var i=0;i<oLots.length;i++)
+                        {
+                            if(oLot.LotID!=oLots[i].LotID && oLot.ProductID==oLots[i].ProductID && oLot.WorkingUnitID==oLots[i].WorkingUnitID && oLots[i].LotStatus != 2) //hold
+                            {
+                                SelectedRowIndex = $('#tblLots').datagrid('getRowIndex', oLots[i]);
+                                oLots[i].LotStatus = 0;
+                                oLots[i].LotStatusSt = "Open";
+                                $('#tblLots').datagrid('updateRow', { index: SelectedRowIndex, row:  oLots[i]});
+                            }
+                        }
+                    }
+                }else{
+                    alert("Lot is not valid!!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnUpdateStatus").click(function () {
+        var oLots =  $('#tblLots').datagrid('getChecked');
+        if (oLots.length <= 0) {
+            alert("Please Select Lots!!");
+            return false;
+        }
+        if (!confirm("Confirm to Update Status?")) return false;
+        var nStatus = $('#cboStatus').val();        
+        var sIDs = "";
+        for(var i=0;i<oLots.length;i++)
+            sIDs += oLots[i].LotID + ",";
+        if(sIDs.length > 0) sIDs = sIDs.substring(0,sIDs.length-1);
+        var oLot = {
+            LotStatus: nStatus,
+            ErrorMessage: sIDs
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Lot/UpdateStatus",
+            traditional: true,
+            data: JSON.stringify(oLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sMmsg = jQuery.parseJSON(data);
+                debugger;
+                if(sMmsg == "Success"){
+                    alert("Update Successfully!!");
+                    for(var i=0;i<oLots.length;i++)
+                    {
+                        SelectedRowIndex = $('#tblLots').datagrid('getRowIndex', oLots[i]);
+                        oLots[i].LotStatus = nStatus;
+                        oLots[i].LotStatusSt = $("#cboStatus option:selected").text();
+                        $('#tblLots').datagrid('updateRow', { index: SelectedRowIndex, row:  oLots[i]});
+                    }
+                }else{
+                    alert(sMmsg);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+
+
+</script>
+

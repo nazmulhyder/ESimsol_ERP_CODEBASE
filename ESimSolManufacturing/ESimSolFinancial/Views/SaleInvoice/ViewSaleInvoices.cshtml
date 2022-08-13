@@ -1,0 +1,463 @@
+﻿<html>
+@{
+    ViewBag.Title = "Sale Invoice";
+}
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.SaleInvoice>
+<div class="menuMainCollectionTable" ng-app="SaleInvoiceApp">
+    <div ng-controller="SaleInvoiceController" title="Sales Invocie">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <input type="text" class="form-control" ng-model="RefNo" ng-keyup="searchByRefNo($event)" placeholder="Type Invoice No & Press Enter">
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+            <button type="button" ng-show="btnAdd" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEdit" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnDelete" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnApprove" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Approve()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Approve</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="CreateChallan()"><span class="glyphicon glyphicon-download" aria-hidden="true"> Create Challan</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Comments()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Comments</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintChallan()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Challan</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection ui-grid-pinning style=" width: 99%; height: 485px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+</style>
+
+ <script type="text/javascript">
+    var oSaleInvoiceList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+     var CInvoiceapp= angular.module('SaleInvoiceApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service','ui.grid.pinning','ms.service']);
+    CInvoiceapp.controller('SaleInvoiceController',  function ($scope, $http, $timeout, $uibModal, $log,uiGridConstants, msModal,advanceSearch,userSession) {
+        oSaleInvoiceList= (userSession.getData('SaleInvoiceList').length>0)? userSession.getData('SaleInvoiceList'):oSaleInvoiceList;
+        $scope.BUID=nBUID;
+        debugger;
+        $scope.gridOptions = {
+            enableRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true},
+                { field: 'InvoiceNo', name:'Invoice No', width:'10%' ,pinnedLeft:true },
+                { field: 'SQNo', name:'File No', width:'10%' },
+                { field: 'KommNo', name:'Komm No', width:'10%' },
+                { field: 'InvoiceStatusST', name:'Status', width:'10%' },
+                { field: 'CustomerName', name:'Customer', width:'12%' },
+                { field: 'ReceivedByName', name:'Received By', width:'12%' },
+                { field: 'ReceivedOn', name:'Received On', width:'12%' },
+                { field: 'InvoiceDateST', name:'Issue Date', width:'12%' },
+                { field: 'ModelNo', name:'Model No', width:'10%' },
+                { field: 'ChassisNo', name:'Chassis No', width:'12%' },
+                { field: 'EngineNo', name:'Engine No', width:'12%' },
+                { field: 'InteriorColorName', name:'Interior Color', width:'15%' },
+                { field: 'ExteriorColorName', name:'Exterior Color', width:'15%' },
+                { field: 'Remarks', name: 'Comments', width: '10%' }
+            ],
+            data: oSaleInvoiceList,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oSaleInvoiceList.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oSaleInvoiceList);
+                    $scope.gridApi.selection.selectRow(oSaleInvoiceList[userSession.getRowIndex()]);
+                    $scope.RowSelect(oSaleInvoiceList[userSession.getRowIndex()]);
+                }
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity ); });
+                userSession.clear();
+            }
+        };
+
+        $scope.RowSelect =  function (entity){
+      
+            $scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnImage=  $scope.btnPrintList= $scope.btnPriview = $scope.btnApprove =false;
+            debugger;
+
+            if(entity.InvoiceStatusInt==2){ //ApproveOnly
+                $scope.btnApprove=false;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                $scope.btnDeliver=false;
+                $scope.btnReceive=true;
+                $scope.btnCancel=false;
+                $scope.CheckControll();
+            }
+            else if(entity.InvoiceStatusInt==3)//Received
+            {
+                $scope.btnApprove=false;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                $scope.btnReceive=false;
+                $scope.btnDeliver=true;
+                $scope.btnCancel=false;
+                $scope.CheckControll();
+            }
+            else if(entity.InvoiceStatusInt==4)//Delivered
+            {
+                $scope.btnApprove=false;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                $scope.btnReceive=false;
+                $scope.btnDeliver=false;
+                $scope.btnCancel=false;
+                $scope.CheckControll();
+            }
+            else
+            {
+                $scope.btnReceive=false;
+                $scope.btnDeliver=false;
+                $scope.btnApprove=true;
+                $scope.btnEdit=true;
+                $scope.btnCancel=true;
+                $scope.btnDelete=true;
+                $scope.CheckControll();
+            }
+        }
+
+
+        $scope.searchByRefNo = function(e)
+        {
+            debugger;
+            var RefNo = $scope.RefNo;
+            var oSaleInvoices = oSaleInvoiceList;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oSaleInvoices;
+            }
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].InvoiceNo;
+                n=sTempName.toUpperCase().indexOf(RefNo.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }
+            }
+            $scope.gridOptions= {data:oSearchedList};
+        }
+        
+        
+        $scope.AdvanceSearch=function()
+        { 
+            var oColumns = [];
+            var oColumn = { field: 'ModelNo', name: 'ModelNo',width: '30%'  };oColumns.push(oColumn);
+            oColumn = { field: 'CategoryName', name: 'CategoryName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+            
+            var paramObj_Model={
+                obj:{ModelNo: '@@VehicleModelID'},
+                objName:'ModelNo',
+                url:_sBaseAddress+'/VehicleModel/GetVehicleModels',
+                title:'Model List',
+                multiSelect:true,
+                columns:oColumns
+            }
+
+            oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Contractor List',
+                multiSelect:true,
+                columns:oColumns
+            }
+
+            var oElementList = [
+                                { DisplayName: "File No",           BOField: "SQNo",          InputType: 'text' },
+                                { DisplayName: "Issue Date",    BOField: "IssueDate",   InputType: 'date' },
+                                //{ DisplayName: "Service Date",    BOField: "ServiceDate",   InputType: 'date' },
+                                { DisplayName: "Model No",          BOField: "VehicleModelID",  InputType: 'picker', PickerObject:paramObj_Model },
+                                { DisplayName: "Customer ",         BOField: "ContractorID",    InputType: 'picker', PickerObject:paramObj_Contractor }
+                                //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+                                //{ DisplayName: "SomeType",    BOField: "SomeType",       InputType: 'select', OptionList:[{id:2,Value:"KisuNai"}]},
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/SaleInvoice/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result) 
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function () 
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        
+        $scope.Add  = function ()
+        {
+            debugger;
+            sessionStorage.setItem("SaleInvoiceList", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("SaleInvoiceHeader", "Add Sales Invocie");
+            sessionStorage.setItem("BackLink", window.location.href);
+            sessionStorage.setItem("BUID",$scope.BUID);
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/SaleInvoice/ViewSaleInvoice?id=0&buid="+sessionStorage.getItem('BUID');
+        }
+        $scope.Edit =  function ()
+        {
+            debugger;
+
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oSaleInvoice.InvoiceStatusInt>1)
+            {
+                alert("Please Select Initialized Invoice!");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                {
+                    sessionStorage.setItem("SaleInvoiceList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("SaleInvoiceHeader", "Edit Sales Invocie");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    sessionStorage.setItem("BUID",$scope.BUID);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/SaleInvoice/ViewSaleInvoice?id="+oSaleInvoice.SaleInvoiceID+"&buid="+sessionStorage.getItem('BUID');
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                {
+                    sessionStorage.setItem("SaleInvoiceList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("SaleInvoiceHeader", "View Sales Invocie");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    sessionStorage.setItem("BUID",$scope.BUID);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/SaleInvoice/ViewSaleInvoice?id="+oSaleInvoice.SaleInvoiceID+"&buid="+sessionStorage.getItem('BUID');
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.Approve = function()
+        {
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select An Invoice!");
+                return;
+            }
+            if(oSaleInvoice.ProductID<=0)
+            {
+                alert("No Product Is Found For This Invoice. Please Pick A Product And Try Again!");
+                return;
+            }
+            if(oSaleInvoice.InvoiceStatusInt>1)
+            {
+                alert("Please Select Initialized Invoice!");
+                return;
+            }
+            //$scope.Modal( oSaleInvoice, 'Approve');
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                {
+                    sessionStorage.setItem("SaleInvoices", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("Operation", "Approve");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/SaleInvoice/ViewSaleInvoice_Update?id="+oSaleInvoice.SaleInvoiceID;
+                }
+            }, $scope.gridOptions.data);
+        }
+     
+        $scope.CreateChallan = function ()
+        {
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oSaleInvoice.InvoiceStatusInt<=1)
+            {
+                alert("Your Selectd Invoice is Not Approved!");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                {
+                    sessionStorage.setItem("SaleInvoiceList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SaleInvoiceChallan", JSON.stringify(oSaleInvoice));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("SaleInvoiceHeader", "Edit Sales Invocie");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    sessionStorage.setItem("BUID",$scope.BUID);
+                   // window.location.href =sessionStorage.getItem('BaseAddress')+"/SaleInvoice/ViewSaleInvoice?id="+oSaleInvoice.SaleInvoiceID+"&buid="+sessionStorage.getItem('BUID');
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleChallan/ViewVehicleChallan?nId="+0+"&buid="+nBUID;
+                }
+            }, $scope.gridOptions.data);
+        };
+
+        $scope.Comments =  function ()
+        {
+            //debugger;
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            } 
+
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                {
+                    sessionStorage.setItem("SaleInvoices", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/CommentsHistory/ViewCommentsHistory?nModuleID=148&nModuleObjID="+oSaleInvoice.SaleInvoiceID+"&sTitle=SQ. No:"+oSaleInvoice.SQNo+"|| Invoice No:"+oSaleInvoice.InvoiceNo;
+                }
+            }, $scope.gridOptions.data);
+            
+        }
+
+
+        $scope.PrintPreview = function ()
+        {
+            debugger;
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/SaleInvoice/PreviewSaleInvoice?id='+oSaleInvoice.SaleInvoiceID);
+        };
+        $scope.PrintChallan = function ()
+        {
+            debugger;
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/SaleInvoice/SaleInvoiceChallan?id='+oSaleInvoice.SaleInvoiceID);
+        };
+
+        
+        $scope.Delete= function ()
+        {
+            debugger;
+            var oSaleInvoice = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oSaleInvoice==null || oSaleInvoice.SaleInvoiceID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/SaleInvoice/Delete', JSON.stringify(oSaleInvoice)).then(
+                            function (response) {
+                                debugger;
+                                if (jQuery.parseJSON(response.data) == 'Deleted') {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.SaleInvoiceID == oSaleInvoice.SaleInvoiceID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+        $scope.close = function()
+        {
+            window.location.href =sessionStorage.getItem("BackLink");
+        }
+
+        //button hide
+        $scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnCopy = $scope.btnDelete = $scope.btnImage=   $scope.btnPriview =$scope.btnApprove = false;
+        //button show
+        if(PermissionChecker('Add','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+        if(PermissionChecker('Edit','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Copy','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnCopy = true;}
+        if(PermissionChecker('Delete','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Preview','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+        if(PermissionChecker('Approved','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnApprove = true;}
+
+        
+        $scope.CheckControll=function ()
+        {
+            debugger;
+            if($scope.btnAdd == true  && !PermissionChecker('Add','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnAdd = false; } 
+            if($scope.btnEdit == true && !PermissionChecker('Edit','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnEdit = false;$scope.btnUpdate = true;}  
+            if($scope.btnView == true && !PermissionChecker('View','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnView = false;}  
+            if($scope.btnApprove == true && !PermissionChecker('Approved','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnApprove = false;}  
+            if($scope.btnDelete == true && !PermissionChecker('Delete','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnDelete = false;}  
+            if($scope.btnIssue == true && !PermissionChecker('Issued','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnIssue = false;} 
+            if($scope.btnReceive == true && !PermissionChecker('Received','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnReceive = false;}  
+            if($scope.btnDelivered == true && !PermissionChecker('Received','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnReceive = false;}  
+            if($scope.btnUndoApprove == true && !PermissionChecker('UndoRequest','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnUndoApprove = false;}  
+            if($scope.btnCancel == true && !PermissionChecker('Cancel','SaleInvoice',oAuthorizationRolesMapping))
+            {$scope.btnCancel = false;} 
+
+            if(PermissionChecker('Add','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+            if(PermissionChecker('Preview','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+            if(PermissionChecker('Print','SaleInvoice',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+        }
+        
+    });
+
+</script>

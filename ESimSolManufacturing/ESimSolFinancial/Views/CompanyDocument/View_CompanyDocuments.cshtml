@@ -1,0 +1,244 @@
+﻿<script src="http://malsup.github.com/jquery.form.js"></script>
+@{
+    ViewBag.Title = "Company Document List";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.CompanyDocument>
+<head>
+    <title></title>
+    <script src="@Url.Content("~/Views/CompanyDocument/AdvSearch.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Views/Contractor/ContractorPicker.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Views/ProductCategory/ProductPicker.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Views/CompanyDocument/CompanyDocument.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Views/CompanyDocument/CompanyDocuments.js")" type="text/javascript"></script>
+</head>
+<body>
+
+    <div style="margin-left:0px;">
+        <table id="tblCompanyDocuments" title="Company Document  List" class="easyui-datagrid" style="width:1030px;height:500px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarCompanyDocument">
+            <thead>
+                <tr>
+                    <th field="Description" width="45%">Doc. Description</th>
+                    <th field="FileName" width="45%">File Name</th>
+                </tr>
+            </thead>
+        </table>
+            <table style="width: 485px; font-size: 12px; font-weight: bold;">
+                <tr>
+                    <td style="text-align: left">
+                        <input id="chkRange" type="checkbox" />Range
+                        <label id="lblRange1">
+                            <input id="txtFrom" type="text" style="width:40px" />&nbsp; To &nbsp;
+                        </label>
+                        <label id="lblRange2">
+                            <input id="txtTo" type="text" style="width:40px" />
+                        </label>
+                        <label id="lblcount"></label>
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Next()">Next</a>
+                    </td>
+                </tr>
+            </table>
+
+            <div id="toolbarCompanyDocument">
+                <table>
+                    <tr>
+                        <td>
+                            @using (Html.BeginForm("UploadAttchment", "CompanyDocument", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "A" }))
+                            {
+                                <input type="file" id="fileControl" name="file" style="width:200px;" />
+                                <input id="txtDescriptions" name="Description" type="text" placeholder="Description" style="width: 200px;" />
+                                <input id="btnSubmitCompanyDocumentAttachment" type="submit" value="Upload" style="font-weight: bold;" />
+                            }
+
+                            @using (Html.BeginForm("DownloadAttachment", "CompanyDocument", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "B" }))
+                            {
+                                <input type="text" name="CDID" id="txtCompanyDocumentAttchmentID" hidden="hidden" />
+                                <input id="btnDeleteCompanyDocumentAttachment" type="button" value="Delete" style="font-weight: bold" />
+                                <input type="submit" value="Download" id="btnDownload" style="font-weight: bold;" />
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input id="txtFile" name="Description" type="text" placeholder="File Name" style="width: 193px;" />
+                            <input id="txtDescription" name="Description" type="text" placeholder="Description" style="width: 200px;" />
+                            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Search</a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+</div>
+</body>
+
+    <style type="text/css">
+        .A{
+            float:left;
+        }
+        .B{
+            float:left;
+        }
+    </style>
+
+<script type="text/javascript">
+    var _oCompanyDocument = null;
+    var _oCompanyDocuments = [];
+    var _sBaseAddress = "";
+
+    var _bNext = false;
+    var _nLoadRecords = 0;
+    var _nRowLength = 0;
+    var _nLastCDID=0;
+
+    $(document).ready(function() {
+        _oCompanyDocuments = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        DynamicRefreshList(_oCompanyDocuments, "tblCompanyDocuments");
+
+        $('#txtLoadRecords').numberbox({min:0, precision:0 });
+        $('#txtFrom').numberbox({min:0, precision:0 });
+        $('#txtTo').numberbox({min:0, precision:0 });
+        $('#txtFrom').numberbox('setValue',1);
+        $('#txtTo').numberbox('setValue',5);
+        document.getElementById("lblRange1").style.display = 'none';
+
+    });
+
+    //$(document).keydown(function (e) { if (e.keyCode === 27) { $("div").icsWindow("close")}});
+
+    $('#chkRange').click(function()
+    {
+        if(document.getElementById("chkRange").checked == true)
+        {
+            document.getElementById("lblRange1").style.display = '';
+
+        }
+        else
+        {
+            document.getElementById("lblRange1").style.display = 'none';
+
+        }
+    });
+
+       
+    $("#btnDownload").click(function() {  
+        var oCompanyDocumentAttachment = $("#tblCompanyDocuments").datagrid("getSelected");
+        if (oCompanyDocumentAttachment == null || parseInt(oCompanyDocumentAttachment.CDID) <= 0) {
+            alert("Please select an item from list!");
+            return false;
+        }
+        $('#txtCompanyDocumentAttchmentID').val(oCompanyDocumentAttachment.CDID);        
+    });
+
+    $("#btnDeleteCompanyDocumentAttachment").click(function() {        
+        var oCompanyDocument = $("#tblCompanyDocuments").datagrid("getSelected");
+        if (oCompanyDocument == null || parseInt(oCompanyDocument.CDID) <= 0) {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return false;
+        oCompanyDocument.DocFile= null;
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oCompanyDocument,
+            ControllerName: "CompanyDocument",
+            ActionName: "DeleteCompanyDocument",
+            TableId: "tblCompanyDocuments",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    function Search()
+    {
+        if(!_bNext)
+        {
+            _nRowLength = 0;
+            _nLastCDID = 0;
+        }
+        var sFileName="";
+        var sDescription="";
+        sFileName=$("#txtFile").val();
+        sDescription=$("#txtDescription").val();
+        
+        _nLoadRecords = document.getElementById("txtTo").value;
+        if(document.getElementById("chkRange").checked == true)
+        {
+            var RangeFrom = 0;
+            var RangeTo = 0;
+            RangeFrom = parseFloat(document.getElementById("txtFrom").value);
+            RangeTo = parseFloat(document.getElementById("txtTo").value);
+
+            if(RangeFrom > RangeTo)
+            {
+                alert("Invalid Range !");
+                return;
+            }
+            _nRowLength = 0;
+            _nLoadRecords = 0;
+
+            _nRowLength = RangeFrom-1;
+            _nLoadRecords = RangeTo - RangeFrom +1;
+
+        }
+
+        var sParam="";
+        sParam=sFileName+ '~' + sDescription+"~"+_nRowLength+"~"+_nLoadRecords;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/CompanyDocument/CDSearch",
+            traditional: true,
+            data:  JSON.stringify({sParam :sParam}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var  oCDs = jQuery.parseJSON(data);
+                if (oCDs != null) {
+                    if(oCDs.length>0 && oCDs[0].ErrorMessage=="")
+                    {
+                        for (var j = 0; j < oCDs.length; j++)
+                        {
+                            $('#tblCompanyDocuments').datagrid('appendRow',oCDs[j]);
+                        }
+                    }
+                    else if(oCDs[0].ErrorMessage!="")
+                    {
+                        alert(oCDs[0].ErrorMessage);
+                    }
+                    else
+                    {
+                        alert("No more data found!");
+                    }
+                    _bNext = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function Next()
+    {
+        var oCDs =[];
+        oCDs=$('#tblCompanyDocuments').datagrid('getRows');
+        _nRowLength = oCDs.length;
+        _bNext = true;
+
+        if (oCDs.length<=0)
+        {
+            alert('Please Select Criteria and click on "Search" to find information.!!');
+            return;
+        }
+        var oCD=oCDs[oCDs.length-1];
+
+        if (_nLastCDID==oCD.CDID)
+        {
+            alert('No more data found');
+            return;
+        }
+        _nLastCDID=oCD.CDID;
+        Search();
+    }
+
+</script>

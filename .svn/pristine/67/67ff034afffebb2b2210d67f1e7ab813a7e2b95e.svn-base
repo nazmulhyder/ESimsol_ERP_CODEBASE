@@ -1,0 +1,242 @@
+﻿@{
+    ViewBag.Title = "Fabric Transfer Report";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ReportingObject.rptFabricTransferWeavingToFinishing>
+
+
+<body class="menuMainCollectionTable">
+    <fieldset>
+        <legend>Fabric Transfer Report</legend>
+        <div id="toolbar">
+            <input id="chkDate" type="checkbox" />
+            <input id="dtFrom" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <span>to</span>
+            <input id="dtTo" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+
+            <span style="padding-left:20px;"></span>
+            <input id="txtFEONo" type="text" placeholder="Search Fabric Execution" style="width:18%;" />
+            <a id="btnPickFEO" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-pick" plain="true"></a>
+            <a id="btnResetFEO" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-clear" plain="true"></a>
+
+            <input id="txtBuyer" type="text" placeholder="Search Buyer" style="width:18%;" />
+            <a id="btnPickBuyer" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-pick" plain="true"></a>
+            <a id="btnResetBuyer" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-clear" plain="true"></a>
+           
+             <a id="btnExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel</a>
+        </div>
+    </fieldset>
+</body>
+
+<script type="text/javascript">
+    var _sBaseAddress = "";
+
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+        $(".easyui-datebox").datebox({ disabled: false });
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+
+        $('#txtBuyer').data('BuyerIDs','');
+        $('#txtFEONo').data('FEOIDs','');
+        $("#chkDate").prop('checked', true);
+  
+    });
+
+    $("#btnExcel").click(function () {
+        if(!SearchVaidation())
+            return false;
+
+        var nts=(new Date()).getTime()/1000;
+        window.open(_sBaseAddress + '/FabricTransferNote/ExcelFabricTransfer?sParam=' + $('#chkDate').is(':checked') + '~' +  $("#dtFrom").datebox('getValue') + "~" + $("#dtTo").datebox('getValue') + "~" + $('#txtFEONo').data('FEOIDs') + "~" + $('#txtBuyer').data('BuyerIDs')+'&nts='+nts,"_blank");
+    });
+
+    function SearchVaidation(){
+
+        if(!$('#chkDate').is(':checked')  && $('#txtFEONo').data('FEOIDs')=='' && $('#txtBuyer').data('BuyerIDs')=='' && $('#txtLoom').data('FMIDs')=='')
+        {
+            alert("No searching criteria found.");
+            return false;
+        }
+        return true;
+    }
+
+
+    $('#btnPickBuyer').click(function(e){
+        BuyerPicker();
+    });
+
+    $('#btnResetBuyer').click(function(e){
+        $('#txtBuyer').val('');
+        $('#txtBuyer').data('BuyerIDs','');
+    });
+
+    $("#txtBuyer").keydown(function (e) {
+        if (e.keyCode === 13) {
+            BuyerPicker();
+        }
+        else if (e.keyCode === 8) {
+            $('#txtBuyer').data('BuyerIDs','');
+            $('#txtBuyer').val('');
+        }
+    });
+
+    function BuyerPicker(){
+        var oContractor = {
+            Params: 2 + '~' + $.trim($("#txtBuyer").val())
+        };
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oContractor,
+            ControllerName: "Contractor",
+            ActionName: "ContractorSearchByNameType",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ContractorID > 0) {
+                    var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 400, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winBuyers',
+                        winclass: 'clsBuyer',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblBuyers',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Buyer List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else {
+                alert("Sorry, No buyer found.");
+            }
+        });
+    }
+    
+    $('#btnPickFEO').click(function(e){
+        FEOPicker();
+    });
+
+    $('#btnResetFEO').click(function(e){
+        $('#txtFEONo').data('FEOIDs','');
+        $('#txtFEONo').val('');
+    });
+
+    $("#txtFEONo").keydown(function (e) {
+        if (e.keyCode === 13) {
+            FEOPicker();
+        }
+        else if (e.keyCode === 8) {
+            $('#txtFEONo').data('FEOIDs','');
+            $('#txtFEONo').val('');
+        }
+    });
+
+    function FEOPicker(){
+        var oFabricExecutionOrder = {
+            FEONo: $.trim($("#txtFEONo").val())
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricExecutionOrder,
+            ControllerName: "FabricExecutionOrder",
+            ActionName: "GetsFEOrders",
+            IsWinClose: false
+        };
+        $.icsMaxDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FEOID > 0) {
+                    var tblColums = []; var oColumn = { field: "OrderNo", title: "Order No", width: 200, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winFabricExecutionOrders',
+                        winclass: 'clsFabricExecutionOrder',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblFabricExecutionOrders',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Fabric ExecutionOrder List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else {
+                alert("Sorry, No FEO found.");
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnobjs = [];
+
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winBuyers') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                var sBuyerIDs = "";
+                $.map(oreturnObjs,function(obj){
+                    sBuyerIDs += obj.ContractorID + ","
+                });
+                sBuyerIDs = sBuyerIDs.substring(0, sBuyerIDs.length - 1);
+                $('#txtBuyer').val(oreturnObjs.length + " Buyer(s) Selected").focus();
+                $('#txtBuyer').data('BuyerIDs',sBuyerIDs);
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        else if (oPickerobj.winid == 'winFabricExecutionOrders') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                var sFEOIDs = "";
+                $.map(oreturnObjs,function(obj){
+                    sFEOIDs += obj.FEOID + ","
+                });
+                sFEOIDs = sFEOIDs.substring(0, sFEOIDs.length - 1);
+                $('#txtFEONo').val(oreturnObjs.length + " Order(s) Selected").focus();
+                $('#txtFEONo').data('FEOIDs',sFEOIDs);
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+</script>
+
+
+
+

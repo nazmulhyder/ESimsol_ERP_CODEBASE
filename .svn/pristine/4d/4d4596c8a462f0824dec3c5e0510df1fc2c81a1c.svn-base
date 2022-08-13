@@ -1,0 +1,674 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Employees List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Employee>
+    <div style="margin-left: 0px; height: 100%">
+        @*<table id="tblEmployees" title="Employee List" class="easyui-datagrid" style="width: 896px;
+            height: 548px;" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true"
+            autorowheight="false" toolbar="#toolbar"  checkOnSelect ="false">*@
+        <table id="tblEmployees" title="Employee List" class="easyui-datagrid" style="width: 100%;
+         height: 100%" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+               autorowheight="false" selectoncheck="false" checkonselect="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    @*<th data-options="field:'Selected',checkbox:true">
+                        </th>*@
+                    <th field="Code" width="13%">
+                        Code
+                    </th>
+                    <th field="Name" width="20%">
+                        Name
+                    </th>
+                    <th field="ContactNo" width="10%">
+                        Contact No
+                    </th>
+                    <th field="Email" width="12%">
+                        Email
+                    </th>
+                    <th field="Designation" width="8%">
+                        Designation
+                    </th>
+                    <th field="Address" width="20%">
+                        Address
+                    </th>
+                    <th field="IsActive" width="8%">
+                        Activity
+                    </th>
+                </tr>
+            </thead>
+        </table>
+
+        <div id="toolbar" style="height:auto;">
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+            <input type="text" id="txtSearchByCode" placeholder="Search by Code" onclick="ClearCodefield()" />
+            <input type="text" id="txtSearchByName" placeholder="Search by name" onclick="ClearNamefield()" />
+            @*<a id="btnAdvSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="" plain="true" onclick="AdvancedSearch()">Adv.Src</a>*@
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">New</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        </div>
+    </div>g
+    <script type="text/javascript">
+        var _oEmployees=[];
+        var _sBaseAddress="";
+        var _oAllEmployees = [];
+        $(document).ready(function () {
+
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oEmployees =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _oAllEmployees =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AllEmployees));
+            var oEmployees =sessionStorage.getItem("Employees");
+            var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        
+            if(oEmployees!=null)
+            {
+                oEmployees  = jQuery.parseJSON(oEmployees);
+            }
+            else
+            {
+                oEmployees = _oEmployees ;
+            }
+            RefreshList(oEmployees);
+        });
+
+      
+
+        $('#txtSearchByCode').keypress(function (e) {
+            debugger;
+            var nCode = (e.keyCode ? e.keyCode : e.which);
+            if (nCode!=13)return;
+            var c = String.fromCharCode(e.which);
+            var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+            //txtSearchByCode = txtSearchByCode + c;
+
+            var bFlag=false;
+            var sTempCode="";
+            var rows = $('#tblEmployees').datagrid('getRows');
+            for(i=0;i<rows.length;++i){
+                sTempCode=rows[i]['Code'].substring(0, txtSearchByCode.length);
+                if(txtSearchByCode.toUpperCase()==sTempCode.toUpperCase())
+                {
+                    bFlag=true;
+                    break;
+                }
+            }
+            if(bFlag)
+            {
+                $('#tblEmployees').datagrid('selectRow', i);
+            }
+            else
+            {
+                GetEmployeeByNameCode(txtSearchByCode,true);
+            }
+        });
+        $('#txtSearchByName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtSearchByName = document.getElementById('txtSearchByName').value;
+            txtSearchByName = txtSearchByName + c;
+            var bFlag=false;
+            var sTempName="";
+            var rows = $('#tblEmployees').datagrid('getRows');
+            for(i=0;i<rows.length;++i){
+                sTempName=rows[i]['Name'].substring(0, txtSearchByName.length);
+                if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+                {
+                    bFlag=true;
+                    break;
+                }
+            }
+            if(bFlag)
+            {
+                $('#tblEmployees').datagrid('selectRow', i);
+            }
+        });
+        $('#txtSearchByCode').keypress(function (e) {
+            var c = String.fromCharCode(e.which);
+            var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+            txtSearchByCode = txtSearchByCode + c;
+            var bFlag=false;
+            var sTempName="";
+            var rows = $('#tblEmployees').datagrid('getRows');
+            for(i=0;i<rows.length;++i){
+                sTempName=rows[i]['Code'].substring(0, txtSearchByCode.length);
+                if(txtSearchByCode.toUpperCase()==sTempName.toUpperCase())
+                {
+                    bFlag=true;
+                    break;
+                }
+            }
+            if(bFlag)
+            {
+                $('#tblEmployees').datagrid('selectRow', i);
+            }
+        });
+        function ClearNamefield()
+        {
+            $("#txtSearchByName")[0].value='';
+        }
+
+        function ClearCodefield()
+        {
+            $("#txtSearchByCode")[0].value='';
+        }
+
+        function Refresh()
+        {
+            var oEmployees = $('#tblEmployees').datagrid('getRows');
+            data=oEmployees;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblEmployees').datagrid('loadData',data);
+        }
+
+        function Add()
+        {
+            var _oEmployees= $('#tblEmployees').datagrid('getRows');
+            sessionStorage.setItem("Employees", JSON.stringify(_oEmployees));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("EmployeesHeader", "New Employee");
+            sessionStorage.setItem("BackLink", window.location.href);//BackToList
+            window.location.href = _sBaseAddress+ "/Employee/View_Employee_NoHR?id=0";
+        }
+        function Edit()
+        {
+            var oEmployee= $('#tblEmployee').datagrid('getSelected');
+            if(oEmployee==null || oEmployee.EmployeeID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+
+            var SelectedRowIndex=$('#tblEmployee').datagrid('getRowIndex',oEmployee);
+            var oEmployees= $('#tblEmployees').datagrid('getRows');
+            sessionStorage.setItem("Employees", JSON.stringify(oEmployees));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("Operation", "EDIT");
+            sessionStorage.setItem("EmployeeHeader", "Edit Diagram Identification");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+"/Employee/View_Employee_NoHR?id="+oEmployee.EmployeeID;
+        }
+
+
+
+        function Edit()
+        {
+            var oEmployee = $('#tblEmployees').datagrid('getSelected');
+            if (oEmployee == null || oEmployee.EmployeeID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+            var SelectedRowIndex = $('#tblEmployees').datagrid('getRowIndex', oEmployee);
+            var oEmployees= $('#tblEmployees').datagrid('getRows');
+            sessionStorage.setItem("Employees", JSON.stringify(oEmployees));/////////////////
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);/////////////////
+            sessionStorage.setItem("EmployeeHeader", "Edit Employee");/////////////
+            sessionStorage.setItem("BackLink", window.location.href);//BackToList
+            window.location.href = _sBaseAddress+ "/Employee/View_Employee_NoHR?id="+oEmployee.EmployeeID;
+        }
+        function Delete()
+        {
+            sessionStorage.setItem("BackLink", window.location.href);//BackToList
+            var oEmployee= $('#tblEmployees').datagrid('getSelected');
+            if (!confirm("Confirm to Delete?")) return ;
+            if(oEmployee==null || oEmployee.EmployeeID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            var SelectedRowIndex=$('#tblEmployees').datagrid('getRowIndex',oEmployee);
+            var tsv = ((new Date()).getTime()) / 1000;
+            if (oEmployee.EmployeeID > 0)
+            {
+                $.ajax
+             ({
+                 type: "POST",
+                 dataType: "json",
+                 url : _sBaseAddress+  "/Employee/EmployeeDelete",
+                 traditional: true,
+                 data: JSON.stringify({nEmpId:oEmployee.EmployeeID,nts:tsv}),
+                 contentType: "application/json; charset=utf-8",
+                 success: function (data) {
+                     debugger;
+                     feedbackmessage = jQuery.parseJSON(data);
+                     if (feedbackmessage == "Delete Successfully.")
+                     {
+                         alert("Delete sucessfully");
+                         $('#tblEmployees').datagrid('deleteRow',SelectedRowIndex);
+
+                     }
+                     else
+                     {
+                         alert(feedbackmessage);
+                     }
+                 },
+                 error: function (xhr, status, error)
+                 {
+                     alert(error);
+                 }
+
+             });
+                //var oEmployee = {
+                //    EmployeeID:oEmployee.EmployeeID
+                //}
+                //$.ajax
+                //({
+                //    type: "GET",
+                //    dataType: "json",
+                //    url : _sBaseAddress+"/Employee/Delete",
+                //    data:{Id:oEmployee.EmployeeID},
+                //    contentType: "application/json; charset=utf-8",
+                //    success: function (data) {
+                //        alert("Delete sucessfully");
+                //        $('#tblEmployees').datagrid('deleteRow',SelectedRowIndex);
+                //    },
+                //    error: function (xhr, status, error)
+                //    {
+                //        alert(error);
+                //    }
+                //});
+            }
+        }
+        function OfficialInfo()
+        {
+            var employee= $('#tblEmployees').datagrid('getSelected');
+            if(employee==null || employee.EmployeeID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblEmployees').datagrid('getRowIndex',employee);
+            var oParameter = new Object();
+            oParameter.Name = "Add Employee Official Information";
+            oParameter.Employee = employee;
+            var url =_sBaseAddress+ "/Employee/View_OfficialInfo?nEmpId="+employee.EmployeeID;
+            var nLeft=(window.screen.width/2)-(940/2);
+            var nHeight=(window.screen.height/2)-(750/2);
+            var oEmployeeOfficial = window.showModalDialog(url, oParameter, 'dialogHeight:750px;dialogWidth:940px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        }
+        function RefreshList(oEmployees)
+        {
+            debugger;
+            data=oEmployees;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblEmployees').datagrid('loadData',data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            $('#tblEmployees').datagrid('selectRow',nIndex);
+            //$('#tblEmployees').datagrid({ selectOnCheck: false, checkOnSelect: false })
+            //$('#tblEmployeess').datagrid({onSelect: function(rowIndex, rowData){ RowSelect(rowIndex, rowData);}});
+        }
+
+        function RowSelect(rowIndex, rowData)
+        {
+            if(rowData.Code=='003')
+            {
+                document.getElementById("btnAdd").style.display = 'none';
+                document.getElementById("btnEdit").style.display = '';
+                document.getElementById("btnView").style.display = '';
+            }
+            else if(rowData.Code=='007')
+            {
+                document.getElementById("btnAdd").style.display = '';
+                document.getElementById("btnEdit").style.display = 'none';
+                document.getElementById("btnView").style.display = 'none';
+            }
+            else if(rowData.Code=='009')
+            {
+                document.getElementById("btnAdd").style.display = 'none';
+                document.getElementById("btnEdit").style.display = 'none';
+                document.getElementById("btnView").style.display = 'none';
+            }
+            else
+            {
+                document.getElementById("btnAdd").style.display = '';
+                document.getElementById("btnEdit").style.display = '';
+                document.getElementById("btnView").style.display = '';
+            }
+            alert('Code='+rowData.Code+' \n Name='+rowData.Name+' \n Address='+rowData.Address);
+        }
+
+
+        function PrintEmployee()
+        {
+            window.open('/Employee/PrintEmployees', "_blank");
+        }
+
+
+        function EmployeeBranch()
+        {
+
+            var oEmployee = $('#tblEmployeess').datagrid('getSelected');
+            if(oEmployee==null || oEmployee.EmployeeID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.location.href = '/EmployeeBranch/Add?id='+oEmployee.EmployeeID;
+        }
+
+        function AdvancedSearch() {
+
+            var oParameter = new Object();
+            oParameter.Name = "Employee Advance Search";
+            oParameter.MultipleItemReturn=true;
+            var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+            var nLeft=(window.screen.width/2)-(1000/2);
+            var nHeight=(window.screen.height/2)-(530/2);
+            var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:515px;dialogWidth:1000px;dialogLeft:200;dialogRight:100;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no');
+
+            if (oEmployees.length>0)
+            {
+                RefreshList(oEmployees);
+            }
+        }
+
+        function AttendanceDaily()
+        {
+            //debugger;
+
+            var oEmployees = $('#tblEmployees').datagrid('getChecked');
+            if(oEmployees.length<=0)
+            {
+                alert("Please Select Atleast One Item !");
+                return;
+            }
+
+            for(var i=0;i<oEmployees.length;i++)
+            {
+                if(oEmployees[i].WorkingStatus==6)
+                {
+                    alert("Att. Is Not Possible For Discontinued Employee !");
+                    return;
+                }
+
+            }
+
+            var tsv = ((new Date()).getTime()) / 1000;
+            var oParameter = new Object();
+            oParameter = oEmployees;
+
+            //oParameter.Name = "Attendance For"+oEmployee.Name+"["+oEmployee.Code+"]";
+            var url = _sBaseAddress + "/AttendanceDaily/ViewAttendanceDaily?nId=0&ts=" + tsv+"&nEmployeeID=0";
+            var nLeft=(window.screen.width/2)-(600/2);
+            var nHeight=(window.screen.height/2)-(420/2);
+            var oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:600px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:600px;dialogLeft:250;dialogRight:150;dialogTop:200;center:yes;resizable:yes;status:no;scroll:no');
+
+        }
+
+        $('#btnActivity').click(function (e) {
+
+            debugger;
+            var Act="";
+            var oEmployee = $('#tblEmployees').datagrid('getSelected');
+            if (oEmployee == null || oEmployee.EmployeeID <= 0)
+            {
+                alert("Please select an item from list!");
+                return;
+            }
+            if(oEmployee.IsActive==false)
+            {
+                Act=true;
+
+            }
+            if(oEmployee.IsActive==true)
+            {
+                Act=false;
+
+            }
+            oEmployee.IsActive=Act;
+
+            var SelectedRowIndex = $('#tblEmployees').datagrid('getRowIndex', oEmployee);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/Employee/Employee_Activity",
+                traditional: true,
+                data: JSON.stringify(oEmployee),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data) {
+                    debugger;
+                    oEmployee = jQuery.parseJSON(data);
+                    if (oEmployee.EmployeeID > 0)
+                    {
+                        if(oEmployee.IsActive==true)
+                        {
+                            msg="Activated";
+                        }
+                        if(oEmployee.IsActive==false)
+                        {
+                            msg="InActivated";
+                        }
+                        alert(msg+" Successfully!");
+                        $('#tblEmployees').datagrid('updateRow', { index: SelectedRowIndex, row: oEmployee });
+
+                    }
+                    else
+                    {
+                        alert(oEmployee.ErrorMessage);
+                    }
+                }
+
+            });
+        });
+
+        function GetEmployeeByNameCode(sNameCode,bIsCode)
+        {
+            var nts = ((new Date()).getTime()) / 1000;
+            //nts=Math.floor(nts);
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/Employee/GetByEmployeeNameCode",
+                data: {sNameCode:sNameCode,bIsCode:bIsCode,nts:nts},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oEmployees = jQuery.parseJSON(data);
+                    if(oEmployees.length>0)
+                    {
+                        //RefreshList(oEmployees);
+                        for (var j = 0; j < oEmployees.length; j++)
+                        {
+                            $('#tblEmployees').datagrid('appendRow',oEmployees[j]);
+                        }
+                    }
+                    else
+                    {
+                        alert('Data not found.!!!');
+                    }
+
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+
+        }
+
+        $('#btnDiscontinued').click(function (e)
+        {
+            var oEmployees = $('#tblEmployees').datagrid('getChecked');
+            var nIndexes = [];
+            var sEmpIDs = "";
+            if(oEmployees.length<=0)
+            {
+                alert("please select at least one Item!");
+                return false;
+            }
+            for(var i =0; i<oEmployees.length; i++)
+            {
+                if(oEmployees[i].WorkingStatus ==6)
+                {
+                    alert("Some of employees are already discontinued!");
+                    return false;
+                }
+                var SelectedRowIndex = $('#tblEmployees').datagrid('getRowIndex', oEmployees[i]);
+                nIndexes.push(SelectedRowIndex);
+                sEmpIDs += oEmployees[i].EmployeeID +",";
+            }
+            sEmpIDs = sEmpIDs.substring(0,sEmpIDs.length-1);
+            if (!confirm("Confirm to Discontinue? !!")) return ;
+            var tsv = ((new Date()).getTime()) / 1000;
+
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Employee/EmployeeWorkingStatusChange",
+                traditional: true,
+                data: JSON.stringify({sEmpIDs:sEmpIDs,nts:tsv}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oEmployees= [];
+                    oEmployees = jQuery.parseJSON(data);
+                    if (oEmployees[0].ErrorMessage == "" && oEmployees.length>0)
+                    {
+                        for(var i=0; i<oEmployees.length; i++)
+                        {
+                            $('#tblEmployees').datagrid('updateRow', { index: nIndexes[i], row: oEmployees[i] });
+                        }
+
+                    }
+                    else
+                    {
+                        alert(oEmployees[0].ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+
+        });
+
+        $('#btnContinued').click(function (e)
+        {
+            var oEmployees = $('#tblEmployees').datagrid('getChecked');
+            var nIndexes = [];
+            var sEmpIDs = "";
+            if(oEmployees.length<=0)
+            {
+                alert("please select at least one Item!");
+                return false;
+            }
+
+            for(var i =0; i<oEmployees.length; i++)
+            {
+                if(oEmployees[i].WorkingStatus !=6)
+                {
+                    alert("Only discontinued employee can be continued !");
+                    return false;
+                }
+
+                var SelectedRowIndex = $('#tblEmployees').datagrid('getRowIndex', oEmployees[i]);
+                nIndexes.push(SelectedRowIndex);
+                sEmpIDs += oEmployees[i].EmployeeID +",";
+            }
+            sEmpIDs = sEmpIDs.substring(0,sEmpIDs.length-1);
+            if (!confirm("Confirm to Continue!")) return ;
+
+            var tsv = ((new Date()).getTime()) / 1000;
+            $.ajax
+             ({
+                 type: "POST",
+                 dataType: "json",
+                 url : _sBaseAddress+  "/Employee/ContinuedEmployee",
+                 traditional: true,
+                 data: JSON.stringify({sEmpIDs:sEmpIDs,nts:tsv}),
+                 contentType: "application/json; charset=utf-8",
+                 success: function (data) {
+                     var oEmployees= [];
+                     oEmployees = jQuery.parseJSON(data);
+                     if (oEmployees[0].ErrorMessage == "" && oEmployees.length>0)
+                     {
+                         for(var i=0; i<oEmployees.length; i++)
+                         {
+                             $('#tblEmployees').datagrid('updateRow', { index: nIndexes[i], row: oEmployees[i] });
+                         }
+
+                     }
+                     else
+                     {
+                         alert(oEmployees[0].ErrorMessage);
+                     }
+                 },
+                 error: function (xhr, status, error)
+                 {
+                     alert(error);
+                 }
+             });
+        });
+
+
+        $('#btnPrint').click(function (e)
+        {
+            var oEmployee= $('#tblEmployees').datagrid('getSelected');
+
+            if(oEmployee==null || oEmployee.EmployeeID<=0)
+            {
+                alert("please select an Employee !");
+                return false;
+            }
+
+            var tsv=((new Date()).getTime())/1000;
+            window.open(_sBaseAddress+ "/Employee/PrintEmployee?nEmpID="+oEmployee.EmployeeID+"&ts="+tsv, "_blank");
+
+        });
+
+        $('#btnPrintList').click(function (e)
+        {
+            var oEmployees= $('#tblEmployees').datagrid('getRows');
+
+            if(oEmployees.length <=0)
+            {
+                alert("There is nothing to print !");
+                return false;
+            }
+            var sEmployeeIDs = "" ;
+            for(var i = 0 ; i<oEmployees.length ; i++)
+            {
+
+                sEmployeeIDs += oEmployees[i].EmployeeID + ",";
+
+            }
+
+            sEmployeeIDs = sEmployeeIDs.substring(0,sEmployeeIDs.length - 1)
+
+            var tsv=((new Date()).getTime())/1000;
+            window.open(_sBaseAddress+ "/Employee/PrintEmployeeList?sEmployeeIDs="+sEmployeeIDs+"&ts="+tsv, "_blank");
+
+        });
+
+        $('#btnRemoveFromList').click(function (e) {
+
+            var oEmployees= $('#tblEmployees').datagrid('getChecked');
+            if(oEmployees.length<=0)
+            {
+                alert("Please select at least one item !");
+                return;
+            }
+
+            for(var i=0; i<oEmployees.length; i++)
+            {
+                var SelectedRowIndex=$('#tblEmployees').datagrid('getRowIndex',oEmployees[i]);
+                $('#tblEmployees').datagrid('deleteRow',SelectedRowIndex);
+            }
+
+        });
+
+
+       
+    </script>
+
+
+

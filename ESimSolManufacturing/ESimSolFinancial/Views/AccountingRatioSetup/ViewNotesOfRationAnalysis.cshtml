@@ -1,0 +1,290 @@
+﻿@model ESimSol.BusinessObjects.BalanceSheet
+@{
+    ViewBag.Title = "Notes of Ration Analysis";
+}
+
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%;height:35px; padding:5px; overflow:hidden">
+            <div style="margin-bottom:5px">                
+                <a id="btnFinancialPosition" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Print</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>                
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table id="tblNotesOfRatioAnalysis" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Notes of Analysis Ratio</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;">As at 31 December 2015</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td style="width:48%"></td>
+                        <td style="width:28%; text-align:center; font-weight:bold">Notes</td>
+                        <td style="width:20%; text-align:right; border:1px solid black">
+                            <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold">31 Dec 2015-BDT</label>
+                        </td>
+                        <td style="width:2%"></td>
+                    </tr>                   
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>   
+    .segmentclass {
+        color: black;
+        font-size: 12px;
+        font-family: Tahoma;
+        font-weight: bold;
+        font-style: italic;
+    }
+
+    .subgroupclass {
+        color: black;
+        font-size: 12px;
+        font-family: Tahoma;
+    }
+
+    .segmentsummeryclass {
+        color: black;
+        font-size: 13px;
+        font-family: Tahoma;
+        font-weight: bold;
+    }
+
+    .highlight {
+        background: #DAFFD6;
+    }
+
+    #tblNotesOfRatioAnalysis tr:hover td,
+    #tblNotesOfRatioAnalysis tr:hover td.highlight {
+        background: #D6DAD5;
+    }
+</style>
+<script type="text/javascript">    
+    var _oBalanceSheet=null;
+    var _oBalanceSheets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {        
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBalanceSheet =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        RefreshControl(_oBalanceSheet);
+        RefreshNotesOfRatioAnalysis(_oBalanceSheet);        
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+
+    function RefreshControl(oBalanceSheet)
+    {
+        $('#lblCompanyName').text(oBalanceSheet.Company.Name);
+        $('#lblStatementDate').text('As at '+ oBalanceSheet.EndDateSt);
+        $('#lblStatementDateWithCurrency').text(oBalanceSheet.EndDateSt+'-'+oBalanceSheet.Company.CurrencyName);
+        var nMaxRowIndex = document.getElementById('tblNotesOfRatioAnalysis').rows.length-1;
+        for(var i=nMaxRowIndex; i>3; i--)
+        {
+            document.getElementById("tblNotesOfRatioAnalysis").deleteRow(i);
+        }
+    }
+
+    function RefreshNotesOfRatioAnalysis(oBalanceSheet)
+    {
+        //Segment = 2, SubGroup = 4,
+        var oBalanceSheets = oBalanceSheet.BalanceSheets;
+        var bIsFistSegment=false;
+        var bIsImmediateSegment =false;
+
+        var table = document.getElementById('tblNotesOfRatioAnalysis');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBalanceSheets = row.insertCell(0);
+        cellBalanceSheets.colSpan= 5;
+        cellBalanceSheets.width= "100%";
+        cellBalanceSheets.innerHTML = oBalanceSheet.ReportCaption;
+        cellBalanceSheets.height = '10';
+        cellBalanceSheets.className = 'segmentsummeryclass';
+        cellBalanceSheets.style.textAlign = 'left';
+        
+        var nTotalAmount = 0;
+        for(var i=0;  i<oBalanceSheets.length; i++ )
+        {   
+            var table = document.getElementById('tblNotesOfRatioAnalysis');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank = row.insertCell(0);
+            cellBlank.width= "2%";
+            cellBlank.innerHTML = '';
+
+            var cellAccountHead = row.insertCell(1);
+            cellAccountHead.width= "48%";
+            cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oBalanceSheets[i].AccountHeadName+'</label>';
+            cellAccountHead.style.textAlign = 'left';
+
+            var cellNote = row.insertCell(2);
+            cellNote.width= "28%";
+            cellNote.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'"onclick="NoteWiseDetails('+oBalanceSheets[i].AccountHeadID+');" class="subgroupclass" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oBalanceSheets[i].AccountCode+'</label>';
+            cellNote.style.textAlign = 'center';
+            
+
+
+            nTotalAmount = nTotalAmount + parseFloat(oBalanceSheets[i].CGSGBalance);
+            var cellAmount = row.insertCell(3);
+            cellAmount.width= "20%";
+            cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oBalanceSheets[i].CGSGBalanceInString+'</label>';
+            cellAmount.style.textAlign = 'right';
+            if(i===0)
+            {
+                cellAmount.style.borderTop = "1px solid black"
+            }
+            cellAmount.style.borderLeft = "1px solid black"
+            cellAmount.style.borderRight = "1px solid black"
+            if((i+1)==oBalanceSheets.length)
+            {
+                cellAmount.style.borderBottom = "1px solid black"
+            }
+
+            var cellBlank = row.insertCell(4);
+            cellBlank.width= "2%";
+            cellBlank.innerHTML = '';
+        }
+
+
+        var table = document.getElementById('tblNotesOfRatioAnalysis');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 5;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '5';
+
+
+        var table = document.getElementById('tblNotesOfRatioAnalysis');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalBalanceSheets = row.insertCell(0);
+        cellTotalBalanceSheets.colSpan= 3;
+        cellTotalBalanceSheets.width= "78%";
+        cellTotalBalanceSheets.innerHTML = 'TOTAL AMOUNT :';
+        cellTotalBalanceSheets.className = 'segmentsummeryclass';
+        cellTotalBalanceSheets.style.textAlign = 'left';
+
+        var cellTotalBalanceSheetsAmount = row.insertCell(1);
+        cellTotalBalanceSheetsAmount.width= "20%";
+        cellTotalBalanceSheetsAmount.innerHTML = formatPrice(nTotalAmount);
+        cellTotalBalanceSheetsAmount.className = 'segmentsummeryclass';
+        cellTotalBalanceSheetsAmount.style.textAlign = 'right';
+        cellTotalBalanceSheetsAmount.style.borderTop = "1px solid black"
+        cellTotalBalanceSheetsAmount.style.borderBottom = "1px solid black"
+
+        var cellBlank = row.insertCell(2);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblNotesOfRatioAnalysis');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalBalanceSheets = row.insertCell(0);
+        cellTotalBalanceSheets.colSpan= 3;
+        cellTotalBalanceSheets.width= "78%";
+        cellTotalBalanceSheets.innerHTML = '';
+        cellTotalBalanceSheets.className = 'segmentsummeryclass';
+        cellTotalBalanceSheets.style.textAlign = 'left';
+        cellTotalBalanceSheets.height = '2';
+
+        var cellTotalBalanceSheetsAmount = row.insertCell(1);
+        cellTotalBalanceSheetsAmount.width= "20%";
+        cellTotalBalanceSheetsAmount.innerHTML = '';
+        cellTotalBalanceSheetsAmount.className = 'segmentsummeryclass';
+        cellTotalBalanceSheetsAmount.style.textAlign = 'right';
+        cellTotalBalanceSheetsAmount.style.borderBottom = "1px solid black"
+
+        var cellBlank = row.insertCell(2);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblNotesOfRatioAnalysis');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 5;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '8';
+
+    }
+
+    function NoteWiseDetails(nAccountHeadID)
+    {
+        //var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        //window.location.href = _sBaseAddress+ "/BalanceSheet/ViewNotesOfFinancialPosition?buid="+nBUID+"&pacid="+nAccountHeadID;
+
+        var obj={
+            BUID: parseInt(_oBalanceSheet.BUID),
+            TempDate : _oBalanceSheet.EndDateSt,
+            ParentAccountHeadID : nAccountHeadID
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/BalanceSheet/SetBSSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/BalanceSheet/ViewNotesOfFinancialPosition?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnFinancialPosition").click(function(){
+        debugger;
+        var nBUID= parseInt(sessionStorage.getItem('AnalysisRatioBUID'));// parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dEndDate = sessionStorage.getItem('AnalysisRatioEndDate');//  $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dEndDate+"~~~";
+        window.open(_sBaseAddress+'/BalanceSheet/PrintFinancialPosition?sParameter=' + sParam, "_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+        var nBUID= parseInt(sessionStorage.getItem('AnalysisRatioBUID'));// parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dEndDate = sessionStorage.getItem('AnalysisRatioEndDate');//  $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dEndDate+"~~~";
+        window.open(_sBaseAddress+'/BalanceSheet/FinancialPositionExpotToExcel?sParameter=' + sParam, "_blank");
+    });
+
+    $("#btnPrintNotesXL").click(function(){
+        var nBUID= parseInt(sessionStorage.getItem('AnalysisRatioBUID'));//parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dEndDate =sessionStorage.getItem('AnalysisRatioEndDate');
+        var sParam= nBUID+"~"+dEndDate+"~0";
+        window.open(_sBaseAddress+'/BalanceSheet/NotesOfStatementExpotToExcel?sParameter=' + sParam, "_blank");
+    });
+</script>

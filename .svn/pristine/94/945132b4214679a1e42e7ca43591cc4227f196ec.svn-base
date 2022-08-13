@@ -1,0 +1,233 @@
+﻿@{
+    ViewBag.Title = "Export Summary";
+}
+@model ESimSol.BusinessObjects.ExportSummary
+
+
+<div class="menuMainCollectionTable" style="height:100%">
+    <table id="tblExportSummary" title="Export Summary" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" showfooter="true" singleselect="true" autorowheight="false" toolbar="#toolbar"></table>
+    <div id="toolbar">        
+        <select id="cboBU" style="width:150px;height:20px"></select>
+        <select id="cboReportName" style="width:200px;height:20px"></select>
+        <select id="cboReportType" style="width:150px;height:20px"></select>
+        <select id="cboReportLayout" style="width:150px;height:20px"></select>
+        
+        <input id="txtStartDate" type="text" style="width: 120px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        TO
+        <input id="txtEndDate" type="text" style="width: 120px;" class="easyui-datebox"  data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        <a id="btnExportToExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel</a>
+    </div>
+    <div id="progress"></div>
+    <div id="result"></div>
+</div>
+
+
+
+
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        var oExportSummary = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        var oReportNames = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportNames));
+        var oReportTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportTypes));
+        var oReportLayouts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportLayouts));
+
+        $("#cboBU").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "BUTypeSt", InitialValue : "--Business Unit--"  });
+        $("#cboReportName").icsLoadCombo({ List: oReportNames, OptionValue: "id", DisplayText: "Value", InitialValue : "--Report Name--"  });
+        $("#cboReportType").icsLoadCombo({ List: oReportTypes, OptionValue: "id", DisplayText: "Value", InitialValue : "--Report Type--" });
+        $("#cboReportLayout").icsLoadCombo({ List: oReportLayouts, OptionValue: "id", DisplayText: "Value", InitialValue : "--Report Layout--" });
+        
+        $('#cboBU').val(parseInt(oExportSummary.BUID));
+        $('#txtStartDate').datebox('setValue',oExportSummary.StartDateSt);
+        $('#txtEndDate').datebox('setValue',oExportSummary.EndDateSt);
+      
+        $('#AppMainLayout').layout('collapse', 'west');        
+        $('#AppMainLayout').layout('expand', 'west');
+        $('#AppMainLayout').layout('collapse', 'west');
+
+    });
+
+    $('#cboReportName').change(function(e){
+        $('#tblExportSummary').datagrid({ title: $('#cboReportName option:selected').text() });
+    });
+
+    function ValidateInput()
+    {
+        if(parseInt($('#cboBU').val())<=0)
+        {
+            alert("Please select an Business Unit!");
+            $('#cboBU').focus();
+            return false;
+        }
+
+        if(parseInt($('#cboReportName').val())<=0)
+        {
+            alert("Please select an Report Name!");
+            $('#cboReportName').focus();
+            return false;
+        }
+        
+        if(parseInt($('#cboReportType').val())<=0)
+        {
+            alert("Please select an Report Type!");
+            $('#cboReportType').focus();
+            return false;
+        }
+
+        if(parseInt($('#cboReportLayout').val())<=0)
+        {
+            alert("Please select an Report Layout!");
+            $('#cboReportLayout').focus();
+            return false;
+        }
+                
+
+        var dStartDate   = new Date($('#txtStartDate').datebox('getValue'));
+        var dEndDate   = new Date($('#txtEndDate').datebox('getValue'));
+        if(dStartDate > dEndDate)
+        {
+            alert("Start Date Must Be Smaller than End Date!")
+            $('#txtStartDate').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oExportSummary = {
+            BUID : parseInt($('#cboBU').val()),
+            ReportNameInt : parseInt($('#cboReportName').val()),
+            ReportTypeInt : parseInt($('#cboReportType').val()),
+            ReportlayoutInt : parseInt($('#cboReportLayout').val()),
+            StartDate : $('#txtStartDate').datebox('getValue'),
+            EndDate : $('#txtEndDate').datebox('getValue'),
+            CompareFromMonth : '',
+            CompareWithMonth : ''
+        };
+        return oExportSummary;
+    }
+
+    function MakeExportSummaryTable(oReportMonths, sBaseColumnCaption, sTotalColumnCaption)
+    {   
+        var sWidth = "100";
+        var nWidth = (800/oReportMonths.length);
+        if(nWidth<100)
+        {
+            sWidth = "100";
+        }
+        else
+        {
+            sWidth = nWidth;
+        }
+        var tblColums=[]; 
+        var tblfrozenColums=[];
+        var oColumn=null;
+        oColumn= { field :"BaseColumn", title:sBaseColumnCaption, width:"250"}; tblfrozenColums.push(oColumn);
+        for(var i=0; i<oReportMonths.length; i++)
+        {            
+            oColumn= {
+                field:"Month"+oReportMonths[i].MonthPKID+"St",
+                title: oReportMonths[i].ReportColHeaderTex,
+                width: sWidth,
+                align: "right"
+            };
+            tblColums.push(oColumn);
+        }
+        oColumn= { field :"TotalValueSt", title: sTotalColumnCaption, width:"120",  align: "right"}; tblColums.push(oColumn);
+        $('#tblExportSummary').datagrid({ frozenColumns : [tblfrozenColums], columns:[tblColums]});
+    }
+
+    function MapDynamicObjects(oDynamicExportSummarys)
+    {
+        var oExportSummarys = [];
+        for(var i = 0; i< oDynamicExportSummarys.length; i++)
+        {
+            var oExportSummary = new Object();    
+            for(var j=0; j<oDynamicExportSummarys[i].length; j++)
+            {
+                oExportSummary[oDynamicExportSummarys[i][j].Key] = oDynamicExportSummarys[i][j].Value;
+            }
+            oExportSummarys.push(oExportSummary);
+        }
+        return oExportSummarys;
+    }
+
+    $("#btnRefresh").click(function () {        
+        if (!ValidateInput()) return;        
+        var oExportSummary = RefreshObject();
+        InitializeProgressBar();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: sessionStorage.getItem("BaseAddress")+  "/ExportSummary/GetsExportSummary",
+            traditional: true,
+            data: JSON.stringify(oExportSummary),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oExportSummary = data;
+                if (oExportSummary != null && oExportSummary.ErrorMessage =="")
+                {
+
+                    if(oExportSummary.ExportSummarys.length > 0)
+                    {
+                        MakeExportSummaryTable(oExportSummary.ReportMonths, oExportSummary.BaseColumnCaption, oExportSummary.TotalColumnCaption);
+                        var oExportSummarys = MapDynamicObjects(oExportSummary.ExportSummarys);
+                        DynamicRefreshList(oExportSummarys, "tblExportSummary");
+                        var oFooterRows = MapDynamicObjects([oExportSummary.FooterRow]);
+                        $('#tblExportSummary').datagrid('reloadFooter',oFooterRows);
+                    }
+                    else
+                    {
+                        alert("Data Not Found!");
+                        DynamicRefreshList([], "tblExportSummary");
+                    }
+                }
+                else 
+                {
+                    if(oExportSummary.ErrorMessage=="")
+                    {
+                        alert("Invalid Operation!");
+                    }
+                    else
+                    {
+                        alert(oExportSummary.ErrorMessage);
+                    }
+                }
+                ProgressBarHide();
+                $('#AppMainLayout').layout('collapse', 'west');        
+                $('#AppMainLayout').layout('expand', 'west');
+                $('#AppMainLayout').layout('collapse', 'west');
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $('#btnExportToExcel').click(function(e){            
+        if(!ValidateInput()) return;
+        var oExportSummary = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/ExportSummary/SetSessionSearchCriteria",
+            traditional: true,
+            data:  JSON.stringify(oExportSummary),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv=((new Date()).getTime())/1000;
+                    window.open(sessionStorage.getItem('BaseAddress')+'/ExportSummary/ExportSummaryExportExcel?ts='+tsv,"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+</script>

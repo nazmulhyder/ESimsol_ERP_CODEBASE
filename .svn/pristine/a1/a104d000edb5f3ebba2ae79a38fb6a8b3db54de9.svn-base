@@ -1,0 +1,599 @@
+﻿<html>
+@{
+    ViewBag.Title = "Time Action Plan Execution";
+}
+<body>
+    @model ESimSol.BusinessObjects.Job
+    <div class="menuMainCollectionTable">
+       <div title="Time Action Plan Execution" style="height:90%">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td style="width:45%">
+                            <fieldset style="width:99%;height:250px;">
+                                <legend style="font-weight: bold;">Job Info: </legend>
+                                <table border="0" cellspacing="0" cellpadding="1" style="font-size:12px; width:100%; font-weight: bold">
+                                    <tr>
+                                        <td style="width:30%; text-align: right">Job No:</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.JobNo, new { style = "width:88%;", id = "txtJobNo", Placeholder = "Type Job No & Press Enter" })<input type="button" value="P" style="width:10%;" onclick="PickJob()" /> </td>
+                                    </tr>
+   
+                                    <tr>
+                                        <td style="width:30%; text-align: right">Style No:</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.StyleNo, new { style = "width: 100%;", id = "txtStyleNo", disabled = "disabled" }) </td>
+                                    </tr>
+                                    <tr>
+
+                                        <td style="width:30%; text-align: right">Issue Date:</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.IssueDateInString, new { style = "width: 100%;", id = "txtIssueDateInString", disabled = "disabled" }) </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:30%; text-align: right">Buyer:</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.BuyerName, new { style = "width: 100%;", id = "txtBuyerName", disabled = "disabled" }) </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:30%; text-align: right">Merchandiser :</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.MerchandiserName, new { style = "width: 100%;", id = "txtMerchandiserName", disabled = "disabled" }) </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:30%; text-align: right">Session Name :</td>
+                                        <td style="width:70%; text-align:left;">@Html.TextBoxFor(model => model.SessionName, new { style = "width: 100%;", id = "txtSessionName", disabled = "disabled" }) </td>
+                                    </tr>
+                                </table>
+                            </fieldset>
+                        </td>
+                        <td style="width:55%">
+                            <table id="tblTAPs" title="TAP List" class="easyui-datagrid" style="width:98%;height:250px"  fitcolumns="false" rownumbers="true" singleselect="true" autorowheight="false">
+                                <thead>
+                                    <tr>
+                                        <th field="PlanNo" width="110">Plan No</th>
+                                        <th field="OrderRecapNo" width="130">Recap No</th>
+                                        <th field="ShipmentDateInString" width="100">Shipment Date</th>
+                                        <th field="Quantity" formatter="formatPrice" align="right" width="80">Qty</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+           <table id="tblTAPExecution" class="easyui-treegrid" style="width:100%;height:300px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#toolbarExecution'">
+               <thead>
+                   <tr>
+                       <th field="text" width="350">Step Name</th>
+                       <th field="UpDatedData" width="250">Value</th>
+                       <th field="IsDoneInString" align="center" width="100">Status</th>
+                   </tr>
+               </thead>
+           </table>
+           <div id="toolbarExecution" style="text-align:right; font-weight:normal">
+               <table border="0" cellpadding="0" cellspacing="0">
+                   <tr>
+                       <td><a href="javascript:void(0)" id="btnAddOrderStep" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddOrderStep()">Add Order Step</a></td>
+                       <td style="width:160px;" id="tdStringValue"><input type="text" id="txtStringValue" style="width:150px;" /></td>
+                       <td id="tdNumberValue" style="width:160px;"><input type="text" id="txtNumberValue" style="width:150px;" /></td>
+                       <td id="tdDate" style="width:160px;"><input id="txtDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 150px;" /></td>
+                       <td><a href="javascript:void(0)" id="btnUpdate" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Update</a></td>
+                       <td id="tdDone"><a href="javascript:void(0)" id="btnDonePlan" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Done()">Done</a></td>
+                   </tr>
+               </table>
+           </div>
+       </div>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oJob=null;
+    var _sBaseAddress="";
+    var _oJobDetails = [];
+    var _oTAPDetails = [];
+    var _oTempOrderSteps= [];
+    var _oTempOrderSteps = [];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oJob =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#tblTAPExecution').treegrid({onSelect: function(rowData){ RowSelect(rowData);}})
+        $('#txtDate').datebox('setValue',icsdateformat(new Date()));
+        $('#txtNumberValue').numberbox({min:0,precision:2});
+        $('#tdStringValue,#tdNumberValue,#tdDate').hide();
+        
+    });
+
+    function SetRowIndex()
+    {
+        var oTAPExecutions = $('#tblTAPExecution').treegrid('getRows');
+        var nCount;
+        var sPriviousGroupName = "";
+        var nLenth = oTAPExecutions.length;
+        for(var i=0;i<nLenth;i++)
+        {
+            if(oTAPExecutions[i].group != sPriviousGroupName)
+            {
+                nCount = 0;
+                alert("Index = "+oTAPExecutions[i].RowIndex +" ANd Count = "+nCount);
+                oTAPExecutions[i].RowIndex = nCount;
+                sPriviousGroupName = oTAPExecutions[i].group;
+            }else{
+                oTAPExecutions[i].index = nCount;
+            }
+            nCount++;
+        }
+        RefreshTAPExecutionGrid(oTAPExecutions); 
+    }
+
+    function MakeObjectList()
+    {
+        var oTAPExecutions = $('#tblTAPExecution').treegrid('getRows');
+        for(var i=0;i<oTAPExecutions.length;i++)
+        {
+            oTAPExecutions[i].UpdatedData = oTAPExecutions[i].value;
+        }
+        return oTAPExecutions;
+    }
+
+    function RefreshTAPExecutionGrid(oTempList)
+    {
+        // var oTAPExecutions = $('#tblTAPExecution').treegrid('getRows');
+        data=oTempList;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTAPExecution').treegrid('loadData',data);     
+    }
+
+    function RowSelect(oTAPExecution)
+    {
+        debugger;
+        //Re Set all
+        $('#btnUpdate,#tdNumberValue,#tdStringValue,#btnDonePlan').show();
+        if(parseInt(oTAPExecution.RequiredDataTypeInInt) == 0)//Text
+        {
+            if(oTAPExecution.IsDone==true)
+            {
+                $('#btnUpdate,#tdStringValue').hide();
+                
+            }else{
+                $('#btnUpdate,#tdStringValue').show();
+            }
+            document.getElementById('tdNumberValue').style.display = 'none';
+            document.getElementById('tdDate').style.display = 'none';
+            document.getElementById("txtStringValue").value = oTAPExecution.UpDatedData;
+
+        }else if(parseInt(oTAPExecution.RequiredDataTypeInInt) == 1)//number
+        {
+            if(oTAPExecution.IsDone==true)
+            {
+                $('#btnUpdate,#tdNumberValue').hide();
+            }else{
+                $('#btnUpdate,#tdNumberValue').show();
+            }
+            document.getElementById('tdStringValue').style.display = 'none';
+            document.getElementById('tdDate').style.display = 'none';
+            $('#txtNumberValue').numberbox('setValue', oTAPExecution.UpDatedData);
+
+        }
+        else{//DAte
+            //document.getElementById('btnUpdate').style.display = 'none';
+            //document.getElementById('tdNumberValue').style.display = 'none';
+            //document.getElementById('tdStringValue').style.display = 'none';
+            $('#btnUpdate,#tdNumberValue,#tdStringValue').hide();
+            //$('#txtDate').datebox('setValue',icsdateformat(new Date(oTAPExecution.UpDatedData)));
+        }
+        if(oTAPExecution.IsDone==true)
+        {
+            $('#tdDone').hide();
+        }else
+        {
+            $('#tdDone').show();
+        }
+    }
+
+    function GetRequiredDataType(nRequiredDataType)
+    {
+        if(nRequiredDataType==0)
+        {
+            return 'text';
+        }else if(nRequiredDataType ==1)
+        {
+            return 'numberbox';
+        }else
+        {
+            return 'datebox'
+        }
+    }
+
+
+    $('#txtJobNo').keydown(function (e) {
+        //debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtJobNo').val())==null || $.trim($('#txtJobNo').val())=="")
+            {
+                alert("Type JOb No & Press Enter");
+            }
+            PickJob();
+        }else  if (code == 8) //backspace=8
+        {
+            //debugger;
+            var txtJobNo=document.getElementById("txtJobNo");
+            txtJobNo.style.color="black";
+            txtJobNo.style.fontWeight="normal";
+            _oJob.JobID = 0;
+            $('#txtStyleNo,#txtIssueDateInString,#txtBuyerName,#txtMerchandiserName,#txtSessionName').val('');   
+        }
+    });
+    function PickJob()
+    {
+        var oJob = { JobNo:$.trim($('#txtJobNo').val()), BUID:sessionStorage.getItem('BUID')};
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oJob,
+            ControllerName: "TAPExecution",
+            ActionName: "GetJobs",
+            IsWinClose: false
+        };
+        $.icsProgressBar(true);
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            $.icsProgressBar(false);
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].JobID > 0) 
+                {
+                    debugger;
+                    var tblColums = []; var oColumn = { field: "JobNo", title: "Job No", width: 150, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "StyleNo", title: "Style No", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BuyerName", title: "Buyer", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "SessionName", title: "Session", width: 100, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winJobs',
+                        winclass: 'clsJob',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblJobs',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'JobNo',
+                        windowTittle: 'Job List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else
+            {
+                alert("Data Not Found.");
+                return;
+            }
+        });
+     
+    }
+    function AddOrderStep()
+    {
+        var oTAPs = $('#tblTAPs').datagrid('getRows');
+        if(oTAPs.length<=0)
+        {
+            alert("Sorry, There is no TAP.Please Againg Pick Job.");
+            return;
+        }
+        var oTAP = {TAPID:oTAPs[0].TAPID};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oTAP,
+            ControllerName: "TAPExecution",
+            ActionName: "GetTAPDetailsForExecution",
+            IsWinClose: false
+        };
+        $.icsProgressBar(true);
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                $.icsProgressBar(false);
+                if (response.objs[0].OrderStepID > 0) {
+                    _oTempOrderSteps = [];
+                    _oTempOrderSteps = response.objs;
+                    var oNewOrderSteps = [];
+                    for(var i =0;i<_oTempOrderSteps.length;i++)
+                    {
+                        if(parseInt(_oTempOrderSteps[i].OrderStepParentID)==1)
+                        {
+                            oNewOrderSteps.push(_oTempOrderSteps[i]);
+                        }
+                    }
+                    debugger;
+                    var tblColums = []; var oColumn = { field: "OrderStepName", title: "Order Step Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Note", title: "Note", width: 100, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winOrderSteps',
+                        winclass: 'clsOrderStep',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblOrderSteps',
+                        tablecolumns: tblColums,
+                        datalist: oNewOrderSteps,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'OrderStepName',
+                        windowTittle: 'Oder Step Picker'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else
+            {
+                alert("Data Not Found.");
+                return;
+            }
+        });
+
+    }
+
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            PickerEvents(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                PickerEvents(oPickerobj);
+            }
+        });
+    }
+    function PickerEvents(oPickerobj) {
+        var oreturnobj = null, oreturnobjs = [];
+        if(oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#' + oPickerobj.tableid).treegrid('getChecked');
+        }else{
+            oreturnobj = $('#' + oPickerobj.tableid).treegrid('getSelected');
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if(oPickerobj.winclass=='clsJob')
+        {
+            if(oreturnobj!=null)
+            {
+                _oJob = oreturnobj;
+                $('#txtJobNo').val(_oJob.JobNo);   
+                var txtJobNo=document.getElementById("txtJobNo");
+                txtJobNo.style.color="blue";
+                txtJobNo.style.fontWeight="bold";
+                $('#txtStyleNo').val(_oJob.StyleNo);   
+                $('#txtIssueDateInString').val(_oJob.IssueDateInString);   
+                $('#txtBuyerName').val(_oJob.BuyerName);   
+                $('#txtMerchandiserName').val(_oJob.MerchandiserName);   
+                $('#txtSessionName').val(_oJob.SessionName);   
+                LoadTAPs(_oJob.JobID);
+            }
+        }else   if(oPickerobj.winclass=='clsOrderStep')
+        {
+            if(oreturnobj!=null)
+            {
+                GetExecutedList(oreturnobj.TAPID, oreturnobj.OrderStepID)
+            }
+        }
+    }
+    function GetExecutedList(nTempTAPID, nOrderStepID)
+    {
+
+        if(parseInt(nTempTAPID)>0)
+        {
+            var tsv=((new Date()).getTime())/1000;
+            $.ajax
+          ({
+              type: "GET",
+              dataType: "json",
+              url : sessionStorage.getItem('BaseAddress')+"/TAPExecution/GetOrderSteps",
+              data: {nTAPID : nTempTAPID,nOrderStepID:nOrderStepID,ts : tsv},
+              contentType: "application/json; charset=utf-8",
+              success: function (data)
+              {
+                  //debugger;
+                  var oTAPExecution = jQuery.parseJSON(data);
+                  if (oTAPExecution!= null)
+                  {
+                      RefreshTAPExecutions(oTAPExecution.TTAPExecution.children);
+                      $('#tblTAPExecution').treegrid('collapseAll',0);
+                  }else
+                  {
+                      alert("Data Not Found!");
+                  }
+              },
+              error: function (xhr, status, error)
+              {
+                  alert(error);
+              }
+
+          });
+
+        }
+    }
+    function RefreshTAPExecutions(oTTAPExecution)
+    {
+        data=oTTAPExecution;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTAPExecution').treegrid('loadData',data); 
+    }
+
+    function LoadTAPs(nJobID)
+    {
+        var oJob = {JobID:nJobID};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/TAPExecution/GetAllTAPsForJob",
+            traditional: true,
+            data:  JSON.stringify(oJob),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oTAPs = jQuery.parseJSON(data);
+                if (oTAPs.length>0)
+                {
+                    DynamicRefreshList(oTAPs,"tblTAPs");
+                    
+                }
+                else {
+                    alert(oTAPs[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+    function Done()
+    {
+        debugger;
+        var oTempTAPExecution = $('#tblTAPExecution').treegrid('getSelected');
+        if(parseInt(oTempTAPExecution.RequiredDataTypeInInt)!=2)
+        {
+            if(oTempTAPExecution.TAPExecutionID<=0)
+            {
+                alert("Please Update Data First .");
+                return;
+            }
+        }
+       
+        if(parseInt(oTempTAPExecution.parentid)===1)
+        {
+            var oTempChildrens= $('#tblTAPExecution').treegrid('getChildren', oTempTAPExecution.id);
+            if(oTempChildrens!=null)
+            {
+                for(var i = 0;i<oTempChildrens.length;i++)
+                {
+                    if(oTempChildrens[i].TAPExecutionID<=0)
+                    {
+                        alert("Please Update Sub Step First. Then Parent Step");
+                        return;
+                    }
+                    if(oTempChildrens[i].IsDone==false)
+                    {
+                        alert("Please Done Sub Step First. Then Parent Step");
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (!confirm("Confirm to Done?")) return ;
+        var oTAPExecution = {
+            JobID:_oJob.JobID,
+            RequiredDataTypeInInt:oTempTAPExecution.RequiredDataTypeInInt,
+            OrderStepParentID:oTempTAPExecution.parentid,
+            OrderStepID:oTempTAPExecution.OrderStepID
+        };
+        $.icsProgressBar(true);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/TAPExecution/JobWiseDone",
+            traditional: true,
+            data:  JSON.stringify(oTAPExecution),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                $.icsProgressBar(false);
+                var oTAPExecution = jQuery.parseJSON(data);
+                if (oTAPExecution.ErrorMessage == "" || oTAPExecution.ErrorMessage == null)
+                {
+                    alert("Sucessfully Done");
+                    document.getElementById('btnUpdate').style.display = 'none';
+                    document.getElementById('tdNumberValue').style.display = 'none';
+                    document.getElementById('tdStringValue').style.display = 'none';
+                    document.getElementById('btnDonePlan').style.display = 'none';
+                    RefreshTAPExecutions(oTAPExecution.TTAPExecution.children);
+                }
+                else {
+                    alert(oTAPExecution.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+    function Save()
+    {
+        debugger;
+        var oTempTAPExecution = $('#tblTAPExecution').treegrid('getSelected');
+        if(oTempTAPExecution == null)
+        {
+            alert("Please Select Item form list"); 
+            return ;
+        }
+        if(oTempTAPExecution.IsDone==true)
+        {
+            alert("Already Done This Item."); 
+            return ;
+        }
+        if(parseInt(oTempTAPExecution.RequiredDataTypeInInt)== 0)
+        {
+            if($("#txtStringValue").val()==null || $("#txtStringValue").val()=="")
+            {
+                alert("Please Type Comments Something.!"); 
+                $("#txtStringValue").focus();
+                return ;
+            }
+            oTempTAPExecution.UpdatedData = $("#txtStringValue").val();
+            document.getElementById('txtStringValue').value ="";
+        }else if(parseInt(oTempTAPExecution.RequiredDataTypeInInt) == 1)
+        {
+            if(parseFloat($('#txtNumberValue').numberbox('getValue'))<=0)
+            {
+                alert("Sorry, Value should be Greater Than 0.!"); 
+                $("#txtNumberValue").focus();
+                return ;
+            }
+            oTempTAPExecution.UpdatedData = $('#txtNumberValue').numberbox('getValue');
+            $('#txtNumberValue').numberbox('setValue', 0);
+        }else{
+            oTempTAPExecution.UpdatedData = icsdateformat(new Date($('#txtDate').datebox('getValue')));
+            $('#txtDate').datebox('setValue',icsdateformat(new Date()));
+        }
+        var oTAPExecution = {
+            JobID:_oJob.JobID,
+            OrderStepID  :oTempTAPExecution.OrderStepID,
+            OrderStepParentID:oTempTAPExecution.parentid,
+            UpdatedData :oTempTAPExecution.UpdatedData,
+            RequiredDataTypeInInt :oTempTAPExecution.RequiredDataTypeInInt
+        };
+        $.icsProgressBar(true);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/TAPExecution/JobWiseSave",
+            traditional: true,
+            data:  JSON.stringify(oTAPExecution),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                $.icsProgressBar(false);
+                var oTAPExecution = jQuery.parseJSON(data);
+                if (oTAPExecution.ErrorMessage == "" || oTAPExecution.ErrorMessage == null)
+                {
+                    RefreshTAPExecutions(oTAPExecution.TTAPExecution.children);
+                }
+                else {
+                    alert(oTAPExecution.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+   
+
+</script>

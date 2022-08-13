@@ -1,0 +1,407 @@
+﻿@{
+    ViewBag.Title = "ImportInvChallan";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ImportInvChallan>
+
+<div ng-app="ImportInvChallanModule">
+    <script src="~/Views/ImportInvChallan/AdvanceSearch.js"></script>
+    <div ng-controller="ImportInvChallanController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    @*<label class="control-label">Exe No :</label>*@
+                    <input type="text" class="form-control" ng-model="ChallanNo" ng-keydown="searchByChallanNo($event)" placeholder="Type Challan No & Press Enter"><input type="text" class="form-control" ng-model="ImportInvoiceNo" ng-keydown="searchByImportInvoiceNo($event)" placeholder="Type Invoice No & Press Enter">
+                    @*<input type="text" ng-model="subjectInfo.SubjectName" class="form-control" style="width:200px" placeholder="Search Invoice" />*@
+                    <button type="button" ng-show="btnAdd" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" ng-show="btnEdit" class="btn btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" ng-show="btnDelete" class="btn btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" ng-show="btnDetails" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" ng-show="btnApproved" class="btn btn-sm" aria-label="Left Align" ng-click="approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                    <button type="button" ng-show="btnReceived" class="btn btn-sm" aria-label="Left Align" ng-click="receive()"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span> Receive</button>
+                    <button type="button" ng-show="btnPreView" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+                    <button type="button" ng-show="btnAdvanceSearch" class="btn btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection  class="grid"></div>
+        @*<div class="custom-pagination">
+            <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+        </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 500px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oImportInvChallans =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    debugger;
+ 
+    var  ImportInvChallanModule = angular.module('ImportInvChallanModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ms.service','ImportInvChallan.service']);
+
+    ImportInvChallanModule.controller('ImportInvChallanController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advsearchIIChallanService) {
+        debugger;
+        oImportInvChallans= (userSession.getData('ImportInvChallans').length>0)? userSession.getData('ImportInvChallans'):oImportInvChallans;
+        $scope.CompareOperators= oCompareOperators;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'ChallanNo', name: 'Challann No', width:'10%', enableCellEdit: false },
+                { field: 'ChallanDateSt', name: ' Date', width: '10%', enableCellEdit: false },
+                { field: 'ImportInvoiceNo', name: 'Invoice No', width:'12%', enableCellEdit: false },
+                { field: 'CotractNo', name: 'Challan No', width: '10%' },
+                { field: 'DriverName', name: 'Driver Name', width: '15%' },
+                { field: 'PrepareByName', name: 'Preaper By', width: '15%' },
+                { field: 'ApproveByName', name: 'Approve By', width: '15%' },
+                { field: 'ReceiveByName', name: 'Receive By', width: '15%' }
+                //{ field: 'IsGRNSt', name: 'Receive By', width: '15%' }
+           
+            ],
+            data:oImportInvChallans,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oImportInvChallans.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oImportInvChallans);
+                    $scope.gridApi.selection.selectRow(oImportInvChallans[userSession.getRowIndex()]);
+                    $scope.RowSelect(oImportInvChallans[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ImportInvChallanHeader", "Add ImportInvChallan");
+            sessionStorage.setItem("ImportInvChallans", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ImportInvChallan/ViewImportInvChallan?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+        
+            if(data[0].ReceiveBy!=0){
+                alert("Already Received");
+                //msModal.Message({headerTitle : '', bodyText:'Already Received.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportInvChallanID==data[0].ImportInvChallanID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportInvChallanHeader", "Edit ImportInvChallan");
+                    sessionStorage.setItem("ImportInvChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportInvChallan/ViewImportInvChallan?nId="+value.ImportInvChallanID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].IsGRN==true){
+                alert("Already  GRN Create");
+                return false;
+            }
+            if(data[0].ApproveBy!=0){
+                alert("Already  Approve");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+'/ImportInvChallan/Delete', JSON.stringify(data[0])).then(
+         
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.ImportInvChallanID==data[0].ImportInvChallanID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportInvChallanID==data[0].ImportInvChallanID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportInvChallanHeader", "View ImportInvChallan");
+                    sessionStorage.setItem("ImportInvChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportInvChallan/ViewImportInvChallan?nId="+value.ImportInvChallanID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.approve = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+             if(data[0].ApproveBy!=0){
+                alert("Already Approve");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+             if(data[0].ReceiveBy!=0){
+                alert("Already Received");
+                //msModal.Message({headerTitle : '', bodyText:'Already Received.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportInvChallanID==data[0].ImportInvChallanID){
+                    sessionStorage.setItem("Operation", "Approve");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportInvChallanHeader", "View ImportInvChallan");
+                    sessionStorage.setItem("ImportInvChallans", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportInvChallan/ViewImportInvChallan?nId="+value.ImportInvChallanID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.searchByChallanNo = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.ChallanNo);
+                if (sChallanNo=!"")
+                {
+                    debugger;
+                    var tsv=((new Date()).getTime())/1000;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.get(_sBaseAddress + '/ImportInvChallan/SearchByChallanNo', {params:{sTempData:$scope.ChallanNo, ts:tsv} }, config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }else if (code == 8) //backspace=8
+            {
+                $scope.ChallanNo='';
+            }
+        };
+        $scope.searchByImportInvoiceNo = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.ImportInvoiceNo);
+                if (sChallanNo=!"")
+                {
+                    debugger;
+                    var tsv=((new Date()).getTime())/1000;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.get(_sBaseAddress + '/ImportInvChallan/SearchByInvoiceNo', {params:{sTempData:$scope.ImportInvoiceNo, ts:tsv} }, config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }else if (code == 8) //backspace=8
+            {
+                $scope.ImportInvoiceNo='';
+            }
+        };
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oImportInvChallan = data[0];
+            if(oImportInvChallan==null || oImportInvChallan.ImportInvChallanID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/ImportInvChallan/PrintImportInvChallanPreview?id='+oImportInvChallan.ImportInvChallanID);
+        };
+
+     
+        $scope.receive = function () {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                //msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                alert("Select a valid item");
+                return false;
+            }
+            else if(data[0].ApproveBy===0){
+                alert("Yet not Approve");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].ReceiveBy!=0){
+                alert("Already Received");
+                //msModal.Message({headerTitle : '', bodyText:'Already Received.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if (!confirm("Confirm to Receive?")) return ;
+            // msModal.Message({headerTitle : '', bodyText:'Are you sure to approve?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result)
+            //{
+            debugger;
+            //if(result)
+            //{
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportInvChallanID==data[0].ImportInvChallanID){
+                    $http.post(_sBaseAddress+'/ImportInvChallan/Received', JSON.stringify(data[0])).then(
+                         function (response) {
+                             var result=jQuery.parseJSON(response.data);
+                             if(result.ImportInvChallanID>0)
+                             {
+                                 debugger;
+                                 $scope.gridOptions.data[index]=result;
+                                 $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                 $scope.gridApi.selection.selectRow(result);
+                             }
+                             else{
+                                 alert(result.ErrorMessage);
+                             }
+                         },
+                         function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                   );
+                }
+            },$scope.gridOptions.data);
+            //}
+            //});
+
+        };
+     
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'ImportInvChallanController',
+                CompareOperators:$scope.CompareOperators
+                
+            }
+            var modalInstance=advsearchIIChallanService.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+
+        //button hide
+        $scope.btnAdvanceSearch = $scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnDelete =  false;
+        $scope.btnApproved =  $scope.btnReceived =  false;
+         $scope.btnPreView = false;
+
+        //button show
+        if(PermissionChecker('AdvSearch','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnAdvanceSearch = true;}
+        if(PermissionChecker('Add','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnAdd =true; }
+        if(PermissionChecker('Edit','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnDetails =  true;}
+        if(PermissionChecker('Delete','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Approved','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnApproved = true;}
+        if(PermissionChecker('Received','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnReceived = true;}
+        if(PermissionChecker('Preview','ImportInvoiceChallan',oAuthorizationRolesMapping)){$scope.btnPreView = true;}
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

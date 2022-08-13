@@ -1,0 +1,380 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.BlockMachineMappingReport>
+@{
+    ViewBag.Title = "Block Wise Production Report";
+}
+    <div style="margin-left:0px; height:500px">
+        <table id="tblBlockMachineMappingReport" title="Block Wise List" class="easyui-datagrid" style="width:1035px;height:550px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="StyleNo" width="150" align="left">Style No</th>
+                    <th field="GPName" width="120" align="left">Body part</th>
+                    <th field="SizeAndColor" width="180" align="left">Size & Color</th>
+                    <th field="IssueQty" width="120" align="right">Issue Qty</th>
+                    <th field="RcvQty" width="120" align="right">Receive Qty</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:55px;">
+            <input id="chkIsDate" type="checkbox" />
+            <input id="dtStartDate" type="text" style="width: 105px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /> &nbsp;To &nbsp;
+            <input id="dtEndDate" type="text" style="width: 105px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="txtBlock" type="text" style="width:155px;" placeholder="Type block name & enter" />
+            <input id="btnBlock" type="button" value="P" />
+            <input id="btnClearBlock" type="button" value="C" />
+            <input id="txtDepartment" type="text" style="width:100px;" placeholder="Pick Department" />
+            <input value="P" type="button" id="departmentPicker" style="width: 38px" onclick="DepartmentPicker()" />
+            <input id="btnClearDepartment" type="button" value="C" />
+            <input placeholder="Type Code & Enter" id="txtEmployee" type="text" style="width:120px;" />
+            <input id="btnEmployee" type="button" value="P" />
+            <input id="btnClearEmployee" type="button" value="C" />
+
+            <input id="txtStyleNo" type="text" style="width:170px;" placeholder="Type StyleNo & Enter" />
+            <input id="btnStylePicker" type="button" value="P" />
+            <input id="btnClearStyle" type="button" value="C" />
+
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var _oBlockMachineMappingReports=[];
+        var _sBaseAddress="";
+        var _nDepartmentID =0;
+        var _oEmployee =null;
+        var _nEmployeeID =0;
+        var _sStyleNos ="";
+        var _sBlockNames ="";
+        var _sBlockIDs ="";
+
+
+        $(document).ready(function ()
+        {
+            _oBlockMachineMappingReports =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+            $('#dtStartDate').datebox({disabled:true});
+            $('#dtEndDate').datebox({disabled:true});
+            $('#dtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#dtEndDate').datebox('setValue', icsdateformat(new Date()));
+        });
+
+        $('#chkIsDate').click(function()
+        {
+            if(document.getElementById("chkIsDate").checked == true)
+            {
+                $('#dtStartDate').datebox({disabled:false});
+                $('#dtEndDate').datebox({disabled:false});
+            }
+            else
+            {
+                $('#dtStartDate').datebox({disabled:true});
+                $('#dtEndDate').datebox({disabled:true});
+            }
+            $('#dtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#dtEndDate').datebox('setValue', icsdateformat(new Date()));
+        });
+
+        $('#btnBlock').click(function (e)
+        {
+            var oParameter = new Object();
+            oParameter.Name = "Block Picker";
+            oParameter.MultipleItemReturn=true;
+            var tsv=((new Date()).getTime())/1000;
+            var url =_sBaseAddress+ "/BlockMachineMapping/BlockPikerByName?sBlockName="+""+"&ts="+tsv;
+            var nLeft=(window.screen.width/2)-(270/2);
+            var nHeight=(window.screen.height/2)-(360/2);
+            var oSelectedBlocks =  window.showModalDialog(url, oParameter, 'dialogHeight:360px;dialogWidth:270px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oSelectedBlocks = window.showModalDialog(url, oParameter, 'dialogHeight:360px;dialogWidth:270px;dialogLeft:450;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(oSelectedBlocks.length>0)
+            {
+                var sBlockNames = "" ;
+                var sBlockIDs = "";
+
+                for(var i = 0 ; i < oSelectedBlocks.length ; i++)
+                {
+                    sBlockNames += oSelectedBlocks[i].BlockName + ",";
+                    sBlockIDs += oSelectedBlocks[i].BMMID + ",";
+                }
+                _sBlockNames = sBlockNames.substring(0,sBlockNames.length-1) ;
+                _sBlockIDs = sBlockIDs.substring(0,sBlockIDs.length-1);
+                $("#txtBlock").val(_sBlockNames);
+            }
+        });
+
+        $('#txtBlock').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sBlockName=document.getElementById("txtBlock").value;
+            if (code == 13)//Enter key-13
+            {
+                //if(sBlockName=="")
+                //{
+                //    alert("Please Enter Code !");
+                //    return;
+                //}
+                var tsv=(new Date()).getTime()/1000;
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url =_sBaseAddress+ "/BlockMachineMapping/BlockPikerByName?sBlockName="+sBlockName+"&ts="+tsv;
+                var nLeft=(window.screen.width/2)-(270/2);
+                var nHeight=(window.screen.height/2)-(360/2);
+                var oSelectedBlock =  window.showModalDialog(url, oParameter, 'dialogHeight:360px;dialogWidth:270px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+                //var oSelectedBlock = window.showModalDialog(url, oParameter, 'dialogHeight:360px;dialogWidth:270px;dialogLeft:450;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                if(oSelectedBlock != null)
+                {
+                    _sBlockIDs = oSelectedBlock.BMMID;
+                    _sBlockNames = oSelectedBlock.BlockName;
+                    $("#txtBlock").val(_sBlockNames);
+                }
+            }
+        });
+
+        $('#btnClearBlock').click(function (e)
+        {
+
+            document.getElementById("txtBlock").value = "" ;
+            _sUserIDs = "" ;
+
+        });
+
+        function  icsdateformat(date)
+        {
+            var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            var y = date.getFullYear();
+            var m = date.getMonth();
+            var d = date.getDate();
+            var result= d +' '+ mthNames[m]+' '+ y;
+            return result;
+        }
+
+        function DepartmentPicker()
+        {
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = false;
+            var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id="+0;
+            var nLeft=(window.screen.width/2)-(550/2);
+            var nHeight=(window.screen.height/2)-(470/2);
+            var oReturnObject =  window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+           // var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(oReturnObject!=null)
+            {
+                $("#txtDepartment")[0].value = oReturnObject.text;
+                _nDepartmentID = oReturnObject.id;
+            }
+        }
+
+        $('#btnClearDepartment').click(function (e)
+        {
+            document.getElementById("txtDepartment").value = "" ;
+            _nDepartmentID = 0;
+        });
+
+        $('#btnEmployee').click(function (e)
+        {
+            var oParameter = new Object();
+            oParameter.Name = "Employee Advance Search";
+            oParameter.MultipleItemReturn=false;
+            var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+            var nLeft=(window.screen.width/2)-(1000/2);
+            var nHeight=(window.screen.height/2)-(500/2);
+            _oEmployee =  window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:945px;dialogLeft:200;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+            if(_oEmployee!=null)
+            {
+                if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                {
+                    alert("This Employee Has No Official Information !");
+                    return;
+                }
+
+                if(_oEmployee.IsActive == false)
+                {
+                    alert("InActive Employee. Work can not be assigned for this employee!");
+                    return;
+                }
+
+                $("#txtEmployee")[0].value=_oEmployee.Name;
+                _nEmployeeID = _oEmployee.EmployeeID;
+            }
+        });
+
+        $('#txtEmployee').keypress(function (e)
+        {
+            debugger
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sEmpCode=document.getElementById("txtEmployee").value;
+            
+            if (code == 13)//Enter key-13
+            {
+                if(sEmpCode=="")
+                {
+                    alert("Please Enter Code !");
+                    return;
+                }
+                
+                var nts=(new Date()).getTime()/1000;
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0&nts="+nts;
+                var nLeft=(window.screen.width/2)-(515/2);
+                var nHeight=(window.screen.height/2)-(415/2);
+                _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+                //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:510px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+                if(_oEmployee!=null)
+                {
+
+                    if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                    {
+                        alert("This Employee Has No Official Information !");
+                        return;
+                    }
+
+                    if(_oEmployee.IsActive == false)
+                    {
+                        alert("InActive Employee. Work can not be assigned for this employee!");
+                        return;
+                    }
+
+                    $("#txtEmployee")[0].value=_oEmployee.Name;
+                    _nEmployeeID=_oEmployee.EmployeeID;
+                }
+            }
+        });
+
+        $('#btnClearEmployee').click(function (e)
+        {
+
+            document.getElementById("txtEmployee").value = "" ;
+            _nEmployeeID = 0 ;
+
+        });
+
+        $('#txtStyleNo').keypress(function (e)
+        {
+
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sStyleNo = document.getElementById("txtStyleNo").value;
+
+            if (code == 13)//Enter key-13
+            {
+                if(sStyleNo=="")
+                {
+                    alert("Please Enter Style No !");
+                    return;
+                }
+
+                var oParameter = new Object();
+                oParameter.Name = "Style Picker";
+                oParameter.MultipleItemReturn=false;
+                var tsv=((new Date()).getTime())/1000;
+                var url =_sBaseAddress+ "/TechnicalSheet/StylePickerByName?sStyleNo="+sStyleNo+"&ts="+tsv;
+                var nLeft=(window.screen.width/2)-(453/2);
+                var nHeight=(window.screen.height/2)-(385/2);
+                var oSelectedStyle =  window.showModalDialog(url, oParameter, 'dialogHeight:385px;dialogWidth:453px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+                //var oSelectedStyle = window.showModalDialog(url, oParameter, 'dialogHeight:385px;dialogWidth:453px;dialogLeft:350;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+                if(oSelectedStyle != null)
+                {
+                    _sStyleNos = oSelectedStyle.StyleNo;
+                    $("#txtStyleNo").val(oSelectedStyle.StyleNo);
+
+                }
+            }
+        });
+
+        $('#btnStylePicker').click(function (e)
+        {
+
+            var sStyleNo = "";
+
+            var oParameter = new Object();
+            oParameter.Name = "Style Picker";
+            oParameter.MultipleItemReturn=true;
+            var tsv=((new Date()).getTime())/1000;
+            var url =_sBaseAddress+ "/TechnicalSheet/StylePicker?sStyleNo="+sStyleNo+"&ts="+tsv;
+            var nLeft=(window.screen.width/2)-(453/2);
+            var nHeight=(window.screen.height/2)-(385/2);
+            var oSelectedStyles = window.showModalDialog(url, oParameter, 'dialogHeight:385px;dialogWidth:453px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //var oSelectedStyles = window.showModalDialog(url, oParameter, 'dialogHeight:385px;dialogWidth:453px;dialogLeft:350;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(oSelectedStyles.length>0)
+            {
+                var sStyleNos = "" ;
+                for(var i = 0 ; i < oSelectedStyles.length ; i++)
+                {
+                    sStyleNos += oSelectedStyles[i].StyleNo+ ",";
+                }
+                _sStyleNos = sStyleNos.substring(0,sStyleNos.length-1) ;
+                $("#txtStyleNo").val(_sStyleNos);
+
+            }
+        });
+
+        $('#btnClearStyle').click(function (e)
+        {
+
+            document.getElementById("txtStyleNo").value = "" ;
+            _sStyleNos = "" ;
+
+        });
+
+        $('#btnSearch').click(function (e)
+        {
+            var dtStartDate = $('#dtStartDate').datebox('getValue');
+            var dtEndDate = $('#dtEndDate').datebox('getValue');
+            var bIsDate = document.getElementById("chkIsDate").checked;
+            var sParams = dtStartDate+"~"+dtEndDate+"~"+_sBlockIDs+"~"+_nDepartmentID+"~"+_nEmployeeID+"~"+bIsDate+"~"+_sStyleNos;
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/BlockMachineMapping/BlockMachineMappingReport_Search",
+                traditional: true,
+                data: JSON.stringify({sParams:sParams}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    var oBlockMachineMappings=[];
+
+                    oBlockMachineMappings = jQuery.parseJSON(data);
+
+                    if (oBlockMachineMappings.length>0 && oBlockMachineMappings[0].ErrorMessage=="")
+                    {
+                        RefresList(oBlockMachineMappings);
+                    }
+                    else
+                    {
+                        alert(oBlockMachineMappings[0].ErrorMessage);
+                        oBlockMachineMappings=[];
+                        RefresList(oBlockMachineMappings);
+                    }
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+
+        });
+
+        function RefresList(oBlockMachineMappings)
+        {
+            data = oBlockMachineMappings ;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblBlockMachineMappingReport').datagrid('loadData', data);
+        }
+        $('#btnPrint').click(function (e)
+        {
+            var dtStartDate = $('#dtStartDate').datebox('getValue');
+            var dtEndDate = $('#dtEndDate').datebox('getValue');
+            var bIsDate = document.getElementById("chkIsDate").checked;
+            var sParams = dtStartDate+"~"+dtEndDate+"~"+_sBlockIDs+"~"+_nDepartmentID+"~"+_nEmployeeID+"~"+bIsDate+"~"+_sStyleNos;
+            window.open(_sBaseAddress + '/BlockMachineMapping/PrintBlockMachine?sParams='+sParams, "_blank");
+            window.close();
+        });
+    </script>
+

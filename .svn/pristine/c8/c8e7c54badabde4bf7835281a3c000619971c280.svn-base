@@ -1,0 +1,559 @@
+﻿
+@model ESimSol.BusinessObjects.TTrailBalance
+@{
+    ViewBag.Title = "Trial Balance";
+}
+
+
+<div style="margin-left:0px; height:550px">
+    <table id="tblTrailBalance" title="Trial Balance" class="easyui-treegrid" style="width:100%;height:548px" fit="true" fitcolumns="true" data-options="idField:'AccountHeadID',treeField:'AccountHeadName', rownumbers:'true', toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th field="AccountHeadName" width="30%" align="left">AccountHead Name</th>
+                <th field="OpenningBalance" width="17%" align="right">Openning Balance</th>
+                <th field="DebitAmount" width="17%" align="right">Dr. Amount</th>
+                <th field="CreditAmount" width="17%" align="right">Cr. Amount</th>
+                <th field="ClosingBalance" width="17%" align="right">Closing Balance</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar" style="">    
+        <table border="0" cellpadding="2" cellspacing="2">
+           <tr>
+                <td style="text-align: left; font-size: 12px">
+                    <table border="0" style="font-size: 12px;">
+                        <tr>
+                            <td style="font-size: 12px; text-align: left;"> 
+                                Date :
+                                <select id="cboDateSearch"  style="width:83px;font-size:12px;"class = "_select_changeA"></select>
+                                <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                To
+                                <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                <select id="cboAccountType" ></select>
+                                <select id="cboBusinessUnit" style="width:200px"></select>
+                                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Detail Trial Balance</a>
+                                <a id="btnPrintDetail_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel </a>                                
+                                <a id="btnPrintShort" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Trial Balance</a>
+                                <a id="btnPrintShort_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel</a>
+                                <a id="btnPrintLedger" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Trial Balance(Ledger)</a>
+                                <a id="btnPrintLedger_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Excel </a>
+
+                                <a id="btnPrint_Chaild" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print Child</a>
+                                <a id="btnView_VoucherDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Voucher Detali </a>
+                                @*<a id="btnCostCenter" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View Sub Ledger</a>*@
+                                @*<a id="btnViewVoucherBill" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View Voucher Bill</a>*@
+                                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>           
+            </tr >
+        </table>    
+    </div>  
+</div>
+
+<script type="text/javascript">
+
+    var _oTrailBalances=[];
+    var _oTrailBalance=null;
+    var _sBaseAddress="";
+
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oTrailBalance=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "Custom"});
+        
+        RefreshList(_oTrailBalance)
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        RefreshAccountType();
+        RefreshDateSearch();
+        var listAccountTypeObjs = _oTrailBalance.AccountTypeObjs;
+        LoadAccountTypes(listAccountTypeObjs);
+        $('#txtEndDate').datebox({disabled: true});
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+    function LoadAccountTypes(Items)
+    {
+        var listItems="";
+        for (i = 0; i < Items.length; i++)
+        {
+            if(Items[i].id!=0)
+            {
+                listItems += "<option value='" + Items[i].id+"'>" + Items[i].Value+"</option>";
+            }
+        }
+        $("#cboAccountType").html(listItems);
+        $("#cboAccountType").val(5);
+    }
+
+    $("#btnViewVoucherBill").click(function(){
+
+        var DateTypes = document.getElementById("cboDateSearch");
+        var nCboDate=DateTypes.options[DateTypes.selectedIndex].value;
+        var oTrailBalance = $('#tblTrailBalance').datagrid('getSelected');
+        if(oTrailBalance==null || oTrailBalance.AccountHeadID<=0)
+        {
+            alert("Please select an item from list.");
+            return false;
+        }
+        if(oTrailBalance.AccountTypeInString != "Ledger")
+        {
+            alert("Please Select a Ledger.");
+            return false;
+        }
+        var nAccountHeadID = oTrailBalance.AccountHeadID;
+        var nCurrencyID = 1;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var bIsApproved = true;
+        var sParam = parseInt(nCboDate) +'~'+dStartDate+'~'+dEndDate+'~'+ parseInt(nAccountHeadID)+'~'+ parseInt(nCurrencyID) + "~" + bIsApproved;
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Voucher Bill Break Down";
+        oParameter.CostingInfo=sParam;
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/FinancialStatement/ViewVoucherBillBreakDown?sParam="+sParam+"&ts="+tsv;
+        var oVoucherBillBrakdown = window.showModalDialog(url, oParameter, 'dialogHeight:580px;dialogWidth:990px;dialogLeft:230;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    $("#btnCostCenter").click(function(){
+
+        var DateTypes = document.getElementById("cboDateSearch");
+        var nCboDate=DateTypes.options[DateTypes.selectedIndex].value;
+        var oTrailBalance = $('#tblTrailBalance').datagrid('getSelected');
+        if(oTrailBalance==null || oTrailBalance.AccountHeadID<=0)
+        {
+            alert("Please select an item from list.");
+            return false;
+        }
+        if(oTrailBalance.AccountTypeInString != "Ledger")
+        {
+            alert("Please Select a Ledger.");
+            return false;
+        }
+        var nAccountHeadID = oTrailBalance.AccountHeadID;
+        var nCurrencyID =1;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var bIsApproved = true;
+        var sParam = parseInt(nCboDate) +'~'+dStartDate+'~'+dEndDate+'~0~'+ parseInt(nAccountHeadID)+'~'+ parseInt(nCurrencyID) + "~" + bIsApproved;
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Sub Ledger Break Down";
+        oParameter.CostingInfo = sParam;
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/FinancialStatement/ViewCostBreakDown?sParam="+sParam+"&ts="+tsv;
+        var oCostCenterBrakdown = window.showModalDialog(url, oParameter, 'dialogHeight:580px;dialogWidth:990px;dialogLeft:230;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    function RefreshDateSearch()
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+
+        $('#cboContractorType').empty();
+        var listDates= "<option value='"+2+"'>" +"Buyer" + "</option>";
+        listDates+= "<option value='"+1+"'>" + "Suplier" + "</option>";
+        $("#cboContractorType").html(listDates);
+    }
+
+    $('._select_changeA').change(function () {
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    });
+
+
+
+    $("#btnRefresh").click(function(){
+
+        if(!ValidateInput())return;
+
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var oTrailBalance= {
+            DateType:         dDateType,
+            AccountTypeInInt :parseInt(nAccountType),
+            StartDate:        $('#txtStartDate').datebox('getValue'),
+            EndDate:          $('#txtEndDate').datebox('getValue'),
+            BusinessUnitID : parseInt($('#cboBusinessUnit').val())
+        }
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/TrailBalance/RefreshTrailBalByDateRange",
+            traditional: true,
+            data:  JSON.stringify(oTrailBalance),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTrailBalances = jQuery.parseJSON(data);
+
+                if (oTrailBalances.length > 0) {
+                    RefreshList(oTrailBalances);
+                }
+                else {
+                    alert(oTrailBalance.ErrorMessage);
+                }
+                //setTimeout(hideShow, 1000);
+            },
+            error: function (xhr, status, error) {
+                setTimeout(hideShow, 1000);
+                alert(error);
+            }
+        });
+    });
+
+    function ValidateInput()
+    {
+        if ( $('#txtStartDate').datebox('getValue')=="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        if ( $('#txtEndDate').datebox('getValue')=="") {
+            alert("Please select end date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+        var selectedCbo =document.getElementById("cboDateSearch");
+        var cboDateSearchVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        if(parseInt(cboDateSearchVal) == 5){  //Between
+            if(dEndDate < dStartDate) {
+                alert("End date must be grater then start date!!");
+                $('#txtEndDate').focus();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function RefreshList(oTrailBalances)
+    {
+        $('#tblTrailBalance').empty();
+        var data= oTrailBalances;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTrailBalance').treegrid('loadData',data);
+    }
+
+    $('#txtSearchByName').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        var bFlag=false;
+        var sTempName="";
+        var rows = $('#tblTrailBalance').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sTempName=rows[i]['AccountHeadName'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblTrailBalance').datagrid('selectRow', i);
+        }
+    });
+
+    function Clearfield()
+    {
+         $("#txtSearchByName")[0].value='';
+    }
+
+    $("#btnPrint").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBal_DateRange?sTempString='+sTempString, "_blank");
+    });
+    $("#btnPrintDetail_XL").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/ExportToExcel_TrailBal?sTempString='+sTempString, "_blank");
+    });
+    $("#btnPrintLedger").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBal_Ledger?sTempString='+sTempString, "_blank");
+    });
+    $("#btnPrintLedger_XL").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/ExportToExcel_Ledger?sTempString='+sTempString, "_blank");
+    });
+    $("#btnPrintShort").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/PrintShortTrialBal_DateRange?sTempString='+sTempString, "_blank");
+    });
+
+    $("#btnPrintShort_XL").click(function(){
+
+        $('#tblTrailBalance').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHead = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + nAccountHead+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/ExportToExcel_ShortTrialBal?sTempString='+sTempString, "_blank");
+    });
+
+    $("#btnPrint_Chaild").click(function(){
+
+        var oChartsOfAccount= $('#tblTrailBalance').datagrid('getSelected');
+        if(oChartsOfAccount==null || oChartsOfAccount.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oChartsOfAccount.parentid==0)
+        {
+            alert("You can select component/ group/sub group");
+            return;
+        }
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue');
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHeadID = parseInt(oChartsOfAccount.AccountHeadID);
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + parseInt(nAccountHeadID)+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBal_DateRange?sTempString='+sTempString, "_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+
+        if(!ValidateInput())return;
+        var sAccountType = "";
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHeadID = 0;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var sTempString = dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + parseInt(nAccountHeadID)+'~'+nBusinessUnitID;
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBalanceInXL?sTempString='+sTempString, "_blank");
+    });
+
+    function RefreshAccountType()
+    {
+        $('#tblAccountType').empty();
+        var oAccountTypes=[];
+        var oAccountType=null;
+
+        oAccountType={AccounyTypeID:1,AccountName:'Component'};
+        oAccountTypes.push(oAccountType);
+        oAccountType={AccounyTypeID:2,AccountName:'Group'};
+        oAccountTypes.push(oAccountType);
+        oAccountType={AccounyTypeID:3,AccountName:'SubGroup'};
+        oAccountTypes.push(oAccountType);
+        oAccountType={AccounyTypeID:4,AccountName:'Ledger'};
+        oAccountTypes.push(oAccountType);
+
+        if (oAccountTypes != null) {
+            data = oAccountTypes;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblAccountType').datagrid('loadData', data);
+            for (i = 0; i < oAccountTypes.length; ++i) {
+                $('#tblAccountType').datagrid('checkRow', i);
+            }
+        }
+    }
+
+    $("#btnView_VoucherDetail").click(function(){
+
+        var oChartsOfAccount= $('#tblTrailBalance').datagrid('getSelected');
+        if(oChartsOfAccount==null || oChartsOfAccount.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oChartsOfAccount.parentid==0)
+        {
+            alert("You can select component/ group/ sub group");
+            return;
+        }
+        if(oChartsOfAccount.AccountTypeInString!="Ledger")
+        {
+            alert("Please select a /Ledger");
+            return;
+        }
+
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue');
+
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = document.getElementById("cboDateSearch").value;
+
+        var nAccountHead = oChartsOfAccount.AccountHeadID;
+        var nBusinessUnitID = parseInt($('#cboBusinessUnit').val());
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + parseInt(nAccountHead)+'~'+nBusinessUnitID;
+
+        var oParameter = new Object();
+        oParameter.Name = "";
+        var url = _sBaseAddress + "/TrailBalance/ViewVoucherDetail?sTempString="+sTempString;
+        window.showModalDialog(url, oParameter,'dialogHeight:490px;dialogWidth:905px;dialogLeft:230;dialogTop:80;center:yes;resizable:no;status:no;scroll:yes');
+    });
+
+
+    function FormatStyle(value,row,index){        
+        var sAccountHeadName = value;
+        var s = "";
+        if(nVoucherID > 0)
+        {
+            s = '<label id="lblAccountHead~'+sAccountHeadName+'" style="color:Blue;cursor:pointer" onclick="Detail('+index+')">'+sAccountHeadName+'</label>';
+        }
+        else
+        {
+            s = '<label>'+sAccountHeadName+'</label>';
+        }
+        return s;
+    }
+
+    function Detail(index)
+    {        
+        $('#tblTrailBalance').datagrid('selectRow', index);
+        var oChartsOfAccount= $('#tblTrailBalance').datagrid('getSelected');
+        if(oChartsOfAccount==null || oChartsOfAccount.id<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(oChartsOfAccount.parentid==0)
+        {
+            alert("You can select component/ group/ sub group");
+            return;
+        }
+        if(oChartsOfAccount.AccountTypeInString!="Ledger")
+        {
+            alert("Please select a /Ledger");
+            return;
+        }
+
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue');
+
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = document.getElementById("cboDateSearch").value;
+
+        var nAccountHead = oChartsOfAccount.AccountHeadID;
+
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + parseInt(nAccountHead);
+
+        var oParameter = new Object();
+        oParameter.Name = "";
+        var url = _sBaseAddress + "/TrailBalance/ViewVoucherDetail?sTempString="+sTempString;
+        window.showModalDialog(url, oParameter,'dialogHeight:490px;dialogWidth:905px;dialogLeft:230;dialogTop:80;center:yes;resizable:no;status:no;scroll:yes');
+    }
+</script>

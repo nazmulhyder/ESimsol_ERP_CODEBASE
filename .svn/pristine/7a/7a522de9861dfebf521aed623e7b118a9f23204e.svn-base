@@ -1,0 +1,183 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.HRMShift>
+@{
+    ViewBag.Title = "BusinessUnit Location Shift Configure";
+}
+
+<div style="margin-left:20%; margin-top:8%; height:auto; width: 50%;">
+    <fieldset style="width:100%">
+        <legend style="font-weight:bold"> Configure : </legend>
+        BusinessUnit : 
+        <select id="cboBusinessUnit" style="width:31%">
+            <option value="0">--Select One--</option>
+        </select>
+
+        Location : 
+        <select id="cboLocation" style="width:31%">
+            <option value="0">--Select One--</option>
+        </select>
+        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Search()">Search</a>
+
+        <table id="tblShift" title="Shift List" class="easyui-datagrid" style="width:90%; height:250px" ; fitcolumns="false" ; rownumbers="true" pagination="false" ; singleselect="false" ; autorowheight="false">
+            <thead>
+            <th data-options="field:'Selected',checkbox:true"></th>
+            <th field="Name" width="320">Shift Name</th>
+            </thead>
+        </table>
+    </fieldset>
+
+    <fieldset style="width:100%">
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;width:100%; font-weight:bold">
+            <tr>
+                <td style="width:30%; text-align:right"></td>
+                <td style="width:30%">
+                </td>
+                <td style="width:30%; text-align:right;">
+                    <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">OK</a>
+                </td>
+                <td style="width:10%"></td>
+            </tr>
+        </table>
+    </fieldset>
+</div>
+
+<script type="text/javascript">
+    var _oShifts=[];
+    var _sBaseAddress="";
+    var _oBUs = [];
+    var _oLocs = [];
+
+    $(document).ready(function ()
+    {
+        _oShifts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBUs=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        _oLocs=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Locations));
+        
+        $('#tblShift').data('LoadedShifts', _oShifts);
+
+        $("#cboBusinessUnit").icsLoadCombo({
+            List: _oBUs,
+            OptionValue: "BusinessUnitID",
+            DisplayText: "Name"
+        });
+        $("#cboLocation").icsLoadCombo({
+            List: _oLocs,
+            OptionValue: "LocationID",
+            DisplayText: "Name"
+        });
+        RefreshList(_oShifts);
+
+    });
+    function RefreshList(oShifts)
+    {
+        data=oShifts;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblShift').datagrid('loadData',data);
+    }
+
+    $('#btnSave').click(function (e)
+    {
+        debugger
+        if($("#cboBusinessUnit").val() <= 0 || $("#cboLocation").val() <= 0) {
+            alert("BusinessUnit and Location must needed.");
+            return;
+        }
+
+        var oShiftSelected = $('#tblShift').datagrid('getSelections');
+        if(oShiftSelected==null || oShiftSelected.length<=0 )
+        {
+            alert("Please Select At least one shift!!");
+            return;
+        }
+        var sShiftIDs = "";
+        for(var i=0; i<oShiftSelected.length; i++)
+        {
+            sShiftIDs+=oShiftSelected[i].ShiftID+",";
+        }
+        sShiftIDs=sShiftIDs.substring(0,sShiftIDs.length-1);
+
+        var obj = {
+            ShiftBULocID : 0,
+            BUID : $("#cboBusinessUnit").val(),
+            LocationID : $("#cboLocation").val(),
+            ErrorMessage : sShiftIDs
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/HRMShift/ShiftBULocConfigure_IU",
+            traditional: true,
+            data: JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data)
+            {
+                oShift = jQuery.parseJSON(data);
+                if (oShift.ErrorMessage == "")
+                {
+                    alert("Data Saved sucessfully");
+                }
+                else
+                {
+                    alert(oShift.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    function Search() 
+    {
+        RefreshList(_oShifts);
+        if($("#cboBusinessUnit").val() <= 0 || $("#cboLocation").val() <= 0) {
+            alert("BusinessUnit and Location must needed.");
+            return;
+        }
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url: _sBaseAddress + "/HRMShift/GetsShiftsBULoc",
+            data:{ 
+                BUID : $("#cboBusinessUnit").val(),
+                LocationID : $("#cboLocation").val(),
+            },
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oShifts =[];
+                debugger;
+                oShifts = jQuery.parseJSON(data);
+                if(oShifts.length>0)
+                {
+                    //RefreshList(oShifts);
+                    var oSBULs= $('#tblShift').data('LoadedShifts');
+                    var objSBULs = $('#tblShift').datagrid('getRows'); 
+                    for(var i =0;i<oSBULs.length;i++)
+                    {
+                        for(var j =0;j<oShifts.length;j++)
+                        {
+                            if(parseInt(oSBULs[i].ShiftID) ===  parseInt(oShifts[j].ShiftID))
+                            {
+                                //alert(oSBULs[i].ShiftID + " " + oShifts[j].ShiftID);
+                                $('#tblShift').datagrid('checkRow', i);   
+                                break;
+                            }
+                        }
+                    }
+                }
+                else {
+                    alert("No shift found!");
+                }
+
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+
+</script>

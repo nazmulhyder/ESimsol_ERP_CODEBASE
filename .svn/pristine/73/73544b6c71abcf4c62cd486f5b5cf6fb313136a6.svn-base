@@ -1,0 +1,766 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeBonusProcess>
+    @{
+        ViewBag.Title = "EmployeeBonus Process";
+    }
+
+    <div class="menuMainCollectionTable" style="margin-left:0px; height:550px">
+        <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+            <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+                <label style="font-size:18px;">Please wait</label>
+                <div id="progressbar" style="width:100%;height:37px;"></div>
+            </div>
+        </div>
+        <table id="tblEmployeeBonusProcessManagements" title="EmployeeBonus Process List" class="easyui-datagrid" style="width:1030px;height:548px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="BUName" width="150" align="left">BusinessUnit</th>
+                    <th field="LocationName" width="150" align="left">Location</th>
+                    <th field="ProcessDateInString" width="130" align="left">Process Date</th>
+                    <th field="BonusDeclarationDateInString" width="200" align="left">Declaration Date</th>
+                    <th field="ApproveByName" width="200" align="left">Approve By</th>
+                    <th field="ProcessFor" width="200" align="left">Process For</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input id="txtBusinessUnit_Collection" style="width:13%;" placeholder="Pick Business Unit" type="text" />
+            <input id="btnBusinessUnitPicker_Collection" type="button" value="P" />
+            <input id="btnResetBusinessUnitPicker_Collection" type="button" value="C" />
+
+            <input id="txtLocation_Colection" style="width:14%;" placeholder="Pick Location" type="text" />
+            <input id="btnLocationPicker_Colection" type="button" value="P" />
+            <input id="btnResetLocationPicker_Colection" type="button" value="C" />
+
+            <select id="cboSalaryMonth_Collection" class="selection-search" style="width: 9%;"></select>
+            <select id="cboYear" style="width:70px;"></select>
+
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"> Search</a>
+            <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">View</a>
+            <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Approve</a>
+            <a id="btnUndoApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Undo Approve</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        </div>
+
+        <div id="winLocationPicker" class="easyui-window winstyle" title="Location Picker" style="width:350px; height:400px" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+            <div style="font-family:Tahoma">
+                <div class="easyui-panel" style="width:335px;height:300px;overflow:auto">
+                    <ul id="locationtree" data-options="checkbox:true" singleselect="false"></ul>
+                </div>
+
+                <fieldset>
+                    <legend style="font-weight:bold"> Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                        <tr>
+                            <td style="width:400px; text-align:right"></td>
+
+                            <td style="width:50px">
+                                <a id="btnLocationPickerOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Ok</a>
+                            </td>
+                            <td style="width:50px">
+                                <a id="btnLocationPickerClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+
+
+    </div>
+    <script type="text/javascript">
+        var _oEmployeeBonusProcessManagements=[];
+        var _sBaseAddress="";
+        var _sEmployeeBonusProcessManagementHeader="";
+        var _oMonths=[];
+        var _sLocationID = "";
+        var _sBusinessUnitIds="";
+
+        $(document).ready(function ()
+        {
+            debugger;
+            _oEmployeeBonusProcessManagements =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oMonths= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Months));
+            var oEmployeeBonusProcessManagements =sessionStorage.getItem("EmployeeBonusProcessManagements");
+            _sEmployeeBonusProcessManagementHeader=sessionStorage.getItem("EmployeeBonusProcessManagementHeader");
+            $("#cboSalaryMonth_Collection").icsLoadCombo({
+                List:_oMonths,
+                OptionValue: "Value",
+                DisplayText: "Text",
+                InitialValue:"Month"
+            });
+        
+        
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").hide();
+
+            if(oEmployeeBonusProcessManagements!=null)
+            {
+                oEmployeeBonusProcessManagements = jQuery.parseJSON(oEmployeeBonusProcessManagements);
+            }
+            else
+            {
+                oEmployeeBonusProcessManagements=_oEmployeeBonusProcessManagements;
+            }
+            DynamicRefreshList(_oEmployeeBonusProcessManagements,'tblEmployeeBonusProcessManagements');
+            if(_sEmployeeBonusProcessManagementHeader == "New EmployeeBonus Process Management") {
+                var oEmployeeBonusProcessManagements = $('#tblEmployeeBonusProcessManagements').datagrid('getRows');
+                var nIndex = oEmployeeBonusProcessManagements.length-1;
+                $('#tblEmployeeBonusProcessManagements').datagrid('selectRow', nIndex);
+            }
+            sessionStorage.clear();
+            LoadYear();
+            SetDateTime();
+            var oDate=new Date();
+            SetStartTime(oDate);
+
+        });
+        function updateProgress()
+        {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 96){
+                value += Math.floor(Math.random() * 5);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+
+        function hideShow(miliseconds)
+        {
+            $("#progressbarParent").hide();
+        }
+        $('#btnSearch').click(function (e)
+        {
+            debugger;
+            var nMonthID=$("#cboSalaryMonth_Collection").val();
+            var nYear= $('#cboYear option:selected').text();
+            
+            $("#progressbar").progressbar({ value: 0 });
+            $("#progressbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeBonus/SearchBonus",
+                traditional: true,
+                data: JSON.stringify({sBU:_sBusinessUnitIds,sLocationID:_sLocationID, nMonthID:nMonthID,nYear:nYear}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    debugger;
+                    var oBonuss=[];
+                    oBonuss = jQuery.parseJSON(data);
+                    if (oBonuss.length>0 && oBonuss[0].ErrorMessage==null)
+                    {
+                        DynamicRefreshList(oBonuss,'tblEmployeeBonusProcessManagements');
+                    }
+                    else
+                    {
+                        alert(oBonuss[0].ErrorMessage);
+                        oBonuss=[];
+                        DynamicRefreshList([],'tblEmployeeBonusProcessManagements');
+
+                    }
+                    clearInterval(intervalID);
+                    $("#progressbarParent").hide();
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                    clearInterval(intervalID);
+                    $("#progressbarParent").hide();
+                }
+
+            });
+        });
+
+
+        $("#btnView").click(function(){
+            var oEmployeeBonusProcessManagement= $('#tblEmployeeBonusProcessManagements').datagrid('getSelected');
+            if(oEmployeeBonusProcessManagement==null || oEmployeeBonusProcessManagement.PPMID<=0)
+            {
+                alert("Please select a item from list!");
+                return false;
+            }
+            var SelectedRowIndex=$('#tblEmployeeBonusProcessManagements').datagrid('getRowIndex',oEmployeeBonusProcessManagement);
+            var oEmployeeBonusProcessManagements= $('#tblEmployeeBonusProcessManagements').datagrid('getRows');
+            sessionStorage.setItem("EmployeeBonusProcessManagement", JSON.stringify(oEmployeeBonusProcessManagement));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("EmployeeBonusProcessManagementHeader", "View EmployeeBonusProcessManagement");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/EmployeeBonus/ViewEmployeeBonusProcessManagement?sid="+oEmployeeBonusProcessManagement.EBPID+"&sMsg=N/A";
+        });
+
+        function LoadYear()
+        {
+            var oDate=new Date();
+            oDate.setFullYear(2014);
+            var sYear="";
+            sYear +="<option value='0'>"+'Year'+"</option>";
+            for(var i=0; i<=15; i++)
+            {
+                sYear += "<option value='" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"'>" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"</option>";
+            }
+            $('#cboYear').html(sYear);
+            var oDate=new Date();
+            $("#cboSalaryMonth_Collection").val(oDate.getMonth()+1);
+            $("#cboYear").val(oDate.getFullYear());
+
+        }
+        /*-------------Start Business Unit Picker----------------*/
+        $("#btnBusinessUnitPicker_Collection").click(function(e){
+            BusinessUnitPicker();
+        });
+
+        $("#txtBusinessUnit_Collection").keypress(function(e){
+            if (e.which == 13)//enter=13
+            {
+                BusinessUnitPicker();
+            }
+        });
+
+        function BusinessUnitPicker()
+        {
+            var oBusinessUnit={
+                BusinessUnitID:0
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oBusinessUnit,
+                ControllerName: "BusinessUnit",
+                ActionName: "GetsBusinessUnitWithPermission",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].BusinessUnitID > 0) {
+                        var tblColums = [];
+                        var oColumn = { field: "Code", title: "Code", width: 50, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 170, align: "left" };tblColums.push(oColumn);
+
+                        var bmultiplereturn=true;
+
+                        var oPickerParam = {
+                            winid: 'winBusinessUnit',
+                            winclass:'clsBusinessUnit',
+                            winwidth: 320,
+                            winheight: 400,
+                            tableid: 'tblBusinessUnit',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: bmultiplereturn,
+                            searchingbyfieldName:'Name',
+                            windowTittle: 'Business Unit List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializeBusinessUnitPickerbutton(oPickerParam);//multiplereturn, winclassName
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+            });
+        }
+
+        function IntializeBusinessUnitPickerbutton(oPickerobj)
+        {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                var oBusinessUnits=[];
+                oBusinessUnits = $('#'+oPickerobj.tableid).datagrid('getChecked');
+                if (oPickerobj.winid == 'winBusinessUnit')
+                {
+                    if(oBusinessUnits!=null && oBusinessUnits.length>0)
+                    {
+                        $("#"+oPickerobj.winid).icsWindow("close");
+                        $("#" + oPickerobj.winid).remove();
+                        var sBusinessUnitName = "";
+                        for(var i=0; i<oBusinessUnits.length; i++)
+                        {
+                            sBusinessUnitName+=oBusinessUnits[i].Name+",";
+                            _sBusinessUnitIds+=oBusinessUnits[i].BusinessUnitID+",";
+                        }
+
+                        sBusinessUnitName=sBusinessUnitName.substring(0,sBusinessUnitName.length-1);
+                        _sBusinessUnitIds=_sBusinessUnitIds.substring(0,_sBusinessUnitIds.length-1);
+                        $("#txtBusinessUnit_Collection").val(sBusinessUnitName);
+                    }
+                    else
+                    {
+                        alert("Please select a Business Unit.");
+                    }
+                }
+            });
+        }
+
+        $("#btnResetBusinessUnitPicker_Collection").click(function(e){
+            $('#txtBusinessUnit_Collection').val("");
+            _sBusinessUnitIds="";
+        });
+        /*-------------End Business Unit Picker----------------*/
+
+        /*-------------Location Picker----------------*/
+        var btnLocation="";
+        $("#btnLocationPicker,#btnLocationPicker_Colection").click(function(e){
+            debugger;
+            btnLocation = $(this).attr("id");
+            var sBusinessUnitIDs ="";
+            var nBusinessUnitID=0;
+            if(btnLocation=="btnLocationPicker")
+            {
+                nBusinessUnitID = $("#cboBU").val();
+                sBusinessUnitIDs = String(nBusinessUnitID);
+            }
+            else{sBusinessUnitIDs=_sBusinessUnitIds;}
+            $("#winLocationPicker").icsWindow('open');
+            var oLocation={LocationID:0,BusinessUnitIDs:sBusinessUnitIDs};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oLocation,
+                ControllerName: "Location",
+                ActionName: "GetsLocationMenuTree",
+                IsWinClose: false
+            };
+
+            $.icsDataGet(obj, function (response) {
+                if (response.status && response.obj!=null) {
+                    if (response.obj.TLocation.id > 0) {
+                        $('#locationtree').tree({ data: [response.obj.TLocation] });
+                    }
+                }
+            });
+        });
+
+        $("#btnLocationPickerOk").click(function(e){
+            if(btnLocation=="btnLocationPicker")
+            {
+                var oLocation = $('#locationtree').tree('getSelected');
+                if(oLocation!=null && oLocation.id>0){
+                    $("#winLocationPicker").icsWindow('close');
+                    _sLocationID=oLocation.id;
+                    $('#txtLocation').val(oLocation.text);
+                }
+                else{
+                    alert("Please select a location.");
+                }
+            }
+            else
+            {
+                var oLocations = $('#locationtree').tree('getChecked');
+                if(oLocations!=null && oLocations.length>0)
+                {
+                    var LocationName="";
+                    for(var i=0; i<oLocations.length; i++)
+                    {
+                        if(oLocations[i].id !=1)
+                        {
+                            LocationName+=oLocations[i].text+",";
+                            _sLocationID+=oLocations[i].id+",";
+                        }
+                    }
+
+                    LocationName=LocationName.substring(0,LocationName.length-1);
+                    _sLocationID=_sLocationID.substring(0,_sLocationID.length-1);
+                    $("#winLocationPicker").icsWindow('close');
+                    $('#txtLocation_Colection').val(LocationName);
+                }
+                else
+                {
+                    alert("Please select a location.");
+                }
+            }
+        });
+
+        $('#txtLocation_Colection').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)//Enter key-13
+            {
+                var sBusinessUnitIDs ="";
+                sBusinessUnitIDs=_sBusinessUnitIds;
+                $("#winLocationPicker").icsWindow('open');
+                var oLocation={LocationID:0,BusinessUnitIDs:sBusinessUnitIDs};
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oLocation,
+                    ControllerName: "Location",
+                    ActionName: "GetsLocationMenuTree",
+                    IsWinClose: false
+                };
+                $.icsDataGet(obj, function (response) {
+
+                    if (response.status && response.obj!=null) {
+                        if (response.obj.TLocation.id > 0) {
+                            $('#locationtree').tree({ data: [response.obj.TLocation] });
+                        }
+                    }
+                });
+            }
+        });
+
+        $("#btnLocationPickerClose").click(function(e){
+            $("#winLocationPicker").icsWindow('close');
+        });
+
+        $("#btnResetLocationPicker,#btnResetLocationPicker_Colection").click(function(e){
+            $('#txtLocation').val("");
+            $('#txtLocation_Colection').val("");
+            _sLocationID="";
+        });
+
+        //function icsdateformat(date)
+        //{
+        //    var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        //    var y = date.getFullYear();
+        //    var m = date.getMonth();
+        //    var d = date.getDate();
+        //    var result = d + ' ' + mthNames[m] + ' ' + y;
+        //    return result;
+        //}
+
+        //sagor datetime start
+        function SetDateTime()
+        {
+            var oDate=new Date();
+            oDate.setFullYear(2014);
+            /*---------------------------------------- Start Set Year-------------------------------------------*/
+            var sYear="";
+            sYear +="<option value='0'>"+'Year'+"</option>";
+            for(var i=0; i<=10; i++)
+            {
+                sYear += "<option value='" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"'>" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"</option>";
+            }
+            $('#cboYear').html(sYear);
+
+            /*---------------------------------------- End Set Year-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Month-------------------------------------------*/
+            var sMonth="";
+            var oMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            sMonth +="<option value='0'>"+'Month'+"</option>";
+            for(var i=0; i<oMonths.length; i++)
+            {
+                sMonth += "<option value='" +(parseInt(i)+1)+"'>" + oMonths[i] +"</option>";
+            }
+            $('#cboMonth').html(sMonth);
+
+            /*---------------------------------------- End Set Month-------------------------------------------*/
+
+
+            /*---------------------------------------- Start Set Date-------------------------------------------*/
+            var sDay ="<option value='0'>"+'Day'+"</option>";
+            $('#cboDay').html(sDay);
+
+            /*---------------------------------------- End Set Date-------------------------------------------*/
+        }
+
+        $('#cboYear').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+
+        $('#cboMonth').change(function(e)
+        {
+            var nYear=$('#cboYear').val();
+            var nMonth=$('#cboMonth').val();
+            if(nYear>0 && nMonth>0)
+            {
+                $('#cboDay').html(SetDateEvent(nYear, nMonth));
+            }
+
+        });
+
+        function SetDateEvent(nYear, nMonth)
+        {
+
+            var oDate=new Date();
+            var sDay="";
+            if( parseInt(nMonth)>0)
+            {
+                var nDay= new Date(parseInt(nYear), parseInt(nMonth), 0).getDate();
+                sDay +="<option value='0'>"+'Day'+"</option>";
+                for(var i=1; i<=parseInt(nDay); i++)
+                {
+                    if(i<10)
+                    {
+                        sDay += "<option value='" +i+"'>" + '0'+i +"</option>";
+                    }
+                    else
+                    {
+                        sDay += "<option value='" +i+"'>" + i +"</option>";
+                    }
+
+                }
+            }
+            return sDay;
+        }
+
+        function SetStartTime(oDate)
+        {
+
+            var nyear=oDate.getFullYear();
+            var nmonth=oDate.getMonth()+1;
+            var nday=oDate.getDate();
+            $('#cboYear').val(nyear);
+            $('#cboMonth').val(nmonth);
+            $('#cboDay').html(SetDateEvent(nyear,nmonth));
+            $('#cboDay').val(nday);
+        }
+
+
+        function GenerateStartTimeInString()
+        {
+            var sDate=  $('#cboMonth').val() +'/'+ $('#cboDay').val() +'/'+ $('#cboYear').val();
+            return sDate;
+        }
+
+        function ValidationOfStartTime()
+        {
+            if($('#cboYear').val()==0)
+            {
+                alert("Please select a year.");
+                document.getElementById('cboYear').focus();
+                return false;
+            }
+            if($('#cboMonth').val()==0)
+            {
+                alert("Please select a month.");
+                document.getElementById('cboMonth').focus();
+                return false;
+            }
+            if($('#cboDay').val()==0)
+            {
+                alert("Please select a day.");
+                document.getElementById('cboDay').focus();
+                return false;
+            }
+            return true;
+        }
+
+        //sagor datetime end
+
+        $('#btnNew').click(function (e)
+        {
+            var oEmployeeBonusProcessManagements= $('#tblEmployeeBonusProcessManagements').datagrid('getRows');
+            sessionStorage.setItem("EmployeeBonusProcessManagements", JSON.stringify(oEmployeeBonusProcessManagements));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("EmployeeBonusProcessManagementHeader", "New EmployeeBonus Process Management");
+            window.location.href = _sBaseAddress+ "/EmployeeBonus/ViewEmployeeBonusProcessManagement?sid=0&sMsg=N/A";
+
+        });
+
+        //$('#btnSearchByDate').click(function (e)
+        //{
+        //    //debugger
+        //    //var ProcessDate=$('#dtSearch').datebox('getValue');
+        //    if(!ValidationOfStartTime()) return;
+
+        //    var ProcessDate = GenerateStartTimeInString();
+
+        //    var oEmployeeBonusProcessManagement={ProcessDate:ProcessDate};
+
+        //    $.ajax({
+        //        type: "POST",
+        //        dataType: "json",
+        //        url: _sBaseAddress + "/ProcessManagement/SearchEmployeeBonusByPDate",
+        //        traditional: true,
+        //        data: JSON.stringify(oEmployeeBonusProcessManagement),
+        //        contentType: "application/json; charset=utf-8",
+
+        //        success: function(data)
+        //        {
+        //            //debugger
+        //            var oEmployeeBonusProcessManagements=[];
+        //            oEmployeeBonusProcessManagements = jQuery.parseJSON(data);
+        //            if (oEmployeeBonusProcessManagements.length>0 && oEmployeeBonusProcessManagements[0].ErrorMessage=="")
+        //            {
+        //                DynamicRefreshList(oEmployeeBonusProcessManagements,'tblEmployeeBonusProcessManagements');
+        //                //RefreshList(oEmployeeBonusProcessManagements);
+        //            }
+        //            else
+        //            {
+        //                alert(oEmployeeBonusProcessManagements[0].ErrorMessage);
+        //                oEmployeeBonusProcessManagements=[];
+        //                DynamicRefreshList([],'tblEmployeeBonusProcessManagements');
+
+        //            }
+        //        },
+
+        //    });
+        //});
+
+        //$('#btnRollBack').click(function (e)
+        //{
+        //    if (!confirm("Confirm to Rollback?")) return
+        //    PPMStatusUpdate("Rollback",2);//RollBack
+
+        //});
+
+        //$('#btnReProcess').click(function (e)
+        //{
+        //    if (!confirm("Confirm to Re-Process?")) return
+        //    PPMStatusUpdate("Re-Process",3);//Re-Process
+
+        //});
+
+        $('#btnFreeze').click(function (e)
+        {
+            if (!confirm("Confirm to freeze?")) return
+            PPMStatusUpdate("Freeze",4);//freeze
+        });
+        $('#btnUnFreeze').click(function (e)
+        {
+            if (!confirm("Confirm to Unfreeze?")) return
+            var oPPM=$('#tblEmployeeBonusProcessManagements').datagrid('getSelected');
+            if (oPPM==null)
+            {
+                alert('Please select an item from list.');
+                return;
+            }
+            if(oPPM.Status != 4) {
+                alert('selected item is not yet freezed.');
+                return;
+            }
+            var SelectedRowIndex=$('#tblEmployeeBonusProcessManagements').datagrid('getRowIndex',oPPM);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/ProcessManagement/PPM_StatusUnfreeze",
+                traditional: true,
+                data: JSON.stringify({nPPM:oPPM.PPMID}),
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    debugger;
+                    var oNewPPM = jQuery.parseJSON(data);
+                    if (oNewPPM.ErrorMessage !="")
+                    {
+                        alert(oNewPPM.ErrorMessage);
+                    }
+                    else
+                    {
+                        $('#tblEmployeeBonusProcessManagements').datagrid('updateRow',{index: SelectedRowIndex,	row: oNewPPM});
+                    }
+
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        });
+
+        
+
+
+        $("#btnDelete").click(function () {
+            debugger;
+            var oEBP = $('#tblEmployeeBonusProcessManagements').datagrid('getSelected');
+            if (oEBP == null || oEBP.EBPID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return;
+            var SelectedRowIndex = $('#tblEmployeeBonusProcessManagements').datagrid('getRowIndex', oEBP);
+            var tsv = ((new Date()).getTime()) / 1000;
+            if (oEBP.EBPID > 0) {
+                $.ajax
+                ({
+                    type: "POST",
+                    dataType: "json",
+                    url: _sBaseAddress + "/EmployeeBonus/BonusDelete",
+                    traditional: true,
+                    data: JSON.stringify({ nEBPId: oEBP.EBPID, nts: tsv }),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        //debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted") {
+                            alert("Delete sucessfully");
+                            $('#tblEmployeeBonusProcessManagements').datagrid('deleteRow', SelectedRowIndex);
+                        }
+                        else {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        alert(error);
+                    }
+                });
+            }
+        });
+
+        
+        $('#btnApprove').click(function (e) {
+            var oEBP = $('#tblEmployeeBonusProcessManagements').datagrid('getSelected');
+            if (oEBP == null || oEBP.EBPID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+   
+            if (!confirm("Confirm to Approved?")) return ;
+            var SelectedRowIndex=$('#tblEmployeeBonusProcessManagements').datagrid('getRowIndex',oEBP);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeBonus/Approved",
+                traditional: true,
+                data:  JSON.stringify(oEBP),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    oEB = jQuery.parseJSON(data);
+                    if (parseInt(oEBP.EBPID)>0) {
+                        alert("Approved Successfully");
+                        $('#tblEmployeeBonusProcessManagements').datagrid('updateRow',{index: SelectedRowIndex,	row: oEB});
+                    }
+                    else {
+                        alert(oEB.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+        $('#btnUndoApprove').click(function (e) {
+            var oEBP = $('#tblEmployeeBonusProcessManagements').datagrid('getSelected');
+            if (oEBP == null || oEBP.EBPID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+   
+            if (!confirm("Confirm to Approved?")) return ;
+            var SelectedRowIndex=$('#tblEmployeeBonusProcessManagements').datagrid('getRowIndex',oEBP);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeBonus/UndoApproved",
+                traditional: true,
+                data:  JSON.stringify(oEBP),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    oEB = jQuery.parseJSON(data);
+                    if (parseInt(oEB.EBPID)>0 && oEB.ErrorMessage == null) {
+                        alert("UndoApproved Successfully");
+                        $('#tblEmployeeBonusProcessManagements').datagrid('updateRow',{index: SelectedRowIndex,	row: oEB});
+                    }
+                    else {
+                        alert(oEB.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+
+    </script>

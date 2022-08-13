@@ -1,0 +1,298 @@
+﻿<html>
+<head>  
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+    
+</head>
+<body>
+
+@model ESimSol.BusinessObjects.CostCenterTransaction
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+   
+</table>
+<fieldset>
+    <legend style="font-weight:bold"> CostCenter Informations : </legend>
+    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+        <tr>
+            <td style="width:150px; text-align:right">
+                Account Head Name :
+            </td>
+            <td style="width:200px">
+                @Html.TextBoxFor(model => model.AccountHeadName, new { style = "width: 200px;", id = "txtSetupNo", disabled = "disabled" }) 
+            </td>
+        </tr>        
+        
+
+        <tr>
+            <td style="width:150px; text-align:right">
+                Sub Ledger Category 
+            </td>
+            <td style ="width: 200px; text-align:left;">
+            <select id="cboCostCenters" style="width: 200px;  font-size: 12px;" />
+            </td>
+        </tr>
+
+      
+          <tr>
+            <td style="width:150px; text-align:right">
+                Sub Ledger Name 
+            </td>
+            <td style="width:200px">
+                <input type="text" value="" id="txtCostCenterName" style="width:200px" />
+            </td>
+        </tr>
+          <tr>
+            <td style="width:150px; text-align:right">
+              Description 
+            </td>
+            <td style="width:200px">
+                <input type="text" value="" id="txtDescription" style="width:200px" />
+            </td>
+        </tr>
+          <tr>
+           
+            <td style="width:150px">New Opening Balance</td>
+            <td style="width:200px">                
+               <table border="0" cellpadding="0" cellspacing="0">
+                   <tr>
+                       <td>
+                           <select style="width:50px" id="cboDebitCredit">
+                               <option value="1">Dr</option>
+                               <option value="0">Cr</option>
+                           </select>
+                       </td>
+                       <td>
+                           <input id="txtOpeningBalnce" type="text"  data-options="min:0,precision:2" value="0.00" style="width: 120px; text-align : right" />
+                       </td>
+                       <td>
+                           <label id="lblCurrency" style="font-size:13px; font-weight:bold">  </label>
+                       </td>
+                   </tr>
+               </table>
+            </td>
+        </tr>
+
+    </table>
+</fieldset>
+    
+    <fieldset>
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+            <tr>
+                <td style="width:400px; text-align:right">
+             
+                </td>
+
+                <td style="width:50px">
+                   <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true" onclick="Save()">Save</a>
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>       
+        </table>
+    </fieldset>
+</div>
+</body>
+</html>
+
+
+<script type="text/javascript"> 
+ var _oCostCenterTransaction=null;
+ var _oCostCenters=[];
+ var _bIsDr=false;
+ var _sBaseAddress="";
+ var _nCurrencyConversionRate=0;
+ var _nCurrencyID=0;
+ var _nCurrencyNameSymbol="";
+ $(document).ready(function () {
+    debugger;     
+      _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+      var obj = window.dialogArguments;
+
+     _oCostCenterTransaction =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+     _bIsDr=obj.IsDr;
+     _nCurrencyID=obj.CurrencyID;
+     _nCurrencyConversionRate=obj.CurrencyConversionRate;
+     _nCurrencyNameSymbol=obj.CurrencyNameSymbol;
+   
+     _oCostCenters=_oCostCenterTransaction.CostCenters;
+     RefreshCostCenter();
+     document.getElementById('cboDebitCredit').value=_bIsDr
+
+     document.getElementById("lblCurrency").innerHTML = _nCurrencyNameSymbol;
+
+     $("#txtOpeningBalnce").keypress(function (e) {
+         if (e.which != 118 && e.which != 8 && e.which != 0  && e.which != 46  && (e.which < 48 || e.which > 57 )) {
+             return false;
+         }
+     });
+ }); 
+
+    function RefreshCostCenter()
+    {
+        //$("#cboCostCenters").empty;
+        var listItems= "<option value='"+0+"'>" +"--Select Costcenter Category--" + "</option>";
+        for (i = 0; i < _oCostCenters.length; i++) 
+        {
+            listItems += "<option value='" + _oCostCenters[i].CCID+"'>" + _oCostCenters[i].Name+"</option>";
+        }
+        $("#cboCostCenters").html(listItems);
+
+   
+        if(_oCostCenters.length<=2&&_oCostCenters.length>0)
+        {
+            for(var i=0; i<_oCostCenters.length; i++)
+            {
+                if(_oCostCenters[i].ParentID==1)
+                {
+                    $("#cboCostCenters").val(_oCostCenters[i].CCID);
+                }
+                if(_oCostCenters[i].ParentID>1)
+                {
+                    document.getElementById("txtCostCenterName").value=_oCostCenters[i].Name;   
+                }
+            }
+
+           
+        }
+    
+
+    }
+
+   function ValidateInput()
+    {
+    var scboCostCenters = document.getElementById("cboCostCenters");  
+   var nCostCentersID=0;
+   nCostCentersID=scboCostCenters.options[scboCostCenters.selectedIndex].value;
+        if(nCostCentersID<=0)
+        {        
+            alert("Select category !");
+            $('#cboCostCenters').focus();
+            return false;
+        }
+        if(document.getElementById("txtCostCenterName").value==null || document.getElementById("txtCostCenterName").value=="")
+        {        
+            alert("Please enter CostCenter Name!");
+            $('#txtCostCenterName').focus();
+            return false;
+        }
+     
+         
+   
+        return true;
+    }
+
+
+  
+
+
+    
+function RefreshObject()
+{    
+debugger;
+
+  var scboCostCenters = document.getElementById("cboCostCenters");  
+   var nCostCentersID=0;
+   nCostCentersID=scboCostCenters.options[scboCostCenters.selectedIndex].value;
+    var oCostCenter= {      
+                    CCID :  _oCostCenterTransaction.CCID,
+                    CCISID : 0,
+                    AccountHeadID : _oCostCenterTransaction.AccountHeadID,
+                    CCGID : 5, 
+                    CCCode : "",
+                    Name : $("#txtCostCenterName").val(),
+                    Description : $("#txtDescription").val(),
+                    ReferenceObjectID : 0,
+                    ParentID : nCostCentersID
+
+                };
+    return oCostCenter;
+} 
+
+
+    
+
+   function RefreshObject_CCT()
+    {
+    debugger;
+        var bIsDebit =false;
+        var cboDebitCredit = document.getElementById("cboDebitCredit");
+        var nDebitCredit = cboDebitCredit.options[cboDebitCredit.selectedIndex].value;
+        if(parseInt(nDebitCredit)==1)
+        {
+            bIsDebit=true;
+        }
+        var oCCT= {
+            AccountHeadID : _oCostCenterTransaction.AccountHeadID,
+            Amount : document.getElementById("txtOpeningBalnce").value,
+            CurrencyID: _nCurrencyID,
+            CurrencyConversionRate: _nCurrencyConversionRate,
+            IsDr : bIsDebit
+            
+        };
+        return oCCT;
+    }
+    
+function Save()
+{
+  debugger;
+   var oCostCenters=[];
+    if(!ValidateInput()) return;
+    var oCostCenter=RefreshObject();
+    oCostCenters.push(oCostCenter);
+    var oCCT=RefreshObject_CCT();        
+    oCCT.CostCenters=oCostCenters;
+
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : _sBaseAddress+  "/CostCenterTransaction/Save",
+        traditional: true,
+        data:  JSON.stringify(oCCT),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+//            debugger;
+            oCostCenter = jQuery.parseJSON(data);
+              var oAHOB=null;
+            if (oCostCenter.CCID>0) {   
+                 oAHOB={
+                    RefObjName:oCostCenter.Name,
+                    ReferenceObjID:oCostCenter.CCID,
+                    Amount:oCostCenter.Amount,
+                    OpeningBalance:oCostCenter.Amount
+                };
+               
+                alert("Data Saved sucessfully");
+                window.returnValue = oAHOB;
+                window.close();
+            }
+            else {
+                alert(oCostCenter.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+}
+      
+
+    function Close()
+    {
+   
+     window.close();
+    }
+
+
+</script>

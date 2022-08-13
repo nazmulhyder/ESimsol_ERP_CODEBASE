@@ -1,0 +1,455 @@
+﻿@{
+    ViewBag.Title = "BTMA";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.BTMA>
+ <script src="~/Views/BTMA/AdvanceSearch.js"></script>
+<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div class="panel-heading" style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>
+<div ng-app="BTMAModule" class="form-horizontal">
+    <div ng-controller="BTMAController">
+        <div class="ui-grid-top-panel">
+            <div class="form-inline">
+                <input type="text" class="form-control" ng-model="SearchString" style="width:22%" ng-keyup="SearchByNo($event)" placeholder="Type SL/Challan No & Press Enter" />
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"> Search</span></button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                @*<button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Process()"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span> Process</button>*@
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Update_PrintBy()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Update(Print)</span></button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="Print()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview</button>
+                <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintGSP()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview (GSP)</button>
+                @*<input type="checkbox" ng-checked="false" ng-model="IsMeter">*@
+                @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Update_PrintBy()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Format</span></button>*@
+                @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>*@
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+    </div>
+    <script type="text/ng-template" id="BTMA.html">
+        <div class="modal-header">
+            <h4 class="modal-title" id="modal-title">Print BTMA</h4>
+        </div>
+        <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+            <div class="form-inline">
+               <label class="control-label" style="padding:0">Certificate No</label>
+               <input type="text" class="form-control text-right" ng-model="BTMAUP.MaxCTNo">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="UpdateStatus()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+            <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+        </div>
+    </script>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 520px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+      #progressbarParent {
+        opacity: 0.8;
+        background-color: #ffffff  /*#DCD9D4*/;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }
+</style>
+
+<script type="text/javascript">
+    $("#progressbar").progressbar({ value: 0 });
+    $("#progressbarParent").hide();
+
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oBTMAs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oVehicleTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.VehicleTypes));
+    var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+    var oCompany =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+    var nMaxCTNo =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MaxCTNo));
+
+    sessionStorage.setItem('BUID', _nBUID);
+
+    var BTMAModule = angular.module('BTMAModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.edit','ms.service','BTMA.service']);
+    BTMAModule.controller('BTMAController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,  advsearchBTMAService) {
+        debugger;
+        //oBTMAs= (userSession.getData('BTMAs').length>0)? userSession.getData('BTMAs'):oBTMAs;
+        //$scope.CompareOperators= oCompareOperators;
+
+        $scope.gridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'ExportLCNo', name: 'LC No', width:'12%', enableCellEdit: false },
+                { field: 'LCDateST', name: 'LC Date', width: '10%', enableCellEdit: false },
+                { field: 'Amount', name: 'LC Value', width: '8%', enableCellEdit: false, cellClass:"number", cellFilter:"number:2" },
+                { field: 'ExportBillNo', name: 'Bill No', width:'10%', enableCellEdit: false },
+                { field: 'MushakNo', name: 'MushakNo', width: '10%', enableCellEdit: false },
+                { field: 'SupplierName', name: 'SupplierName', width: '18%', enableCellEdit: false },
+                { field: 'GarmentsQty', name: 'GarmentsQty', width: '10%'},
+                { field: 'PrintByName', name: 'Print By', width: '12%' },
+            ],
+            data:oBTMAs,
+            onRegisterApi:function(gridApi) {
+
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oBTMAs.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    $scope.gridApi.selection.selectRow(oBTMAs[userSession.getRowIndex()]);
+                    //$scope.RowSelect(oBTMAs[userSession.getRowIndex()]);
+                }
+                //$scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                //    //$scope.RowSelect(row.entity );
+                //});
+                userSession.clear();
+            }
+        };
+
+        $scope.Print = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            //if(data[0].PrintBy!=0){
+            //    alert("Already  Printed");
+            //    //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //    return false;
+            //}
+
+            window.open(_sBaseAddress+ "/BTMA/PrintBTMA?id="+data[0].BTMAID,"_blank");
+        }
+        $scope.PrintGSP = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            //if(data[0].PrintBy!=0){
+            //    alert("Already  Printed");
+            //    //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //    return false;
+            //}
+
+            window.open(_sBaseAddress+ "/BTMA/PrintBTMA_GSP?id="+data[0].BTMAID,"_blank");
+        }
+        $scope.add = function () {
+            debugger
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("BTMAHeader", "Add BTMA");
+            sessionStorage.setItem("BTMAs", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BTMA", JSON.stringify([]));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/BTMA/ViewBTMA?id=0&buid="+_nBUID+"&ts="+tsv;
+        };
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].PrintBy!=0){
+                alert("Already  Printed");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.BTMAID==data[0].BTMAID){
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("BTMAHeader", "Edit BTMA");
+                    sessionStorage.setItem("BTMAs", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BTMA", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/BTMA/ViewBTMA?id="+value.BTMAID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].PrintBy!=0)
+            {
+                alert("Already  Printed");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+'/BTMA/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Data delete successfully'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.BTMAID==data[0].BTMAID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.BTMAID==data[0].BTMAID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("BTMAHeader", "View BTMA");
+                    sessionStorage.setItem("BTMAs", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/BTMA/ViewBTMA?id="+value.BTMAID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.SearchByNo = function(e)
+        {
+            debugger;
+            var SearchString = $scope.SearchString;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oBTMAs;
+            }
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].SLNo;
+                n=sTempName.toUpperCase().indexOf(SearchString.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }else
+                {
+                    sTempName=oCurrentList[i].ChallanNo;
+                    n=sTempName.toUpperCase().indexOf(SearchString.toUpperCase())
+                    if(n!=-1)
+                    {
+                        oSearchedList.push(oCurrentList[i]);
+                    }
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'BTMAController',
+                CompareOperators:oCompareOperators,
+                VehicleTypes:oVehicleTypes,
+                BusinessUnits:oBusinessUnits
+            }
+            var modalInstance=advsearchBTMAService.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        $scope.Update_PrintBy = function (data) {
+
+            var oBTMA = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oBTMA==null || oBTMA.BTMAID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if (!confirm("Confirm to Update for LC No: "+oBTMA.ExportLCNo+" ?")) return ;
+
+            var SelectedIndex=$scope.gridOptions.data.indexOf(oBTMA);
+            $http.post(_sBaseAddress+'/BTMA/Update_PrintBy',JSON.stringify(oBTMA)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    if(result.BTMAID>0  && result.ErrorMessage=="")
+                                    {
+                                        debugger; nMaxCTNo=parseInt(nMaxCTNo)+1;
+                                        $scope.BTMA=result;
+                                        $scope.gridOptions.data[SelectedIndex]=result;
+                                        msModal.Message({headerTitle : '', bodyText:'Update Successfully.', sucessText : 'Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                    else
+                                    {
+                                        alert(result.ErrorMessage);
+                                        return;
+                                    }
+                                },
+                                function (response) { alert(response.statusText);}
+                        );
+        };
+
+        $scope.Update_PrintBy_OFF=function ()
+        {
+            debugger;
+            var oBTMA = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oBTMA==null || oBTMA.BTMAID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oBTMA.PrintBy!=0){
+                alert("Already  Printed");
+                //msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.BTMAID == oBTMA.BTMAID)
+                {
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                }
+            }, $scope.gridOptions.data);
+
+            oBTMA.MaxCTNo=parseInt(nMaxCTNo);
+            $scope.Modal(oBTMA, 'Edit');
+        }
+
+        $scope.Modal = function (objSQ, operation) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'sm',
+                templateUrl: 'BTMA.html',
+                controller: 'ModalInstanceCtrl',
+                controllerAs: 'BTMAController',
+                resolve: {
+                    obj: function () {
+                        return { BTMA:objSQ, Operation: operation  };
+                    }
+                }
+            });
+
+            modalInstance.result.then(function (result) {
+                debugger;
+                if(result==undefined)return;
+                if(result.BTMAID>0)
+                {
+                    debugger;
+                    $scope.Update(result);
+                }
+            }, function () 
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        function updateProgress() {
+            var value =$('#progressbar').progressbar('getValue');
+            if (value < 90){
+                value += Math.floor(Math.random() * 10);
+                $('#progressbar').progressbar('setValue', value);
+            }
+        }
+        function hideShow(miliseconds) {
+            $("#progressbarParent").hide();
+        }
+      
+    });
+
+    BTMAModule.controller('ModalInstanceCtrl', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+        $scope.Operation=obj.Operation;
+        if(obj.BTMA.BTMAID==null || obj.BTMA.BTMAID<=0)
+        {
+            $scope.BTMA={
+                BTMAID : 0,
+                BUID:sessionStorage.getItem('BUID'),
+                Name : "",
+                Activity : true
+            }
+        }
+        else
+        {
+            $scope.BTMAUP = obj.BTMA;
+        }
+
+        $scope.Validation=function()
+        {
+            if($scope.BTMAUP.MaxCTNo == 0 || $scope.BTMAUP.MaxCTNo == undefined){
+                msModal.Message({headerTitle : '', bodyText:'Enter Certificate No.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            return  true;
+        };
+
+        $scope.UpdateStatus= function ()
+        {
+            if(!$scope.Validation())return;
+            if (!confirm("Confirm to Print for LC No: "+$scope.BTMAUP.ExportLCNo+" ?")) return ;
+            $scope.BTMAUP.CertificateNo=$scope.BTMAUP.MaxCTNo;
+            $uibModalInstance.close($scope.BTMAUP);
+        };
+
+        $scope.cancel= function () {
+            $uibModalInstance.close();
+        };
+
+    });
+</script>
+                       
+
+
+              

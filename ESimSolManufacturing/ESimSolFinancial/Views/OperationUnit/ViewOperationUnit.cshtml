@@ -1,0 +1,162 @@
+﻿<html>
+
+<body>
+    @{
+        ViewBag.Title = "Operation Unit";
+    }
+    @model ESimSol.BusinessObjects.OperationUnit
+    <div class="menuMainCollectionTable" id="divOU">
+        <div class="easyui-panel" title="Operation Unit" style="font-family:Tahoma; text-align:center; height:89%;">
+            <fieldset>
+                <legend style="font-weight:bold; font-size:12px;">Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:80%; text-align:center;">
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Operation Unit Name:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.TextBoxFor(model => model.OperationUnitName, new { style = "width: 100%;", id = "txtOperationUnitName" })
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Short Name:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.TextBoxFor(model => model.ShortName, new { style = "width: 100%;", id = "txtShortName" })
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">
+                            Description:
+                        </td>
+                        <td style="width:70%; text-decoration:underline; text-align:right">
+                            @Html.TextBoxFor(model => model.Description, new { style = "width: 100%;", id = "txtDescription" })
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; font-size:13px; text-align:right">Is Store :</td>
+                        <td style="width:70%; text-decoration:underline; text-align:left;">
+                            <input type="checkbox" id="chkIsStore" onclick="IsStore()" name="chkIsStore" style="margin-left:25px;" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                    <tr>
+                        <td style="width:100%;text-align:right">
+                            <a id="btnOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" >Save</a>
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+</body>
+</html>
+
+<script type="text/javascript">
+  
+    $(document).ready(function () {
+        var oOperationUnit =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divOU').data('OperationUnit',oOperationUnit);
+        debugger;
+        if(oOperationUnit.IsStore)
+        {
+            document.getElementById("chkIsStore").checked = true;
+        }else{
+            document.getElementById("chkIsStore").checked = false;
+        }
+
+        if (sessionStorage.getItem('OperationName')=="View Operation Unit")
+        {
+            document.getElementById("btnOk").style.display ='none';
+            $("#txtOperationUnitName").attr("disabled", "disabled");
+            $("#txtDescription").attr("disabled", "disabled");
+        }
+        
+    });
+
+
+    $('#btnClose').click(function (e) 
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+
+    function ValidateInput()
+    {
+        var sOperationUnitName = $("#txtOperationUnitName").val();
+        if (sOperationUnitName == "")
+        {
+            alert("Please Enter the Operation Unit Name Name");
+            document.getElementById("txtOperationUnitName").style.borderColor ='red';
+            document.getElementById("txtOperationUnitName").focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oOperationU= {
+            OperationUnitID : $('#divOU').data('OperationUnit').OperationUnitID,
+            OperationUnitName : $("#txtOperationUnitName").val(),
+            ShortName:  $("#txtShortName").val(),
+            Description : $("#txtDescription").val(),
+            IsStore : document.getElementById("chkIsStore").checked,
+            ContainingProduct : 0,
+        };
+        return oOperationU;
+    }
+
+    $('#btnOk').click(function (e)
+    {
+        debugger;
+        if(!ValidateInput()) return;
+        var oOperationUnit=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Save", "OperationUnit")',
+            traditional: true,
+            data:  JSON.stringify(oOperationUnit),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oOperationUnit = jQuery.parseJSON(data);
+                if (oOperationUnit.ErrorMessage == '' || oOperationUnit.ErrorMessage == null) {
+                    alert("Data Saved sucessfully");
+                    var oOperationUnits = sessionStorage.getItem("OperationUnits");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oOperationUnits != null) 
+                    {
+                        oOperationUnits = jQuery.parseJSON(oOperationUnits);
+                    }
+                    else {
+                        oOperationUnits = [];
+                    }
+                    if (nIndex != -1) {
+                        oOperationUnits[nIndex] = oOperationUnit;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oOperationUnits.length);
+                        oOperationUnits.push(oOperationUnit);
+                    }
+                    sessionStorage.setItem("OperationUnits", JSON.stringify(oOperationUnits));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oOperationUnit.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    })
+</script>

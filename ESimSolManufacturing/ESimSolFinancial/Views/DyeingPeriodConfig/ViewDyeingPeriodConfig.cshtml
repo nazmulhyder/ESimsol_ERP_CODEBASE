@@ -1,0 +1,344 @@
+﻿<html>
+<head>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.DyeingPeriodConfig
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable" id="MainDiv" style="height: 550px;">
+        <div id="divDyeingPeriodConfig" class="easyui-panel" title="DyeingPeriodConfig" style="font-family:Tahoma; text-align:center; height:89%;">
+            <fieldset style="height:100%; text-align:center;">
+                <legend style="font-weight:bold"> Dyeing Period Config Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; text-align:center; width:100%">
+                    <tr>
+                        <td style="height:150px;">&nbsp;</td>
+                        <td style="height:150px;">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%; text-align:right">
+                            Product Name :
+                        </td>
+                        <td style="width: 60%; text-align: left">
+                            <input type="text" style="width: 100%;" id="txtProductName" onkeydown="ProductKeyDown(event)" />
+                        </td>
+                        <td style="width:20%; text-align:left">
+                            <input type="button" id="btnProduct" onclick="PickProduct()" style="width:100px;" value="Pick" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%; text-align:right">
+                            Dyeing Type :
+                        </td>
+                        <td style="width: 60%; text-align: left">
+                            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; text-align:center; width:100%">
+                                <tr>
+                                    <td style="width:10%"><select style="width:100%" id="cboDyeingType"></select></td>
+                                    <td style="width:10%"><input type="text" style="width: 100%;" id="txtReqDyeingPeriod" /> </td>
+                                    <td style="width:40%"><input type="text" style="width:100%" disabled id="txtBaseProductName" /> </td>
+                                </tr>
+                             </table>
+                        </td>                        
+                    </tr>
+                    <tr>
+                        <td style="width:20%; text-align:right">
+                            Remarks :
+                        </td>
+                        <td style="width:60%; text-align: left">
+                            <input type="text" style="width: 100%;" id="txtRemarks" />
+                        </td>
+                        <td style="width:20%; text-align: left">                            
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+
+</body>
+</html>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var nBUID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));        
+        var oDyeingPeriodConfig =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oDyeingCapacitys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DyeingCapacitys));
+        var oMUnit=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MUnit));
+        var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+
+        $("#cboDyeingType").icsLoadCombo({List: oDyeingCapacitys, OptionValue: "DyeingCapacityID", DisplayText: "DyeingTypeSt",InitialValue:"--Dyeing Type--" });
+        
+        $("#MainDiv").data("ProductID",0);
+        $('#txtReqDyeingPeriod').icsCurrencyBox(null, null,2);
+        $('#divDyeingPeriodConfig').data('BUID', nBUID);
+        $('#divDyeingPeriodConfig').data('DyeingPeriodConfig', oDyeingPeriodConfig);
+        $('#divDyeingPeriodConfig').data('DyeingCapacitys', oDyeingCapacitys);
+        $('#divDyeingPeriodConfig').data('BaseAddress', sBaseAddress);
+        RefreshControl(oDyeingPeriodConfig);
+        if(sessionStorage.getItem("DyeingPeriodConfigHeader")=="View Dyeing Capacity")
+        {
+            $('#btnSave').hide();
+            $('#cboDyeingType').attr('disabled','disabled');
+            $('#txtReqDyeingPeriod').attr('disabled','disabled');         
+                       
+            $('#txtRemarks').attr('disabled','disabled');
+            $('#txtProductName').attr('disabled','disabled');
+            $('#btnProduct').hide();
+        }
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+      
+    });
+   
+    $("#cboDyeingType").change(function(e){
+        var sProductName="";
+        var oDyeingCapacitys= $('#divDyeingPeriodConfig').data('DyeingCapacitys');
+        var nDyeingCapacityId= parseInt($("#cboDyeingType").val());        
+        for(var i=0;i<oDyeingCapacitys.length;i++){
+            if(parseInt(oDyeingCapacitys[i].DyeingCapacityID) == parseInt(nDyeingCapacityId)){
+                
+                sProductName=oDyeingCapacitys[i].ProductName;
+                break;               
+            }
+        }
+        $('#txtBaseProductName').val("Times of "+sProductName); 
+    });
+
+    function RefreshControl(oDyeingPeriodConfig)
+    {
+        $("#cboDyeingType").val(parseInt(oDyeingPeriodConfig.DyeingType));        
+        $('#txtReqDyeingPeriod').val(formatPrice(oDyeingPeriodConfig.ReqDyeingPeriod));      
+        $('#txtBaseProductName').val("Times of "+oDyeingPeriodConfig.BaseProductName);
+        $("#txtRemarks").val(oDyeingPeriodConfig.Remarks);
+        $('#txtProductName').val(oDyeingPeriodConfig.ProductName);
+        $("#MainDiv").data("ProductID",oDyeingPeriodConfig.ProductID);
+    }
+
+    function ValidateInput()
+    {
+        var nDyeingType = parseInt($("#cboDyeingType").val());
+        if(nDyeingType==null || nDyeingType==0)
+        {
+            alert("Please select Dyeing type!");
+            $('#cboDyeingType').focus();
+            return false;
+        }
+        var nProductID = parseInt($("#MainDiv").data("ProductID"));
+        if(nProductID == null || nProductID <= 0)
+        {
+            alert("Please enter Product!");
+            $('#txtProductName').focus();
+            return false;
+        }
+        var nReqDyeingPeriod = parseFloat(icsRemoveComma($("#txtReqDyeingPeriod").val()));
+        if(nReqDyeingPeriod <= 0)
+        {
+            alert("Please enter Req Dyeing Period!");
+            $('#txtReqDyeingPeriod').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function ProductKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtProductName").val();
+            if (oTxtName != null) {
+                PickProduct(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            $("#MainDiv").data("ProductID",0);
+            txtBuyer.style.color="Black";
+        }
+    }
+
+    function PickProduct(oTxtName)
+    {       
+        var oStyleSearch = {
+            BUID: parseInt($('#divDyeingPeriodConfig').data('BUID')),
+            ProductName:(typeof(oTxtName) != 'undefined' ? oTxtName : "")
+        };
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch) ,
+            ControllerName: "Product",
+            ActionName: "SearchByProductBUWise",
+            IsWinClose: false
+        };
+        var tblColums = [];
+        var oColumn = { field: "ProductCode", title: "Product Code", width: 120, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "ProductName", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);            
+            DynamicPiker('Product',obj,tblColums,false,'ProductName','ProductID',400);
+    }
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,nWidth)
+    {
+        debugger;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        setInterval(updateProgress,250);
+
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: nWidth,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                }
+            }
+            else{
+                alert("Data Not Found.");
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                return;
+            }
+        });
+    }
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+        if (oPickerobj.winid == 'winProduct')
+        {
+            SetProduct(oResult);
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+    function SetProduct(oSelectedStyle) {        
+        document.getElementById("txtProductName").value = oSelectedStyle.ProductName;
+        $("#MainDiv").data("ProductID",oSelectedStyle.ProductID);
+        txtProductName.style.color="Blue";
+    }
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function RefreshObject()
+    {
+        var oDyeingPeriodConfig= {
+            DyeingPeriodConfigID : parseInt($('#divDyeingPeriodConfig').data('DyeingPeriodConfig').DyeingPeriodConfigID),
+            ProductID: parseInt($("#MainDiv").data("ProductID")),
+            DyeingCapacityID : parseInt($("#cboDyeingType").val()),
+            ReqDyeingPeriod : parseFloat(icsRemoveComma($('#txtReqDyeingPeriod').val())),          
+            Remarks : $("#txtRemarks").val()            
+        };
+        return oDyeingPeriodConfig;
+    }
+
+    $('#btnSave').click(function(){
+        if(!ValidateInput()) return;
+        var oDyeingPeriodConfig=RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : $('#divDyeingPeriodConfig').data('BaseAddress')+ "/DyeingPeriodConfig/Save",
+            traditional: true,
+            data:  JSON.stringify(oDyeingPeriodConfig),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                oDyeingPeriodConfig = jQuery.parseJSON(data);
+                if (oDyeingPeriodConfig.ErrorMessage=="" || oDyeingPeriodConfig.ErrorMessage==null)
+                {
+                    alert("Data Saved sucessfully");
+                    var oDyeingPeriodConfigs = sessionStorage.getItem("DyeingPeriodConfigs");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oDyeingPeriodConfigs != null)
+                    {
+                        oDyeingPeriodConfigs = jQuery.parseJSON(oDyeingPeriodConfigs);
+                    }
+                    else {
+                        oDyeingPeriodConfigs = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oDyeingPeriodConfigs[nIndex] = oDyeingPeriodConfig;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oDyeingPeriodConfigs.length);
+                        oDyeingPeriodConfigs.push(oDyeingPeriodConfig);
+                    }
+                    sessionStorage.setItem("DyeingPeriodConfigs", JSON.stringify(oDyeingPeriodConfigs));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else
+                {
+                    alert(oDyeingPeriodConfig.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+    $('#btnClose').click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+  
+</script>
+

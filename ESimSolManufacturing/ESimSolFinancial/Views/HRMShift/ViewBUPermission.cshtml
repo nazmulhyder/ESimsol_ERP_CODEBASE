@@ -1,0 +1,184 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Business Unit Permission";
+    }
+    @model ESimSol.BusinessObjects.BUPermission
+    <div id="divBUPermission" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblBUPermission" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="BUCode" width="150" align="left">BU Code</th>
+                        <th field="BUName" width="400" align="left">BU Name</th>
+                        <th field="Remarks" width="300" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                Business Unit : @Html.DropDownListFor(model => model.BUID, Model.BusinessUnits.Select(x => new SelectListItem() { Text = x.Name, Value = x.BusinessUnitID.ToString() }), new { id = "cboBusinessUnit", style = "width:300px;" })
+                Remarks : @Html.TextBoxFor(model => model.Remarks, new { style = "width:300px;", id = "txtRemarks" })
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+ var _oBUPermission=null;
+ $(document).ready(function () {
+     _oBUPermission =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     $('#tblBUPermission').datagrid({ title: ('Business Unit Permission for Shift : ' +_oBUPermission.ShiftName)});
+     RefreshList(_oBUPermission.BUPermissions);
+ });
+
+ function ValidateInput()
+ {
+    if($('#cboBusinessUnit').val()===null || $('#cboBusinessUnit').val()===undefined || parseInt($('#cboBusinessUnit').val())<=0)
+    {
+        alert("Please select BU!");
+        $('#cboBusinessUnit').focus();
+        return false;
+    }
+    if(parseInt($("#cboBusinessUnitType").prop('selectedIndex'))<=0)
+    {
+        alert("Please select BU Type!");
+        $('#cboBusinessUnitType').focus();
+        return false;
+    }
+    if(_oBUPermission==null || parseInt(_oBUPermission.ShiftID)<=0)
+    {
+        alert("Invalid Shift!");
+        return false;
+    }
+    return true;
+ }
+
+
+function RefreshObject()
+{
+    var oBUPermission=   {
+                                BUWiseShiftID : 0,
+                                ShiftID : parseInt(_oBUPermission.ShiftID),
+                                BUID : parseInt($('#cboBusinessUnit').val()),
+                                Remarks : $.trim($('#txtRemarks').val())
+                            };
+    return oBUPermission;
+}
+
+$("#btnAdd").click(function(){
+    if(!ValidateInput()) return;
+    var oBUPermission=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/HRMShift/SaveBUPermission",
+        traditional: true,
+        data:  JSON.stringify(oBUPermission),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oBUPermission = jQuery.parseJSON(data);
+            if(parseInt(oBUPermission.BUWiseShiftID)>0)
+            {
+                alert("Data Saved sucessfully");
+                var nIndex=$('#tblBUPermission').datagrid('getRows').length;
+                $('#tblBUPermission').datagrid('appendRow',oBUPermission);
+                $('#tblBUPermission').datagrid('selectRow', nIndex);
+                $("#cboBusinessUnit").val(0);
+                $("#txtRemarks").val('');
+            }
+            else {
+                alert(oBUPermission.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oBUPermission = $('#tblBUPermission').datagrid('getSelected');
+    if(oBUPermission==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex2=$('#tblBUPermission').datagrid('getRowIndex',oBUPermission);
+    if (parseInt(oBUPermission.BUWiseShiftID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/HRMShift/DeleteBUPermission",
+            traditional: true,
+            data:  JSON.stringify(oBUPermission),
+            contentType: "application/json; charset=utf-8",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblBUPermission').datagrid('deleteRow',SelectedRowIndex2);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList(oBUPermissions)
+{
+    var data=oBUPermissions;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBUPermission').datagrid('loadData',data);
+}
+
+$("#btnRefresh").click(function(){
+    debugger;
+    var data=$('#tblBUPermission').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBUPermission').datagrid('loadData',data);
+});
+
+
+$("#btnClose").click(function(){
+    window.location.href = sessionStorage.getItem("BackLink");
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>

@@ -1,0 +1,242 @@
+﻿@{
+    ViewBag.Title = "RM Closing Stock List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RMClosingStock>
+
+    <div class="menuMainCollectionTable" ng-app="RMClosingStocksApp" style="height:520px">
+        <div ng-controller="RMClosingStocksController">
+            <div style="margin-bottom:2px; display:block" title="RMClosingStocks List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Account Head" style="width:190px" />
+                <button type="button" id="btnAdd" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnView" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                <button type="button" id="btnApprove" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Approve()"><span class="glyphicon glyphicon-ok" aria-hidden="true"> Approve</span></button>
+                <button type="button" id="btnUndoApprove" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="UndoApprove()"><span class="glyphicon glyphicon-ok" aria-hidden="true"> Undo Approve</span></button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular" style="width:100%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oRMClosingStocks=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+   
+    debugger;
+    var CCapp= angular.module('RMClosingStocksApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('RMClosingStocksController',function ($scope,uiGridConstants,userSession) 
+    {
+        oRMClosingStocks= (userSession.getData('RMClosingStocks').length>0)? userSession.getData('RMClosingStocks'):oRMClosingStocks;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableRowSelection: true,
+            columnDefs: [
+              { field: 'SLNo', name:'SL No', width:'7%' },
+              { field: 'BUName', name:'Business Unit', width:'12%' },
+              { field: 'AccountingSessionName', name:'Session Name', width:'15%' },
+              { field: 'ClosingStockValueST', name:'Closing Stock', width:'15%', cellClass:'text-right' },
+              { field: 'StockDateST', name:'Stock Date', width:'10%' },
+              { field: 'ApprovedByName', name:'Approved by', width:'10%' },
+              { field: 'Remarks', name:'Remarks', width:'12%' , enableSorting: false}
+            ],
+            data: oRMClosingStocks,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                $scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                userSession.clear();
+            }
+        };
+        $scope.SearchByName = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oRMClosingStocks;
+            }     
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].RMAccountHeadName;        
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("RMClosingStocks", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("RMClosingStocksHeader", "Add RMClosingStocks");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/RMClosingStock/ViewRMClosingStock?id=0";
+        }            
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRMClosingStocks= data[0];//get selected index
+            if(oRMClosingStocks==null || oRMClosingStocks.RMClosingStockID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oRMClosingStocks==null || oRMClosingStocks.ApprovedBy!=0)
+            {
+                alert("Sorry, This Closing stock Is Approved!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRMClosingStocks);
+            sessionStorage.setItem("RMClosingStocks", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RMClosingStocksHeader", "Edit RMClosingStocks");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RMClosingStock/ViewRMClosingStock?id="+oRMClosingStocks.RMClosingStockID
+        }
+                
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRMClosingStocks= data[0];//get selected index
+            if(oRMClosingStocks==null || oRMClosingStocks.RMClosingStockID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRMClosingStocks);
+            sessionStorage.setItem("RMClosingStocks", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RMClosingStocksHeader", "View RMClosingStocks");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RMClosingStock/ViewRMClosingStock?id="+oRMClosingStocks.RMClosingStockID;
+        }
+        
+        $scope.Approve= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRMClosingStocks= data[0];//get selected index
+            if(oRMClosingStocks==null || oRMClosingStocks.RMClosingStockID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oRMClosingStocks==null || oRMClosingStocks.ApprovedBy!=0)
+            {
+                alert("Sorry, This Closing stock Is Already Approved!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRMClosingStocks);
+            sessionStorage.setItem("RMClosingStocks", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RMClosingStocksHeader", "Approve RMClosingStocks");
+           
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RMClosingStock/ViewRMClosingStock?id="+oRMClosingStocks.RMClosingStockID;
+        }
+        
+
+        $scope.UndoApprove= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRMClosingStocks= data[0];//get selected index
+            if(oRMClosingStocks==null || oRMClosingStocks.RMClosingStockID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oRMClosingStocks==null || oRMClosingStocks.ApprovedBy==0)
+            {
+                alert("Sorry, This Closing stock Is Not Approved Yet!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRMClosingStocks);
+            sessionStorage.setItem("RMClosingStocks", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("RMClosingStocksHeader", "UndoApprove RMClosingStocks");
+           
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RMClosingStock/ViewRMClosingStock?id="+oRMClosingStocks.RMClosingStockID;
+        }
+        
+
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRMClosingStocks= data[0];//get selected index
+            if(oRMClosingStocks==null || oRMClosingStocks.RMClosingStockID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oRMClosingStocks==null || oRMClosingStocks.ApprovedBy!=0)
+            {
+                alert("Sorry, This Closing stock Is Approved!");
+                return;
+            }
+            debugger;
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRMClosingStocks);
+            if (oRMClosingStocks.RMClosingStockID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/RMClosingStock/Delete",
+                    data: { id: oRMClosingStocks.RMClosingStockID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+      
+        //button hide unhide
+        $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide(); 
+        if(PermissionChecker('Add','RMClosingStock',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','RMClosingStock',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','RMClosingStock',oAuthorizationRolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','RMClosingStock',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('Approve','RMClosingStock',oAuthorizationRolesMapping)){$("#btnApprove").show();}
+        if(PermissionChecker('Approve','RMClosingStock',oAuthorizationRolesMapping)){$("#btnUndoApprove").show();}
+        
+    });
+
+
+</script>

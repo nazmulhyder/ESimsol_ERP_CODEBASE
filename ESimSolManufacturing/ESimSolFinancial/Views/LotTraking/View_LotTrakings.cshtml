@@ -1,0 +1,582 @@
+﻿
+@{
+    ViewBag.Title = "LotTraking List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.LotTraking>
+                      <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+                          <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+                              <label style="font-size:18px;">Please wait</label>
+                              <div id="progressbar" style="width:100%;height:37px;"></div>
+                          </div>
+                      </div>
+                      <div class="easyui-layout menuMainCollectionTable" style="margin-left: 0px; height:100%; width:100%">
+                          <div id="dvLotTrakings" title="Inventory Lot History" style="height: 100%; width:100%; overflow:hidden;">
+                              <div style="width:100%; height:100%">
+                                  <table id="tblLotTrakings" style="width:100%; height:70%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="rowStyler: function(index,row){
+                                        if (row.WUName=='Total'){
+                                            return 'color:#016B18; font-weight:bold;';
+                                        }
+                                    }
+                    ">
+                                      <thead>
+                                          <tr>
+                                              <th field="DateTimeSt" width="10%">Date</th>
+                                              <th field="TriggerNo" width="15%">No</th>
+                                              <th field="LotNo" width="12%">Lot No</th>
+                                              <th field="WUName" width="15%">Store</th>
+                                              @*<th field="UnitPrice" width="8%" align="right" formatter="formatPrice">UnitPrice</th>*@
+                                              <th field="OpeningQty" width="8%" align="right" formatter="formatPrice">Opening</th>
+                                              <th field="InOutTypeSt" width="8%">In/Out</th>
+                                              <th field="Qty" width="8%" align="right" formatter="formatPrice">Qty</th>
+                                              <th field="ClosingQty" width="10%" align="right" formatter="formatPrice">Closing</th>
+                                              <th field="TriggerParentTypeSt" width="10%">Type</th>
+
+                                          </tr>
+                                      </thead>
+                                  </table>
+                                  <div id="toolbar">
+                                      <table style="width:100%">
+                                          <tr>
+                                              <td style="width:50%; text-align:left">
+                                                  <input id="txtInvoice" style="width:25%;" type="text" placeholder="Type Invoice No & Press Enter" />
+                                                  <a id="btnPickInvoice" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                                  <input id="txtWorkingUnit" style="width:25%;" type="text" placeholder="Type Store Name & Press Enter" />
+                                                  <a id="btnPickWorkingUnit" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+
+                                              </td>
+                                              <td style="width:20%; text-align:left"></td>
+                                          </tr>
+                                          <tr>
+                                              <td style="width:50%; text-align:left">
+                                                  <input id="txtProduct" style="width:25%;" type="text" placeholder="Type Product Name & Press Enter" />
+                                                  <a id="btnPickProduct" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                                  <input id="txtLot" style="width:25%;" type="text" placeholder="Type Lot No & Press Enter" />
+                                                  <a id="btnPickLot" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                              </td>
+
+                                              <td style="width:20%; text-align:left">
+                                                  <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                                                  <a id="btnStockPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview </a>
+                                                  <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview(Store Wie)</a>
+                                              </td>
+
+
+                                          </tr>
+                                      </table>
+                                  </div>
+
+                              </div>
+
+
+                          </div>
+
+                      </div>
+     
+
+
+<script type="text/javascript">
+    var _oLotTrakings = [];
+    var _nBUID=0;
+var _sBaseAddress ='';
+var _nProductIDs="";
+var _nWorkingUnitIDs="";
+var _nInvoiceIDs="";
+var _nLotIDs="";
+$(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oLotTrakingS =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+    _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    $("#progressbar").progressbar({ value: 0 });
+    $("#progressbarParent").hide();
+});
+
+    $("#btnResetProduct").click(function () {
+        _nProductIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickProduct").click(function () {
+        var sProductName=$.trim($("#txtProduct").val());
+        if(sProductName==""){ alert("Type product name to search."); return false; }
+        var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:sProductName};
+        GetProducts(oProduct);
+    });
+
+    $("#txtProduct").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sProductName=$.trim($("#txtProduct").val());
+            if(sProductName==""){ alert("Type product name to search."); return false; }
+            var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:sProductName};
+            GetProducts(oProduct);
+        }
+        else if(nkeyCode==8){
+            _nProductIDs="";
+            //$("#txtProduct").val("");
+        }
+    });
+
+    function GetProducts(oProduct){
+        
+      
+       
+      
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oProduct,
+            ControllerName: "Product",
+            ActionName: "SearchByProductBUWise",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "ProductCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "MUnit", title: "Unit", width: 70, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winProductPicker',
+                        winclass:'clsProductPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblProductPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'ProductName',
+                        windowTittle: 'Product List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+
+    }
+    /////WUnit
+    $("#btnResetWorkingUnit").click(function () {
+        _nWorkingUnitIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickWorkingUnit").click(function () {
+        var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+        GetWorkingUnits(txtWorkingUnit);
+    });
+
+    $("#txtWorkingUnit").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+            if(txtWorkingUnit==""){ alert("Type product name to search."); return false; }
+            GetWorkingUnits(txtWorkingUnit);
+        }
+        else if(nkeyCode==8){
+            _nWorkingUnitIDs=0;
+            //$("#txtWorkingUnit").val("");
+        }
+    });
+    function GetWorkingUnits(txtWorkingUnit){
+       
+        var oWorkingUnit = {
+            BUID:_nBUID,
+            ProductName:txtWorkingUnit,
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oWorkingUnit,
+            ControllerName: "WorkingUnit",
+            ActionName: "GetsBUWiseWorkingUnit",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].WorkingUnitID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "WorkingUnitCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winWorkingUnitPicker',
+                        winclass:'clsWorkingUnitPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblWorkingUnit',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'WorkingUnitName',
+                        windowTittle: 'Store List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+    }
+
+    /////Invoice
+    $("#btnResetInvoice").click(function () {
+        _nInvoiceIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickInvoice").click(function () {
+        var txtInvoice=$.trim($("#txtInvoice").val());
+        var oInvoice = {
+            ImportInvoiceID:0,
+            BUID:_nBUID,
+            ImportInvoiceNo:txtInvoice
+        };
+        GetsInvoices(oInvoice);
+    });
+
+    $("#txtInvoice").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var txtInvoice=$.trim($("#txtInvoice").val());
+            if(txtInvoice==""){ alert("Type Invoice no to search."); return false; }
+            
+            var oInvoice = {
+                ImportInvoiceID:0,
+                BUID:_nBUID,
+                ImportInvoiceNo:txtInvoice,
+            };
+            GetsInvoices(oInvoice);
+        }
+        else if(nkeyCode==8){
+            _nInvoiceIDs=0;
+            //$("#txtInvoice").val("");
+        }
+    });
+   
+    function GetsInvoices(oInvoice){
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oInvoice,
+            ControllerName: "LotTraking",
+            ActionName: "Gets_Invoice",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ImportInvoiceID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var tblColums = []; var oColumn = { field: "ImportInvoiceNo", title: "Invoice No", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ImportLCNo", title: "L/C No", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ContractorName", title: "Supplier Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winInvoicePicker',
+                        winclass:'clsInvoicePicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblInvoice',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'ImportInvoiceNo',
+                        windowTittle: 'Invoice List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("Data not found.");
+            }
+        });
+
+    }
+    /////Lot
+    $("#btnResetLot").click(function () {
+        _nLotIDs="";
+        $("#txtLot").val("");
+    });
+
+    $("#btnPickLot").click(function () {
+        var txtLot=$.trim($("#txtLot").val());
+        var oLot = {
+            LotNo:txtLot,
+            ParentID:_nInvoiceIDs,
+            WorkingUnitID:_nWorkingUnitIDs,
+            ProductID:_nProductIDs,
+            BUID:_nBUID,
+        };
+        GetLots(oLot);
+    });
+
+    $("#txtLot").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13)
+        {
+            var txtLot=$.trim($("#txtLot").val());
+            var oLot = {
+                LotNo:txtLot,
+                ParentID:_nInvoiceIDs,
+                WorkingUnitID:_nWorkingUnitIDs,
+                ProductID:_nProductIDs,
+                BUID:_nBUID,
+            };
+            GetLots(oLot);
+        }
+        else if(nkeyCode==8){
+            //$("#txtLot").val("");
+        }
+    });
+
+    function GetLots(oLot)
+    {
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oLot,
+            ControllerName: "LotTraking",
+            ActionName: "GetsLot",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].LotID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "LotNo", title: "Lot No", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "Balance", title: "Balance", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "ProductName", width: 150, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 150, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winLotPicker',
+                        winclass:'clsLotPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblLot',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'LotNo',
+                        windowTittle: 'Lot List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+    }
+
+
+
+
+   
+   
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winWorkingUnitPicker')
+        {
+           
+            if(oreturnObj.WorkingUnitID>0)
+            {
+                $('#txtWorkingUnit').val(oreturnObj.WorkingUnitName);
+                $("#txtWorkingUnit").addClass("fontColorOfPickItem");
+                _nWorkingUnitIDs=oreturnObj.WorkingUnitID;
+            }
+            else
+            {
+                alert("Please select a Store.");
+                return ;
+            }
+        }
+        else if (oPickerobj.winid == 'winLotPicker')
+        {
+           
+            if(oreturnObj.LotID>0)
+            {
+                $('#txtLot').val(oreturnObj.LotNo);
+                $("#txtLot").addClass("fontColorOfPickItem");
+                _nLotIDs=oreturnObj.LotID;
+            }
+            else
+            {
+                alert("Please select a Product.");
+                return false;
+            }
+
+        }
+        else if (oPickerobj.winid == 'winProductPicker')
+        {
+            //if (oreturnObjs!= null && oreturnObjs.length> 0)
+            //{
+            //    _nProductIDs=''; var sMessage='';
+            //    sMessage=(oreturnObjs.length>1)? oreturnObjs.length +" ProductName Selected" : oreturnObjs[0].ProductName;
+            //    $('#txtProduct').val(sMessage);
+            //    $("#txtProduct").addClass("fontColorOfPickItem");
+
+            //    for(var i=0;i<oreturnObjs.length;i++){
+            //        _nProductIDs=_nProductIDs+oreturnObjs[i].ProductID+',';
+            //    }
+            //    _nProductIDs=_nProductIDs.substring(0,_nProductIDs.length-1);
+               
+            //}
+            //else
+            //{
+            //    alert("Please select a Product.");
+            //    return false;
+            //}
+            if(oreturnObj.ProductID>0)
+            {
+                $('#txtProduct').val(oreturnObj.ProductName);
+                $("#txtProduct").addClass("fontColorOfPickItem");
+                _nProductIDs=oreturnObj.ProductID;
+            }
+            else
+            {
+                alert("Please select a Product.");
+                return false;
+            }
+
+        }
+        else if (oPickerobj.winid == 'winInvoicePicker')
+        {
+            if (oreturnObj != null )
+            { 
+                if(oreturnObj.ImportInvoiceID>0)
+                {
+                    $('#txtInvoice').val(oreturnObj.ImportInvoiceNo);
+                    $("#txtInvoice").addClass("fontColorOfPickItem");
+                    _nInvoiceIDs=oreturnObj.ImportInvoiceID;
+                }
+                else
+                {
+                    alert("Please select a invoice.");
+                    return ;
+                }
+
+            }
+            else
+            {
+                alert("Data not fount");
+                return ;
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    $("#btnSearch").click(function () {
+        debugger;
+        //var sLotTrakingNo="";
+        //var _nBUID=_nBUID;
+        //var sParams = 
+        //               _nProductIDs + "~" +
+        //               _nWorkingUnitIDs + "~" +
+        //               _nLotIDs+"~"+
+        //               _nBUID;
+        ////sessionStorage.setItem("ParamsLD", sParams);
+        if(_nLotIDs==null || _nLotIDs=="")
+        { 
+            alert("Please, Select Lot.");
+        }
+        var oLotTraking = {
+            LotNo : _nLotIDs,
+            BUID:_nBUID
+        };
+        Search(oLotTraking);
+    });
+    function Search(oLotTraking)
+    {
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/LotTraking/Gets_LotTraking",
+            traditional: true,
+            data: JSON.stringify(oLotTraking),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLotTrakings = jQuery.parseJSON(data);
+                debugger;
+                if (oLotTrakings != null) {
+                   
+                    if (oLotTrakings.length > 0)
+                    {
+                        DynamicRefreshList(oLotTrakings, "tblLotTrakings");
+                    }
+                    else
+                    {
+                        alert("Sorry, No data found.");
+                        DynamicRefreshList([], "tblLotTrakings");
+                    }
+
+                } else {
+                    alert("Sorry, No data found.");
+                    DynamicRefreshList([], "tblLotTrakings");
+                }
+                //$(".lblLoadingMessage").hide();
+            }
+        });
+    }
+ 
+    $("#btnPrint").click(function(){
+ 
+      
+        var  sTempString =  _nLotIDs;
+          
+        window.open(_sBaseAddress + '/LotTraking/PrintLotTracking?sTempString='+sTempString, "_blank");
+    });
+    $("#btnStockPrint").click(function(){
+        if(_nLotIDs==null || _nLotIDs=="")
+        { 
+            alert("Please, Select Lot.");
+            return;
+        }
+      
+        var sTempString = _nLotIDs +'~' +_nBUID;
+        var nts = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress + '/LotTraking/PrintStockLotTracking?sTempString='+sTempString+"&nts=" + nts ,"_blank");
+    });
+</script>
+

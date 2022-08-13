@@ -1,0 +1,210 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.InventoryTraking>
+    @{
+        ViewBag.Title = "View Item Movement";
+    }
+
+    <body>
+        <div id="progbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+            <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+                <label style="font-size:18px;">Please wait</label>
+                <div id="progbar" style="width:100%;height:37px;"></div>
+            </div>
+        </div>
+
+        <div class="menuMainCollectionTable" style="font-family:Tahoma; height:100%; width:100%">
+            <div class="easyui-panel" id="divInventoryTraking" title="Item Movement Details" style="height:88%; width:100%;">
+                @*<table id="tblInventoryTrakingDetails" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">*@
+                    <table id="tblInventoryTrakingDetails" style="width:100%; height:100%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="rowStyler: function(index,row){
+            if (row.Remarks=='Total'){
+                return 'color:#016B18; font-weight:bold;';
+            }
+        }
+">
+
+                        <thead>
+                            <tr>
+                                <th field="TransactionDateSt" width="8%" align="left">Ref Date</th>
+                                <th field="EntryDateTimeSt" width="15%" align="left">Entry Date</th>
+                                <th field="ParentTypeSt" width="14%" align="left">Transfer Type</th>
+                                <th field="RefNo" width="14%" align="left">Transfer Reference</th>
+                                <th field="Remarks" width="10%" align="left">Remarks</th>
+                                <th field="MUnit" width="5%" align="left">MU</th>
+                                <th field="InQty" width="10%" align="right" formatter="formatPrice">In Qty </th>
+                                <th field="OutQty" width="10%" align="right" formatter="formatPrice">Out Qty</th>
+                                <th field="Balance" width="13%" align="right" formatter="formatPrice"> Balance</th>
+                            </tr>
+                        </thead>
+                    </table>
+                <div id="toolbar">
+                    <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View Details</a>
+                </div>
+            </div>
+            <div style="width:100%; height:8%">
+                <fieldset>
+                    <legend style="font-weight: bold">Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                        <tr>
+                            <td style="width:90%; text-align:right">
+                                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print(PDF)</a>
+                                <a id="btnPrint_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Export XL</a>
+                            </td>
+                            <td style="width:10%">
+                                <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+</body>
+  
+    <script type="text/javascript">
+    var _oInventoryTrakings=[];
+    var _sBaseAddress="";
+    var _oInventoryTraking=null;
+    var _sBackLink="";
+    var _oTriggerParentTypes=[];
+    $(document).ready(function ()
+    {
+        debugger;
+        _oInventoryTrakings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var nBUID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        
+        $("#progbar").progressbar({ value: 0 });
+        $("#progbarParent").hide();
+
+        LoadData();
+        
+        
+    });
+
+    function LoadData()
+        {
+            $("#progbar").progressbar({ value: 0 });
+            $("#progbarParent").show();
+            var intervalID = setInterval(updateProgress, 250);
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/ItemMovement/GetMovementDetails",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    $('#progbar').progressbar('setValue', 100);
+                    clearInterval(intervalID);
+                    if(data != null && data.length > 0 && data[0].ErrorMessage == ""){
+                        _oInventoryTrakings = data;
+                        LoadintoGrid(_oInventoryTrakings);
+                        RefreshSummary();
+                        var sTitle = sessionStorage.getItem('MovementItemDetailHeader');
+                        $('#divInventoryTraking').panel({title:sTitle})
+                        setTimeout(hideShow, 1000);
+                    }
+                    else{
+                        setTimeout(hideShow, 1000);
+                        alert(data[0].ErrorMessage);
+                    }
+                    //$.icsProgressBar(false);
+                    
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+    function updateProgress() {
+        var value =$('#progbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progbarParent").hide();
+    }
+
+    function LoadintoGrid(oInventoryTrakings) {
+        //  $('#tblInventoryTrakingDetails').datagrid({ selectOnCheck: false, checkOnSelect: false });
+        data = oInventoryTrakings;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblInventoryTrakingDetails').datagrid('loadData', data);
+     
+    }
+
+
+    $("#btnPrint").click(function () {
+        debugger;
+        if(($('#tblInventoryTrakingDetails').datagrid('getRows')).length<=0)
+        {
+            alert("Sorry, There is No Data to Print.");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+'/ItemMovement/PrintItemMovementDetails?ts='+tsv,"_blank");
+    });
+
+    $("#btnPrint_XL").click(function () {
+        debugger;
+        if(($('#tblInventoryTrakingDetails').datagrid('getRows')).length<=0)
+        {
+            alert("Sorry, There is No Data to Print.");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+'/ItemMovement/PrintItemMovementDetailsExcel?ts='+tsv,"_blank");
+    });
+
+    $("#btnClose").click(function(){
+        window.close();
+    });
+    
+    $("#btnView").click(function () {      
+        var oInventoryTrakingDetail = $('#tblInventoryTrakingDetails').datagrid('getSelected');        
+        if(oInventoryTrakingDetail==null)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if(parseInt(oInventoryTrakingDetail.ParentID)<=0)
+        {
+            alert("Please select an Transaction Item!");
+            return;
+        }
+        if(oInventoryTrakingDetail.URL === null || oInventoryTrakingDetail.URL === "")
+        {
+            alert("Detail View Not Available!");
+            return;
+        }
+        window.open(_sBaseAddress+"/"+oInventoryTrakingDetail.URL,"_blank");
+    });
+    function RefreshSummary()
+    {
+    
+        var oRows = $('#tblInventoryTrakingDetails').datagrid('getRows');
+
+        if(oRows.length>0)
+        {
+            var nInQty = 0,nOutQty=0;
+            for(var i=0;i<oRows.length;i++)
+            {
+                nInQty = parseFloat(nInQty)+parseFloat(oRows[i].InQty);
+                nOutQty = parseFloat(nOutQty)+parseFloat(oRows[i].OutQty);
+            }
+
+            nInQty = parseFloat(nInQty).toFixed(2);
+            nOutQty = parseFloat(nOutQty).toFixed(2);
+
+            var oRow ={ Remarks : 'Total', InQty:nInQty, OutQty:nOutQty}
+            $('#tblInventoryTrakingDetails').datagrid('appendRow',oRow);
+         
+        }
+
+    }
+    </script>
+
+

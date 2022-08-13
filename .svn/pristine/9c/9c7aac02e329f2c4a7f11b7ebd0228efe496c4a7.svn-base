@@ -1,0 +1,202 @@
+﻿@{
+    ViewBag.Title = "Spare Parts Consumption Report";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model IEnumerable<ESimSol.BusinessObjects.CapitalResource>
+
+    <div style="margin-left:0px; width:100%; height:89%" class="menuMainCollectionTable">
+        <table id="tblCapitalResource" style="width:896px;height:548px" title="Spare Parts List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="true" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="Code" width="10%">Code</th>
+                    <th field="Name" width="25%">Capital Resource Name</th>
+                    <th field="LocationName" width="25%">Location</th>
+                    <th field="OtherCost" width="10%" align="right">Total Qty</th>
+                    <th field="TotalLandedCost" align="right" data-options="formatter:cellClickEvent" width="10%">Total Amount</th>
+
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:auto">
+            <table>
+                <tr>
+                    <td>
+                        <label>Spare Parts :</label>
+                        <input type="text" id="txtSearchByName" placeholder="Search by Name" style="width:100px" />
+                        <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:100px" />
+                        <input type="text" class="easyui-datebox" style="width: 100px; font-size:11px;" id="txtDateFrom" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        <label>to</label>
+                        <input type="text" class="easyui-datebox" style="width: 100px; font-size:11px;" id="txtDateTo" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        <label>Capital Resource :</label>
+                        <input type="text" id="txtSearchByCRCode" placeholder="Search by Code" style="width:110px" />
+                        <input type="text" id="txtSearchByCRName" placeholder="Search by Name" style="width:110px" />
+                        <input type="text" id="txtSearchByCRLocation" placeholder="Search by Location" style="width:110px" />
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right"></td>
+                    <td style="width:20%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" onclick="Close()" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+    <script type="text/javascript">
+
+        var _oCapitalResources=[];
+        var _sBaseAddress="";
+        var _nBUID = 0;
+        var _oCRWiseSpareParts = [];
+        var _nMenuID = 0;
+        $(document).ready(function () {
+            debugger;
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oCapitalResources=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            _nMenuID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MenuID));
+            _oCRWiseSpareParts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CRWiseSpareParts));
+
+            var oTempCapitalResources =sessionStorage.getItem("CapitalResources");
+            if(oTempCapitalResources!=null)
+            {
+                _oCapitalResources = jQuery.parseJSON(oTempCapitalResources);
+            }
+            RefreshList(_oCapitalResources);
+            RefreshPageControl();
+        });
+        function RefreshList(oCapitalResources)
+        {
+            data=oCapitalResources;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblCapitalResource').datagrid('loadData',data);
+
+            var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if(nID!=-1)
+            {
+                $('#tblCapitalResource').datagrid('selectRow', nID);
+            }
+        }
+        function RefreshPageControl()
+        {
+            $('#txtSearchByName').val(_oCRWiseSpareParts.ProductName);
+            $('#txtSearchByCode').val(_oCRWiseSpareParts.ProductCode);
+            var dPreviousMonthDate = new Date();
+            dPreviousMonthDate.setMonth(dPreviousMonthDate.getMonth()-1)
+            $('#txtDateFrom').datebox('setValue',icsdateformat(dPreviousMonthDate));
+            $('#txtDateTo').datebox('setValue',icsdateformat(new Date()));
+        }
+        function cellClickEvent(value,row,index) {
+            return '<a id="btnShowDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="" plain="true" onclick="CellOnClick('+row.SparePartsID+')">'+row.TotalLandedCost+'</a>';
+        }
+        function CellOnClick(nCRID) {
+            var oCapitalResource= $('#tblCapitalResource').datagrid('getSelected');
+            var SelectedRowIndex=$('#tblCapitalResource').datagrid('getRowIndex',oCapitalResource);
+            var oCapitalResources= $('#tblCapitalResource').datagrid('getRows');
+            sessionStorage.setItem("CapitalResources", JSON.stringify(oCapitalResources));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BUID", sessionStorage.getItem('BUID'));
+            sessionStorage.setItem("BackLinkSPCCRWise", window.location.href);
+            window.location.href = sessionStorage.getItem('BaseAddress')+  "/SparePartsConsumption/ViewSparePartsConsumptionSPWise?nCRID="+oCapitalResource.CRID+"&buid="+sessionStorage.getItem('BUID')+"&nSPID=" + _oCRWiseSpareParts.SparePartsID + "&menuid="+_nMenuID;
+        }
+        function Close() {
+            window.location.href = sessionStorage.getItem("BackLinkSPC");
+        }
+        //-----------------------Basic Search(Start)--------------------------------------//
+        //function SearchByType()
+        //{
+        //    var oData = {
+        //        Code:'',
+        //        Name:'',
+        //        ParentID: $('#cboResourcesType').val(),
+        //        BUID:sessionStorage.getItem("BUID")
+        //    };
+        //    var obj = {
+        //        BaseAddress: _sBaseAddress,
+        //        Object: oData,
+        //        ControllerName: "CapitalResource",
+        //        ActionName: "GetCRByNameCodeTypeBUID",
+        //        IsWinClose: false
+        //    };
+        //    BasicSearch(obj);
+        //}
+        //$('#txtSearchByCode').keypress(function (e) {
+        //    debugger;
+        //    var oData = {
+        //        Code:document.getElementById('txtSearchByCode').value,
+        //        Name:'',
+        //        ParentID: $('#cboResourcesType').val(),
+        //        BUID:sessionStorage.getItem("BUID")
+        //    };
+        //    var obj = {
+        //        BaseAddress: _sBaseAddress,
+        //        Object: oData,
+        //        ControllerName: "CapitalResource",
+        //        ActionName: "GetCRByNameCodeTypeBUID",
+        //        IsWinClose: false
+        //    };
+        //    BasicSearch(obj);
+        //});
+        //function BasicSearch(obj)
+        //{
+
+        //    $("#progressbar").progressbar({ value: 0 });
+        //    $("#progressbarParent").show();
+        //    $.icsDataGets(obj, function (response) {
+        //        $("#progressbarParent").hide();
+        //        if (response.status && response.objs.length > 0) {
+        //            if (response.objs[0].CRID > 0) {
+        //                $('#tblCapitalResource').datagrid('loadData',[]);
+        //                $("#tblCapitalResource").datagrid("loadData", response.objs);
+        //            }
+        //            else { alert(response.objs[0].ErrorMessage); }
+        //        }
+        //        else{
+        //            alert("No Capital Resource found.");
+        //        }
+        //    });
+        //}
+        //function RefreshList(oCapitalResources)
+        //{
+        //    data=oCapitalResources;
+        //    data={"total":""+data.length+"","rows":data};
+        //    $('#tblCapitalResource').datagrid('loadData',data);
+
+        //    var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        //    if(nID!=-1)
+        //    {
+        //        $('#tblCapitalResource').datagrid('selectRow', nID);
+        //    }
+        //}
+        //-----------------------Basic Search (END)--------------------------------------//
+        //-----------------------------PRINT------------------------------------//
+
+        //$('#btnPrint').click(function(e)
+        //{
+        //    var oCR = $('#tblCapitalResource').datagrid('getSelected');
+        //    if(oCR==null ||oCR.id<=0) { alert("Please select a valid item");return; }
+        //    var nts = (new Date().getTime()) / 1000;
+        //    window.open(_sBaseAddress +"/CapitalResource/PrintMachine?nCRID="+oCR.CRID+"&nts="+nts , "_blank");
+        //});
+        //$('#btnPrintList').click(function(e)
+        //{
+        //    var nts = (new Date().getTime()) / 1000;
+        //    window.open(_sBaseAddress +"/CapitalResource/PrintMachineList?nBuid="+ _nBUID +"&nts="+nts , "_blank");
+        //});
+        //-----------------------------PRINT(END)------------------------------------//
+
+    </script>
+
+
+
+

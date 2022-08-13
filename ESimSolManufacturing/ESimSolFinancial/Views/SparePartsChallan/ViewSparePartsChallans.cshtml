@@ -1,0 +1,306 @@
+﻿@{
+    ViewBag.Title = "Spare Parts Requisition List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.SparePartsChallan>
+    <div class="menuMainCollectionTable" style="height:90%">
+        <table id="tblSparePartsChallans" title="dynamicHeader" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ChallanNo" width="100">Challan No</th>
+                    <th field="ChallanDateSt" width="130">Challan Date</th>
+                    <th field="StoreName" width="350">Store Name</th>
+                    <th field="DisburseByName" width="150">Disburse By</th>
+                    <th field="Remarks" width="200">Remarks</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            @*<input type="text" id="txtChallanNo" placeholder="Search By Challan No" style="width:150px" />*@
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnDisburse" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-disburse" plain="true">Disburse</a>
+            <a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+        </div>
+
+        
+
+    </div>
+    <fieldset style="height:10%">
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+            <tr>
+                <td style="width:83%; text-align:right"></td>
+                <td style="width:17%;text-align:right;">
+                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    <script type="text/javascript">
+        var _oTempSparePartsChallans = [];
+        var _oSparePartsRequisition = [];
+        $(document).ready(function () {
+            debugger;
+            _oTempSparePartsChallans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _oSparePartsRequisition =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.SparePartsRequisition));
+            var oSparePartsChallans =sessionStorage.getItem("SparePartsChallans");
+            if(oSparePartsChallans!=null)
+            {
+                oSparePartsChallans = jQuery.parseJSON(oSparePartsChallans);
+            }
+            else
+            {
+                oSparePartsChallans=_oTempSparePartsChallans;
+            }
+            RefreshList(oSparePartsChallans);
+        });
+        $("#txtChallanNo").keyup(function (e) {
+            if (e.keyCode == 13) {
+                if($.trim($('#txtChallanNo').val())===null || $.trim($('#txtChallanNo').val())==="")
+                {
+                    alert("Press enter with Ref No/Style No/Requisition No/SpareParts Unit!");
+                    return;
+                }
+                var nBUID = parseInt(sessionStorage.getItem('BUID'));
+                if(nBUID<=0)
+                {
+                    alert("Invalid Business Unit!");
+                    return;
+                }
+
+                var oSparePartsChallan = {
+                    RefNo : $("#txtChallanNo").val(),
+                    BUID : nBUID
+                };
+
+                $.ajax({
+                    type: "POST",
+                    dataType: "json",
+                    url: sessionStorage.getItem('BaseAddress') + "/SparePartsChallan/GetsByRefNo",
+                    traditional: true,
+                    data: JSON.stringify(oSparePartsChallan),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        var oSparePartsChallans = jQuery.parseJSON(data);
+                        if (oSparePartsChallans != null) {
+                            if (oSparePartsChallans.length > 0) {
+                                DynamicRefreshList(oSparePartsChallans, "tblSparePartsChallans");
+                            }
+                            else {
+                                //alert("There is no Data!");
+                                DynamicRefreshList([], "tblSparePartsChallans");
+                            }
+                        } else {
+                            //alert("There is no Data!");
+                            DynamicRefreshList([], "tblSparePartsChallans");
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        alert(error);
+                    }
+                });
+            }
+        });
+        $('#btnClose').click(function(e){
+            window.location.href = sessionStorage.getItem("BackLinkRequisition");
+        });
+        $("#btnAdd").click(function(){
+            var oSparePartsChallans= $('#tblSparePartsChallans').datagrid('getRows');
+            sessionStorage.setItem("SparePartsChallans", JSON.stringify(oSparePartsChallans));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("SparePartsChallanHeader", "Add Challan");
+            sessionStorage.setItem("BUID", sessionStorage.getItem('BUID'));
+            sessionStorage.setItem("SparePartsChallanAction", "Add");
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = sessionStorage.getItem('BaseAddress')+ "/SparePartsChallan/ViewSparePartsChallan?nSPRID="+_oSparePartsRequisition.SparePartsRequisitionID+"&nChallanID=0&buid="+sessionStorage.getItem('BUID');
+        });
+        $("#btnView").click(function(){
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblSparePartsChallans').datagrid('getRowIndex',oSparePartsChallan);
+            var oSparePartsChallans= $('#tblSparePartsChallans').datagrid('getRows');
+            sessionStorage.setItem("SparePartsChallans", JSON.stringify(oSparePartsChallans));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("SparePartsChallanHeader", "View SpareParts Requisition");
+            sessionStorage.setItem("SparePartsChallanAction", "View");
+            sessionStorage.setItem("BUID", sessionStorage.getItem('BUID'));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = sessionStorage.getItem('BaseAddress')+  "/SparePartsChallan/ViewSparePartsChallan?nSPRID="+_oSparePartsRequisition.SparePartsRequisitionID+"&nChallanID="+oSparePartsChallan.SparePartsChallanID+"&buid="+sessionStorage.getItem('BUID');
+        });
+        $("#btnEdit").click(function(){
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oSparePartsChallan.DisburseBy>0)
+            {
+                alert("This Challan Is Already Disbured !!");
+                return;
+            }
+            var SelectedRowIndex=$('#tblSparePartsChallans').datagrid('getRowIndex',oSparePartsChallan);
+            var oSparePartsChallans= $('#tblSparePartsChallans').datagrid('getRows');
+            sessionStorage.setItem("SparePartsChallans", JSON.stringify(oSparePartsChallans));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("SparePartsChallanHeader", "Edit SpareParts Requisition");
+            sessionStorage.setItem("SparePartsChallanAction", "Edit");
+            sessionStorage.setItem("BUID", sessionStorage.getItem('BUID'));
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = sessionStorage.getItem('BaseAddress')+  "/SparePartsChallan/ViewSparePartsChallan?nSPRID="+_oSparePartsRequisition.SparePartsRequisitionID+"&nChallanID="+oSparePartsChallan.SparePartsChallanID+"&buid="+sessionStorage.getItem('BUID');
+        });
+        $('#btnPreview').click(function(){
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress')+  "/SparePartsChallan/PrintSparePartsChallan?id="+oSparePartsChallan.SparePartsChallanID +"&buid=" + parseInt(sessionStorage.getItem("BUID")));
+        });
+        $("#btnDelete").click(function(){
+            debugger;
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if(oSparePartsChallan.DisburseBy>0)
+            {
+                alert("This Challan Is Already Disbured !!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex=$('#tblSparePartsChallans').datagrid('getRowIndex',oSparePartsChallan);
+            if (oSparePartsChallan.SparePartsChallanID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : sessionStorage.getItem('BaseAddress')+  "/SparePartsChallan/Delete",
+                    data: { nSparePartsChallanID: oSparePartsChallan.SparePartsChallanID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        var feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $('#tblSparePartsChallans').datagrid('deleteRow',SelectedRowIndex);
+                            var oSparePartsChallans= $('#tblSparePartsChallans').datagrid('getRows');
+                            sessionStorage.setItem("SparePartsChallans", JSON.stringify(oSparePartsChallans));
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+        $("#btnDisburse").click(function (){
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if (!confirm("Confirm to Disburse?")) return ;
+            var SelectedRowIndex=$('#tblSparePartsChallans').datagrid('getRowIndex',oSparePartsChallan);
+
+            var obj = {
+                SparePartsChallanID : oSparePartsChallan.SparePartsChallanID
+            }
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+"/SparePartsChallan/Disburse",
+                traditional: true,
+                data:  JSON.stringify(oSparePartsChallan),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    oSparePartsChallan = jQuery.parseJSON(data);
+                    if (oSparePartsChallan.ErrorMessage==null || oSparePartsChallan.ErrorMessage=="") {
+                        alert("Data Saved successfully");
+                        debugger;
+                        var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        $('#tblSparePartsChallans').datagrid('updateRow',{index: nIndex,	row: oSparePartsChallan});
+                    }
+                    else {
+                        alert(oSparePartsChallan.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        });
+        $("#werwer").click(function(){
+            debugger;
+            var oSparePartsChallan= $('#tblSparePartsChallans').datagrid('getSelected');
+            if(oSparePartsChallan==null || oSparePartsChallan.SparePartsChallanID<=0)
+            {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex=$('#tblSparePartsChallans').datagrid('getRowIndex',oSparePartsChallan);
+            if (oSparePartsChallan.SparePartsChallanID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : sessionStorage.getItem('BaseAddress')+  "/SparePartsChallan/Delete",
+                    data: { nSparePartsChallanID: oSparePartsChallan.SparePartsChallanID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        var feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $('#tblSparePartsChallans').datagrid('deleteRow',SelectedRowIndex);
+                            var oSparePartsChallans= $('#tblSparePartsChallans').datagrid('getRows');
+                            sessionStorage.setItem("SparePartsChallans", JSON.stringify(oSparePartsChallans));
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+                });
+            }
+        });
+        function RefreshList(oSparePartsChallans)
+        {
+            debugger;
+            var dgPanel = $('#tblSparePartsChallans').datagrid('getPanel');
+            dgPanel.panel('setTitle', "Challan For Requisition No : " + _oSparePartsRequisition.RequisitionNo);
+
+            var data=oSparePartsChallans;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblSparePartsChallans').datagrid('loadData',data);
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            $('#tblSparePartsChallans').datagrid('selectRow',nIndex);
+        }
+    </script>

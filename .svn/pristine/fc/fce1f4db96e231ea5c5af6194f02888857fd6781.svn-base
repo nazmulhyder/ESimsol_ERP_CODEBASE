@@ -1,0 +1,162 @@
+﻿ <html>
+@{
+    ViewBag.Title = "Attachment";
+}
+<body>
+
+@model ESimSol.BusinessObjects.AttachDocument
+<div style="font-family:Tahoma">           
+
+@using (Html.BeginForm("UploadAttchment", "AttachDocument", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{   
+    @Html.HiddenFor(model => model.RefID) 
+    @Html.HiddenFor(model => model.ErrorMessage)
+    @Html.HiddenFor(model => model.RefTypeInInt)
+    <div style="margin-left:0px; margin-top:1px; height:490px" id="divatt">
+        <table id="tblAttachment" title="Attahment List" class="easyui-datagrid" style="width:100%;height:490px" toolbar="#toolbar" fitColumns="false" rownumbers="true" pagination="false" singleSelect="true" autoRowHeight="false">
+            <thead>
+                <tr>
+                    <th field="FileName" width="50%">Attatchment Name</th>
+                    <th field="Remarks" width="30%">Remarks</th>
+                    <th field="AttatchFileinString" width="18%" align="center" formatter="FormatDownload">Download</th>
+                </tr>
+            </thead>
+        </table>​
+        <div id="toolbar" style="font-family:Tahoma; margin-left:0px; height:28px; width:100%" >
+            <table border="0"cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                    <td style="width:30%"><input type="file" name="file" style="width:100%" /></td>
+                    <td style="width:70%">
+                        Remark : @Html.TextBoxFor(model => model.Remarks, new { style = "width: 25%;", id = "txtRemarks" })
+                        <input id="btnSubmit" type="submit" value="Upload" style="width:75px; font-weight:bold" />
+                        <input id="btnDelete" type="button" value="Delete" style="width:75px; font-weight:bold" />
+                    </td>
+                </tr>
+            </table>
+            
+        </div>                                          
+    </div>
+    
+}
+    <fieldset>
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:12px; font-weight:bold" width="100%">
+            <tr>
+                <td style="width:52%; text-align:left;color:red;">             
+                    <label id="lblError"> @TempData["message"]</label>
+                </td>
+                <td style="width:40%">                   
+                    <label id="lblArticleRef" style="color:green;"></label>
+                </td>
+                <td style="width:8%">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>       
+        </table>        
+    </fieldset>
+</div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oAttachDocuments=[]
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAttachDocuments=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.AttachDocuments));
+        var sOperationInfo =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.ErrorMessage));
+        $("#lblArticleRef" ).html(sOperationInfo);
+        RefreshList(_oAttachDocuments);
+ });
+  //setTimeout(function() {$("#lblError").hide('blind', {}, 500)}, 5000);
+
+ $('#btnDelete').click(function (e) {
+    //debugger;
+    var oAttachDocument= $('#tblAttachment').datagrid('getSelected');
+    if(oAttachDocument==null ||  parseInt(oAttachDocument.AttachDocumentID)<=0)
+    {
+        alert("Invalid Attachment!!! please select a valid Attachment!");
+        return false;
+    }
+    if (!confirm("Confirm to Delete?")) return ;
+
+    var SelectedRowIndex=$('#tblAttachment').datagrid('getRowIndex',oAttachDocument);
+
+    if (oAttachDocument.AttachDocumentID > 0)
+    {
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/AttachDocument/DeleteAttachment",
+            data:  JSON.stringify(oAttachDocument),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Data Delete Successfully")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblAttachment').datagrid('deleteRow',SelectedRowIndex);
+
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+        });
+    }
+});
+
+function FormatDownload(value)
+{
+    debugger;
+    var nPOAID =parseInt(value);
+    var s = '   <input type="image" src="@Url.Content("~/Content/CSS/icons/down.png")"   onclick="DownLoadAttachment('+nPOAID+')", value="" id="btnDownload"'+nPOAID+'/> ';    
+    return s;
+    }
+
+    function FormatApproved(value)
+    {
+        debugger;
+        var s='';
+        if(value==true)
+        {
+            s = '   <input type="image" src="@Url.Content("~/Content/CSS/icons/ok.png")"   value=""/> ';
+        }
+        return s;
+    }
+
+    function DownLoadAttachment(nPOAID)
+    {
+        debugger;
+        if(nPOAID==null || nPOAID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var oParameter = new Object();
+        var tsv= ((new Date()).getTime())/1000;
+        var url =_sBaseAddress+  "/AttachDocument/DownloadAttachment?id="+ nPOAID+"&ts="+tsv;
+        window.open(url, '_blank');
+    }
+
+    function RefreshList(oAttachDocuments)
+    {
+        data=oAttachDocuments;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblAttachment').datagrid('loadData',data);
+    }
+
+    function Close()
+    {
+        window.close();
+    }
+</script>

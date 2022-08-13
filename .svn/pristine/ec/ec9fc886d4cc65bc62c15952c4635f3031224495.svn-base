@@ -1,0 +1,338 @@
+﻿<html>
+<head>
+    @{
+        ViewBag.Title = "QC Step";
+    }
+</head>
+<body>
+    @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+    @model ESimSol.BusinessObjects.QCStep
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" id="divQCStep" title="QC Step" style="font-family:Tahoma;text-align:center;  width:100%;height:100%;">
+            <div style="margin-left:3px; margin-top:2px; width:99.5%;height:87.5%">
+                <table id="tblChildQCStep" class="easyui-datagrid" title="Child QC Steps" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#ChildQCStepstoolbar">
+                    <thead>
+                        <tr>
+                            <th field="QCStepName" width="130">Step Name</th>
+                            <th field="QCDataTypeInString" width="100">Data Type</th>
+                            <th field="ProductionStepName" align="center" width="100">Production Step Name</th>
+                            <th field="Sequence" align="center" width="100">Sequence</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="ChildQCStepstoolbar" style="text-align:left; font-weight:normal">
+                    Name :<input type="text" id="txtChildName" style="width:140px" />
+                    Type :<select id="cboDataType" style="width:80px;" class="Change_QCDataType"><option value="0">Text</option><option value="1">Number</option><option value="2">Date</option><option value="3">Boolean</option><option value="4">Production</option></select>
+                    <label id="lblPS">Product Step :</label> <select id="cboProductionStep" style="width:150px;"></select>
+                    <a href="javascript:void(0)" id="btnAddDetail" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddDetail()">Add</a>
+                    <a href="javascript:void(0)" id="btnRemoveDetail" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="RemoveDetail()">Remove</a>
+                    <a href="javascript:void(0)" id="btnUp" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+                    <a href="javascript:void(0)" id="btnDown" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+                </div>
+            </div>
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table bQC="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight:bold; width:100%">
+                    <tr>
+                        <td style="width:86%; text-align: right"></td>
+                        <td style="width: 6%">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        </td>
+                        <td style="width:8%">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oQCStep=null;
+    var _sBaseAddress="";
+    var _oSelectedYarn = null;
+    var _oSelectedColorCategorys = [];
+    var _oChildQCSteps = [];
+    var _nMenuid = 0;
+    var _objName = "";
+    var _oProductionSteps = [];
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oQCStep =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oChildQCSteps = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.ChildQCSteps));
+        _oProductionSteps = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionSteps));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(MenuID));
+        _objName = sessionStorage.getItem("QCStepHeader");
+        $("#cboProductionStep").icsLoadCombo({ List: _oProductionSteps, OptionValue: "ProductionStepID", DisplayText: "StepName" });
+        $("#cboProductionStep").hide();
+        $("#lblPS").html('');
+        $('#divQCStep').panel({title:_objName});
+        RefreshControl();
+    });
+
+    $('.Change_QCDataType').change(function () {
+        $("#cboProductionStep").val(0);
+        $("#lblPS").html('');
+        if($("#cboDataType").val()==4)//produciton
+        {
+            $("#cboProductionStep").show();
+            $("#lblPS").html('Product Step :');
+        }else{
+            $("#cboProductionStep").hide();
+            
+        }
+
+    });
+
+    function RefreshControl()
+    {
+        RefreshList(_oChildQCSteps);
+        if(_objName=="View QC Step")
+        {
+            document.getElementById('btnUp').style.display = 'none';
+            document.getElementById('btnDown').style.display = 'none';
+            document.getElementById('btnAddDetail').style.display = 'none';
+            document.getElementById('btnRemoveDetail').style.display = 'none';
+            document.getElementById('btnSave').style.display = 'none';
+        }
+    }
+
+    function RefreshList(oChildQCSteps)
+    {
+        data=oChildQCSteps;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblChildQCStep').datagrid('loadData',data);
+    }
+
+    function AddDetail()
+    {
+        if($('#txtChildName').val() == "" || $('#txtChildName').val() == null)
+        {
+            alert("Please Type Requied field");
+            return ;
+        }
+        if(IsExist($('#txtChildName').val()))
+        {
+            alert("Duplicate Entry Not Allow");
+            return;
+        }
+        var cboDataType =  document.getElementById('cboDataType');
+        var oChildQCStep = {
+            QCStepID :0,
+            ParentID :_oQCStep.QCStepID,
+            QCStepName :$("#txtChildName").val(),
+            QCDataTypeInString:cboDataType.options[cboDataType.selectedIndex].text,
+            QCDataType :$("#cboDataType").val(),
+            ProductionStepID:$("#cboProductionStep").val(),
+            ProductionStepName:'',
+            Sequence : $('#tblChildQCStep').datagrid('getRows').length+ parseInt(1)
+        };
+        if(parseInt($("#cboProductionStep").val())>0 )
+        {
+            oChildQCStep.ProductionStepName = $("#cboProductionStep option:selected").text();
+        }
+        $('#tblChildQCStep').datagrid('appendRow',oChildQCStep);
+        $('#txtChildName').val("");
+        $('#cboDataType').val(0);
+        $("#cboProductionStep").val(0);
+        $("#lblPS").html('');
+        $('#txtChildName').focus();
+    }
+
+    function IsExist(sTempChildName)
+    {
+        var oChildQCSteps = $('#tblChildQCStep').datagrid('getRows');
+        for(var i = 0;i<oChildQCSteps.length;i++)
+        {
+            if(oChildQCSteps[i].QCStepName == sTempChildName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function UP()
+    {
+        debugger;
+        var oChildQCStep = $('#tblChildQCStep').datagrid('getSelected');
+        if(oChildQCStep==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblChildQCStep').datagrid('getRowIndex',oChildQCStep);
+        if(SelectedRowIndex==0)return;
+        var oChildQCSteps=[];
+        oChildQCSteps=_oChildQCSteps;
+        _oChildQCSteps=[];
+        for(var i=0; i<oChildQCSteps.length; i++)
+        {
+            if(i==(SelectedRowIndex-1))
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i+1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i-1];
+            }
+            else
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i];
+            }
+            _oChildQCSteps[i].Sequence=i+1;
+        }
+        data = _oChildQCSteps;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblChildQCStep').datagrid('loadData',data);
+        //    MakeChildQCStep();
+        var newSelectedRowIndex=SelectedRowIndex-1;
+        $('#tblChildQCStep').datagrid('selectRow',newSelectedRowIndex);
+
+    }
+
+    function Down()
+    {
+        debugger;
+        var oChildQCStep = $('#tblChildQCStep').datagrid('getSelected');
+        if(oChildQCStep==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblChildQCStep').datagrid('getRowIndex',oChildQCStep);
+        if(SelectedRowIndex==(_oChildQCSteps.length-1))return;
+        var oChildQCSteps=[];
+        oChildQCSteps=_oChildQCSteps;
+        _oChildQCSteps=[];
+        for(var i=0; i<oChildQCSteps.length; i++)
+        {
+            if(i==(SelectedRowIndex+1))
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i-1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i+1];
+            }
+            else
+            {
+                _oChildQCSteps[i]=oChildQCSteps[i];
+            }
+            _oChildQCSteps[i].Sequence=i+1;
+        }
+        data = _oChildQCSteps;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblChildQCStep').datagrid('loadData',data);
+
+        var newSelectedRowIndex=SelectedRowIndex+1;
+        $('#tblChildQCStep').datagrid('selectRow',newSelectedRowIndex);
+    }
+
+
+    function RefreshSequence()
+    {
+        var oChildQCSteps = $('#tblChildQCStep').datagrid('getRows');
+        if(oChildQCSteps.length>0)
+        {
+            for(var i = 0;i<oChildQCSteps.length;i++)
+            {
+                oChildQCSteps[i].Sequence = i+1;
+            }
+            RefreshList(oChildQCSteps);
+        }
+
+    }
+
+    function RemoveDetail()
+    {
+        var oChildQCStep= $('#tblChildQCStep').datagrid('getSelected');
+        if(oChildQCStep==null)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblChildQCStep').datagrid('getRowIndex',oChildQCStep);
+        $('#tblChildQCStep').datagrid('deleteRow',SelectedRowIndex);
+        alert("Successfully Deleted");
+        RefreshSequence();
+    }
+
+    function ValidateInput()
+    {
+        if($('#tblChildQCStep').datagrid('getRows').length<=0)
+        {
+            alert("Please add atleast One Detail");
+            return false;
+        }
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+        var oQCStep= {
+            QCStepID :_oQCStep.QCStepID,
+            ChildQCSteps :$('#tblChildQCStep').datagrid('getRows')
+        };
+        return oQCStep;
+    }
+
+
+    function Save()
+    {
+        //debugger;
+        if(!ValidateInput()) return;
+        var oQCStep=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/QCStep/Save",
+            traditional: true,
+            data:  JSON.stringify(oQCStep),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oQCStep = jQuery.parseJSON(data);
+                if (_oQCStep.QCStepID>0)
+                {
+                    alert("Data Saved sucessfully");
+                    var oQCSteps = sessionStorage.getItem("QCSteps");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oQCSteps != null) {
+                        oQCSteps = jQuery.parseJSON(oQCSteps);
+                    }
+                    else {
+                        oQCSteps = [];
+                    }
+                    if (nIndex != -1) {
+                        oQCSteps[nIndex] = _oQCStep;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oQCSteps.length);
+                        oQCSteps.push(_oQCStep);
+                    }
+                    sessionStorage.setItem("QCSteps", JSON.stringify(oQCSteps));
+                    window.location.href = _sBaseAddress + "/QCStep/ViewQCSteps?menuid=" + _nMenuid;
+                }
+                else {
+                    alert(_oQCStep.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Close()
+    {
+        window.location.href = _sBaseAddress + "/QCStep/ViewQCSteps?menuid=" + _nMenuid;
+    }
+</script>

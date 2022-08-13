@@ -1,0 +1,258 @@
+﻿@{
+    ViewBag.Title = "Fabric Claim Order List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricClaim>
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    
+    <div class="menuMainCollectionTable" id="regionFabricClaim">
+        <table id="tblFabricClaims" title="Fabric Claim Order List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ParentSCNo" width="9%">Parent SC No</th>
+                    <th field="OrderName" width="9%">Order Name</th>
+                    <th field="SCDateInString" width="9%">SC Date</th>
+                    <th field="ContractorName" width="20%">Contractor</th>
+                    <th field="BuyerName" width="20%">Buyer</th>
+                    <th field="LightSourceNameTwo" width="10%">Light Source</th>
+                    <th field="Remarks" width="30%">Remarks</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            @*<a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+            <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>*@
+        </div>
+    </div>
+
+    <script type="text/javascript">
+ debugger;
+    var _oFabricClaim=null;
+    var _oFabricClaims=[];
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping=[];
+
+    $(document).ready(function () {
+        debugger;
+        _oFabricClaims =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        @*var nProductNature = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductNature));*@
+        //$('#regionFabricClaim').data('ByuerIDs','');
+        sessionStorage.setItem("BUID",nBUID);
+        //sessionStorage.setItem("ProductNature",nProductNature);
+        var oFabricClaims =sessionStorage.getItem("FabricClaims");
+        if(oFabricClaims!=null)
+        {
+            oFabricClaims = jQuery.parseJSON(oFabricClaims);
+        }
+        else
+        {
+            oFabricClaims=_oFabricClaims;
+        }
+        RefreshList(oFabricClaims);
+        RefreshControlLayout();
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+
+    $("#btnAdd").click(function(){
+        var oFabricClaims= $('#tblFabricClaims').datagrid('getRows');
+        sessionStorage.setItem("FabricClaims", JSON.stringify(oFabricClaims));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("FabricClaimHeader", "Add Fabric Claim Order");
+        sessionStorage.setItem('Action','Add')
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/FabricClaim/ViewFabricClaim?id=0&buid="+sessionStorage.getItem('BUID');
+    });
+
+    $("#btnEdit").click(function(){
+        var oFabricClaim= $('#tblFabricClaims').datagrid('getSelected');
+        if(oFabricClaim==null || oFabricClaim.FabricClaimID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblFabricClaims').datagrid('getRowIndex',oFabricClaim);
+        var oFabricClaims= $('#tblFabricClaims').datagrid('getRows');
+        sessionStorage.setItem("FabricClaims", JSON.stringify(oFabricClaims));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("FabricClaimHeader", "Edit Fabric Claim Order");
+        sessionStorage.setItem('Action','Edit')
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/FabricClaim/ViewFabricClaim?id="+oFabricClaim.FabricClaimID+"&buid="+sessionStorage.getItem('BUID');
+    });
+
+    $("#btnView").click(function(){
+        var oFabricClaim= $('#tblFabricClaims').datagrid('getSelected');
+        if(oFabricClaim==null || oFabricClaim.FabricClaimID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblFabricClaims').datagrid('getRowIndex',oFabricClaim);
+        var oFabricClaims= $('#tblFabricClaims').datagrid('getRows');
+        sessionStorage.setItem("FabricClaims", JSON.stringify(oFabricClaims));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("FabricClaimHeader", "View Fabric Claim Order");
+        sessionStorage.setItem('Action','View')
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+  "/FabricClaim/ViewFabricClaim?id="+oFabricClaim.FabricClaimID+"&buid="+sessionStorage.getItem('BUID');
+    });
+
+    $("#btnDelete").click(function(){
+        var oFabricClaim= $('#tblFabricClaims').datagrid('getSelected');
+        if(oFabricClaim==null || oFabricClaim.FabricClaimID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblFabricClaims').datagrid('getRowIndex',oFabricClaim);
+        if (oFabricClaim.FabricClaimID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/FabricClaim/Delete",
+                data: JSON.stringify(oFabricClaim),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage.toLowerCase() == "data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblFabricClaims').datagrid('deleteRow',SelectedRowIndex);
+                        var oFabricClaims= $('#tblFabricClaims').datagrid('getRows');
+                        sessionStorage.setItem("FabricClaims", JSON.stringify(oFabricClaims));
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+  
+    function RefreshList(oFabricClaims)
+    {
+        debugger;
+        var data=oFabricClaims;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFabricClaims').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblFabricClaims').datagrid('selectRow',nIndex);
+    }
+
+
+    $('#btnPrintList').click(function(){
+      
+        var oFabricClaims= $('#tblFabricClaims').datagrid('getRows');
+        if(oFabricClaims.length<=0)
+        {
+            alert("Data not found ");
+            return;
+        }
+        var sFabricClaimIDs = "";
+        for(var i = 0;i<oFabricClaims.length;i++)
+        {
+            sFabricClaimIDs+= oFabricClaims[i].FabricClaimID+",";
+        }
+        sFabricClaimIDs = sFabricClaimIDs.substring(0, sFabricClaimIDs.length-1);
+        var oFabricClaim = {ErrorMessage:sFabricClaimIDs};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FabricClaim/SetFabricClaimListData",
+            traditional: true,
+            data:  JSON.stringify(oFabricClaim),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful")
+                {
+                    window.open (_sBaseAddress+ "/FabricClaim/PrintFabricClaims");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $('#btnPreview').click(function(){
+        var oFabricClaim=$('#tblFabricClaims').datagrid('getSelected');
+        if(oFabricClaim==null || parseInt(oFabricClaim.FabricClaimID)<=0)
+        {
+            alert("Please select Fabric Claim Order ");
+            return;
+        }
+        window.open(_sBaseAddress+ "/FabricClaim/FabricClaimPrintPreview?id="+oFabricClaim.FabricClaimID);
+    });
+
+
+    function RefreshControlLayout()
+    {
+        $('#btnAdd,#btnEdit,#btnDelete,#btnView,#btnReqForApprove,#btnUndoReq,#btnWaitforApproval,#btnApprove,#btnUndoApprove,#btnPreview,#btnPrintList').hide();
+
+        if(HavePermission('Add','FabricClaim')){$('#btnAdd').show();}
+        if(HavePermission('Edit','FabricClaim')){$('#btnEdit').show(); }
+        if(HavePermission('Delete','FabricClaim')){ $('#btnDelete').show(); }
+        if(HavePermission('View','FabricClaim')){  $('#btnView').show();}
+        if(HavePermission('Preview','FabricClaim')){$('#btnPreview').show();  }
+        if(HavePermission('PrintList','FabricClaim')){$('#btnPrintList').show();  }
+    }
+
+    function HavePermission(sOperationType, sModuleName)
+    {
+        var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check SuperUser
+        {
+            return true;
+        }else
+        {
+
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeST == sOperationType && _oAuthorizationRolesMapping[i].ModuleNameST == sModuleName)
+                    return  true;
+            }
+            return false;
+        }
+    }
+
+
+    </script>

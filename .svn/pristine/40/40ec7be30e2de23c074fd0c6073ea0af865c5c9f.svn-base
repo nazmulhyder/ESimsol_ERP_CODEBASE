@@ -1,0 +1,218 @@
+﻿@{
+    ViewBag.Title = "Machine";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.Machine>
+
+<div ng-app="MachineModule">
+    @*<script src="~/Views/Machine/AdvanceSearch.js"></script>*@
+    <div ng-controller="MachineController" style="width:99.5%">
+        <div class="ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    @*<input type="text" ng-model="txtSearchByLot" ng-keyup="SearchByNameCode($event)" placeholder="Search by Code/Name.." class="form-control" style="width:190px" />*@
+                    <button class="btn btn-sm btn-default" ng-click="Up_Machine()"><span class="glyphicon glyphicon-arrow-up" style="font-weight:bold;" aria-hidden=" true"> </span> Up</button>
+                    <button class="btn btn-sm btn-default" ng-click="Down_Machine()"><span class="glyphicon glyphicon-arrow-down" style="font-weight:bold;" aria-hidden="true"> </span> Down</button>
+                    <button type="button" class="btn btn-sm btn-default" aria-label=" left align" ng-click="refreshSequence()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Refresh Sequencce</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+                <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+            </div>*@
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Update_Machine()" ng-hide="hide_Save"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">Update</span> </button>
+                <button type="button" class="btn btn-sm btn-danger" aria-label=" left align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oMachines =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+    debugger;
+    var  MachineModule = angular.module('MachineModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    MachineModule.controller('MachineController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'Code', name: 'Code', width: '15%' },
+                { field: 'Name', name: 'Name', width:'10%', enableCellEdit: false },
+                { field: 'MachineTypeName', name: 'Type', width:'12%', enableCellEdit: false },
+                { field: 'SequenceNo', name: 'Sequence', width:'8%', cellFilter: 'number:0', cellClass:'text-center'},
+                { field: 'Capacity', name: 'Capacity', width:'10%', cellFilter: 'number:2', cellClass:'text-right'},
+                { field: 'LocationName', name: 'Location', width: '15%' },
+                { field: 'BUnit', name: 'Unit', width: '15%' },
+                { field: 'ActivitySt', name: 'Activity', width: '15%' }
+            ],
+            data:oMachines,
+            onRegisterApi:function(gridApi) 
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+            }
+        };
+        $scope.SearchByNameCode = function(e)
+        {
+            debugger;
+            var txtSearchByLot = $scope.txtSearchByLot;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oMachines;
+            }
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].Code;
+                n=sTempName.toUpperCase().indexOf(txtSearchByLot.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }else
+                {
+                    sTempName=oCurrentList[i].Name;
+                    n=sTempName.toUpperCase().indexOf(txtSearchByLot.toUpperCase())
+                    if(n!=-1)
+                    {
+                        oSearchedList.push(oCurrentList[i]);
+                    }
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+    
+        $scope.Up_Machine=function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Please select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var nIndex=$scope.gridOptions.data.indexOf(data[0]);
+            if(nIndex > 0)
+            {
+                data[0].SequenceNo--;
+                var downRow= $scope.gridOptions.data[nIndex-1]; downRow.SequenceNo++;
+                $scope.gridOptions.data[nIndex-1]=data[0];
+                $scope.gridOptions.data[nIndex]=downRow;
+            }
+            $scope.hide_Save=false;
+        }
+        $scope.Down_Machine=function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            debugger;
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Please select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var nIndex=$scope.gridOptions.data.indexOf(data[0]);
+            if(nIndex !=-1 && nIndex < $scope.gridOptions.data.length-1)
+            {
+                data[0].SequenceNo++;
+                var upRow= $scope.gridOptions.data[nIndex+1]; upRow.SequenceNo--;
+                $scope.gridOptions.data[nIndex+1]=data[0];
+                $scope.gridOptions.data[nIndex]=upRow;
+            }
+            $scope.hide_Save=false;
+        }
+        $scope.refreshSequence=function()
+        {
+            if (!confirm("Confirm to Refresh?")) return ;
+            $scope.gridOptions.data=[];
+            $scope.gridOptions.data=(userSession.getData('Machines').length>0)? userSession.getData('Machines'):oMachines;
+        }
+        
+        $scope.Update_Machine = function () {
+            debugger;
+            if($scope.gridOptions.data.length<=0)
+            {
+                alert("No Code Found To Update!"); return;
+            }
+            
+            $http.post(_sBaseAddress+'/Machine/Update',JSON.stringify($scope.gridOptions.data)).then(
+                             function (response) {
+                                 var result=jQuery.parseJSON(response.data);
+                                 if(result.length>0 && (result[0].ErrorMessage==undefined || result[0].ErrorMessage==''))
+                                 {
+                                     debugger;
+                                     alert('Update Successfully.');
+                                     $scope.hide_Save=true;
+                                 }
+                                 else
+                                 {
+                                     alert(result.ErrorMessage);
+                                 }
+                             },
+                             function (response) { alert(response.statusText);}
+                       );
+        };
+
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oMachine = data[0];
+            if(oMachine==null || oMachine.MachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/Machine/PrintMachinePreview?id='+oMachine.MachineID);
+        };
+        $scope.close = function () {
+            userSession.previousPage();
+        };
+        //button hide
+      
+    });
+
+
+</script>
+                       
+
+
+              

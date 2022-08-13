@@ -1,0 +1,198 @@
+﻿@{
+    ViewBag.Title = "Fabric Process";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricProcess>
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Fabric Process</title>
+    </head>
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tblFabricProcesss" title="Fabric Processes" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="ProcessTypeSt" width="10%">Type</th>
+                        <th field="Name" width="20%">Name</th>
+                        <th field="IsYarnDyedSt" width="10%">Type</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <select id="cboFP"></select>
+                <input id="txtName" type="text" style="width: 221px;" placeholder="Type Name & Press Enter" />
+                <input id="chkIsYarnDyed" type="checkbox" class="clsYardDyed"> <label class="clsYardDyed">Yarn Dyed</label>
+                <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Update</a>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oFabricProcesss=[];
+    var _oFabricProcess=null;
+    var _oFPs=[];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricProcesss =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oFPs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricProcesses));
+
+        $("#cboFP").icsLoadCombo({
+            List: _oFPs,
+            OptionValue: "Value",
+            DisplayText: "Text"
+        });
+
+        $("#btnUpdate").hide();
+        DynamicRefreshList(_oFabricProcesss,"tblFabricProcesss");
+        //$("#divIsYarnDyed").hide();
+        $(".clsYardDyed").hide();
+    });
+
+    $("#cboFP").change(function(){
+        if($(this).val() == 1){
+            $(".clsYardDyed").show();
+        }else{
+            $(".clsYardDyed").hide();
+            $('#chkIsYarnDyed').prop('checked', false);
+        }
+    });
+
+    function Validation()
+    {
+        if($("#cboFP").val() == 0)
+        {
+            alert("Please Select Process Type.");
+            $("#cboFP").addClass("errorFieldBorder");
+            $("#cboFP").focus();
+            return false;
+        }else{
+            $("#cboFP").removeClass("errorFieldBorder");
+        }
+
+
+        if($.trim($("#txtName").val()) == "")
+        {
+            alert("Please Type Name.");
+            $("#txtName").addClass("errorFieldBorder");
+            $("#txtName").focus();
+            return false;
+        }else{
+            $("#txtName").removeClass("errorFieldBorder");
+        }
+        return true;
+    }
+
+    function RefreshObject() {
+        var oFabricProcess = {
+            FabricProcessID  : (_oFabricProcess == null ? 0 : _oFabricProcess.FabricProcessID),
+            ProcessType : parseInt($("#cboFP").val()),
+            Name : $.trim($("#txtName").val()),
+            IsYarnDyed : $("#chkIsYarnDyed").is(':checked')
+        };
+        return oFabricProcess;
+    }
+
+    $("#btnAdd").click(function(){
+        _oFabricProcess = null;
+        AddNew();
+    });
+
+    $("#txtName").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            _oFabricProcess = null;
+            AddNew();
+        }
+    });
+
+    function AddNew()
+    {
+        if (!Validation())
+        {
+            return false;
+        }
+        else
+        {
+            var oFabricProcess = RefreshObject();
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oFabricProcess,
+                ObjectId: oFabricProcess.FabricProcessID,
+                ControllerName: "Fabric",
+                ActionName: "SaveFabricProcess",
+                TableId: "tblFabricProcesss",
+                IsWinClose: true,
+                Message:""
+            };
+            $.icsSave(obj, function (response) {
+                if (response.status && response.obj != null) {
+                    if($.trim(response.obj.ErrorMessage) == "")
+                    {
+                        if (response.obj.FabricProcessID > 0) {
+                            //$("#cboFP").val(0);
+                            $("#txtName").focus();
+                            $("#txtName").val("");
+                            $("#btnUpdate").hide();
+                            $(".clsYardDyed").hide();
+                            $('#chkIsYarnDyed').prop('checked', false);
+                        }
+                    }
+                    else{
+                        $("#txtName").focus();
+                    }
+                }
+            });
+        }
+    }
+
+    $("#btnDelete").click(function(){
+        var oFabricProcess = $("#tblFabricProcesss").datagrid("getSelected");
+        if(oFabricProcess == null || oFabricProcess.FabricProcessID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricProcess,
+            ControllerName: "Fabric",
+            ActionName: "DeleteFabricProcess",
+            TableId: "tblFabricProcesss",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnEdit").click(function(){
+        var oFabricProcess = $("#tblFabricProcesss").datagrid("getSelected");
+        if(oFabricProcess == null || oFabricProcess.FabricProcessID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+        _oFabricProcess = oFabricProcess;
+        $("#txtName").removeClass("errorFieldBorder");
+        $("#txtName").val(oFabricProcess.Name);
+        $("#btnUpdate").show();
+        $("#cboFP").removeClass("errorFieldBorder");
+        $("#cboFP").val(oFabricProcess.ProcessType);
+        $('#chkIsYarnDyed').prop('checked', oFabricProcess.IsYarnDyed);
+        if(oFabricProcess.ProcessType == 1){
+            $(".clsYardDyed").show();
+        }else{
+            $(".clsYardDyed").hide();
+            $('#chkIsYarnDyed').prop('checked', false);
+        }
+    });
+
+    $("#btnUpdate").click(function(){
+        AddNew();
+    });
+</script>

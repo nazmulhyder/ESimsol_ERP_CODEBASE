@@ -1,0 +1,278 @@
+﻿@{
+    ViewBag.Title = "FA Register Summery";
+}
+    @model IEnumerable<ESimSol.BusinessObjects.FARegisterSummery>
+    <div class="menuMainCollectionTable" id="regionFARegisterSummery">
+        <table id="tblFARegisterSummerys" title="FA Register Summery List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="PartiCularNameInString" formatter="formatName" width="10%">Particulars</th>
+                    <th field="AssetOpeningAmount" formatter="formatPrice" align="right" width="15%">AS ON <br> <label id="lblOpening" style="font:normal"> 01 July 2013</label> </th>
+                    <th field="AssetAdditionAmount" formatter="formatPrice" align="right" width="15%">Addition<br>During the Period</th>
+                    <th field="TotalAssetAmount" formatter="formatPrice" align="right" width="15%">Total As On<br> <label id="lblTotalAsset" style="font:normal"> 30 June 2014</label> </th>
+                    <th field="DeprRate" formatter="formatPrice"  align="right" width="6%">Rate(%)</th>
+                    <th field="DeprOpeningAmount" formatter="formatPrice" align="right" width="15%">AS On <br><label id="lblDeprOpening" style="font:normal"> 01 July 2013</label> </th>
+                    <th field="DeprAdditionAmount" formatter="formatPrice" align="right" width="15%">During the<br>Year</th>
+                    <th field="TotalDeprAmount" formatter="formatPrice" align="right" width="15%">Total as on <br><label id="lblTotalDepr" style="font:normal"> 30 June 2014</label> </th>
+                    <th field="EndingAssetAmount" formatter="formatPrice" align="right" width="15%">Written Down Value as On <br><label id="lblEndingAsset" style="font:normal"> 30 June 2014</label></th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input id="txtBusinessUnitName" style="width:130px;" type="text" placeholder="Type BusinessUnit & Press Enter" />
+            <input type="text" style="width:120px;" id="txtStartDate" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />&nbsp;To&nbsp;
+            <input type="text" style="width:120px;" id="txtEndDate" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnPrintPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+            <a id="btnPrintInXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">XL</a>
+            <a id="btnBack" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="true">Back</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    var _sBusinessUnitIDs  = "";
+    var _nProducCateoryID = 0;
+    var _nLayout= 1;//default
+    var _oFARegisterSummerys =[];
+    var _nMenuID = 0;
+    var _sBaseAddress ="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMenuID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oFARegisterSummerys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        debugger;
+        //var oFARegisterSummerys =sessionStorage.getItem("FARegisterSummerys");
+        //if(oFARegisterSummerys!=null)
+        //{
+        //    oFARegisterSummerys = jQuery.parseJSON(oFARegisterSummerys);
+        //}
+        //else
+        //{
+        //    oFARegisterSummerys=_oFARegisterSummerys;
+        //}
+        RefreshList(_oFARegisterSummerys);
+        var sParam = sessionStorage.getItem('SearcingParam');
+        if(sParam!=undefined && sParam!=null && sParam!="")
+        {
+            var stempParams = sParam.split('~');
+            _sBusinessUnitIDs = stempParams[0];
+            $('#txtBusinessUnitName').val(_sBusinessUnitIDs.length+"'s Item Selected");$('#txtBusinessUnitName').addClass('fontColorOfPickItem');
+            $('#txtStartDate').datebox('setValue',stempParams[1]);
+            $('#txtEndDate').datebox('setValue',stempParams[2]);
+            _nProducCateoryID = stempParams[3];_nLayout = stempParams[4];
+        }else{
+            $('#txtStartDate,#txtEndDate').datebox('setValue',icsdateformat(new Date()));
+        }
+        
+    });
+
+    function RefreshList(oFARegisterSummerys)
+    {
+        debugger;
+        var data=oFARegisterSummerys;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFARegisterSummerys').datagrid('loadData',data);
+        //var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        //$('#tblFARegisterSummerys').datagrid('selectRow',nIndex);
+    }
+    $('#btnBack').click(function(){
+        debugger;
+        _nLayout = sessionStorage.getItem('Layout');
+        if(parseInt(_nLayout)!=1)
+        {
+            var stempParams = sessionStorage.getItem('SearcingParam' ).split('~');
+            var sSearcingParam =stempParams[0]+'~'+stempParams[1]+'~'+stempParams[2]+'~0~1';//first page link
+            sessionStorage.setItem('Layout',1);//set details Layou
+            window.location.href = _sBaseAddress+'/FARegisterSummery/ViewFARegisterSummery?Param='+sSearcingParam+'&menuid='+_nMenuID;
+        }
+    });
+    $("#btnSearch").click(function(){
+        $('#lblOpening,#lblDeprOpening').text($('#txtStartDate').datebox('getValue'));
+        $('#lblTotalAsset,#lblTotalDepr,#lblEndingAsset').text($('#txtEndDate').datebox('getValue'));
+        SearchFARegisterSummery();
+
+    });
+    function SearchFARegisterSummery()
+    {
+        if(_sBusinessUnitIDs==null || _sBusinessUnitIDs=="")
+        {
+            alert("Please select Business unit & try again!"); return;
+        }
+        var  sSearcingParam = _sBusinessUnitIDs+'~'+$('#txtStartDate').datebox('getValue')+'~'+$('#txtEndDate').datebox('getValue')+'~'+_nProducCateoryID+'~'+_nLayout;
+        sessionStorage.setItem('SearcingParam',sSearcingParam);
+        var oFARegisterSummery = {Param:sSearcingParam};
+        $.ajax
+     ({
+         type: "POST",
+         dataType: "json",
+         url : sessionStorage.getItem("BaseAddress")+  "/FARegisterSummery/Search",
+         data:  JSON.stringify(oFARegisterSummery),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             debugger;
+             var oFARegisterSummerys= data;
+             if(oFARegisterSummerys!=null && oFARegisterSummerys.length>0)
+             {
+                 RefreshList(oFARegisterSummerys);
+             }else{
+                 alert("Data Not found.");
+                 RefreshList([]);
+             }
+         },
+         error: function (xhr, status, error)
+         {
+             alert(error);
+         }
+     });
+    }
+
+    function formatName(value)
+    {
+        debugger;
+        var s ="";
+        var values;
+        var nProductCategoryID=0;
+        var sParticularName= '';
+        if(value!=undefined)
+        {
+            values=value.split("~");
+            nProductCategoryID=values[0];
+            sParticularName = values[1];
+        }
+        if(nProductCategoryID!=0)
+        {
+            s = '<a  href="javascript:void(0)"  onclick = "LoadProductView('+nProductCategoryID+')"">'+sParticularName+'</a>';
+        }else{
+            s = sParticularName;
+        }
+        return s;
+    }
+
+    function LoadProductView(nCategoryID)
+    {
+        debugger;
+        var oList =$('#tblFARegisterSummerys').datagrid('getRows');
+        sessionStorage.setItem("FARegisterSummerys",JSON.stringify(oList));
+        var stempParams = sessionStorage.getItem('SearcingParam' ).split('~');
+        var sSearcingParam =stempParams[0]+'~'+stempParams[1]+'~'+stempParams[2]+'~'+nCategoryID+'~2';
+        sessionStorage.setItem('SearcingParam',sSearcingParam);
+        sessionStorage.setItem('Layout',2);//set details Layou
+        window.location.href = _sBaseAddress+'/FARegisterSummery/ViewFARegisterSummery?Param='+sSearcingParam+'&menuid='+_nMenuID;
+    }
+
+
+    $("#btnPrintPreview").click(function(){
+        var oList =$('#tblFARegisterSummerys').datagrid('getRows');
+        if(oList.length<=0){alert("Sorry, there is No Item for Print , Pelase Search Data Then Execute Print."); return;}
+        var stempParams = sessionStorage.getItem('SearcingParam');
+        window.open(_sBaseAddress + '/FARegisterSummery/PrintFARegisterSummerys?Param='+stempParams);
+    });
+
+    
+    $("#btnPrintInXL").click(function(){
+        var oList =$('#tblFARegisterSummerys').datagrid('getRows');
+        if(oList.length<=0){alert("Sorry, there is No Item for Print , Pelase Search Data Then Execute Print."); return;}
+        var stempParams = sessionStorage.getItem('SearcingParam');
+        window.open(_sBaseAddress + '/FARegisterSummery/PrintFARegisterSummeryInXL?Param='+stempParams);
+    });
+    $("#txtBusinessUnitName").keydown(function (e) {
+        //debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13)
+        {
+            var txtBusinessUnitName = $.trim($('#txtBusinessUnitName').val());
+            if(txtBusinessUnitName=="" || txtBusinessUnitName==null)
+            {
+                alert("Type BusinessUnit Name/Code and Press Enter");
+                return;
+            }
+            var oBusinessUnit = {NameCode:txtBusinessUnitName};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oBusinessUnit,
+                ControllerName: "BusinessUnit",
+                ActionName: "GetsBUByCodeOrName",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].BusinessUnitID > 0) {
+                        var tblColums = []; var oColumn = { field: "Name", title: "BusinessUnit Name", width: 300, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBusinessUnitPicker',
+                            winclass: 'clsBusinessUnitPicker',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblBusinessUnitPicker',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Business Unit List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+
+                }else{
+                    alert("Data Not Found.");
+                }
+            });
+
+
+
+        }else if (code == 8) //backspace=8
+        {
+            $("#txtBusinessUnitName").removeClass("fontColorOfPickItem");
+            _sBusinessUnitIDs = "";
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winBusinessUnitPicker')
+        {
+
+            if (oreturnobjs != null && oreturnobjs.length> 0)
+            {
+                _sBusinessUnitIDs = ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+                $('#txtBusinessUnitName').val(oreturnobjs.length+"(s) Item Selected");
+                $('#txtBusinessUnitName').addClass('fontColorOfPickItem');
+                $('#txtBusinessUnitName').focus();
+            }
+        }
+    }
+
+
+
+    </script>
+
+
+
+

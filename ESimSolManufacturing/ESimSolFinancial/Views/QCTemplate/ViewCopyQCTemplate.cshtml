@@ -1,0 +1,519 @@
+﻿<html>
+<head>
+
+</head>
+<body>
+    @model ESimSol.BusinessObjects.QCTemplate
+    <div class="menuMainCollectionTable">
+        <fieldset style=" width:97%;">
+            <legend style="font-weight: bold;">QC Template Info: </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width:100%; font-weight: bold">
+                <tr>
+                    <td style="width: 10%; text-align: right">
+                        Template No :
+                    </td>
+                    <td style="width: 90%; font-size:12px;">
+                        <table border="0" cellpadding="0" cellspacing="0" style="font-size: 12px; width:100%; font-weight:bold;">
+                            <tr>
+                                <td style="width:25%; text-align:left;">@Html.TextBoxFor(model => model.TemplateNo, new { style = "width:100%;", id = "txtTemplateNo", disabled = "disabled" })</td>
+                                <td style="width:15%; text-align:right;">Template Name:</td>
+                                <td style="width:30%; text-align:left;">@Html.TextBoxFor(model => model.TemplateName, new { style = "width:100%;", id = "txtTemplateName" })</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="width:15%; text-align:right;">Note:</td>
+                    <td style="width:60%; text-align:left;">@Html.TextBoxFor(model => model.Note, new { style = "width:100%;", id = "txtNotes" })</td>
+                </tr>
+            </table>
+        </fieldset>
+        <div style="margin-left:3px; margin-top:2px;">
+            <table id="tblQCTemplateDetail" class="easyui-treegrid" title="Template Details" style="width:100%;height:405px" fitcolumns="true" pagination="false" singleselect="true" autorowheight="false" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#QCTemplateDetailstoolbar'">
+                <thead>
+                    <tr>
+                        <th field="text" width="120">Step Name</th>
+                        <th field="SequenceInString" width="100">Sequence</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="QCTemplateDetailstoolbar" style="text-align:left; font-weight:normal">
+                <a href="javascript:void(0)" id="btnAddDetail" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddQCStep()">Add Order Step</a>
+                <a href="javascript:void(0)" id="btnRemoveDetail" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="RemoveStep()">Remove</a>
+                <a href="javascript:void(0)" id="btnUp" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+                <a href="javascript:void(0)" id="btnDown" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+                <a href="javascript:void(0)" id="btnRefresh" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshGrid()">Refresh</a>
+            </div>
+        </div>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold;width:100%">
+                <tr>
+                    <td style="width: 85%; text-align: right"></td>
+                    <td style="width:8%">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-paste" plain="true" onclick="Save(false,false)">Paste</a>
+                    </td>
+                    <td style="width:7%">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oQCTemplate=null;
+    var _sBaseAddress="";
+    var _oSelectedYarn = null;
+    var _oSelectedColorCategorys = [];
+    var _oQCTemplateDetails = [];
+    var _oInitialQCTemplateDetails = [];
+    var _objName =""
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oQCTemplate =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oQCTemplateDetails = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.QCTemplateDetails));
+        _objName = sessionStorage.getItem("QCTemplateHeader");
+        $('#tblQCTemplateDetail').treegrid({onClickRow:function(row){debugger;onClickTreeGridRow(row);}});
+        RefreshControl();
+    });
+
+    function RefreshControl()
+    {
+        //  debugger;
+        RefreshList(_oQCTemplate.TQCTemplateDetail.children);
+        $('#tblQCTemplateDetail').treegrid('collapseAll',0);
+        _oQCTemplate.QCTemplateID = 0;//Reset QC Template
+        $("#cboTampleteType").val(_oQCTemplate.TampleteType);
+    }
+
+    function RefreshList(oTQCTemplateDetail)
+    {
+        data=oTQCTemplateDetail;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblQCTemplateDetail').treegrid('loadData',data);
+    }
+
+
+
+    function AddQCStep()
+    {
+
+        var oQCStep = {Note:'SELECT * FROM QCStep WHERE ParentID = 1 Order By QCStepID'};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oQCStep,
+            ControllerName: "QCStep",
+            ActionName: "GetQCSteps",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].QCStepID > 0) {
+                    debugger;
+                    var tblColums = []; var oColumn = { field: "QCStepName", title: "Order Step Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Note", title: "Note", width: 100, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winQCSteps',
+                        winclass: 'clsQCStep',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblQCSteps',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'QCStepName',
+                        windowTittle: 'Oder Step Picker'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+        });
+
+    }
+
+
+    function UP()
+    {
+        debugger;
+        var oQCTemplateDetail = $('#tblQCTemplateDetail').treegrid('getSelected');
+        if(_oQCTemplate.QCTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if(oQCTemplateDetail==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+        if(parseInt(oQCTemplateDetail.Sequence)<=1)
+        {
+            return;
+        }
+        oQCTemplateDetail.bIsUp=true;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/QCTemplate/UpDown",
+            traditional: true,
+            data:  JSON.stringify(oQCTemplateDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oQCTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oQCTemplate.QCTemplateID)>0)
+                {
+                    RefreshList(_oQCTemplate.TQCTemplateDetail.children);
+                }
+                else {
+                    alert(_oQCTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+
+    function Down()
+    {
+        debugger;
+        debugger;
+        var oQCTemplateDetail = $('#tblQCTemplateDetail').treegrid('getSelected');
+        if(_oQCTemplate.QCTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if(oQCTemplateDetail==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+
+        oQCTemplateDetail.bIsUp=false;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/QCTemplate/UpDown",
+            traditional: true,
+            data:  JSON.stringify(oQCTemplateDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oQCTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oQCTemplate.QCTemplateID)>0)
+                {
+                    RefreshList(_oQCTemplate.TQCTemplateDetail.children);
+                }
+                else {
+                    alert(_oQCTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+    function RefreshGrid()
+    {
+        RefreshList(_oQCTemplate.TQCTemplateDetail.children);
+    }
+
+    function RemoveStep()
+    {
+        debugger;
+        var oQCTemplateDetail= $('#tblQCTemplateDetail').treegrid('getSelected');
+        if(oQCTemplateDetail==null || oQCTemplateDetail.QCTemplateDetailID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return;
+        }
+        if(oQCTemplateDetail.parentid!=1)
+        {
+            alert("please select Head Step !");
+            return;
+        }
+        if(_oQCTemplate.QCTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        $('#tblQCTemplateDetail').treegrid('remove',oQCTemplateDetail.id);
+        alert("Delete sucessfully");
+        Save(false,true);
+
+    }
+
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            PickerEvents(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                PickerEvents(oPickerobj);
+            }
+        });
+    }
+    function PickerEvents(oPickerobj) {
+        var oreturnobj = null, oreturnobjs = [];
+        if(oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        }else{
+            oreturnobj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if(oPickerobj.winclass=='clsQCStep')
+        {
+            debugger;
+            if(oreturnobjs!=null)
+            {
+                _oInitialQCTemplateDetails = [];
+                for(var i=0;i<oreturnobjs.length;i++)
+                {
+                    if(!IsExist(oreturnobjs[i].QCStepID))
+                    {
+                        var oQCTemplateDetail = {
+                            QCTemplateDetailID: 0,
+                            QCTemplateID:_oQCTemplate.QCTemplateID,
+                            QCStepID :oreturnobjs[i].QCStepID,
+                            Sequence :0
+                          
+                        };
+                        _oInitialQCTemplateDetails.push(oQCTemplateDetail);
+                    }
+                }
+                if( _oInitialQCTemplateDetails.length>0)
+                {
+                    Save(true,false);
+                }
+            }
+        }
+    }
+
+
+    function IsExist(nQCStepID)
+    {
+        debugger;
+        var oQCTemplateDetails = $('#tblQCTemplateDetail').treegrid('getData');
+        for(var i = 0;i<oQCTemplateDetails.length;i++)
+        {
+            if(parseInt(oQCTemplateDetails[i].QCStepID)== parseInt(nQCStepID))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    var editid = undefined;
+    function endEditing(){
+        debugger;
+        if (editid == undefined){return true}
+        if ($('#tblQCTemplateDetail').treegrid('validateRow', editid)){
+            $('#tblQCTemplateDetail').treegrid('endEdit', editid);
+            $('#tblQCTemplateDetail').treegrid('select',editid);
+            var oQCTemplateDetail=$('#tblQCTemplateDetail').treegrid('getSelected');
+            $('#tblQCTemplateDetail').treegrid('update',{id: editid,	row: oQCTemplateDetail});
+            editid = undefined;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    function onClickTreeGridRow(row){
+        debugger;
+        if (editid != row.id){
+            if (endEditing())
+            {
+                $('#tblQCTemplateDetail').treegrid('select', row.id).treegrid('beginEdit', row.id);
+                editid = row.id;
+            }
+            else
+            {
+                $('#tblQCTemplateDetail').treegrid('select', editid);
+            }
+        }
+    }
+
+
+    function ValidateInput()
+    {
+        debugger;
+        var oQCTemplates = $('#tblQCTemplateDetail').treegrid('getData');
+        if(oQCTemplates.length<=0)
+        {
+            alert("Please add at least One Detail");
+            return false;
+        }
+        return true;
+    }
+
+    function GetQCTemplateDetails()
+    {
+        debugger;
+        var oQCTemplateDetails = $('#tblQCTemplateDetail').treegrid('getData');
+        var oTempQCTemplateDetails= [];
+        if(oQCTemplateDetails.length>0)
+        {
+            for(var i =0;i<oQCTemplateDetails.length;i++)
+            {
+                var oQCTemplateDetail= {
+                    QCTemplateDetailID :oQCTemplateDetails[i].QCTemplateDetailID,
+                    QCTemplateID:_oQCTemplate.QCTemplateID,
+                    QCStepID :oQCTemplateDetails[i].id,
+                    Sequence :oQCTemplateDetails[i].Sequence,
+                    BeforeShipment :oQCTemplateDetails[i].BeforeShipment,
+                    Note :oQCTemplateDetails[i].Note
+                };
+                if(_oQCTemplate.QCTemplateID<=0)
+                {
+                    oQCTemplateDetail.QCTemplateDetailID = 0;//for  first time save
+                }
+                oTempQCTemplateDetails.push(oQCTemplateDetail);
+                var oTempChildrens =oQCTemplateDetails[i].children;
+                for(var j = 0; j<oTempChildrens.length;j++)
+                {
+                    var oQCTemplateDetail= {
+                        QCTemplateDetailID :oTempChildrens[j].QCTemplateDetailID,
+                        QCTemplateID:_oQCTemplate.QCTemplateID,
+                        QCStepID :oTempChildrens[j].id,
+                        Sequence :oTempChildrens[j].Sequence,
+                        BeforeShipment :oTempChildrens[j].BeforeShipment,
+                        Note :oTempChildrens[j].Note
+                    };
+                    if(_oQCTemplate.QCTemplateID<=0)
+                    {
+                        oQCTemplateDetail.QCTemplateDetailID = 0;//for  first time save
+                    }
+                    oTempQCTemplateDetails.push(oQCTemplateDetail);
+                }
+            }
+        }
+        return oTempQCTemplateDetails;
+    }
+
+    function RefreshObject()
+    {
+        var oQCTemplate= {
+            QCTemplateID :_oQCTemplate.QCTemplateID,
+            TemplateName :$("#txtTemplateName").val(),
+            TemplateNo :_oQCTemplate.TemplateNo,
+            Note :$("#txtNote").val(),
+            QCTemplateDetails :GetQCTemplateDetails()
+        };
+        return oQCTemplate;
+    }
+
+    function InitalRefreshObject()
+    {
+        var oQCTemplate= {
+            QCTemplateID :_oQCTemplate.QCTemplateID,
+            TemplateName :$("#txtTemplateName").val(),
+            TemplateNo :_oQCTemplate.TemplateNo,
+            Note :$("#txtNote").val(),
+            bIsInitialSave:true,
+            QCTemplateDetails : _oInitialQCTemplateDetails
+        };
+        return oQCTemplate;
+    }
+
+
+    function Save(bIsInitialSave, bIsForRemove)
+    {
+        debugger;
+        var oQCTemplate =  null;
+        if(!bIsInitialSave)
+        {
+            if(!bIsForRemove)//if not Call from remove function
+            {
+                endEditing();
+            }
+            if(!ValidateInput()) return;
+            oQCTemplate=RefreshObject();
+
+        }else{
+            oQCTemplate=InitalRefreshObject();
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/QCTemplate/Save",
+            traditional: true,
+            data:  JSON.stringify(oQCTemplate),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oQCTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oQCTemplate.QCTemplateID)>0)
+                {
+                    if(!bIsInitialSave && !bIsForRemove)
+                    {
+                        alert("Data Saved sucessfully");
+                        var oQCTemplates = sessionStorage.getItem("QCTemplates");
+                        var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if (oQCTemplates != null) {
+                            oQCTemplates = jQuery.parseJSON(oQCTemplates);
+                        }
+                        else {
+                            oQCTemplates = [];
+                        }
+                        if (nIndex != -1) {
+                            oQCTemplates[nIndex] = _oQCTemplate;
+                        }
+                        else {
+                            sessionStorage.setItem("SelectedRowIndex", oQCTemplates.length);
+                            oQCTemplates.push(_oQCTemplate);
+                        }
+                        sessionStorage.setItem("QCTemplates", JSON.stringify(oQCTemplates));
+                        window.location.href = sessionStorage.getItem("BackLink");//
+                    }else{
+                        //  RefreshList(_oQCTemplate.TQCTemplateDetail.children);
+                        window.location.href = _sBaseAddress+ "/QCTemplate/ViewQCTemplate?id="+_oQCTemplate.QCTemplateID;
+                    }
+                }
+                else {
+                    alert(_oQCTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+
+
+
+</script>

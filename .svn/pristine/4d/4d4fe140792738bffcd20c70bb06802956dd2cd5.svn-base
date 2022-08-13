@@ -1,0 +1,188 @@
+﻿@{
+    ViewBag.Title = "FabricQtyAllow";
+}
+@model IEnumerable <ESimSol.BusinessObjects.FabricQtyAllow>
+
+    <div ng-app="FabricQtyAllowModule" style="height:100%">
+        <div ng-controller="FabricQtyAllowController">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <label class="control-label" style="width:100px; text-align:right">Allow Type:</label>
+                        <select id="cboFabricQtyAllow" ng-change="onTypeChange()" style="width:130px" ng-model="AllowType" ng-options="obj.id as obj.Value for obj in oFabricQtyAllowTypes" class="form-control">
+                            <option value="">--Select--</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        @*<button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>*@
+                    </div>
+                </div>
+            </div>
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        </div>
+    </div>
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .grid {
+            height: 450px;
+            width: 100%;
+        }
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+    <script type="text/javascript">
+
+        var pager =[];
+        var _nBUID=0;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oFabricQtyAllows =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var oFabricQtyAllowTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricQtyAllowType));
+        var  FabricQtyAllowModule = angular.module('FabricQtyAllowModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+        FabricQtyAllowModule.controller('FabricQtyAllowController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+            debugger;
+            oFabricQtyAllows= (userSession.getData('FabricQtyAllows').length>0)? userSession.getData('FabricQtyAllows'):oFabricQtyAllows;
+            $scope.oFabricQtyAllowTypes = oFabricQtyAllowTypes;
+            $scope.gridOptions ={
+                enableSorting: true,
+                enableFullRowSelection: true,
+                //enableRowHeaderSelection: false,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                //enableVerticalScrollbar : false,
+                columnDefs: [
+                    { field: 'AllowTypeSt', name: 'Allow Type', width: '25%' },
+                    { field: 'Qty_FromSt', name: 'From Quantity', width: '25%' },
+                    { field: 'Qty_ToSt', name: 'To Quantity', width: '25%' },
+                    { field: 'PercentageSt', name: 'Percentage (%)', width: '25%' },
+                ],
+                data:oFabricQtyAllows,
+                onRegisterApi:function(gridApi)
+                {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+                    $scope.gridApi.core.refresh();
+                    debugger;
+                    if(oFabricQtyAllows.length>0 && userSession.getRowIndex()>=0)
+                    {
+                        $scope.gridApi.grid.modifyRows(oFabricQtyAllows);
+                        $scope.gridApi.selection.selectRow(oFabricQtyAllows[userSession.getRowIndex()]);
+                        $scope.RowSelect(oFabricQtyAllows[userSession.getRowIndex()]);
+                    }
+                    userSession.clear();
+                }
+
+
+            };
+            $scope.add = function () {
+                sessionStorage.setItem("Operation", "New");
+                sessionStorage.removeItem("SelectedRowIndex");
+                sessionStorage.setItem("SelectedRowIndex",-1);
+                sessionStorage.setItem("FabricQtyAllowHeader", "Add FabricQtyAllow");
+                sessionStorage.setItem("FabricQtyAllows", JSON.stringify($scope.gridOptions.data));
+                sessionStorage.setItem("BackLink", window.location.href);
+
+                var tsv=((new Date()).getTime())/1000;
+                window.location.href = _sBaseAddress+ "/FabricQtyAllow/ViewFabricQtyAllow?nId=0&buid="+_nBUID+"&ts="+tsv;
+            };
+            $scope.edit = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.FabricQtyAllowID==data[0].FabricQtyAllowID){
+
+                        sessionStorage.setItem("Operation", "Edit");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("FabricQtyAllowHeader", "Edit FabricQtyAllow");
+                        sessionStorage.setItem("FabricQtyAllows", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/FabricQtyAllow/ViewFabricQtyAllow?nId="+value.FabricQtyAllowID+"&buid="+_nBUID+"&ts="+tsv;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.delete = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if (!confirm("Confirm to Delete?")) return ;
+                $http.post(_sBaseAddress+'/FabricQtyAllow/Delete',JSON.stringify(data[0])).then(
+                                function (response) { debugger;
+                                    if(jQuery.parseJSON(response.data)=='Deleted')
+                                    {
+                                        angular.forEach($scope.gridOptions.data,function(value,index){
+                                            if(value.FabricQtyAllowID==data[0].FabricQtyAllowID){
+                                                $scope.gridOptions.data.splice(index,1);
+                                            }
+                                        },$scope.gridOptions.data);
+                                        alert("Delete Successfully.");
+                                    }
+                                    else{
+                                        alert(jQuery.parseJSON(response.data));
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+            };
+
+            $scope.view = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.FabricQtyAllowID==data[0].FabricQtyAllowID){
+                        sessionStorage.setItem("Operation", "View");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("FabricQtyAllowHeader", "View FabricQtyAllow");
+                        sessionStorage.setItem("FabricQtyAllows", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/FabricQtyAllow/ViewFabricQtyAllow?nId="+value.FabricQtyAllowID+"&buid="+_nBUID+"&ts="+tsv;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.onTypeChange = function()
+            {
+                debugger;
+                var nType = $scope.AllowType;
+                $http.post(_sBaseAddress+'/FabricQtyAllow/SearchByType',{nType:nType}).then(
+                                function (response) {
+                                    var result = jQuery.parseJSON(response.data);
+                                    if(result.length>0)
+                                    {
+                                        $scope.gridOptions.data=result;
+                                    }
+                                    else{
+                                        alert("No Data Found");
+                                    }
+                                });
+            }
+        });
+    </script>
+
+
+
+

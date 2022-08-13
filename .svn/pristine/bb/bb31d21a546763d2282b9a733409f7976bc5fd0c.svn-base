@@ -1,0 +1,571 @@
+﻿@{
+    ViewBag.Title = "FN Requisition List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FNRequisition>
+    <div class="menuMainCollectionTable" ng-app="FNRequisitionApp" style="width:98%; height:100%">
+        <div ng-controller="FNRequisitionController">
+            <div class="ui-grid-top-panel">
+                <div class="">
+                    <div class="form-inline" style="margin-left:2px">
+                        <input type="text" class="form-control" ng-model="txtSearchByReqNo" ng-keyup="SearchByReqNo($event)" placeholder=" search by Req. no" style="width:130px" />
+                        <input type="text" class="form-control" ng-model="txtSearchByOrderNo" ng-keyup="Search($event)" placeholder=" search by order no" style="width:130px" />
+                        <input type="text" class="form-control" ng-model="txtSearchByDispoNo" ng-keyup="SearchDispo($event)" placeholder=" search by dispo no" style="width:130px" />
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()" ng-hide="btnAdvSearch"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Adv.Search</span></button>
+                        <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Add()" ng-hide="btnAdd"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-info" aria-label="Left Align" ng-click="Edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-minus" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm btn-info" aria-label="Left Align" ng-click="View()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Approve()" ng-hide="btnApprove"> <span class="glyphicon glyphicon-ok-circle" aria-hidden="true"></span> Approve</button>
+                        <button type="button" class="btn btn-sm btn-warning" aria-label="Left Align" ng-click="UndoApprove()" ng-hide="btnUndoApprove"> <span class="glyphicon glyphicon-repeat" aria-hidden="true"></span> Undo Approve</button>
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Disburse()" ng-hide="btnDisburse"> <span class="glyphicon glyphicon-circle-arrow-right" aria-hidden="true"></span> Disburse</button>
+                        <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Receive()" ng-hide="btnReceive"> <span class="glyphicon glyphicon-circle-arrow-left" aria-hidden="true"></span> Receive</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Print()" ng-hide="btnView"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PIWiseDispoStatement()" ng-hide="btnView"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Statement</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PrintList()" ng-hide="btnPrintList"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print List</button>
+                    </div>
+                </div>
+            </div>
+            <div class="row" style="margin:2px; padding:0;">
+                <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable"></div>
+            </div>
+        </div>
+    </div>
+                    
+<style type="text/css">
+    .grid-angular {
+        width:99%;
+        height:490px;
+    }
+    .input-group-addon {
+        padding: 3px 6px;
+    }
+    .form-control {
+        height: 24px;
+        padding: 0px 4px;
+        font-size: 12px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oFNRequisitions =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oFNRequisitionTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNRequisitionTypes));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var buid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.buid));
+    var oFNTreatments = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNTreatments));
+    var oFNProcessList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNProcessList));
+    var oPermisson = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Permisson));
+    var nCurrentUserID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CurrentUserID));
+    var nTreatmentProcess = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TreatmentProcess));
+    var oWYarnTypes =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WYarnTypes));
+    var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    debugger;
+    var CCapp= angular.module('FNRequisitionApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service','ui.grid.pinning']);
+    CCapp.controller('FNRequisitionController',function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession, advanceSearch)
+    {
+        oFNRequisitions= (userSession.getData('FNRequisitions').length>0)? userSession.getData('FNRequisitions'):oFNRequisitions;
+        debugger;
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+        $scope.RequestStartDateInString = $scope.RequestEndDateInString = icsdateformat(new Date());
+        $scope.CompareOperators = oCompareOperators;
+        //$scope.btnDisburse = $scope.btnReceive = true;
+        $scope.CurrentUserID = nCurrentUserID;
+        $scope.Permisson = oPermisson;
+        $scope.TreatmentProcess = nTreatmentProcess;
+        $scope.cboDate = 0;
+
+        //$scope.btnAdd = $scope.btnEdit = $scope.btnView = $scope.btnDelete = $scope.btnApprove= $scope.btnDisburse =$scope.btnUndoDisburse =$scope.btnReceive = $scope.btnUndoApprove = $scope.btnAdvSearch = false ;
+
+        $scope.Search = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) 
+            {
+                var oFNRequisition = {sParam:$scope.cboDate+'~'+ $scope.RequestStartDateInString+'~'+ $scope.RequestEndDateInString + '~' + "", FNExONo:$scope.txtSearchByOrderNo};
+                $http.post(_sBaseAddress+ '/FNRequisition/Search',JSON.stringify(oFNRequisition)).then(
+                                function (response) {
+                                    //var oFNRequisitions= jQuery.parseJSON(response.data);
+                                    var oFNRequisitions= response.data;
+                                    if(oFNRequisitions.length>0)
+                                    {
+                                        $scope.gridOptions.data = oFNRequisitions;
+                                    }
+                                    else{
+                                        alert("Data Not Found.");
+                                        return;
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+            }
+        }
+        $scope.SearchDispo = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) 
+            {
+                var oFNRequisition = {sParam:$scope.cboDate+'~'+ $scope.RequestStartDateInString+'~'+ $scope.RequestEndDateInString + '~' + $scope.txtSearchByDispoNo, FNExONo:""};
+                $http.post(_sBaseAddress+ '/FNRequisition/Search',JSON.stringify(oFNRequisition)).then(
+                                function (response) {
+                                    //var oFNRequisitions= jQuery.parseJSON(response.data);
+                                    var oFNRequisitions= response.data;
+                                    if(oFNRequisitions.length>0)
+                                    {
+                                        $scope.gridOptions.data = oFNRequisitions;
+                                    }
+                                    else{
+                                        alert("Data Not Found.");
+                                        return;
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+            } 
+        }
+
+        $scope.SearchByReqNo = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) 
+            {
+                var oFNRequisition = {sParam:$scope.cboDate+'~'+ $scope.RequestStartDateInString+'~'+ $scope.RequestEndDateInString + '~' + "", FNRNo:$scope.txtSearchByReqNo};
+                $http.post(_sBaseAddress+ '/FNRequisition/Search',JSON.stringify(oFNRequisition)).then(
+                                function (response) {
+                                    //var oFNRequisitions= jQuery.parseJSON(response.data);
+                                    var oFNRequisitions= response.data;
+                                    if(oFNRequisitions.length>0)
+                                    {
+                                        $scope.gridOptions.data = oFNRequisitions;
+                                    }
+                                    else{
+                                        alert("Data Not Found.");
+                                        return;
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+            }
+        }
+
+        $scope.RowSelect =  function (entity)
+        {
+            debugger;
+            //ApproveBy =0;
+            //DisburseBy = 0;
+            //ReceivedBy = 0;
+            if(entity.ApproveBy!=0 && entity.DisburseBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnApprove=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnReceive=true;
+
+                $scope.btnDisburse=false;
+                $scope.btnUndoApprove =false;
+                $scope.CheckControll();
+            }
+            else if(entity.ApproveBy!=0 && entity.DisburseBy!=0 && entity.ReceiveBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=false;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnReceive=false;
+                $scope.CheckControll();
+            }
+            else if(entity.ApproveBy!=0 && entity.DisburseBy!=0 && entity.ReceiveBy!=0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnReceive=true;
+                $scope.CheckControll();
+            }
+            else if(entity.ApproveBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=false;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                $scope.btnReceive=true;
+                $scope.CheckControll();
+            }
+
+            if(entity.TreatmentID==5 || entity.TreatmentID==7 || entity.TreatmentID==8){//Lab=5, Printing=6, QAD=7, Rn D=8
+                $scope.btnReceive=true;
+            }
+        }
+
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'FNRNo', name:'Req. No',cellClass: 'text-left', width:'7%' },
+              { field: 'TreatmentInSt', name:'Section',cellClass: 'text-left', width:'15%' },
+              { field: 'ShiftInSt', name:'Shift',cellClass: 'text-left', width:'12%' },
+              { field: 'FNExONo', name:'Order No',cellClass: 'text-left', width:'15%' },
+              { field: 'ExeNo', name:'Dispo No',cellClass: 'text-left', width:'15%' },
+
+              { field: 'RequestDateInString', name:'Issue Date',cellClass: 'text-left', width:'10%' },
+              { field: 'IsRequisitionOpenSt', name:'Type',cellClass: 'text-left', width:'10%' },
+              { field: 'ApproveByName', name:'Approve By',cellClass: 'text-left', width:'12%' },
+              { field: 'DisburseByName', name:'Disburse By',cellClass: 'text-left', width:'12%' },
+              { field: 'ReceiveByName', name:'Receive By',cellClass: 'text-left', width:'12%' },
+              { field: 'ShadeInString', name:'Shade', width:'15%' , enableSorting: false}
+            ],
+            data: oFNRequisitions,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                if(oFNRequisitions.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                    $scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                    //$scope.RowSelect($scope.gridOptions.data[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity ); });
+
+                //gridApi.selection.on.rowSelectionChanged($scope, function (row)
+                //{
+                //    debugger;
+                //    var oFNR = row.entity;
+                //    if(parseInt(oFNR.ApproveBy)==0)
+                //    {
+                //        $scope.btnDisburse=$scope.btnReceive=true;
+                //    }
+                //    if(oFNR.ApproveBy!=0 && $scope.Permisson.Disburse)
+                //    {
+                //        $scope.btnDisburse = false;//show disburse button
+                //    }else{
+                //        $scope.btnDisburse = true;//hide disburse button
+                //    }
+                //    if(oFNR.DisburseBy!=0 && oFNR.ReceiveBy==0 && oFNR.RequestBy==$scope.CurrentUserID)
+                //    {
+                //        $scope.btnReceive = true;//show Receive button
+                //    }else{
+                //        $scope.btnReceive = false; //hide Receive button
+                //    }
+
+                //    //$scope.gridApi = gridApi;
+
+
+                //});
+            }
+        };
+
+
+
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNRequisition);
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNRequisitionHeader", "View FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNRequisition/ViewFNRequisition?id="+oFNRequisition.FNRID+"&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("FNRequisitionHeader", "Add FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/FNRequisition/ViewFNRequisition?id=0&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.ApproveBy!=0)
+            {
+                alert("Already Approved!");
+                return;
+            }
+
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNRequisition);
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNRequisitionHeader", "Edit FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNRequisition/ViewFNRequisition?id="+oFNRequisition.FNRID+ "&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.Approve= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.ApproveBy!=0)
+            {
+                alert("Already Approved!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNRequisition);
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNRequisitionHeader", "Approve FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNRequisition/ViewFNRequisition?id="+oFNRequisition.FNRID+"&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.Disburse= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.ApproveBy==0)
+            {
+                alert("Sorry, this item yet not Apporve.!");
+                return;
+            }
+            if(oFNRequisition.DisburseBy!=0)
+            {
+                alert("Sorry Already Disburse.!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNRequisition);
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNRequisitionHeader", "Disburse FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNRequisition/ViewFNRequisition?id="+oFNRequisition.FNRID+"&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.Receive= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.ApproveBy==0)
+            {
+                alert("Sorry, this item yet not Apporve.!");
+                return;
+            }
+            if(oFNRequisition.DisburseBy==0)
+            {
+                alert("Without Disburse Can't Receive.!");
+                return;
+            }
+            if(oFNRequisition.ReceiveBy!=0)
+            {
+                alert("Please Select Only Not Received Item From List.!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFNRequisition);
+            sessionStorage.setItem("FNRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FNRequisitionHeader", "Receive FN Requisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/FNRequisition/ViewFNRequisition?id="+oFNRequisition.FNRID+"&TreatmentId="+nTreatmentProcess+"&buid="+buid;
+        }
+        $scope.UndoApprove = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.DisburseBy!=0)
+            {
+                alert("Sorry, This Requisition Already Disburse.");
+                return;
+            }
+            $scope.SelectedRowIndex=$scope.gridOptions.data.indexOf(oFNRequisition);
+            if (!confirm("Confirm to Undo?")) return ;
+            $http.post(_sBaseAddress+ '/FNRequisition/UndoApprove',JSON.stringify(oFNRequisition)).then(
+                            function (response)
+                            {
+                                var oFNRequisition= jQuery.parseJSON(response.data);
+                                if(oFNRequisition.ErrorMessage=='' || oFNRequisition.ErrorMessage==null)
+                                {
+                                    alert("Successfully Undo.");
+                                    $scope.gridOptions.data[$scope.SelectedRowIndex]=oFNRequisition;
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNRequisition.ApproveBy!=0)
+            {
+                alert("Already Approved!");
+                return;
+            }
+
+            var SelectedRowIndex=$scope.gridOptions.data.indexOf(oFNRequisition);
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/FNRequisition/Delete',JSON.stringify(oFNRequisition)).then(
+                            function (response) {
+                                var sMessage= jQuery.parseJSON(response.data).toLowerCase();
+                                if(sMessage=='deleted')
+                                {
+                                    alert("Successfully Deleted.");
+                                    $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        }
+        $scope.Print = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress+'/FNRequisition/Print?FNRID='+ oFNRequisition.FNRID);
+        }
+
+        $scope.PIWiseDispoStatement = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNRequisition= data[0];//get selected index
+            if(oFNRequisition==null || oFNRequisition.FNRID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress+'/FNRequisition/PIWiseDispoStatement?FNRID='+ oFNRequisition.FNRID);
+        }
+
+        //$scope.btnReceive = false;
+        //$scope.HasPermission = function ()
+        //{
+        //    if(!$scope.Permisson.Disburse)
+        //    {
+        //        $scope.btnDisburse = true;
+        //    }
+        //}
+        //$scope.HasPermission();
+
+
+        $scope.btnAdd = $scope.btnEdit = $scope.btnView = $scope.btnDelete = $scope.btnApprove= $scope.btnDisburse =$scope.btnUndoDisburse =$scope.btnReceive = $scope.btnUndoApprove = $scope.btnAdvSearch = false ;
+            
+        $scope.CheckControll = function()
+        {
+            //button show
+            if(PermissionChecker('Add','FNRequisition',oAuthorizationRolesMapping))         {   $scope.btnAdd  =$scope.btnAdd;} else $scope.btnAdd =true;
+            if(PermissionChecker('Edit','FNRequisition',oAuthorizationRolesMapping))        {   $scope.btnEdit =$scope.btnEdit;} else $scope.btnEdit =true;
+            if(PermissionChecker('View','FNRequisition',oAuthorizationRolesMapping))        {   $scope.btnView =$scope.btnView;} else $scope.btnView =true;
+            if(PermissionChecker('Delete','FNRequisition',oAuthorizationRolesMapping))      {   $scope.btnDelete =$scope.btnDelete;} else $scope.btnDelete =true;
+            if(PermissionChecker('Approved','FNRequisition',oAuthorizationRolesMapping))    {   $scope.btnApprove =$scope.btnApprove;} else $scope.btnApprove =true;
+            if(PermissionChecker('Disburse','FNRequisition',oAuthorizationRolesMapping))    {   $scope.btnDisburse =$scope.btnDisburse;} else $scope.btnDisburse =true;
+            if(PermissionChecker('Disburse','FNRequisition',oAuthorizationRolesMapping))    {   $scope.btnUndoDisburse =$scope.btnUndoDisburse;} else $scope.btnUndoDisburse =true;
+            if(PermissionChecker('Received','FNRequisition',oAuthorizationRolesMapping))    {   $scope.btnReceive =$scope.btnReceive;} else $scope.btnReceive =true;
+            if(PermissionChecker('UnApproved','FNRequisition',oAuthorizationRolesMapping))  {   $scope.btnUndoApprove =$scope.btnUndoApprove;} else $scope.btnUndoApprove =true;
+            if(PermissionChecker('AdvSearch','FNRequisition',oAuthorizationRolesMapping))   {   $scope.btnAdvSearch = false; };
+        }
+
+        $scope.CheckControll();
+       
+        $scope.AdvanceSearch=function()
+        {
+            var oElementList = [{ DisplayName: "Requisition Date",BOField: "RequestDate",    InputType: 'date' }
+            ];
+            var modalObj=
+                {
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/FNRequisition/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.PrintList = function ()
+        {
+            var sParams = sessionStorage.getItem("AdvSearchString");
+            if(sParams == undefined || sParams == ""){
+                alert("Please Search first!!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/FNRequisition/PrintFNRequisitions?sParams='+sParams+'&nBUID='+buid);
+        };
+
+    });
+
+   
+
+</script>

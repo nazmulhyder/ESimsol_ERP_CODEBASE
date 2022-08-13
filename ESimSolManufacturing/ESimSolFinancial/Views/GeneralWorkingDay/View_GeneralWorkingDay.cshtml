@@ -1,0 +1,262 @@
+﻿<html>
+@{
+    ViewBag.Title = "General Working Day";
+}
+<body>
+    @model IEnumerable <ESimSol.BusinessObjects.GeneralWorkingDay>
+
+    <div ng-app="mainApp" ng-controller="mainController">
+        <div class="form-inline">
+            <div class="input-group date date-container">
+                <input type="text" class="form-control" style="width:130px" ng-model="dtDate"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+            </div>
+            <div class="input-group">
+                <input type="text" ng-model="description" class="form-control" placeholder="Enter Description" />
+            </div>
+            <input type="checkbox" ng-model="chkIsCompApplicable" /> Applicable for Compliance
+            <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="addGeneralWorkingDay()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> ADD</button>
+            <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="deleteGeneralWorkingDay()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> REMOVE</button>
+            <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PickDRP()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Add Department</button>
+
+            @*<div class="input-group">
+                <input style="width: 150px;" ng-model="DepartmentName" class="form-control" ng-keydown="SearchKeyDownBUName($event)" placeholder="Enter Department" />
+                <span class="input-group-btn">
+                    <button style="margin-right: 4px; margin-left3px;" type="button" class="btn btn-md" aria-label="Left Align" ng-click="CancelBU()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
+                    <button type="button" class="btn btn-md" aria-label="Left Align" ng-click="PickDRP()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                </span>
+            </div>*@
+        </div>
+        <div ui-grid="GeneralWorkingDaygridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable" style="height:520px;"></div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    
+    var  _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oGeneralWorkingDays =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    
+    var  vGeneralWorkingDayModule = angular.module('mainApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+    vGeneralWorkingDayModule.controller('mainController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession) {
+     
+
+        $(document).ready(function(){
+            $('.date-container').datepicker({
+                format: "dd M yyyy",
+                calendarWeeks: true,
+                autoclose: true,
+                todayHighlight: true
+            });
+            $(".number-int").icsNumberField({ min: 0,precision: 0 });
+            $(".number-precision").icsNumberField({ min: 0,precision: 2 });
+        });
+        $scope.dtDate=icsdateformat(new Date());
+        $scope.chkIsCompApplicable = true;
+        $scope.GWDID = 0;
+        $scope.DepartmentName = "";
+        $scope.DRPID = 0;
+
+        $scope.GeneralWorkingDaygridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'AttendanceDateInString', name: 'Attendance Date', width:'25%', enableCellEdit: false },
+                { field: 'Description', name: 'Description', width:'30%', enableCellEdit: false }
+
+            ],
+            data:oGeneralWorkingDays,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                if(oGeneralWorkingDays.length>0 && userSession.getRowIndex()>=0){
+                    $scope.gridApi.grid.modifyRows(oGeneralWorkingDays);           
+                    //$scope.gridApi.selection.selectRow(oGeneralWorkingDays[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+
+        $scope.SearchKeyDownBUName = function (keyEvent) {
+            debugger;
+            if(keyEvent.which==13){
+                this.PickDRP();
+            }
+            else if(keyEvent.which==08){
+                $scope.DepartmentName = "";
+                $scope.DRPID = 0;
+            }
+        };
+        $scope.PickDRP= function ()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows()[0];
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Please select a item from the list!', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.GWDID=data.GWDID;
+            $scope.DepartmentName =($scope.DepartmentName == undefined || $scope.DepartmentName=="")?"":$scope.DepartmentName;
+            var sDRPName=$scope.DepartmentName;
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/GeneralWorkingDay/GetsGeneralWorkingDayDetail',$.param({GWDID:data.GWDID}), config).then(
+                    function (response)
+                    {
+                           var mapData=jQuery.parseJSON(response.data);
+                           $http.post(sessionStorage.getItem('BaseAddress')+'/DepartmentRequirementPolicy/DRPPick',$.param(sDRPName), config).then(
+                     function (response)
+                     {
+                         var results=jQuery.parseJSON(response.data);
+                         var list=[];
+                         angular.forEach(mapData, function(odata,index){
+                        angular.forEach(results, function(oItem,ind){
+                            if(odata.DepartmentRequirementPolicyID==oItem.DepartmentRequirementPolicyID){
+                                list.push(oItem);
+                            }
+                        });
+                         });
+                         var modalObj={
+                             size:'md',
+                             title:'DRP',
+                             url:_sBaseAddress+'/Home/Modal',
+                             modalController:'ModalCtrl', 
+                             appController:'mainController', 
+                             objs:results, 
+                             selectedObjs:list,//results.getRange(3,5),
+                             multiSelect:true,
+                             columns:[{ field: 'BUName', name: 'Business Unit', width:'30%'},{ field: 'LocationName', name: 'Location' ,width:'30%'},{ field: 'DepartmentName', name: 'Department',width:'30%' }]
+                         }
+                         var modalInstance=msModal.Instance(modalObj);
+                         modalInstance.result.then(function (result) {
+                             var sDRPID="";
+                             for(var i=0;i<result.length;i++)
+                             {
+                                 sDRPID+=result[i].DepartmentRequirementPolicyID+',';
+                             }
+                             sDRPID=sDRPID.substring(0, sDRPID.length-1);
+                             $scope.DRPIDs=sDRPID;
+                             $scope.addDepartment();
+                         }, function () {
+                             $log.info('Modal dismissed at: ' + new Date());
+                         });
+                     },
+                         function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                 );
+
+                       },
+                           function (response) { alert(jQuery.parseJSON(response.data)[0].Message);}
+                   );
+        };
+
+        $scope.addDepartment= function () {
+
+            var oGeneralWorkingDayDetail= {
+                GWDDID : 0,
+                GWDID : $scope.GWDID,
+                DRPIDs :$scope.DRPIDs
+            }
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/GeneralWorkingDay/GeneralWorkingDayDetail_Save',$.param(oGeneralWorkingDayDetail), config).then(function (response){
+                debugger;
+                var result=jQuery.parseJSON(response.data);
+                if(result.length>0 && result[0].ErrorMessage=="")
+                {
+                    msModal.Message({headerTitle : '', bodyText:'Successfully Saved', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+
+                }
+                else{
+                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                }
+            },
+                             function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage);}
+             );
+        };
+
+        //$scope.CancelBU = function() {
+        //    $scope.DepartmentName = "";
+        //    $scope.DRPID = 0;
+        //}
+
+        $scope.Validation=function(){
+            if(new Date($scope.dtDate)=="Invalid Date"){
+                msModal.Message({headerTitle : '', bodyText:'Valid date required', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if($scope.description=="" || $scope.description == undefined){
+                msModal.Message({headerTitle : '', bodyText:'Description required', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            return  true;
+        };
+
+        $scope.addGeneralWorkingDay = function () {
+              
+            debugger;
+            //alert($scope.description);
+            if(!$scope.Validation())
+                return false;
+            debugger;
+            var objG= {
+                AttendanceDate : $scope.dtDate,
+                Description : $scope.description,
+                IsCompApplicable : $scope.chkIsCompApplicable
+            }
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/GeneralWorkingDay/Save',$.param(objG), config).then(function (response){
+                debugger;
+                var result=jQuery.parseJSON(response.data);
+                if(result.GWDID>0)
+                {
+                    $scope.GeneralWorkingDaygridOptions.data.push(result);
+                    debugger;
+                    msModal.Message({headerTitle : '', bodyText:'Successfully Saved', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+
+                }
+                else{
+                    msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                }
+                },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+             );
+        };
+
+        $scope.deleteGeneralWorkingDay = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to Delete?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+                    debugger;
+                    $http.post(_sBaseAddress+'/GeneralWorkingDay/Delete',JSON.stringify(data[0])).then(
+                                function (response) {
+                                    if(jQuery.parseJSON(response.data)=='Deleted'){
+                                        angular.forEach($scope.GeneralWorkingDaygridOptions.data,function(value,index){
+                                            if(value.GWDID==data[0].GWDID){
+                                                $scope.GeneralWorkingDaygridOptions.data.splice(index,1);
+                                            }
+                                        },$scope.GeneralWorkingDaygridOptions.data);
+                                        msModal.Message({headerTitle : '', bodyText:'Deleted Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    } 
+                                    else{
+                                        msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+                }
+            });
+        };
+    });
+</script>

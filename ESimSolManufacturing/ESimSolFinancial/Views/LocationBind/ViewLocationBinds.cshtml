@@ -1,0 +1,220 @@
+﻿@{
+    ViewBag.Title = "Location Binding";
+
+}
+@model IEnumerable <ESimSol.BusinessObjects.LB_Location>
+
+    <head>
+        <title>Location Binding </title>
+    </head>
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tlbLocationBindding" title="Location Binding" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarLB">
+                <thead>
+                    <tr>
+                        <th field="LB_IPV4" width="15%"> IP</th>
+                        <th field="LB_KnownName" width="20%">Known Name</th>
+                        <th field="LB_Is_ClassifiedStr" align="center" width="10%">Classified</th>
+                        <th field="LB_ClassificationDateStr" width="15%">Classified Date</th>
+                        <th field="LB_LocationNote" width="30%">Note</th>
+                        
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarLB">
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"> <label id="lblActivity">Classify</label> </a>
+            </div>
+            <div id="winLocationBind" class="easyui-window" title="Location Bind" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+                <fieldset>
+                    <table id="tblPanel" style="text-align:center; margin-right:10px; ">
+                        <tr>
+                            <td class="left-caption">
+                                <label>IP:</label>
+                            </td>
+                            <td class="left-input">
+                                <input type="text" id="txtIPV" disabled/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="left-caption">
+                                <label>Known Name:</label>
+                            </td>
+                            <td class="left-input">
+                                <input type="text" id="txtKnownName" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="left-caption">
+                                <label>Note:</label>
+                            </td>
+                            <td class="left-input">
+                                <input type="text" id="txtNote"  />
+                            </td>
+                        </tr>
+                    </table>
+
+                </fieldset>
+                <fieldset class="actionfieldsetstyle">
+                    <legend>Actions : </legend>
+                    <div style="text-align:right;">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </div>
+
+                </fieldset>
+            </div>
+        </div>
+
+    </body>
+    <style type="text/css">
+        #tblPanel {
+            width: 400px;
+        }
+
+        .left-caption {
+            width: 14%;
+            text-align: right;
+            margin-right: 2px;
+            font-weight: bold;
+        }
+
+        .left-input {
+            text-align: left;
+            width: 45%;
+        }
+
+        .left-input input {
+            width: 95%;
+        }
+    </style>
+
+    <script type="text/javascript">
+        var _sBaseAddress = "";
+        var _oLB_Locations = null;
+        $(document).ready(function () {
+            _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oLB_Locations = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            DynamicRefreshList(_oLB_Locations, "tlbLocationBindding");
+            $('#toolbarLB').data('LB_Location',null);
+
+        });
+
+        $('#tlbLocationBindding').datagrid({ onSelect: function (rowIndex, rowData) { OperationPerforms(rowIndex, rowData); } });
+        function OperationPerforms(rowIndex, rowData)
+        {
+            $('#lblActivity').html((rowData.LB_Is_Classified)? "Inactive" : "Active");
+        }
+
+
+        function ActiveStyle(bValue){
+            if(bValue){
+                return '<label style="color:blue"> Active </label>';
+            }
+            else{
+                return '<label style="color:red"> Inactive </label>';
+            }
+        }
+
+        function RefreshObject() {
+            var oLB=$('#toolbarLB').data('LB_Location');
+            oLB.LB_KnownName=$.trim($('#txtKnownName').val());
+            oLB.LB_LocationNote=$.trim($('#txtNote').val());
+            return oLB;
+        }
+
+        function ValidateInput() {
+
+            if($.trim($('#txtKnownName').val())==''){
+                $('#txtKnownName').focus();
+                alert('Known name required.');
+                return false;
+            }
+            return true;
+        }
+
+        $('#btnEdit').click(function (e) {
+            var oLB = $('#tlbLocationBindding').datagrid('getSelected');
+            if(oLB==null || oLB.LB_LocationID<=0){
+                alert("Please select an item from list.");
+                return false;
+            }
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oLB,
+                ControllerName: "LocationBind",
+                ActionName: "GetLB_Location",
+                IsWinClose: false
+            };
+            $.icsDataGet(obj, function (response) {
+
+                if (response.status && response.obj!=null) {
+                    if(response.obj.LB_LocationID>0){
+                        $('#txtIPV,#txtKnownName,#txtNote').val("");
+                        $('#txtIPV').val(response.obj.LB_IPV4);
+                        $('#txtKnownName').val(response.obj.LB_KnownName);
+                        $('#txtNote').val(response.obj.LB_LocationNote);
+                        $('#toolbarLB').data('LB_Location',response.obj);
+                        $("#winLocationBind").icsWindow('open');
+                        
+                    }
+                }
+            });
+
+        });
+
+        $("#btnSave").click(function (){
+            if (!ValidateInput()) return;
+
+            var oLB= RefreshObject();
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oLB,
+                ObjectId: oLB.LB_LocationID,
+                ControllerName: "LocationBind",
+                ActionName: "SaveLocationBind",
+                TableId: "tlbLocationBindding",
+                IsWinClose: true
+            };
+            $.icsSave(obj);
+        });
+
+        $("#btnClose").click(function () {
+            
+            $('#winLocationBind').icsWindow('close');
+        });
+    
+
+         $('#btnActivity').click(function (e) {
+
+            var oSUMS = $('#tlbLocationBindding').datagrid('getSelected');
+            if(oSUMS==null || oSUMS.SUMSID<=0) { alert("Please select an item from list."); return false; }
+            debugger;
+
+
+            if(oSUMS.IsActive){
+                alert("Confirm to Inactive");
+
+            }
+            else{
+                alert("Confirm to Active");
+            }
+
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oSUMS,
+                ObjectId: oSUMS.SUMSID,
+                ControllerName: "LocationBind",
+                ActionName: "ClassifiedChange",
+                TableId: "tlbLocationBindding",
+                IsWinClose: false
+            };
+            $.icsSave(obj);
+
+
+        });
+
+
+    </script>

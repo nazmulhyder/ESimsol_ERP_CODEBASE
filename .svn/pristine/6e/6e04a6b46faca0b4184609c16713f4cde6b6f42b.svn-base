@@ -1,0 +1,250 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Product Property Info";
+    }
+    @model ESimSol.BusinessObjects.ProductPropertyInformation
+    <div id="divProductPropertyInformation" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">        
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblProductPropertyInformation" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="PropertyTypeInString" width="300" align="left">Property Type</th>
+                        <th field="ValueOfProperty" width="300" align="left">Property Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                Property Type: <select id="cboPropertyType" style="width:150px;" class="changePropertyType"></select>                
+                Property Value: <select id="cboPropertyValue" style="width:150px;" ></select>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>                
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oProductPropertyInformation =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oPropertyValues = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PropertyValues));
+        var oPropertyTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PropertyTypes));
+        $('#divProductPropertyInformation').data('PropertyValues',oPropertyValues);
+        $('#divProductPropertyInformation').data('ProductPropertyInformation',oProductPropertyInformation);
+        $('#tblProductPropertyInformation').datagrid({ title: ('Property Information for :'+sessionStorage.getItem('ProductName'))});
+        RefreshList(oProductPropertyInformation.ProductPropertyInformations);
+        $("#cboPropertyType").icsLoadCombo({List: oPropertyTypes,OptionValue: "id",DisplayText: "Value"});
+    });
+
+    $('.changePropertyType').change(function(){
+        if($("#cboPropertyType").val()>0)
+        {
+            $("#cboPropertyValue").icsLoadCombo({List:GetSpecificPropertyValues($("#cboPropertyType").val()),OptionValue: "PropertyValueID",DisplayText: "ValueOfProperty"});
+
+        }else{
+            $("#cboPropertyValue").icsLoadCombo({List: [],OptionValue: "PropertyValueID",DisplayText: "ValueOfProperty"});
+        }
+    });
+
+    function GetSpecificPropertyValues(nPropertyType)
+    {
+        if(parseInt(nPropertyType)<=0)
+        {
+            return [];
+        }else{
+            var oPropertyValues = $('#divProductPropertyInformation').data('PropertyValues');
+            var oTempPropertyValues = [];
+            for(var i = 0;i<oPropertyValues.length;i++)
+            {
+                if(parseInt(oPropertyValues[i].PropertyType) == parseInt(nPropertyType))
+                {
+                    oTempPropertyValues.push(oPropertyValues[i]);
+                }
+            }
+            return oTempPropertyValues;
+        }
+    }
+
+
+    function ValidateInput()
+    {
+
+        if(parseInt($('#divProductPropertyInformation').data('ProductPropertyInformation').ProductID)<=0)
+        {
+            alert("Sorry, there is no Product. Please Refresh Again Menu.");
+            return false;
+        }
+
+        if(parseInt($('#divProductPropertyInformation').data('ProductPropertyInformation').BUID)<=0)
+        {
+            alert("Sorry, there is no Business Unit. Please Refresh Again Menu.");
+            return false;
+        }
+
+        if($('#cboPropertyType').val()===null || $('#cboPropertyType').val()===undefined || parseInt($('#cboPropertyType').val())<=0)
+        {
+
+            alert("Please select Property Type.");
+            $('#cboPropertyType').focus();
+            return false;
+        }
+        if($('#cboPropertyValue').val()===null || $('#cboPropertyValue').val()===undefined || parseInt($('#cboPropertyValue').val())<=0)
+        {
+            alert("Please select Property Value.");
+            $('#cboPropertyValue').focus();
+            return false;
+        }
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+        var oProductPropertyInformation=   {
+            ProductPropertyInfoID:parseInt($('#divProductPropertyInformation').data('ProductPropertyInformation').ProductPropertyInfoID),
+            ProductID:parseInt($('#divProductPropertyInformation').data('ProductPropertyInformation').ProductID),
+            BUID :parseInt($('#divProductPropertyInformation').data('ProductPropertyInformation').BUID),
+            PropertyValueID : parseInt($('#cboPropertyValue').val())
+        };
+        return oProductPropertyInformation;
+    }
+
+    $("#btnAdd").click(function(){
+        if(!ValidateInput()) return;
+        var oProductPropertyInformation=RefreshObject();
+        var nTempProductPropertyInfoID = parseInt(oProductPropertyInformation.ProductPropertyInfoID);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/Product/SaveProductPropertyInfo",
+            traditional: true,
+            data:  JSON.stringify(oProductPropertyInformation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oProductPropertyInformation = jQuery.parseJSON(data);
+                if(parseInt(oProductPropertyInformation.ProductPropertyInfoID)>0)
+                {
+                    alert("Data Saved sucessfully");
+                    if(parseInt(nTempProductPropertyInfoID)<=0)
+                    {
+                        var nIndex=$('#tblProductPropertyInformation').datagrid('getRows').length;
+                        $('#tblProductPropertyInformation').datagrid('appendRow',oProductPropertyInformation);
+                        $('#tblProductPropertyInformation').datagrid('selectRow', nIndex);
+                    }
+                    else
+                    {
+                        var oTempProductPropertyInformation = $('#tblProductPropertyInformation').datagrid('getSelected');
+                        var nIndex =$('#tblProductPropertyInformation').datagrid('getRowIndex',oTempProductPropertyInformation);
+                        $('#tblProductPropertyInformation').datagrid('updateRow',{index: nIndex,row: oProductPropertyInformation});
+                    }
+                    $("#cboPropertyType").val(0);
+                    $("#cboPropertyValue").icsLoadCombo({List: [],OptionValue: "PropertyValueID",DisplayText: "ValueOfProperty"});
+                    $('#divProductPropertyInformation').data('ProductPropertyInformation').ProductPropertyInfoID=0;
+                }
+                else {
+                    alert(oProductPropertyInformation.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnEdit").click(function(){
+        var oProductPropertyInformation = $('#tblProductPropertyInformation').datagrid('getSelected');
+        if(oProductPropertyInformation==null ||  parseInt(oProductPropertyInformation.ProductPropertyInfoID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        $('#divProductPropertyInformation').data('ProductPropertyInformation',oProductPropertyInformation);
+        $("#cboPropertyType").val(oProductPropertyInformation.PropertyTypeInInt);
+        $("#cboPropertyValue").icsLoadCombo({List:GetSpecificPropertyValues(oProductPropertyInformation.PropertyTypeInInt),OptionValue: "PropertyValueID",DisplayText: "ValueOfProperty"});
+        $("#cboPropertyValue").val(oProductPropertyInformation.PropertyValueID);
+    });
+
+    $('#btnDelete').click(function(e){
+        var oProductPropertyInformation = $('#tblProductPropertyInformation').datagrid('getSelected');
+        if(oProductPropertyInformation==null ||  parseInt(oProductPropertyInformation.ProductPropertyInfoID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        var SelectedRowIndex=$('#tblProductPropertyInformation').datagrid('getRowIndex',oProductPropertyInformation);
+        if (parseInt(oProductPropertyInformation.ProductPropertyInfoID)> 0)
+        {
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Product/DeleteProductPropertyInfo",
+                traditional: true,
+                data:  JSON.stringify(oProductPropertyInformation),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblProductPropertyInformation').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    function RefreshList(oProductPropertyInformations)
+    {
+        var data=oProductPropertyInformations;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductPropertyInformation').datagrid('loadData',data);
+    }
+
+    $("#btnRefresh").click(function(){
+        var data=$('#tblProductPropertyInformation').datagrid('getRows');
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductPropertyInformation').datagrid('loadData',data);
+    });
+
+
+    $("#btnClose").click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+    });
+</script>

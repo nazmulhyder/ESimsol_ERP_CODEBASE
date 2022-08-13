@@ -1,0 +1,287 @@
+﻿@{
+    ViewBag.Title = "FN Treatment Process List";
+}
+
+@model ESimSol.BusinessObjects.FNMachine
+
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+            <div class="col-md-12">
+                    <div class="form-inline">
+                        <label>Treatment Process: </label>
+                        <input class="form-control" type="text" placeholder="Type Process Description & Press Enter" id="txtTreatmentProcess" ng-keydown="SearchKeyDownProcess($event)" ng-model="txtTreatmentProcess" style="width:250px;" />
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PickTreatmentProcess()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Remove</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Activity()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Activity</button>
+                    </div>
+                    <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                </div>
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="1" cellpadding="0" style="font-size:11px; font-weight:bold; width:100%;">
+                    <tr>
+                        <td style="width:100%;text-align:right">
+                            <button type="button" id="btnClose" class="btn btn-default btn-md btn-danger" aria-label="right Align" ng-click="Close()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span></button>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 460px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFNMachine =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oFNMachineProcessList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.FNMachineProcessList));
+    
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+        $scope.FNMachine = oFNMachine;
+        $scope.FNMachineProcessList = [];
+
+        $scope.gridOptions ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs:[
+                { field:'FNTreatmentSt', name: 'Treatment', width: '30%',  cellClass: 'text-left',enableCellEdit:false},
+                { field:'FNProcess', name: 'Process', width: '20%',  cellClass: 'text-left',enableCellEdit:false},
+                { field:'Description', name: 'Description', width: '25%',  cellClass: 'text-left',enableCellEdit:false},
+                { field:'InactiveByName', name: 'In Active By', width: '22%',  cellClass: 'text-left',enableCellEdit:false}
+                
+            ],
+            data:oFNMachineProcessList,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+            }
+        };
+
+        //SearchKeyDownProcess
+        $scope.SearchKeyDownProcess=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                
+                $scope.PickTreatmentProcess();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.FNExecutionOrder.txtTreatmentProcess='';
+                $scope.FNMachineProcessList = [];
+            }
+        };
+
+        $scope.PickTreatmentProcess=function ()
+        {
+
+            var txtTreatmentProcess = $.trim($scope.txtTreatmentProcess);
+            if(txtTreatmentProcess==""||txtTreatmentProcess==null)
+            {
+                txtTreatmentProcess = "";
+            }
+            //alert($scope.txtTreatmentProcess);
+            var oFNMachine = {
+                FNMachineID: $scope.FNMachine.FNMachineID,
+                Name:txtTreatmentProcess
+            };
+            $.icsProgressBar(true);
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNMachine/GetsTreatmentProcess',$.param(oFNMachine), config).then(
+                        function (response)
+                        {
+                            $.icsProgressBar(false);
+                            var oColumns = [];
+                            var oColumn = { field:'FNTreatmentSt', name:'Treatment', width:'25%' };oColumns.push(oColumn);
+                            oColumn = { field:'FNProcess',name:'Process', width:'30%', enableSorting: false };oColumns.push(oColumn);
+                            oColumn = { field:'Description', name:'Description', width:'45%', enableSorting: false };oColumns.push(oColumn);
+                            var results= jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                url:_sBaseAddress+'/Home/Modal',
+                                modalcontroller:'TreatmentCtrl',
+                                appcontroller:'mainController',
+                                objs:results,
+                                multiSelect:true,
+                                pickertitle:'Treatment List',
+                                searchingbyfieldName:'FNTreatmentSt',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                               debugger;
+                               //$scope.FNMachineProcessList = result;
+                               if( result.length>1)
+                               {
+                                   $scope.txtTreatmentProcess= result.length+" Item's selected";         
+                               }else
+                               {
+                                   $scope.txtTreatmentProcess= result[0].FNTreatmentSt;         
+                               }
+                               for(var i =0;i<result.length;i++)
+                               {
+                                   var oFNMachineProcess = {FNTPID:result[i].FNTPID, FNMachineID:$scope.FNMachine.FNMachineID};
+                                   $scope.FNMachineProcessList.push(oFNMachineProcess);
+                               }
+                               $scope.Save();
+                                
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+
+        };
+
+        $scope.Activity= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFNMProcess= data[0];//get selected index
+            if(oFNMProcess==null || oFNMProcess.FNMachineID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oFNMProcess.InActiveBy==0)
+            {
+                if (!confirm("Confirm to Active?")) return ;
+            }else{
+                if (!confirm("Confirm to In Active?")) return ;
+            }
+            
+            $scope.index = $scope.gridOptions.data.indexOf(oFNMProcess);
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNMachine/ChangeActivetyProcess',$.param(oFNMProcess), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    var oFNMProcess=jQuery.parseJSON(response.data);
+                                    alert("Sucessfully Updated");
+                                    if(parseInt(oFNMProcess.FNMProcessID)>0)
+                                    {
+                                        $scope.gridOptions.data[$scope.index]=oFNMProcess;
+                                    }
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+           
+        }
+        $scope.Save = function () {
+            debugger;
+            if($scope.FNMachine.FNMachineID<= 0 )
+            {
+                msModal.Message({headerTitle:'', bodyText:'Sorry, There is No FN Machine', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if($scope.FNMachineProcessList.length<= 0)
+            {
+                msModal.Message({headerTitle:'', bodyText:'Please Select FN Machine Process List', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $.icsProgressBar(true);
+            var oFNMachine = {
+                FNMachineID:$scope.FNMachine.FNMachineID,
+                FNMachineProcessList:$scope.FNMachineProcessList
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/FNMachine/SaveFNMProcess",
+                traditional: true,
+                data:  JSON.stringify(oFNMachine),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    $.icsProgressBar(false);
+                    var oFNMachine= jQuery.parseJSON(data);
+                    if (oFNMachine.ErrorMessage=="" || oFNMachine.ErrorMessage==null)
+                    {
+                        alert("Data Save Successfully!!");
+                        window.location.href =window.location.href;
+                    }else{
+                        alert(oFNMachine.ErrorMessage);
+                        return;
+                    }
+                       
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }; 
+        $scope.remove = function () {
+            debugger;
+            var oFNMProcess=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oFNMProcess==null || oFNMProcess.FNMProcessID<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            
+            var SelectedRowIndex=$scope.gridOptions.data.indexOf(oFNMProcess);
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/FNMachine/DeleteFNMProcess',JSON.stringify(oFNMProcess)).then(
+                            function (response)
+                            {
+                                var sMessage= jQuery.parseJSON(response.data).toLowerCase();
+                                if(sMessage=='deleted')
+                                {
+                                    alert("Successfully Deleted.");
+                                    $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+        $scope.Close = function()
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+
+    });
+
+ 
+    </script>
+
+
+
+

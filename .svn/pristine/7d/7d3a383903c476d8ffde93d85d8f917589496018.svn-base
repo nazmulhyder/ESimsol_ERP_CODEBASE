@@ -1,0 +1,482 @@
+﻿
+@{
+    ViewBag.Title = "Budget Entry";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model ESimSol.BusinessObjects.Budget
+
+    <div id="divBudget" style="margin-left: 0px; height:90%; width:100%">
+        <fieldset>
+            <legend>Budget Information</legend>
+            <table border="0" style="width:95%">
+                <tr>
+                    <td style="text-align:right; width:10%">Budget No:</td>
+                    <td style="text-align:right; width:15%">
+                        <input type="text" id="txtBudgetNo" style="width:100%" disabled/>
+                    </td>
+                    <td style="text-align:right; width:10%">B Unit:</td>
+                    <td style="text-align:right; width:15%">
+                        <select id="cboBusinessUnit" style="width:100%"></select>
+                    </td>
+                    <td style="text-align:right; width:10%">Budget Session:</td>
+                    <td style="text-align:right; width:15%">
+                        <select id="cboAccountingSession" style="width:100%"></select>
+                    </td>
+                    <td style="text-align:right; width:10%">Date:</td>
+                    <td style="text-align:right; width:15%">
+                        <input id="IssueDate" type="text" style="width:100%;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align:right; width:10%">Budget Type:</td>
+                    <td style="text-align:right; width:15%">
+                        <select id="cboBudgetType"  style="width:100%"></select>
+                    </td>
+                    <td style="text-align:right; width:8%">Remarks:</td>
+                    <td style="text-align:right; width:15%" colspan="5">
+                        <input type="text" id="txtRemarks" style="width:100%" />
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+       
+        <div style="height:425px; width:100%;">
+            <table style="width:100%" id="tblBudgetDetailTreeGrid" title="Chats of Account List" class="easyui-treegrid" fit="true" fitcolumns="false"
+                   data-options="onClickCell : onClickCell, idField:'id',treeField:'code', rownumbers:'true'">
+                <thead>
+                    <tr>
+                        <th data-options="field:'code',width:200,">Account Code</th>
+                        <th data-options="field:'text',width:400,">Account Head</th>
+                        <th data-options="field:'BudgetAmount',width:100,align:'right',editor:'numberbox'">Amount</th>@*,editor:'numberbox'  formatter="FormatBudgetAmount"*@
+                        @*<th data-options="field:'CSymbol',width:60,">Currency</th>*@
+                        <th data-options="field:'AccountTypeInString',width:120,">Account Type</th>
+                        @*<th data-options="field:'PathName',width:800,">Accounts Path</th>*@
+                    </tr>
+                </thead>
+            </table>
+         </div>
+        <fieldset style="top:90%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right"></td>
+                    
+                    <td style="width: 5%">
+                        <a id="btnRevise" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Revise</a>
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                    </td>
+                    <td style="width: 5%">
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                    </td>
+                    <td style="width: 10%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+
+<script type="text/javascript">
+
+    var _oTBudgets = [];
+    var _sBaseAddress = "";
+    var _oBudgetTypes = [];
+    var _oBudgetStatus = [];
+    var _oBudget = [];
+    var _oBudgets = [];
+
+    $(document).ready(function() {
+        debugger;
+        _oBudget = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBudgetTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BudgetType));
+        _oBudgetStatus = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BudgetStatus));
+        _oTBudgetDetail = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TBudgetDetail));
+        _oAcountingSessions = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AccountingSessions));
+        _oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+
+
+
+        //------Load Combo-------
+        RefreshTree(_oTBudgetDetail);
+        $("#cboBudgetType").icsLoadCombo({List: _oBudgetTypes,OptionValue: "id",DisplayText: "Value",});
+        $("#cboAccountingSession").icsLoadCombo({List: _oAcountingSessions,OptionValue: "AccountingSessionID",DisplayText: "SessionName",});
+        $("#cboBusinessUnit").icsLoadCombo({List: _oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "ShortName",});
+        RefreshController();
+    });
+    function RefreshController()
+    {
+        $('#txtBudgetNo').val(_oBudget.BudgetNo);
+        $('#cboBudgetType').val(_oBudget.BudgetType);
+        $('#cboAccountingSession').val(_oBudget.AccountingSessionID);
+        $('#cboBusinessUnit').val(_oBudget.BUID);
+        $('#txtRemarks').val(_oBudget.Remarks);
+        $('#IssueDate').datebox('setValue',_oBudget.IssueDateSt);
+        //$('#IssueDate').datebox('setValue', icsdateformat(new Date()));
+
+        //-------------Button Show Hide---------------//
+        debugger;
+        if(sessionStorage.getItem("Operation")=="Revise")
+        {
+            $('#btnRevise').show();
+            $('#btnSave').hide();
+        }
+        if(sessionStorage.getItem("Operation")=="New")
+        {
+            $('#btnRevise').hide();
+            $('#btnSave').show();
+        }
+        if(sessionStorage.getItem("Operation")=="Edit")
+        {
+            $('#btnRevise').hide();
+            $('#btnSave').show();
+        }
+        if(sessionStorage.getItem("Operation")=="View")
+        {
+            $('#btnRevise').hide();
+            $('#btnSave').hide();
+        }
+    }
+    function RefreshTree(result)
+    {
+        data= [result];
+        data={"total":""+data.length+"","rows":data};
+        $('#tblBudgetDetailTreeGrid').treegrid('loadData',data);
+    }
+    function getBudget()
+    {
+        if($("#cboBudgetType").val()>0 && $("#cboAccountingSession").val()>0)
+        {
+            var oBT = {
+                BudgetType : parseInt($("#cboBudgetType").val()),
+                AccountingSessionID : parseInt($("#cboAccountingSession").val()),
+                BUID : parseInt($("#cboBusinessUnit").val()),
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/Budget/GetBudgetDetails",
+                traditional: true,
+                data: JSON.stringify(oBT),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var result = jQuery.parseJSON(data); //console.log("result ",result);
+                    if (result.ErrorMessage == "" || result.ErrorMessage==null)
+                    {
+                        data= [result];
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblBudgetDetailTreeGrid').treegrid('loadData',data);
+                    }
+                    else
+                    {
+                        alert(result.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }
+
+    /*========== CELL FUNCTION =============*/
+    var editingId=undefined;
+
+    function CellEdit(){
+        if (editingId != undefined){
+            $('#tblBudgetDetailTreeGrid').treegrid('select', editingId);
+            return;
+        }
+        var row = $('#tblBudgetDetailTreeGrid').treegrid('getSelected');
+        if (row){
+            editingId = row.id;
+            $('#tblBudgetDetailTreeGrid').treegrid('beginEdit', editingId);
+        }
+    }
+    function CellEditCancel(){
+        if (editingId != undefined){
+            $('#tblBudgetDetailTreeGrid').treegrid('cancelEdit', editingId);
+            editingId = undefined;
+        }
+    }
+    function CellSave(){
+        debugger;
+        if (editingId != undefined)
+        {
+            var t = $('#tblBudgetDetailTreeGrid');
+            t.treegrid('endEdit', editingId);
+            editingId = undefined;
+            var persons = 0;
+            var rows = t.treegrid('getChildren');
+            for(var i=0; i<rows.length; i++){
+                var p = parseInt(rows[i].persons);
+                if (!isNaN(p)){
+                    persons += p;
+                }
+            }
+            debugger;
+            var ThisTreeGrid = t.treegrid('getChildren');
+            //var frow = t.treegrid('getFooterRows')[0];
+            //frow.persons = persons;
+            //t.treegrid('reloadFooter');
+        }
+    }
+    function CellSaveFullList(){
+        debugger;
+        CellEditCancel();
+        $.icsProgressBar(true);
+        var t = $('#tblBudgetDetailTreeGrid');
+        var oBudgetDetails = t.treegrid('getChildren',1);
+
+        var oBG = {
+            BudgetID: _oBudget.BudgetID,
+            BudgetType:$("#cboBudgetType").val(),
+            Remarks:$("#txtRemarks").val(),
+            AccountingSessionID:$("#cboAccountingSession").val(),
+            BUID : parseInt($("#cboBusinessUnit").val()),
+            IssueDate: $('#IssueDate').datebox('getValue'),
+            BudgetDetails: oBudgetDetails
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/Budget/Save",
+            traditional: true,
+            data: JSON.stringify(oBG),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+
+                var result = jQuery.parseJSON(data);
+                debugger;
+                if(result.ErrorMessage!=null && result.ErrorMessage!="")
+                {
+                    alert(result.ErrorMessage); $.icsProgressBar(false);
+                }
+                else
+                {
+                    alert("Data Saved sucessfully");
+                    var oBudgets = sessionStorage.getItem("Budgets");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oBudgets != null) {
+                        oBudgets = jQuery.parseJSON(oBudgets);
+                    }
+                    else {
+                        oBudgets = [];
+                    }
+                    if (nIndex != -1) {
+                        oBudgets[nIndex] = result;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oBudgets.length);
+                        oBudgets.push(result);
+                    }
+                    sessionStorage.setItem("Budgets", JSON.stringify(oBudgets));
+                    $.icsProgressBar(false);
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+            },
+            error: function (xhr, status, error) {
+                $.icsProgressBar(false);
+                alert(error);
+            }
+        });
+    }
+    function CellSaveFullListForRevise(){
+        debugger;
+        CellEditCancel();
+        $.icsProgressBar(true);
+        var t = $('#tblBudgetDetailTreeGrid');
+        var oBudgetDetails = t.treegrid('getChildren',1);
+
+        var oBG = {
+            BudgetID: _oBudget.BudgetID,
+            BudgetNo: $('#txtBudgetNo').val(),
+            ReviseNo: _oBudget.ReviseNo,
+            IssueDate: $('#IssueDate').datebox('getValue'),
+            AccountingSessionID:$("#cboAccountingSession").val(),
+            BudgetType:$("#cboBudgetType").val(),
+            Remarks:$("#txtRemarks").val(),
+            BUID : parseInt($("#cboBusinessUnit").val()),
+            ApproveBy: _oBudget.ApproveBy,
+            BudgetDetails: oBudgetDetails
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/Budget/Revise",
+            traditional: true,
+            data: JSON.stringify(oBG),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+
+                var result = jQuery.parseJSON(data);
+                debugger;
+                if(result.ErrorMessage!=null && result.ErrorMessage!="")
+                {
+                    alert(result.ErrorMessage); $.icsProgressBar(false);
+                }
+                else
+                {
+                    alert("Data Saved sucessfully");
+                    var oBudgets = sessionStorage.getItem("Budgets");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oBudgets != null) {
+                        oBudgets = jQuery.parseJSON(oBudgets);
+                    }
+                    else {
+                        oBudgets = [];
+                    }
+                    if (nIndex != -1) {
+                        oBudgets[nIndex] = result;
+                    }
+                    else
+                    {
+                        //sessionStorage.setItem("SelectedRowIndex", oBudgets.length);
+                        oBudgets.push(result);
+                    }
+                    sessionStorage.setItem("Budgets", JSON.stringify(oBudgets));
+                    $.icsProgressBar(false);
+                    sessionStorage.setItem("SelectedRowIndex", nIndex);
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+            },
+            error: function (xhr, status, error) {
+                $.icsProgressBar(false);
+                alert(error);
+            }
+        });
+    }
+
+    /*========== KEY EVENT IN CELL (START) =========*/
+    function onClickCell(field,value)
+    {
+        //console.log(field,value);
+        if(field === "BudgetAmount" && value.AccountType==5)
+        {
+            var row = $('#tblBudgetDetailTreeGrid').treegrid('getSelected');
+            if (row){BudgetAmountKeyDown(row)}
+            StartEdit(value.id);
+        }
+    }
+    function StartEdit(index)
+    {
+        CellEditCancel();
+        $('#tblBudgetDetailTreeGrid').treegrid('select', index);
+        CellEdit();
+        debugger;
+        var ed_BudgetAmount= $('#tblBudgetDetailTreeGrid').treegrid('getEditor',{index:index,field:'BudgetAmount'});
+        setKeydown([ed_BudgetAmount.target]);
+    }
+    function setKeydown(tt){
+        for(var i=0; i<tt.length; i++){
+            var t = tt[i];
+            getInputBox(tt[i]||tt[0]).focus();
+            getInputBox(t).bind('keydown',{i:i},function(e){
+                if (e.keyCode == 13) {
+                    var row = $('#tblBudgetDetailTreeGrid').treegrid('getSelected');
+                    BudgetAmountKeyDown(row);
+                }
+            });
+        }
+    }
+    function getInputBox(target){
+        return $(target).data('textbox') ? $(target).textbox('textbox') : $(target);
+    }
+
+    function BudgetAmountKeyDown(value)
+    {
+        var sHtmlControlID = '#txtBudgetAmount' + value.id;
+        var sBudgetAmount = $(sHtmlControlID).val();
+
+        if(sBudgetAmount!=null && parseFloat(sBudgetAmount)>0)
+        {
+            value.BudgetAmount =  parseFloat(sBudgetAmount);
+        }
+        else
+        {
+            value.BudgetAmount = 0;
+        }
+        CellSave();
+        SetParentBudgetAmount(value);
+        StartEdit(GetNextLedger(value));
+    }
+
+    function GetNextLedger(value)
+    {
+        var childs=$('#tblBudgetDetailTreeGrid').treegrid('getChildren',value.parentid);
+        for(var i=0; i<childs.length; i++)
+        {
+            if(childs[i].id==value.id)
+            {
+                if(i==childs.length-1)
+                    return childs[0].id;
+                else
+                    return childs[i+1].id;
+            }
+        }
+        return childs[0].id;
+    }
+
+    function SetParentBudgetAmount(value)
+    {
+        if(value.parentid > 0 )
+        {
+            var parent=$('#tblBudgetDetailTreeGrid').treegrid('find',value.parentid);
+            var childs=$('#tblBudgetDetailTreeGrid').treegrid('getChildren',parent.id);
+
+            var sum=0;
+            for(var i=0; i<childs.length; i++)
+            {
+                if(childs[i].parentid==value.parentid)
+                    sum=parseFloat(childs[i].BudgetAmount)+parseFloat(sum);
+            }
+            parent.BudgetAmount=sum;
+
+            $('#tblBudgetDetailTreeGrid').treegrid('update',{
+                id: parent.id,
+                row: parent
+            });
+            SetParentBudgetAmount(parent)
+        }
+    }
+    /* ============== KYE EVENT END =================*/
+
+    $('#btnSave').click(function(){
+        debugger;
+        if ($("#cboBusinessUnit").val() <=0 )
+        { alert("Please select a unit and try again."); return ; }
+        if ($("#cboAccountingSession").val() <=0 )
+        { alert("Please select session and try again."); return ; }
+        if ($("#cboAccountingSession").val() <=0 )
+        { alert("Please select session and try again."); return ; }
+        CellSaveFullList();
+    });
+    $('#btnRevise').click(function(){
+        debugger;
+        if ($("#cboBusinessUnit").val() <=0 )
+        { alert("Please select a unit and try again."); return ; }
+        if ($("#cboAccountingSession").val() <=0 )
+        { alert("Please select session and try again."); return ; }
+        if ($("#cboAccountingSession").val() <=0 )
+        { alert("Please select session and try again."); return ; }
+        CellSaveFullListForRevise();
+    });
+    $('#btnPrint').click(function(){
+        if (_oBudget ==null || _oBudget.BudgetID <=0 )
+        { alert("Please save first and try again."); return ; }
+        window.open(_sBaseAddress + '/Budget/PrintBudget?id='+_oBudget.BudgetID);
+    });
+
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+</script>
+
+
+
+
+

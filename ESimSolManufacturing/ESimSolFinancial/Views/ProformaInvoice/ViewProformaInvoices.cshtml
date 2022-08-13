@@ -1,0 +1,663 @@
+﻿@{
+    ViewBag.Title = "Proforma Invoice list";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ProformaInvoice>
+<table id="tblProformaInvoice" title="Porforma Invoice  Issue" class="easyui-datagrid"
+    style="width: 896px; height: 548px" fitcolumns="false" rownumbers="true" pagination="true"
+    singleselect="true" autorowheight="false" toolbar="#toolbar">
+    <thead>
+        <tr>
+            <th field="LCReceived" width="100">
+               LC Received
+            </th>
+            <th field="PINo" width="130">
+                PI No
+            </th>
+            <th field="PIStatusInString" width="100">
+               Status
+            </th>
+            <th field="BuyerName" width="100">
+                Buyer Name
+            </th>
+            <th field="IssueDateInString" width="100">
+                Issue Date
+            </th>
+            <th field="LCFavorOfName" width="110">
+                LC favor Of
+            </th>
+             <th field="TransferingBankName" width="110">
+                Transfering Bank
+            </th>
+            <th field="ApprovedByName" width="110">
+                Approved By
+            </th>
+              <th field="Quantity" width="110">
+                Quantity
+            </th>
+            <th field="Amount" width="110">
+                Total Amount
+            </th>
+        </tr>
+    </thead>
+</table>
+​
+<div id="toolbar" style="height: 40px">
+    <table border="0" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="font-size: 11px; width: 90px">
+                <input type="text" id="txtPINo" placeholder="" style="width: 50px; font-size: 11px" />
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+            </td>
+            <td style="font-size: 11px; width: 70px">
+                <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+            </td>
+            <td style="font-size: 11px; width: 120px">
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a> 
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            </td>
+            <td style="font-size: 11px; width: 70px">
+                <a id="btnDetails" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+            </td>
+             <td style="font-size: 11px; width: 80px">
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            </td>
+            
+             <td style="font-size: 11px; width: 100px">
+                <a id="btnRequestforApproval"  href="javascript:void(0)" class="easyui-linkbutton"  iconcls="icon-redo" plain="true" onclick="RequestforApproval()">Rqst for App</a>
+            </td>
+             <td style="font-size: 11px; width: 100px">
+                <a id="btnUndoRequest" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-undo" plain="true" onclick="UndoRequest()">Undo Req</a>
+            </td>
+             <td style="font-size: 11px; width: 90px">
+                <a id="btnUndoRequest" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-undo" plain="true" onclick="UndoRequest()">PI Revise</a>
+            </td>
+            <td style="font-size: 11px; width: 80px">
+                <a id="btnPreView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPreview()">Print PI</a>
+            </td>
+             <td style="font-size: 11px; width: 80px">
+                <a id="btnAPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintList()">Print List</a>
+            </td>
+        </tr>
+        
+    </table>
+</div>
+<script type="text/javascript">
+    var _oProformaInvoices=[];
+    var _sBaseAddress ="";
+    var _oAuthorizationRolesMapping = [];
+    $(document).ready(function () {
+          //debugger;
+          _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+          _oProformaInvoices =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+          var sMenuSelection=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["MenuSelection"]));
+//          RefreshControll(sMenuSelection);
+          _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));  
+//          RefreshControlLayout();
+    });
+
+   
+
+
+function Refresh()
+{
+  //debugger;
+  var sONSno=document.getElementById("txtPINo").value;
+  if(sONSno==null)
+  {
+    alert("Please type ONS No !");
+    return;
+  }
+        $.ajax
+             ({
+                type: "GET",
+                dataType: "json",            
+                url : _sBaseAddress+  "/ProformaInvoice/RefreshONS",
+                data: { sNumber:sONSno},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    ////debugger;
+                    var oProformaInvoices = jQuery.parseJSON(data);
+                    if (oProformaInvoices.length>0) 
+                    {                  
+                        RefreshList(oProformaInvoices);
+                        var rows = $('#tblProformaInvoice').datagrid('getRows'); 
+                        for(var i=0;i<rows.length;i++)
+                        {
+                            if(rows[i].ONSNo==sONSNo)
+                            break;
+                        }
+                        $('#tblProformaInvoice').datagrid('selectRow', i); 
+                    }
+                    else
+                    {
+                        alert("Data Could not found !");
+                      
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        
+}
+function AdvanceSearch()
+{
+      var oParameter = new Object();
+      oParameter.Name = "Search";
+      oParameter.MultipleItemReturn=true;
+      var url = _sBaseAddress+"/ProformaInvoice/AdvanceSearch"
+      var oProformaInvoices = window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:735px;dialogLeft:250;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no'); 
+      if(oProformaInvoices.length>0)
+      {
+        RefreshList(oProformaInvoices);
+
+      }
+}
+
+function WaitForApproval()
+{
+    //debugger;  
+    var nStatusExtra =2;
+    GetONSList(nStatusExtra);
+
+}
+
+function WaitForRequest()
+{
+    
+    var nStatusExtra =1;
+    GetONSList(nStatusExtra);
+}
+
+
+function GetONSList(nStatusExtra)
+{
+    
+           $.ajax
+         ({
+            type: "GET",
+            dataType: "json",            
+            url : _sBaseAddress+  "/ProformaInvoice/WaitingSearch",
+            data: {nStatusExtra:nStatusExtra},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                ////debugger;
+                var oProformaInvoices = jQuery.parseJSON(data);
+                if (oProformaInvoices.length>0) 
+                {
+                                  
+                    
+                       RefreshList(oProformaInvoices);
+                }
+                else
+                {
+                    alert("Data Not found");
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+}
+
+
+
+
+
+
+
+
+
+function RequestforApproval()
+{
+   //debugger;
+    var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }else if(oProformaInvoice.Status!=1)
+     {
+        alert("Please select only Initialized item from list");
+        return;
+     }
+     if (!confirm("Confirm to Request for approval?")) return ;
+     oProformaInvoice.ActionTypeExtra="RequestForApproval";
+     StatusChange(oProformaInvoice,"Request For Approval");
+       
+}
+
+function UndoRequest()
+{
+    //debugger;
+    var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }else if(oProformaInvoice.Status!=2)
+     {
+        alert("Please select only Requested  item from list");
+        return;
+     }
+     if (!confirm("Confirm to Undo Request?")) return ;
+     oProformaInvoice.ActionTypeExtra="UndoRequest";
+     StatusChange(oProformaInvoice,"Undo Request");
+}
+
+function ONSApprove()
+{
+    
+    //debugger;
+    var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }
+     if(oProformaInvoice.Status!=2)
+     {
+        alert("Please select only Requested  item from list");
+        return;
+     }
+     if (!confirm("Confirm to Approve?")) return ;
+      var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+      var oParameter = new Object();
+      oParameter.Name = "Approved Order Negotiation";
+      var url = _sBaseAddress+"/ProformaInvoice/ProformaInvoiceApprove?nONSID="+oProformaInvoice.ProformaInvoiceID;
+      var oProformaInvoice = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:650x;dialogLeft:300;dialogTop:80;center:yes;resizable:yes;status:no;scroll:no'); 
+      if(oProformaInvoice!=null)
+      {
+         $('#tblProformaInvoice').datagrid('updateRow',{index: SelectedRowIndex,	row: oProformaInvoice});
+      }
+
+}
+
+
+
+
+function UndoApprove()
+{
+    //debugger;
+    var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }else if(oProformaInvoice.Status!=3)
+     {
+        alert("Please select only Approved item from list");
+        return;
+     }
+     if (!confirm("Confirm to Undo Approve?")) return ;
+     oProformaInvoice.ActionTypeExtra="UndoApprove";
+     StatusChange(oProformaInvoice,"Undo Approve");
+}
+
+
+
+
+function Cancel()
+{
+    var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+     {
+        alert("Please select a item from list!");
+        return;
+     }else if(oProformaInvoice.Status<1 || oProformaInvoice.Status>3)
+     {
+        alert("In this stage you can't Close the Item");
+        return;
+     }
+     if (!confirm("Confirm to Close?")) return ;
+     oProformaInvoice.ActionTypeExtra="Close";
+     StatusChange(oProformaInvoice,"Close");
+}
+
+
+
+
+
+
+
+function SetOrderStatusExtra (oProformaInvoice)
+{
+    
+    switch (oProformaInvoice.Status)
+    {
+        case 1 : {
+            oProformaInvoice.nStatusExtra =1;
+            break;
+        }
+        case 2 :{
+             oProformaInvoice.nStatusExtra =2;
+             break;
+        }
+        case 3 :{
+             oProformaInvoice.nStatusExtra =3;
+             break;
+        }
+        case 4 :{
+             oProformaInvoice.nStatusExtra =4;
+             break;
+        }
+        case 5 :{
+             oProformaInvoice.nStatusExtra =5;
+             break;
+        }
+       
+    }
+    
+    return oProformaInvoice;
+}
+
+
+
+function StatusChange(oProformaInvoice,sParamIdentifier)
+{
+   var oProformaInvoice =SetOrderStatusExtra (oProformaInvoice);
+    var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+       $.ajax({
+                type: "POST",
+                dataType: "json",            
+                url : _sBaseAddress+"/ProformaInvoice/ChangeStatus",
+                traditional: true,
+                data:  JSON.stringify(oProformaInvoice),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+               //debugger;
+                var oProformaInvoice= jQuery.parseJSON(data);
+                if (oProformaInvoice.ErrorMessage=="") 
+                {                    
+                      
+                      if(sParamIdentifier=="Request For Approval")
+                      {
+                             alert("Order request succesfully!!");
+                      }else  if(sParamIdentifier=="Undo Request")
+                      {
+                         alert("Succesfully Undo the Request !");
+                      
+                      }else if(sParamIdentifier=="In-Active")
+                      {
+                        alert("Succesfully  Order Negotiation Sheet In-Active!");
+                      }
+                      else if(sParamIdentifier=="Active")
+                      {
+                        alert("Succesfully Order Negotiation Sheet Active!");
+                      }
+                      else if(sParamIdentifier=="Close")
+                      {
+                        alert("Succesfully Close Selected Item!");
+                      }
+                      $('#tblProformaInvoice').datagrid('updateRow',{index: SelectedRowIndex,	row: oProformaInvoice});
+                 }else
+                 {
+                       alert(oProformaInvoice.ErrorMessage);
+                 }
+               },
+               error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+            });
+
+    
+}
+
+
+function RefreshList(oProformaInvoices)
+  {    
+          data=oProformaInvoices;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblProformaInvoice').datagrid('loadData',data);
+ }
+
+ function Add()
+    {
+    ////debugger;     
+        var oParameter = new Object();
+       oParameter.Name = "Add Proforma Invoice";
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/ProformaInvoice/ViewProformaInvoice?id="+0+"&ts="+tsv;
+        var oProformaInvoice = window.showModalDialog(url, oParameter, 'dialogHeight:550px;dialogWidth:1020px;dialogLeft:250;dialogTop:15;center:yes;resizable:yes;status:no;scroll:yes');
+        ////debugger;
+        if(oProformaInvoice!=null)
+        {
+            //debugger;
+             
+             var rows = $('#tblProformaInvoice').datagrid('getRows');
+             var nIndex=rows.length; 
+              $('#tblProformaInvoice').datagrid('appendRow',oProformaInvoice);
+              var rows = $('#tblProformaInvoice').datagrid('getRows');
+              $('#tblProformaInvoice').datagrid('selectRow',nIndex);                     
+        }                        
+    } 
+
+
+    function Edit()
+    {
+    ////debugger;
+        var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+        if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oProformaInvoice.Status!=1 )
+        {
+            alert("Wothout Initialized Item can't Update!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+        var oParameter = new Object();
+        oParameter.Name = "Edit Order Negotiation";
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/ProformaInvoice/ViewProformaInvoice?nONSID="+oProformaInvoice.ProformaInvoiceID+"&ts="+tsv;
+        var oProformaInvoice = window.showModalDialog(url, oParameter, 'dialogHeight:575px;dialogWidth:1020x;dialogLeft:250;dialogTop:15;center:yes;resizable:yes;status:no;scroll:no');
+       // //debugger;
+        if(oProformaInvoice!=null)
+        {
+            if(oProformaInvoice.ProformaInvoiceID>0)
+            {               
+                $('#tblProformaInvoice').datagrid('updateRow',{index: SelectedRowIndex,	row: oProformaInvoice});
+            }
+        }
+    } 
+
+ 
+
+ function View()
+ {
+    
+    ////debugger;
+        var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+        if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+       
+        var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+        var oParameter = new Object();
+        oParameter.Name = "View Order Negotiation";
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/ProformaInvoice/ViewProformaInvoice?nONSID="+oProformaInvoice.ProformaInvoiceID+"&ts="+tsv;
+        var oProformaInvoice = window.showModalDialog(url, oParameter, 'dialogHeight:575px;dialogWidth:1020x; dialogLeft:250;dialogTop:15;center:yes;resizable:yes;status:no;scroll:no');
+      
+
+ }
+
+
+
+   function MakeODS()
+   {
+    
+        var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+        if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }                
+        var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+        var oParameter = new Object();
+        oParameter.Name = "Add Order Destribution Sheet";
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/OrderDistributionSheet/AddOrderDistributionSheet?nONSID="+oProformaInvoice.ProformaInvoiceID+"&ts="+tsv;
+        var oProformaInvoice = window.showModalDialog(url, oParameter, 'dialogHeight:575px;dialogWidth:1050px;dialogLeft:150;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no');
+      
+       
+   }
+
+
+
+function PrintPreview()
+{
+    var ONSs= $('#tblProformaInvoice').datagrid('getSelected'); 
+    if(ONSs==null || ONSs.ProformaInvoiceID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+     window.open(_sBaseAddress + '/ProformaInvoice/PrintProformaInvoicePreview?id='+ONSs.ProformaInvoiceID); 
+}
+
+ 
+function PrintList()
+{
+    var ONSs= $('#tblProformaInvoice').datagrid('getRows'); 
+    var ids ="";
+    if(ONSs.length >0)
+    {
+            
+        for(var i =0;i<ONSs.length;i++)
+        {
+            ids =ids+ONSs[i].ProformaInvoiceID+",";
+        }
+            ids= ids.substring(0, ids.length - 1);
+    }
+    else
+    {    
+        alert("Data not found ");
+        return;
+    }
+    window.open(_sBaseAddress + '/ProformaInvoice/PrintProformaInvoice?sParam='+ids);   
+
+  //  window.open(_sBaseAddress + '/ProformaInvoice/ONSPrintList');  
+
+      
+} 
+
+function Delete(){
+        
+           ////debugger;  
+         var oProformaInvoice = $('#tblProformaInvoice').datagrid('getSelected'); 
+         if(oProformaInvoice==null || oProformaInvoice.ProformaInvoiceID<=0)
+         {
+               alert("Please select a item from list!");
+               return;
+          }
+          if(oProformaInvoice.Status!=1)
+          {
+                alert("Please select Only Initialized Item from List!");
+                return;
+          }
+          if (!confirm("Confirm to Delete?")) return ;
+          var SelectedRowIndex=$('#tblProformaInvoice').datagrid('getRowIndex',oProformaInvoice);
+          if (oProformaInvoice.ProformaInvoiceID> 0) 
+          {
+
+           $.ajax
+         ({
+            type: "GET",
+            dataType: "json",            
+            url : _sBaseAddress+  "/ProformaInvoice/Delete",
+            data: { nONSID:oProformaInvoice.ProformaInvoiceID},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Data delete successfully") 
+                {
+                    alert("Delete sucessfully");                        
+                    $('#tblProformaInvoice').datagrid('deleteRow',SelectedRowIndex);
+                          
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+        }
+  }
+
+//   function PrintPreview()
+//    {
+//    var oONS= $('#tblProformaInvoice').datagrid('getSelected'); 
+//    if(oONS==null || oONS.ProformaInvoiceID<=0)
+//    {
+//        alert("Please select a item from list!");
+//        return;
+//    }
+//    window.open(_sBaseAddress + '/ProformaInvoice/ONSPreviewPrint?id='+oONS.ProformaInvoiceID);        
+//}
+
+
+
+//function PrintList()
+//{
+//   
+//    window.open(_sBaseAddress + '/ProformaInvoice/ONSPrintList');        
+//} 
+//  
+   
+
+function RefreshControlLayout()
+{
+    document.getElementById('btnAdd').style.display = 'none'; 
+    document.getElementById('btnEdit').style.display = 'none'; 
+    document.getElementById('btnDelete').style.display = 'none'; 
+    document.getElementById('btnPreView').style.display = 'none'; 
+    document.getElementById('btnAPrintList').style.display = 'none'; 
+    document.getElementById('btnCancel').style.display = 'none'; 
+//    document.getElementById('btnMakeODS').style.display = 'none'; 
+    
+    if(HavePermission('Add','ProformaInvoice')){document.getElementById('btnAdd').style.display = '';}
+//    if(HavePermission('Add','OrderDistributionSheet')){document.getElementById('btnMakeODS').style.display = '';}  // for ODS Make
+    if(HavePermission('Edit','ProformaInvoice')){document.getElementById('btnEdit').style.display = '';}
+    if(HavePermission('Delete','ProformaInvoice')){document.getElementById('btnDelete').style.display = '';}
+    if(HavePermission('Preview','ProformaInvoice')){document.getElementById('btnPreView').style.display = '';}
+    if(HavePermission('PrintList','ProformaInvoice')){document.getElementById('btnAPrintList').style.display = '';}
+    if(HavePermission('Cancel','ProformaInvoice')){document.getElementById('btnCancel').style.display = '';}
+}
+
+function HavePermission(sOperationType, sDbObject)
+{
+    var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+    if(nSessionID == -9) //check SuperUser 
+    {
+        return true;
+    }else
+    {
+        
+        for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+        {
+            if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+            return  true;
+        }
+        return false;
+     }
+}
+
+
+
+</script>

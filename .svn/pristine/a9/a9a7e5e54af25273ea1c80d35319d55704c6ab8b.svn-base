@@ -1,0 +1,278 @@
+﻿@{
+    ViewBag.Title = "Procurement Head Specification";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.SpecHead>
+
+    <div ng-app="SpecHeadApp">
+        <div ng-controller="SpecHeadCntrl" class="ms-custom-control">
+            <div class="row ui-grid-top-panel">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="edit()" ng-hide="hide"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="delete()" ng-hide="hide"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+
+        <script type="text/ng-template" id="SpecHead.html">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modal-title">Specification Head</h4>
+            </div>
+            <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-4 text-right"><label class="control-label">SpecName:</label></div>
+                        <div class="col-md-7 text-left">
+                            <input type="text" ng-model="SpecHead.SpecName" class="form-control" required placeholder="Please Enter SpecName" />
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-4 text-right"><input type="checkbox" ng-model="SpecHead.IsActive"></div>
+                        <div class="col-md-7 text-left">
+                            <label class="control-label"> Activity</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="save()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+                <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+            </div>
+        </script>
+    </div>
+
+    <style type="text/css">
+        .grid {
+            height: 520px;
+        }
+
+        .regionExportUP .col-md-12 {
+            width: 100%;
+            padding-right: 5px;
+            padding-left: 5px;
+            margin-bottom: 5px;
+        }
+
+        .regionExportUP .col-md-11 {
+            width: 86%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionExportUP .col-md-2 {
+            width: 13%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionExportUP .col-md-3 {
+            width: 20%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oSpecHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem('BUID',nBUID);
+
+        var  SpecHeadApp = angular.module('SpecHeadApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+
+        SpecHeadApp.controller('SpecHeadCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+            $scope.gridOptions ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'SpecName', name: 'Specification Name', width:'20%' },
+                    { name: 'Activity', cellTemplate: '<div style="padding-top:5px;" ng-if="row.entity.IsActive==true"><span class="glyphicon glyphicon-ok btn-primary" aria-hidden="true"></span> </div> <div style="padding-top:5px;" ng-if="row.entity.IsActive==false"><span class="glyphicon glyphicon-remove btn-danger" aria-hidden="true"></span></div>', cellClass: 'text-center', width:'10%', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+
+                ],
+                data:oSpecHeads,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+                    $scope.gridApi.grid.modifyRows(oSpecHeads);
+
+                }
+            };
+
+            $scope.add = function () {
+                $scope.Modal(null, 'add');
+            };
+
+            $scope.edit = function () {
+                
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+
+                $scope.index=$scope.gridOptions.data.indexOf(data.first());
+                $scope.getSpecHead(data.first(), 'edit');
+
+
+            };
+
+            $scope.delete = function () {
+                
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'No item found to delete. Select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                $http.post(_sBaseAddress+'/SpecHead/Delete',JSON.stringify(data.first())).then(
+                                function (response) {
+                                    if(jQuery.parseJSON(response.data)=='Deleted'){
+                                        $scope.gridOptions.data.splice($scope.gridOptions.data.indexOf(data.first()),1);
+                                        msModal.Message({headerTitle : '', bodyText:'Delete Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                    else{
+                                        msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+
+            };
+
+            $scope.Modal = function (obj, operation) {
+                
+                var modalInstance = $uibModal.open({
+                    ariaLabelledBy: 'modal-title',
+                    ariaDescribedBy: 'modal-body',
+                    size: 'md',
+                    templateUrl: 'SpecHead.html',
+                    controller: 'ModalInstanceCtrl',
+                    controllerAs: 'SpecHeadCntrl',
+                    resolve: {
+                        obj: function () {
+                            return { SpecHead:obj, Operation: operation  };
+                        }
+                    }
+                });
+
+                modalInstance.result.then(function (result) {
+                    
+                    if(result.SpecHeadID>0){
+                        if(operation=='add'){
+                            $scope.gridOptions.data.push(result);
+                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                            $scope.gridApi.selection.selectRow(result);
+                        }
+                        else{
+
+                            $scope.gridOptions.data[$scope.index]=result;
+                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                            $scope.gridApi.selection.selectRow($scope.gridOptions.data[$scope.index]);
+                        }
+                    }
+
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+
+            $scope.getSpecHead=function(obj, operation){
+
+                $http.post(_sBaseAddress+'/SpecHead/Get', JSON.stringify(obj)).then(
+                                   function (response) {
+                                       var result=jQuery.parseJSON(response.data);
+                                       if(result.SpecHeadID>0)
+                                       {
+                                           
+                                           //$scope.index=$scope.gridOptions.data[$scope.gridOptions.data.indexOf(obj)];
+                                           $scope.Modal(result, operation);
+                                       }
+                                       else
+                                       {
+                                           msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                       }
+                                   },
+                                   function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                             );
+            };
+
+
+        });
+
+        SpecHeadApp.controller('ModalInstanceCtrl', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+            $scope.Operation=obj.Operation;
+
+            if(obj.SpecHead==null || obj.SpecHead.SpecHeadID<=0){
+                $scope.SpecHead={
+                    SpecHeadID : 0,
+
+                    SpecName : "",
+                    IsActive : true
+
+                }
+            }
+            else{
+                $scope.SpecHead = obj.SpecHead;
+            }
+
+            $scope.Validation=function(){
+
+
+                if($scope.SpecHead.SpecName == "" || $scope.SpecHead.SpecName == undefined){
+                    msModal.Message({headerTitle : '', bodyText:'Enter DyeingType SpecName.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+
+                return  true;
+            };
+
+            $scope.save = function () {
+                
+
+
+                if(!$scope.Validation())
+                    return false;
+
+                $http.post(_sBaseAddress+'/SpecHead/Save', JSON.stringify($scope.SpecHead)).then(
+
+                                 function (response) {
+                                     
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.SpecHeadID>0)
+                                     {
+                                         $uibModalInstance.close(result);
+                                     }
+                                     else{
+                                         msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+            };
+
+            $scope.cancel= function () {
+                $uibModalInstance.close($scope.SpecHead);
+            };
+
+        });
+
+
+    </script>
+
+
+
+
+

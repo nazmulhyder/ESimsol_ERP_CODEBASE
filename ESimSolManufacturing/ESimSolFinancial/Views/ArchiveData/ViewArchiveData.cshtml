@@ -1,0 +1,181 @@
+﻿
+    @{
+        ViewBag.Title = "Archive Data";
+    }
+@model ESimSol.BusinessObjects.ArchiveData
+
+  <div class="menuMainCollectionTable">
+    <div id="MainDiv" class="easyui-panel" title="Archive Data" style="font-family:Tahoma;height:88%">
+        <fieldset style="height:100%">
+            <legend>Archive Data Info</legend>
+            <table style="width:100%;">
+                <tr>
+                    <td style="width:10%;text-align:right">Archive No:</td>
+                    <td style="width:20%">
+                        <input id="txtArchiveNo" type="text" style="width:100%;"disabled="disabled" />
+                    </td>
+                    <td style="width:10%;text-align:right">Archive Date:</td>
+                    <td style="width:20%">
+                        <input type="text" style="width:100%;" id="txtArchiveDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser"  />
+                    </td>
+                    <td style="width:40%"></td>
+                </tr>
+                <tr >
+                    <td style="width:10%;text-align:right">Month Name:</td>
+                    <td style="width:20%">
+                        <select id="cboMonthName" style="width:100%;height:22px;"></select>
+                    </td>
+
+                    <td style="width:10%;text-align:right">Year Name:</td>
+                    <td style="width:20%">
+                        <select id="cboYearName" style="width:100%;height:22px;"></select>
+                    </td>
+
+                    <td style="width:40%;"></td>
+                </tr>
+
+                <tr>
+                    <td style="width:10%;text-align:right">Remarks:</td>
+                    <td colspan="3" style="width:20%">
+                        <input id="txtRemarks" type="text" style="width:100%;" />
+                    </td>
+
+
+                    <td style="width:40%;"></td>
+                </tr>
+            
+
+            </table>
+        </fieldset>
+
+
+    </div>
+    <fieldset style="height:10%">
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+            <tr>
+                <td style="width:60%; text-align:right"></td>
+                <td style="width:40%;text-align:right;">
+                    <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+</div>
+
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+       var oArchiveData =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oMonths = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Months));
+        var oYears = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Years));
+        $("#cboMonthName").icsLoadCombo({ List: oMonths, OptionValue: "id", DisplayText: "Value" });
+        $("#cboYearName").icsLoadCombo({ List: oYears, OptionValue: "id", DisplayText: "Value" });
+        $('#MainDiv').data('ArchiveData', oArchiveData);
+        RefreshControl(oArchiveData);
+    });
+
+
+
+    function RefreshControl(oArchiveData)
+    {   
+        debugger;
+        $('#txtArchiveDate').textbox('readonly',true);
+        if(sessionStorage.getItem("ArchiveDataHeader")=="View ArchiveData")
+        {
+            $('#btnSave').hide();
+           
+            $('#cboMonthName').attr('disabled','disabled');
+            $('#cboYearName').attr('disabled','disabled');
+            $('#txtRemarks').attr('disabled','disabled');
+  
+        }
+        $("#txtArchiveNo").val(oArchiveData.ArchiveNo);
+        $('#txtArchiveDate').datebox('setValue', oArchiveData.ArchiveDate);
+        $("#txtRemarks").val(oArchiveData.Remarks);
+        $("#cboMonthName").val(parseInt(oArchiveData.ArchiveMonthID));
+        $("#cboYearName").val(parseInt(oArchiveData.ArchiveYearID));
+    }
+
+
+    function  ValidateInput()
+    {
+    
+        if(parseInt($("#cboMonthName").val())<=0){
+            alert("Please Select Month");
+            return false;
+        }
+        if(parseInt($("#cboYearName").val())<=0){
+            alert("Please Select Year");
+            return false;
+        }
+        return true;
+    }
+    function RefreshObject()
+    {     
+        debugger;
+        var oArchiveData= {
+            ArchiveNo:$("#txtArchiveNo").val(),
+            ArchiveDate : $('#txtArchiveDate').datebox('getValue'),
+            ArchiveDataID : $('#MainDiv').data('ArchiveData').ArchiveDataID,
+            ArchiveMonthID : parseInt($("#cboMonthName").val()),
+            ArchiveYearID: parseInt($("#cboYearName").val()),
+            Remarks : $("#txtRemarks").val(),
+        };
+        return oArchiveData;
+    }
+    $('#btnSave').click(function(){
+        debugger;;
+        if(!ValidateInput()) return;
+        var oArchiveData=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/ArchiveData/Save",
+            traditional: true,
+            data:  JSON.stringify(oArchiveData),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {            
+                oArchiveData = jQuery.parseJSON(data);
+                if (oArchiveData.ErrorMessage=="" || oArchiveData.ErrorMessage==null)
+                {
+                    alert("Data Saved sucessfully");
+                    var oArchiveDatas = sessionStorage.getItem("ArchiveDatas");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oArchiveDatas != null)
+                    {
+                        oArchiveDatas = jQuery.parseJSON(oArchiveDatas);
+                    }
+                    else {
+                        oArchiveDatas = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oArchiveDatas[nIndex] = oArchiveData;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oArchiveDatas.length);
+                        oArchiveDatas.push(oArchiveData);
+                    }
+                    sessionStorage.setItem("ArchiveDatas", JSON.stringify(oArchiveDatas));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else 
+                {
+                    alert(oArchiveData.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $('#btnClose').click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+  </script>

@@ -1,0 +1,517 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.TrainingDevelopment>
+@{
+    ViewBag.Title = "View_TrainingDevelopment";
+}
+
+<div style="margin-left:0px; width:100%; height:100%">
+    <table id="tblTrainingDevelopment" title="Training & Development"  class="easyui-datagrid" style="width:100%; height:100%" fitColumns="false" rownumbers="true" pagination="false" singleSelect="true" autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr>
+                <th field="EmployeeName" width="150" align="left">Employee </th> 
+                <th field="OfficialInfoInString" width="150" align="left">Official Info</th>               
+                <th field="CourseName" width="100" align="right" >Course</th>
+                <th field="EffectFromDateInString" width="100" align="right" >Effected From</th>
+                <th field="EffectToDateInString" width="100" align="right" >To</th>
+                <th field="ApproveByName" width="100" align="right" >Approve By</th>
+                <th field="TrainingStatusInString" width="100" align="left">Status</th>
+            </tr>  
+        </thead> 
+    </table>
+    <div id="toolbar" style="height:55px;">
+         
+         <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" >New</a>
+         <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-edit" plain="true" >Edit</a>
+         <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" >Preview</a>
+         <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" >Delete</a>
+         <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >Approve</a>
+         <a id="btnFinalize" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >Finalize</a>
+         <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" >Activity</a>
+         <br />
+        
+         <input type="text" id="txtEmployee" placeholder="Type Employee Name or Code & Enter" style="width: 245px"  /><input id="btnClearEmployee"  type="button" value="C" /><input id="btnPickEmployee" type="button" value="P" />
+         <input type="text" id="txtCourseName" placeholder="Type Course & Enter" style="width: 140px"  /><input id="btnClearCourseName"  type="button" value="C" />
+         <select id="cboStatus" style="width : 120px;">
+         <option value="0">None</option>
+         <option value="1">Initialized</option>
+         <option value="2">Approved</option>
+         <option value="3">Running</option>
+         <option value="4">Training End</option>
+         <option value="5">Completed</option>
+         <option value="6">InActive</option>
+         </select>
+         <input id="chkAll" type="checkbox" />All
+         <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" plain="true" onclick="Search()" ></a>
+
+    </div>  
+</div>
+
+<script type="text/javascript">
+var _oTrainingDevelopments=null;
+var _sBaseAddress="";
+var _oEmployee = null;
+var _nEmployeeID = 0;
+var _nStatus =0;
+var _nAll = 0;
+var _sCourseName = "";
+
+$(document).ready(function ()
+{
+    _oTrainingDevelopments =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var bApprove =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["Approve"]));
+    RefreshList(_oTrainingDevelopments);
+    //if(bApprove==false)
+    //{
+    //    document.getElementById("btnApprove").style.display='none';
+    //}
+});
+
+function RefreshList(oTrainingDevelopments )
+{
+    data = oTrainingDevelopments ;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblTrainingDevelopment').datagrid('loadData', data);
+    
+}
+
+
+$('#btnNew').click(function (e)
+{
+    
+    var oParameter = new Object();
+    oParameter.Name = "New Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId=0&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(490/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:490px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:490px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:120;center:yes;resizable:no;status:no;scroll:no');
+    
+    if (oTrainingDevelopment != null)
+    {
+        if (oTrainingDevelopment.TDID > 0)
+        {
+            var oTrainingDevelopments = $('#tblTrainingDevelopment').datagrid('getRows');
+            var nIndex = oTrainingDevelopments.length;
+            $('#tblTrainingDevelopment').datagrid('appendRow', oTrainingDevelopment);
+            $('#tblTrainingDevelopment').datagrid('selectRow', nIndex);
+        }
+    }
+
+});
+
+$('#btnEdit').click(function (e) 
+{
+
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+
+    if (oTrainingDevelopment.ApproveBy > 0) 
+    {
+        alert("Approved Item can not be edited!");
+        return;
+    }
+
+    if (oTrainingDevelopment.IsCompleted == true) 
+    {
+        alert("Completed Item can not be edited!");
+        return;
+    }
+
+    if (oTrainingDevelopment.IsActive == false) 
+    {
+        alert("InActive Item can not be edited!");
+        return;
+    }
+
+    var SelectedRowIndex=$('#tblTrainingDevelopment').datagrid('getRowIndex',oTrainingDevelopment);
+    var oParameter = new Object();
+    oParameter.Name = "Edit Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId="+oTrainingDevelopment.TDID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(490/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:490px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:490px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:120;center:yes;resizable:no;status:no;scroll:no');
+    
+    if(oTrainingDevelopment !=null)
+    {
+        
+         $('#tblTrainingDevelopment').datagrid('updateRow',{index: SelectedRowIndex,row: oTrainingDevelopment});
+    
+    }
+
+});
+
+$('#btnView').click(function (e)
+{
+    
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    var oParameter = new Object();
+    oParameter.Name = "Preview Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId="+oTrainingDevelopment.TDID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(620/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:620px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:620px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:30;center:yes;resizable:no;status:no;scroll:no');
+    
+});
+ 
+$('#btnApprove').click(function (e)
+{
+    
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    if (oTrainingDevelopment.ApproveBy > 0) 
+    {
+        alert("Already Approved!");
+        return;
+    }
+    if (oTrainingDevelopment.IsActive == false) 
+    {
+        alert("InActive Item can not be approved!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblTrainingDevelopment').datagrid('getRowIndex', oTrainingDevelopment);
+    var oParameter = new Object();
+    oParameter.Name = "Approve Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId="+oTrainingDevelopment.TDID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(520/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:520px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:520px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:120;center:yes;resizable:no;status:no;scroll:no');
+    if(oTrainingDevelopment !=null)
+    {
+        
+         $('#tblTrainingDevelopment').datagrid('updateRow',{index: SelectedRowIndex,row: oTrainingDevelopment});
+    
+    }
+});
+
+$('#btnFinalize').click(function (e)
+{
+    
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    if (oTrainingDevelopment.ApproveBy <= 0) 
+    {
+        alert("This item is not Approved!");
+        return;
+    }
+    if (oTrainingDevelopment.IsCompleted == true) 
+    {
+        alert("Alraedy Finalized!");
+        return;
+    }
+    if (oTrainingDevelopment.IsActive == false) 
+    {
+        alert("InActive Item can not be finalized!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblTrainingDevelopment').datagrid('getRowIndex', oTrainingDevelopment);
+    var oParameter = new Object();
+    oParameter.Name = "Finalize Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId="+oTrainingDevelopment.TDID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(600/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:600px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:600px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+    if(oTrainingDevelopment !=null)
+    {
+        
+         $('#tblTrainingDevelopment').datagrid('updateRow',{index: SelectedRowIndex,row: oTrainingDevelopment});
+    
+    }
+});
+ 
+$('#btnActivity').click(function (e)
+{
+    
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0) 
+    {
+        alert("Please select an item from list!");
+        return;
+    }
+    if (oTrainingDevelopment.IsCompleted == true) 
+    {
+        alert("Completed Item can not be inactivated!");
+        return;
+    }
+    if (oTrainingDevelopment.ApproveBy <= 0) 
+    {
+        alert("This item is not Approved!");
+        return;
+    }
+    if (oTrainingDevelopment.IsActive == false) 
+    {
+        alert("Already inActived!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblTrainingDevelopment').datagrid('getRowIndex', oTrainingDevelopment);
+    var oParameter = new Object();
+    oParameter.Name = "Inactive Training & Development";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/TrainingDevelopment/View_TrainingDevelopment?nId="+oTrainingDevelopment.TDID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(630/2);
+    var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:630px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:630px;dialogWidth:700px;dialogLeft:150;dialogRight:150;dialogTop:30;center:yes;resizable:no;status:no;scroll:no');
+    if(oTrainingDevelopment !=null)
+    {
+        
+         $('#tblTrainingDevelopment').datagrid('updateRow',{index: SelectedRowIndex,row: oTrainingDevelopment});
+    
+    }
+});
+
+$('#btnDelete').click(function (e)
+{
+    var oTrainingDevelopment = $('#tblTrainingDevelopment').datagrid('getSelected');
+    if (oTrainingDevelopment == null || oTrainingDevelopment.TDID <= 0)
+    {
+        alert("Please select an item from the list!");
+        return false;
+    }
+    if (oTrainingDevelopment.ApproveBy > 0) 
+    {
+        alert("Approved Item can not be deleted!");
+        return;
+    }
+    if (oTrainingDevelopment.IsCompleted == true) 
+    {
+        alert("Completed Item can not be deleted!");
+        return;
+    }
+    if (!confirm("Confirm to Delete?")) return;
+    var SelectedRowIndex = $('#tblTrainingDevelopment').datagrid('getRowIndex', oTrainingDevelopment);
+    var tsv = ((new Date()).getTime()) / 1000;
+    if (oTrainingDevelopment.TDID > 0)
+    {
+        $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/TrainingDevelopment/TrainingDevelopment_Delete",
+                data: { nTDID: oTrainingDevelopment.TDID,ts: tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function(data) 
+                {
+                    
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    
+                    if (feedbackmessage == "")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblTrainingDevelopment').datagrid('deleteRow', SelectedRowIndex);
+                    } 
+                    else 
+                    {
+                        alert(feedbackmessage);
+                    }
+                  },
+                  error: function(xhr, status, error)
+                  {
+                    alert(error);
+                  }
+              });
+    }
+});
+
+$('#txtEmployee').keypress(function (e) 
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    var sEmpCode=document.getElementById("txtEmployee").value;
+        
+    if (code == 13)//Enter key-13
+    {
+        if(sEmpCode=="")
+        {
+            alert("Please Enter Code !");
+            return;
+        }
+        var nts=(new Date()).getTime()/1000;
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0&nts="+nts;
+        var nLeft=(window.screen.width/2)-(513/2);
+        var nHeight=(window.screen.height/2)-(405/2);
+        _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:513px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:513px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            
+        if(_oEmployee!=null)
+        {
+
+            if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+            {
+                alert("This Employee Has No Official Information !");
+                return;
+            }
+
+            if(_oEmployee.IsActive == false)
+            {
+                alert("InActive Employee. Work can not be assigned for this employee!");
+                return;
+            }
+
+            if(_oEmployee.WorkingStatus != 1)
+            {
+                alert("This employee is not in work place!");
+                return;
+            }
+
+            
+            $("#txtEmployee")[0].value=_oEmployee.Name;
+            _nEmployeeID=_oEmployee.EmployeeID;
+            Search();
+            
+        }
+    }
+});
+
+$('#btnPickEmployee').click(function (e)
+{
+
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=false;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:945px;dialogLeft:200;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+    
+    var nLeft=(window.screen.width/2)-(1000/2);
+    var nHeight=(window.screen.height/2)-(530/2);
+    _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+
+    if(_oEmployee!=null)
+    {
+        if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+        {
+            alert("This Employee Has No Official Information !");
+            return;
+        }
+        
+        if(_oEmployee.IsActive == false)
+        {
+            alert("InActive Employee. Work can not be assigned for this employee!");
+            return;
+        }
+        if(_oEmployee.WorkingStatus != 1)
+        {
+            alert("This employee is not in work place!");
+            return;
+        }
+
+        $("#txtEmployee")[0].value=_oEmployee.Name;
+        _nEmployeeID = _oEmployee.EmployeeID;
+        Search();
+    }
+});
+
+$('#btnClearEmployee').click(function (e)
+{
+    $("#txtEmployee")[0].value="";
+    _nEmployeeID = 0;
+
+});
+
+$('#btnClearCourseName').click(function (e)
+{
+    $("#txtCourseName")[0].value="";
+    _sCourseName = "";
+
+});
+
+$('#txtCourseName').keypress(function (e) 
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    var sCourseName = document.getElementById('txtCourseName').value;
+    if (code == 13)//Enter key-13
+    {
+       
+        var nts=(new Date()).getTime()/1000;
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/TrainingDevelopment/TrainingDevelopmentPikerByCourseName?sCourseName="+sCourseName+"&nts="+nts;
+        var nLeft=(window.screen.width/2)-(260/2);
+        var nHeight=(window.screen.height/2)-(350/2);
+        _oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:350px;dialogWidth:260px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        //_oTrainingDevelopment = window.showModalDialog(url, oParameter, 'dialogHeight:350px;dialogWidth:260px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+        if(_oTrainingDevelopment !=null)
+        {
+            $("#txtCourseName")[0].value=_oTrainingDevelopment.CourseName;
+            _sCourseName = _oTrainingDevelopment.CourseName;
+            
+            Search();
+        }   
+    }
+});
+
+function Search()
+{
+   
+    _nStatus = document.getElementById("cboStatus").selectedIndex;
+    if(document.getElementById('chkAll').checked)
+    {
+        _nAll = 1;
+    }
+    if(_nEmployeeID == 0 && _sCourseName == "" && _nStatus == 0 && _nAll == 0)
+    {
+        alert("Please select at least one item from the list !");
+        return;
+    }
+    var sParam = _nEmployeeID + "~"+ _sCourseName + "~" + _nStatus + "~" + _nAll;
+
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/TrainingDevelopment/TrainingDevelopment_Search",
+            traditional: true,
+            data: JSON.stringify({sParam : sParam}),
+            contentType: "application/json; charset=utf-8",
+            
+            success: function(data)
+            {
+                var oTrainingDevelopments=[];
+                oTrainingDevelopments = jQuery.parseJSON(data);
+                
+                if (oTrainingDevelopments.length>0 && oTrainingDevelopments[0].ErrorMessage=="") 
+                {
+                    RefreshList(oTrainingDevelopments);
+                  
+                } 
+                else 
+                {
+                    alert(oTrainingDevelopments[0].ErrorMessage);
+                    oTrainingDevelopments=[];
+                    RefreshList(oTrainingDevelopments); 
+                    
+                }
+              
+            },
+            error: function(xhr, status, error)
+            {
+                alert(error);
+            }    
+         });
+}
+
+</script>

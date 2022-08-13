@@ -1,0 +1,210 @@
+﻿@{
+    ViewBag.Title = "FAAccountHead";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FAAccountHead>
+
+<div ng-app="FAAccountHeadModule" style="width:99.5%">
+    <div ng-controller="FAAccountHeadController">
+        <div class="ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="operation('Add')"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="operation('Edit')"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="operation('View')"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="StepSetup()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Step Setup</button>*@
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+<ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+</div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFAAccountHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oFAHeadTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FAAcountHeadTypes));
+
+    debugger;
+    var  FAAccountHeadModule = angular.module('FAAccountHeadModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    FAAccountHeadModule.controller('FAAccountHeadController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch) {
+        debugger;
+        oFAAccountHeads= (userSession.getData('FAAccountHeads').length>0)? userSession.getData('FAAccountHeads'):oFAAccountHeads;
+    
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                  { field: 'FAAccountHeadName', name: 'Account Head', width:'60%', enableCellEdit: false },
+                  { field: 'CAHeadName', name: 'CAHead',width: '20%', enableSorting: false  },
+                  { field: 'FAAccountTypeSt', name: 'Type',width: '20%', enableSorting: false  }
+            ],
+            data:oFAAccountHeads,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFAAccountHeads.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFAAccountHeads);
+                    $scope.gridApi.selection.selectRow(oFAAccountHeads[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.operation = function(sOpt)
+        {
+            var data=$scope.gridApi.selection.getSelectedRows()[0];
+            var nIndex=$scope.gridOptions.data.indexOf(data);
+
+            if( (data==null || data==undefined ) && sOpt=="Edit"){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(sOpt=='Add')
+                data ={
+                    FAAccountHeadName:"",
+                    FAAccountHeadID:0,
+                    FAAccountHeadType:0,
+                    ChartOfAccountID:0,
+                    CAHeadName:""
+                }
+
+            debugger;
+
+            var oColumns = [];
+            var oColumn = { field: 'AccountHeadName', name: 'Account Head',width: '95%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Model={
+                obj:{AccountHeadName: '@@AccountHeadID', BUID:_nBUID},
+                objName:'AccountHeadName',
+                objField:'AccountHeadID',
+                url:_sBaseAddress+'/ChartsOfAccount/GetsAccountsHead',
+                title:'CA Head List',
+                multiSelect:false,
+                columns:oColumns
+            }
+            console.log(data);
+            var oDORegister = [
+                                { DisplayName: "Head Name",             BOField: "FAAccountHeadName",   InputType: 'text'},
+                                { DisplayName: "Head Type",             BOField: "FAAccountHeadTypeInt",   InputType: 'select', OptionList:oFAHeadTypes},
+                                { DisplayName: "CA Head",               BOField: "ChartsOfAccountID",       InputType: 'picker', PickerObject:paramObj_Model },
+                                { BOField:     "FAAccountHeadID",       Value:data.FAAccountHeadID,     InputType: 'hidden'},
+                                { BOField:     "txtChartsOfAccountID",   Value:data.CAHeadName,     InputType: 'hidden'},
+            ];
+
+            var modalObj={
+                size:'md',
+                title: sOpt +" FA Account Head",
+                CompareOperators:[],
+                HtmlElements:oDORegister,
+                isAdvanceSearch:false,
+                data: data,
+                allFieldDisabled:(sOpt=="View"?true:false)
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $http.post(_sBaseAddress+'/FAAccountHead/Save',JSON.stringify(result)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    if(result.FAAccountHeadID>0  && result.ErrorMessage=="")
+                                    {
+                                        debugger;
+                                        if(sOpt=="Edit")
+                                            $scope.gridOptions.data[nIndex]=result;
+                                        else if(sOpt=="Add")
+                                            $scope.gridOptions.data.push(result);
+                                        msModal.Message({headerTitle : '', bodyText:'Save Successfully.', sucessText : 'Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                    else
+                                    {
+                                        alert(result.ErrorMessage);
+                                        return;
+                                    }
+                                },
+                                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                        );
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        }
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post(_sBaseAddress+'/FAAccountHead/Delete',JSON.stringify(data[0])).then(
+                            function (response) { debugger;
+                            if(jQuery.parseJSON(response.data)=='Data delete successfully')
+                                {
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.FAAccountHeadID==data[0].FAAccountHeadID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+    });
+
+
+</script>
+                       
+
+
+              

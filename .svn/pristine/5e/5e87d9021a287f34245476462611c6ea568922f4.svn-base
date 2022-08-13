@@ -1,0 +1,185 @@
+﻿@{
+    ViewBag.Title = "Truck Challan Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.SUDeliveryChallan>
+<html>
+    <head>
+        <title>Truck Challan Report</title>
+    </head>
+    <body class="menuMainCollectionTable">
+        <fieldset>
+            <legend>Truck Challan Report</legend>
+            <table>
+                <tr>
+                    <td class="alignRight">
+                        <label>Truck No :</label>
+                    </td>
+                    <td>
+                        <input id="txtTruckNo" type="text" placeholder="Type Truck No Or Press Enter" style="width:80%;" />
+                        <a id="btnClear" style="float:right;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-clear" plain="true">C</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="alignRight">
+                        <label>Challan Date : </label>
+                    </td>
+                    <td>
+                        <input id="chkChallanDate" type="checkbox" />
+                        <input id="txtFromChallanDate" type="text" style="width:100px;" disabled class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        <label>To </label>
+                        <input id="txtToChallanDate" type="text" style="width:100px;" disabled class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="alignRight"></td>
+                    <td>
+                        <a id="btnPrintExcel" style="float:right;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">Print Excel</a>
+                        <a id="btnPrint" style="float:right;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </body>
+</html>
+<style type="text/css">
+    fieldset {
+        width:98%;
+    }
+    fieldset table {
+        margin:0 auto;
+        text-align:center;
+    }
+    .alignRight {
+        text-align:right;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = null;
+  
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        
+        $(".easyui-datebox").datebox({ disabled: true });
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+    });
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+    $("#btnPrintExcel").click(function () {
+        var oSUDeliveryChallan={
+            VehicleNo : $.trim($("#txtTruckNo").val()),
+            Params : $("#chkChallanDate").is(':checked') + "~" + 
+                     $("#txtFromChallanDate").datebox('getValue') + "~" + 
+                     $("#txtToChallanDate").datebox('getValue')
+        };
+        window.open(_sBaseAddress + '/SUDeliveryChallan/PrintTruckChallanReportXL?sParams=' + oSUDeliveryChallan.VehicleNo + "~" + oSUDeliveryChallan.Params, "_blank");
+        window.close();
+    });
+
+    $("#btnPrint").click(function(){
+        var oSUDeliveryChallan={
+            VehicleNo : $.trim($("#txtTruckNo").val()),
+            Params : $("#chkChallanDate").is(':checked') + "~" + 
+                     $("#txtFromChallanDate").datebox('getValue') + "~" + 
+                     $("#txtToChallanDate").datebox('getValue')
+        };
+        window.open(_sBaseAddress + '/SUDeliveryChallan/PrintTruckChallanReport?sParams=' + oSUDeliveryChallan.VehicleNo + "~" + oSUDeliveryChallan.Params, "_blank");
+    });
+
+    $("#chkChallanDate").change(function() {
+        if(this.checked) {
+            $("#txtFromChallanDate,#txtToChallanDate").datebox({ disabled: false });
+        }else{
+            $("#txtFromChallanDate,#txtToChallanDate").datebox({ disabled: true });
+        }
+        $("#txtFromChallanDate,#txtToChallanDate").datebox("setValue", icsdateformat(new Date()));
+    });
+
+    $("#btnClear").click(function(){
+        $("#txtTruckNo").val("");
+    });
+
+
+    $("#txtTruckNo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            var oSUDeliveryChallan={
+                VehicleNo : $.trim($(this).val())
+            };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oSUDeliveryChallan,
+                ControllerName: "SUDeliveryChallan",
+                ActionName: "GetsByVehicleNo",
+                IsWinClose: false
+            };
+
+            $.icsMaxDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    var tblColums = []; 
+                    var oColumn = { field: "VehicleNo", title: "Vehicle No", width: "80%", align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winSUDC',
+                        winclass: 'clsSUDC',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblSUDCs',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'VehicleNo',
+                        windowTittle: 'Vehicle List',
+                        placeholder : "Search By Vehicle No"
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else
+                {
+                    alert("Sorry, No Export PI Found.");
+                }
+            });
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerObj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerObj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerObj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObjs = $('#' + oPickerObj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerObj.winid == 'winSUDC') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) 
+            {
+                $("#txtTruckNo").val("");
+                var sVehicleNo = "";
+                for(var i=0;i<oreturnObjs.length;i++)
+                {
+                    sVehicleNo = oreturnObjs[i].VehicleNo + "," + sVehicleNo;
+                }
+                sVehicleNo = sVehicleNo.substring(0, sVehicleNo.length - 1);
+                $("#txtTruckNo").val(sVehicleNo);
+            }
+            else
+            {
+                alert("Please select an item from list.");
+                return false;
+            }
+        }
+        $("#" + oPickerObj.winid).icsWindow("close");
+        $("#" + oPickerObj.winid).remove();
+    }
+</script>

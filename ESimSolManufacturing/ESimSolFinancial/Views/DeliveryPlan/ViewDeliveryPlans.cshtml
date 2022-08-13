@@ -1,0 +1,384 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Delivery Plan";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.DeliveryPlan>
+
+    <div id="divDeliveryPlan" class="easyui-panel menuMainCollectionTable" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:44%; text-align:center">
+            <table id="tblDeliveryOrders" title="DO List" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: false,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar:'#toolbarDO'">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        <th field="DONo" width="100" align="left">DO No</th>
+                        <th field="DODateStr" width="150" align="left">DO Date</th>
+                        <th field="BuyerName" width="180" align="left">Mother Buyer</th>
+                        <th field="ContractorName" width="200" align="left">Customer</th>
+                        <th field="DeliveryToName" width="200" align="left">Delivery To</th>
+                        <th field="Remarks" width="150" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbarDO">
+                <a id="btnPrintDO" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" onclick="GetDeliveryOrders()" plain="true">Refresh</a>
+            </div>
+        </div>
+        <div style="width:100%; height:45%; text-align:center">
+            <table id="tblDeliveryPlans" title="Plan List" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="PlanNo" width="100" align="left">Plan No</th>
+                        <th field="DeliveryPlanDateInString" width="100" align="left">Plan Date</th>
+                        <th field="RefNo" width="100" align="left">PI No</th>
+                        <th field="DONo" width="100" align="left">DO No</th>
+                        <th field="BuyerName" width="180" align="left">Mother Buyer</th>
+                        <th field="CustomerName" width="200" align="left">Customer</th>
+                        <th field="Sequence" width="80" align="left">Sequence</th>
+                        <th field="Remarks" width="150" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                <a id="btnUp" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true">UP</a>
+                <a id="btnDown" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-down" plain="true">Down</a>
+            </div>
+        </div>
+        <div style="width:100%; height:8%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="1" cellpadding="1" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:92%"></td>
+                        <td style="width:8%">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Update</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oDeliveryPlans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nProductNature = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductNature));
+        var oDeliveryOrders =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DeliveryOrders));
+        $('#divDeliveryPlan').data('DeliveryPlans',oDeliveryPlans);
+        $('#divDeliveryPlan').data('DeliveryOrders',oDeliveryOrders);
+        DynamicRefreshList(oDeliveryOrders, 'tblDeliveryOrders');
+        DynamicRefreshList(oDeliveryPlans, 'tblDeliveryPlans');
+        sessionStorage.setItem("ProductNature",nProductNature);
+
+    });
+
+ 
+    function GetDeliveryOrders()
+    {
+        var oDeliveryOrder = { BUID : sessionStorage.getItem("BUID"),
+            ProductNatureInInt :sessionStorage.getItem("ProductNature")
+        };
+        $.icsProgressBar(true);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DeliveryPlan/GetDeliveryOrders",
+            traditional: true,
+            data:  JSON.stringify(oDeliveryOrder),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oDeliveryOrders = jQuery.parseJSON(data);
+                $.icsProgressBar(false);
+                if(parseInt(oDeliveryOrders.length)>0)
+                {
+                    if(oDeliveryOrders[0].ErrorMessage==null || oDeliveryOrders[0].ErrorMessage=="")
+                    {
+                        DynamicRefreshList(oDeliveryOrders, 'tblDeliveryOrders');
+                    }else{
+                        alert(oDeliveryOrders[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Data not found.");
+                    DynamicRefreshList([], 'tblDeliveryOrders');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+
+    function ValidateInput()
+    {
+        var oSelectedOrders =$('#tblDeliveryOrders').datagrid('getChecked');
+        if(oSelectedOrders.length<=0)
+        {
+            alert("Please, Select at least One Delivery Order.");
+            return false;
+        }
+        var oDetails = $('#tblDeliveryPlans').datagrid('getRows');
+        for(var i =0;i<oSelectedOrders.length;i++)
+        {
+            if(ICS_IsExist(oDetails,'DeliveryOrderID',oSelectedOrders[i].DeliveryOrderID))
+            {
+                alert("Sorry, Selected DO Already Exist.");
+                return false;
+            }
+        }
+        return true;
+    }
+    function RefreshObjects()
+    {
+        var oSelectedOrders =$('#tblDeliveryOrders').datagrid('getChecked');
+        var oPrivousItem = $('#tblDeliveryPlans').datagrid('getRows');
+        var nTempSequence = 0;
+        if(oPrivousItem.length>0)
+        {
+            nTempSequence = oPrivousItem[oPrivousItem.length-1].Sequence;
+        }
+        var oTempPlans = [];
+        for(var i = 0;i<oSelectedOrders.length;i++)
+        {
+            nTempSequence = parseInt(nTempSequence)+1;
+            var oDeliveryPlan={
+                DeliveryPlanID: 0,
+                DeliveryOrderID : oSelectedOrders[i].DeliveryOrderID,
+                Sequence:nTempSequence,
+                Remarks :'N/A',
+                BUID : sessionStorage.getItem("BUID"),
+                ProductNatureInInt :sessionStorage.getItem("ProductNature")
+            };
+            oTempPlans.push(oDeliveryPlan);
+        }
+
+        return oTempPlans;
+    }
+
+    $("#btnAdd").click(function(){
+        if(!ValidateInput()) return;
+        $.icsProgressBar(true);
+        var oDeliveryPlan={DeliveryPlans:RefreshObjects(), BUID : sessionStorage.getItem("BUID"),ProductNatureInInt :sessionStorage.getItem("ProductNature") };
+        //oDeliveryPlan.DeliveryPlans.push(RefreshObject());
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DeliveryPlan/Save",
+            traditional: true,
+            data:  JSON.stringify(oDeliveryPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oDeliveryPlans = jQuery.parseJSON(data);
+                $.icsProgressBar(false);
+                if(parseInt(oDeliveryPlans.length)>0 && (oDeliveryPlans[0].ErrorMessage==null || oDeliveryPlans[0].ErrorMessage==""))
+                {
+                    alert("Data Saved sucessfully");
+                    var oSelectedOrders =$('#tblDeliveryOrders').datagrid('getChecked');
+                    for(var i = 0;i<oSelectedOrders.length;i++)
+                    {
+                        var SelectedRowIndex=$('#tblDeliveryOrders').datagrid('getRowIndex',oSelectedOrders[i]);
+                        $('#tblDeliveryOrders').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    RefreshList(oDeliveryPlans);
+                }
+                else {
+                    alert(oDeliveryPlans[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    $('#btnDelete').click(function(e){
+        var oDeliveryPlan = $('#tblDeliveryPlans').datagrid('getSelected');
+        if(oDeliveryPlan==null ||  parseInt(oDeliveryPlan.DeliveryPlanID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        $.icsProgressBar(true);
+        var SelectedRowIndex=$('#tblDeliveryPlans').datagrid('getRowIndex',oDeliveryPlan);
+        if (parseInt(oDeliveryPlan.DeliveryPlanID)> 0)
+        {
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/DeliveryPlan/Delete",
+                traditional: true,
+                data:  JSON.stringify(oDeliveryPlan),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    feedbackmessage = jQuery.parseJSON(data);
+                    $.icsProgressBar(false);
+                    if (feedbackmessage=="deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblDeliveryPlans').datagrid('deleteRow',SelectedRowIndex);
+                        //window.location.href = window.location.href;
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+    $("#btnSave").click(function(){
+        $.icsProgressBar(true);
+        var oDeliveryPlan={DeliveryPlans:$('#tblDeliveryPlans').datagrid('getRows')};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DeliveryPlan/Save",
+            traditional: true,
+            data:  JSON.stringify(oDeliveryPlan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oDeliveryPlans = jQuery.parseJSON(data);
+                $.icsProgressBar(false);
+                if(parseInt(oDeliveryPlans.length)>0 && (oDeliveryPlans[0].ErrorMessage==null || oDeliveryPlans[0].ErrorMessage==""))
+                {
+                    alert("Data Saved sucessfully");
+                    RefreshList(oDeliveryPlans);
+                }
+                else {
+                    alert(oDeliveryPlans[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    $("#btnUp").click(function()
+    {
+        debugger;
+        var oDeliveryPlan = $('#tblDeliveryPlans').datagrid('getSelected');
+        if(oDeliveryPlan==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+        var SelectedRowIndex=$('#tblDeliveryPlans').datagrid('getRowIndex',oDeliveryPlan);
+        if(SelectedRowIndex==0)return;
+        var oDeliveryPlans=$('#tblDeliveryPlans').datagrid('getRows');
+        var oNewDeliveryPlans = [], ntempSequence = 1;
+        debugger;
+        for(var i=0; i<oDeliveryPlans.length; i++)
+        {
+            if(i==(SelectedRowIndex-1))
+            {
+                oNewDeliveryPlans[i]=oDeliveryPlans[i+1];
+                ntempSequence = oDeliveryPlans[i+1].Sequence;
+                oNewDeliveryPlans[i].Sequence = oDeliveryPlans[i].Sequence;
+            }
+            else if(i==SelectedRowIndex)
+            {
+               
+                oNewDeliveryPlans[i]=oDeliveryPlans[i-1];
+                oNewDeliveryPlans[i].Sequence = ntempSequence;
+            }
+            else
+            {
+                oNewDeliveryPlans[i]=oDeliveryPlans[i];
+            }
+           
+        }
+        data = oNewDeliveryPlans;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDeliveryPlans').datagrid('loadData',data);
+
+        $('#divDeliveryPlan').data('DeliveryPlans',oNewDeliveryPlans);
+        var newSelectedRowIndex=SelectedRowIndex-1;
+        $('#tblDeliveryPlans').datagrid('selectRow',newSelectedRowIndex);
+
+    });
+    $("#btnDown").click(function()
+    {
+        debugger;
+        var oDeliveryPlan = $('#tblDeliveryPlans').datagrid('getSelected');
+        if(oDeliveryPlan==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblDeliveryPlans').datagrid('getRowIndex',oDeliveryPlan);
+        if(SelectedRowIndex==($('#divDeliveryPlan').data('DeliveryPlans').length-1))return;
+        var oDeliveryPlans=$('#tblDeliveryPlans').datagrid('getRows');
+        var oNewDeliveryPlans=[], nTempSequence =1;
+        for(var i=0; i<oDeliveryPlans.length; i++)
+        {
+            if(i==(SelectedRowIndex+1))
+            {
+                oNewDeliveryPlans[i]=oDeliveryPlans[i-1];
+                oNewDeliveryPlans[i].Sequence = nTempSequence;
+            }
+            else if(i==SelectedRowIndex)
+            {
+                oNewDeliveryPlans[i]=oDeliveryPlans[i+1];
+                nTempSequence =oDeliveryPlans[i+1].Sequence;
+                oNewDeliveryPlans[i].Sequence = oDeliveryPlans[i].Sequence;
+            }
+            else
+            {
+                oNewDeliveryPlans[i]=oDeliveryPlans[i];
+            }
+            //oNewDeliveryPlans[i].Sequence=i+1;
+        }
+        data = oNewDeliveryPlans;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDeliveryPlans').datagrid('loadData',data);
+
+        var newSelectedRowIndex=SelectedRowIndex+1;
+        $('#tblDeliveryPlans').datagrid('selectRow',newSelectedRowIndex);
+    });
+    //btnPrint
+    $("#btnPrint").click(function(){
+        var oDeliveryPlan=$('#tblDeliveryPlans').datagrid('getSelected');
+        if(oDeliveryPlan==null || parseInt(oDeliveryPlan.DeliveryOrderID)<=0)
+        {
+            alert("Please select Delivery Plan. ");
+            return;
+        }
+        window.open(_sBaseAddress+ "/DeliveryOrder/DOPreviewWithStock?id="+oDeliveryPlan.DeliveryOrderID);
+    });
+
+    $("#btnPrintDO").click(function(){
+        var oDeliveryOrder=$('#tblDeliveryOrders').datagrid('getSelected');
+        if(oDeliveryOrder==null || parseInt(oDeliveryOrder.DeliveryOrderID)<=0)
+        {
+            alert("Please select Delivery Order.");
+            return;
+        }
+        window.open(_sBaseAddress+ "/DeliveryOrder/DOPreviewWithStock?id="+oDeliveryOrder.DeliveryOrderID);
+    });
+
+    
+    function RefreshList(oDeliveryPlans)
+    {
+        var data=oDeliveryPlans;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDeliveryPlans').datagrid('loadData',data);
+    }
+
+</script>

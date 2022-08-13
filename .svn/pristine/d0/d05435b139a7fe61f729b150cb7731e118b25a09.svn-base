@@ -1,0 +1,340 @@
+﻿@{
+    ViewBag.Title = "Cheque Reconcile";
+}
+@model ESimSol.BusinessObjects.Cheque
+  <div style="margin-left: 0px; height: 100%; width:100%">
+      <table border="0" cellspacing="2" cellpadding="2" style=" width: 100%;">
+          <tr>
+              <td style="background-color:#CFB53B; text-align:center; color:White">
+                  <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline;">Cheque Reconcile</label>
+              </td>
+          </tr>
+      </table>
+      <table id="tblCheques" title="Cheque List" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="true" singleselect="false" autorowheight="false" toolbar="#toolbar">
+          <thead>
+              <tr>
+                  <th data-options="field:'Selected',checkbox:true"></th>
+                  <th field="ChequeNo" width="120">Cheque No</th>
+                  <th field="ChequeDateInString" width="100">ChequeDate</th>
+                  <th field="ChequeStatusInString" width="150">Cheque Status</th>
+                  <th field="PaymentTypeInString" width="150">Payment Type</th>
+                  <th field="PartyName" width="380">Party Name</th>
+              </tr>
+          </thead>
+      </table>
+    <div id="toolbar">
+        <input type="text" placeholder="Search by Cheque No" id="txtSearchByChequeNo" style="width:140px" />
+        <input type="text" placeholder="Search By Party" id="txtSearchByPartyName" style="width:100px" />
+        <input type="text" placeholder="Search By Bank" id="txtSearchByBankName" style="width:130px" />
+        <input type="text" placeholder="Search By Company" id="txtSearchByCompanyName" style="width:120px" />
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="return ViewCheque()">View Cheque</a>
+        @Html.DropDownListFor(model => model.ChequeStatus, Model.ChequeStatuses.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboChequeStatuses", style = "width:120px;", @class = "ChequeStatusChanged" })
+        <a id="btnCommit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="return Commit()">Commit</a>
+
+    </div>
+</div>                                          
+
+    <script type="text/javascript">
+   var _sBaseAddress="";
+   var _oAuthorizationRolesMapping = [];
+   var _oCheques=[];
+   var _oCheque={ErrorMessage:''};
+   var _oStatusTypes=[];
+   var _obj={Name:""};
+   var _cboChequeStatuses;
+    $(document).ready(function () {
+          _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+          _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oCheque =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        debugger;
+          
+          RefreshControlLayout();
+    });
+        function Commit()
+        {
+            debugger;
+            if(_cboChequeStatuses==null||_cboChequeStatuses<=0)
+            {
+                alert("Ivalid Cheque Status! \nPlease select Cheque Status.");
+                return false;
+            }
+            _oCheque.Cheques=[];
+            _oCheque.Cheques=$('#tblCheques').datagrid('getChecked'); 
+            if(_oCheque.Cheques.length<=0)
+            {
+                alert("Ivalid Cheque! \nPlease select atleast one Cheque.");
+                return false;
+            }
+            _oCheque.Selected=true;
+            _oCheque.ChequeStatus=_cboChequeStatuses;
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Cheque/Commit",
+                traditional: true,
+                data:  JSON.stringify(_oCheque),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    _oCheques = jQuery.parseJSON(data);
+                    if (_oCheques!=null){
+                        if(_oCheques.length>0) {
+                            if(_oCheques[0].ErrorMessage===""){
+                                alert("Data Saved sucessfully");
+                                RefreshGrid(_oCheques);
+                            }
+                            else{
+                                alert(_oCheques[0].ErrorMessage);
+                            }
+                            
+                        }
+                    }
+                    else {
+                        alert("Commit Unsuccessful");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+        $('.ChequeStatusChanged').change(function () {
+
+            debugger;
+            RefreshData();
+        })
+        function RefreshArguments()
+        {
+            var arg='Arguments;';
+            var txtSearchByChequeNo=$("#txtSearchByChequeNo").val();
+            var txtSearchByPartyName=$("#txtSearchByPartyName").val();
+            var txtSearchByBankName=$("#txtSearchByBankName").val();
+            var txtSearchByCompanyName=$("#txtSearchByCompanyName").val();
+            _cboChequeStatuses=$("#cboChequeStatuses").val();
+            
+            if(txtSearchByChequeNo!=null)
+            {
+                arg=arg+txtSearchByChequeNo+'~';
+            }
+            if(txtSearchByPartyName!=null)
+            {
+                arg=arg+txtSearchByPartyName+'~';
+            }
+            if(txtSearchByBankName!=null)
+            {
+                arg=arg+txtSearchByBankName+'~';
+            }
+            if(txtSearchByCompanyName!=null)
+            {
+                arg=arg+txtSearchByCompanyName+'~';
+            }
+            if(_cboChequeStatuses!=null)
+            {
+                arg=arg+_cboChequeStatuses+'~';
+            }
+            _oCheque.ErrorMessage=arg;
+        }
+        function RefreshData()
+        {
+            RefreshArguments();
+            _oCheque.Selected=true;
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/Cheque/Refresh",
+                traditional: true,
+                data:  JSON.stringify(_oCheque),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    _oCheques = jQuery.parseJSON(data);
+                    RefreshList(_oCheques);
+                    if(_cboChequeStatuses==6){document.getElementById('lblHeaderName').innerHTML="Deliver To Party Cheques";}
+                    else if(_cboChequeStatuses==7){document.getElementById('lblHeaderName').innerHTML="Encash Cheques";}
+                    else if(_cboChequeStatuses==8){document.getElementById('lblHeaderName').innerHTML="Dishonor Cheques";}
+                    else if(_cboChequeStatuses==9){document.getElementById('lblHeaderName').innerHTML="Return Cheques";}
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+
+        
+        $('#txtSearchByChequeNo').click(function (e){
+            $('#txtSearchByChequeNo')[0].value='';
+        });
+        $('#txtSearchByPartyName').click(function (e){
+            $('#txtSearchByPartyName')[0].value='';
+        });
+        $('#txtSearchByBankName').click(function (e){
+            $('#txtSearchByBankName')[0].value='';
+        });
+        $('#txtSearchByCompanyName').click(function (e){
+            $('#txtSearchByCompanyName')[0].value='';
+        });
+
+        $('#txtSearchByChequeNo').keypress(function (e) {
+         debugger;
+         var c = String.fromCharCode(e.which);
+         var txtName = document.getElementById('txtSearchByChequeNo').value;
+
+         var oSearchedCheques = [];  var sTempName="";
+         var oCurrentList = $('#tblCheques').datagrid('getRows');
+         if (e.which == 8)
+         {
+             oCurrentList = _oCheques;
+         }
+         for(i=0;i<oCurrentList.length;++i){
+             sTempName=oCurrentList[i].AccountNo;
+             n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+             if(n!=-1)
+             {
+                 oSearchedCheques.push(oCurrentList[i]);
+             }
+         }
+         RefreshList(oSearchedCheques);
+        });
+        $('#txtSearchByPartyName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByPartyName').value;
+
+            var oSearchedCheques = [];  var sTempName="";
+            var oCurrentList = $('#tblCheques').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oCheques;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].BankName;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedCheques.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedCheques);
+        });
+        $('#txtSearchByBankName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByBankName').value;
+
+            var oSearchedCheques = [];  var sTempName="";
+            var oCurrentList = $('#tblCheques').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oCheques;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].CompanyName;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedCheques.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedCheques);
+        });
+        $('#txtSearchByCompanyName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByCompanyName').value;
+
+            var oSearchedCheques = [];  var sTempName="";
+            var oCurrentList = $('#tblCheques').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oCheques;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].BookCode;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedCheques.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedCheques);
+        });
+        
+        function RefreshGrid(oCheques)
+        {
+            debugger;
+            var oCurrentList = $('#tblCheques').datagrid('getRows');
+            var SelectedRowIndex;
+            for(var i=0; i<oCurrentList.length;i++)
+            {
+                for(var j=0; j<oCheques.length;j++)
+                {
+                    if(oCurrentList[i].ChequeID==oCheques[j].ChequeID)
+                    {
+                        SelectedRowIndex= $('#tblCheques').datagrid('getRowIndex',oCurrentList[i]);
+                        $('#tblCheques').datagrid('deleteRow',SelectedRowIndex);
+                    }
+
+                }
+            }
+        }
+
+     function RefreshList(oCheques)
+     {
+         data = oCheques;
+         data={"total":""+data.length+"","rows":data};
+         $('#tblCheques').datagrid('loadData',data);
+     }
+
+     //function PrintCheques()
+     //{
+     //    window.open(_sBaseAddress+'/Cheque/PrintCheques', "_blank");
+     //}
+
+    function ViewCheque()
+     {
+        var oCheque= $('#tblCheques').datagrid('getSelected');
+        if(oCheque==null || oCheque.ChequeID<=0)
+        {
+            alert("Please select a item from list!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblCheques').datagrid('getRowIndex',oCheque);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblCheques').datagrid('getRowIndex',oCheque);
+        var oCheques= $('#tblCheques').datagrid('getRows');
+        sessionStorage.setItem("Cheques", JSON.stringify(oCheques));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ChequeHeader", "View Cheque");
+        window.location.href = _sBaseAddress+  "/Cheque/ViewChequeIssue?id="+oCheque.ChequeID+"&nid="+oCheque.ChequeBookID;
+        
+    }
+
+    
+
+    function RefreshControlLayout()
+    {
+        document.getElementById('btnView').style.display = 'none';
+    
+        if(HavePermission('View', 'Cheque')){document.getElementById('btnView').style.display = '';}
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        var nSessionID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check Superuser
+        {
+            return true;
+        }else
+        {
+
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+    </script>

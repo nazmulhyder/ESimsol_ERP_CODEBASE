@@ -1,0 +1,122 @@
+﻿@{
+    ViewBag.Title = "RouteSheet List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RouteSheet>
+
+    <div class="menuMainCollectionTable" ng-app="RouteSheetApp" style="height: 96%">
+        <div ng-controller="RouteSheetController" style="width:99.8%;">
+            @*<div style="margin-bottom:2px; display:block" title="RouteSheet List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Order No" style="width:190px" />
+                <button type="button" id="btnEdit" class="btn btn-primary btn-xs" aria-label="Left Align" ng-click="YarnOut()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> YarnOut</span></button>
+            </div>*@
+            <div ui-grid="gridOptions" ui-grid-selection class="grid-angular" style="height:500px"></div>
+
+            <div>
+                <fieldset>
+                    <legend>Action</legend>
+                    <div class="row col-md-12 text-right">
+                        <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="YarnOut()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">YarnOut</span> </button>
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script src="~/Views/RouteSheet/AdvSearchRouteSheet.js"></script>
+<script type="text/javascript">
+    debugger;
+    var oRouteSheets =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+    $('#btnExportToExcel,#btnPrintList').hide();
+    debugger;
+    var CCapp= angular.module('RouteSheetApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('RouteSheetController',function ($http,$scope,uiGridConstants,userSession)
+    {
+        oRouteSheets= (userSession.getData('RouteSheets').length>0)? userSession.getData('RouteSheets'):oRouteSheets;
+        debugger;
+        $scope.gridOptions= {
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:true,
+            columnDefs: [
+              { field: 'RouteSheetDateStr', name:'Batch Date', width:'10%' },
+              { field: 'OrderNoFull', name:'Order No', width:'10%' },
+              { field: 'RouteSheetNo', name:'Batch No', width:'15%' , enableSorting: false},
+              { field: 'RSStateStr', name:'Status', width:'18%' , enableSorting: false},
+              { field: 'MachineName', name:'MachineName', width:'10%' , enableSorting: false},
+              { field: 'ProductName', name:'ProductName', width:'10%' , enableSorting: false},
+              { field: 'ColorName', name:'ColorName', width:'10%' , enableSorting: false},
+              { field: 'Qty', name:'Qty', width:'10%' , enableSorting: false},
+              { field: 'NoOfHanksCone', name:'No Of Cone', width:'10%' , enableSorting: false},
+              //{ field: 'LotNo', name:'Raw Lot No', width:'10%' }
+            ],
+            data: oRouteSheets,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                //$scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.core.refresh();
+
+            }
+        };
+      
+
+        $scope.YarnOut = function () {
+            debugger;
+            //if(!$scope.Validation()) return;
+            var oRouteSheets=$scope.gridApi.selection.getSelectedRows();
+            if(oRouteSheets.length<=0)
+            {
+                alert("Select an item from list.");return;
+            }
+            if(oRouteSheets!=null && oRouteSheets.length>0)
+            {
+                var oRouteSheetIDs=oRouteSheets[0].RouteSheetID;
+                for(var i=1;i<oRouteSheets.length;i++)
+                {
+                    oRouteSheetIDs+=","+oRouteSheets[i].RouteSheetID;
+                }
+                //alert("oRouteSheetIDs = "+oRouteSheetIDs);
+            }
+            
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.get(_sBaseAddress + '/DUHardWinding/RouteSheetYarnOut', { params: { sTemp: oRouteSheetIDs } }, config).then(
+                function (response) {
+                    var result=jQuery.parseJSON(response.data);
+                    console.log(result);
+                    if(result[0].RouteSheetID>0 && result[0].ErrorMessage=="")
+                    {
+                        debugger;
+                        alert("Yarn Out Successfully!!");
+                        //$scope.RouteSheet=result;
+                        //userSession.setData('RouteSheets',$scope.RouteSheet);
+                        userSession.previousPage();
+                    }
+                    else
+                    {
+                        alert(result[0].ErrorMessage);
+                    }
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        );
+        };
+
+        $scope.Close = function () {
+            userSession.previousPage();
+        };
+
+    });
+
+
+</script>

@@ -1,0 +1,517 @@
+﻿<html>
+<head>
+    @{
+       ViewBag.Title = "Raw Materail Out";
+    }
+</head>
+<body>
+    @model ESimSol.BusinessObjects.ProductionSheet
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable">
+        <fieldset style="width:98%;">
+            <legend>Raw Material Out</legend>
+            <table style="width:100%;">
+                <tr>
+                    <td style="width:10%;text-align:right;">Requisition No:</td>
+                    <td style="width:24%;text-align:left;">
+                        <table border="0" width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="width:76%"><input type="text" id="txtRequisition" placeholder="Search Requisition By PI No" style="width:100%" /></td>
+                                <td style="width:12%"><input type="button" value="Pick" id="btnPickRequisition" /></td>
+                                <td style="width:12%"><input type="button" value="C" id="btnResetRequisition" /></td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width:10%;text-align:right;">Sheet No</td>
+                    <td style="width:23%;text-align:left;">
+                        <select id="cbosheet" style="width:100%" ></select>
+                    </td>
+                    <td style="width:10%;text-align:right;">PI No</td>
+                    <td style="width:23%;text-align:left;">
+                        <input type="text" id="txtPINo" style="width:100%" disabled />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:10%;text-align:right;">Buyer Name</td>
+                    <td style="width:24%;text-align:left;">
+                        <input id="txtBuyerName" type="text" style="width:100%" disabled />
+                    </td>
+                    <td style="width:10%;text-align:right;">Sheet Qty</td>
+                    <td style="width:23%;text-align:left;">
+                        <input id="txtSheetQty" type="text" style="width:100%; text-align:right;" disabled />
+                    </td>
+                    <td style="width:10%;text-align:right;">Store Name</td>
+                    <td style="width:23%;text-align:left;">
+                        <select id="cboStore" style="width:100%"></select>
+                    </td>
+                </tr> 
+            </table>
+        </fieldset>
+        <table id="tblRMRequisitionMaterial" title="Raw Material" class="easyui-datagrid" style="height:380px; width:100%;" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="onClickRow: onClickRow">
+            <thead>
+                <tr>
+                    <th field="ProductCode" width="8%" align="left">Code</th>
+                    <th field="ProductName" width="20%" align="left">Product</th>
+                    <th field="MUName" width="10%" align="left">Unit</th>
+                    <th field="Qty" width="10%" align="right" formatter="formatPrice4digit">Requisition Qty</th>
+                    <th field="MaterialOutQty" width="10%" align="right" formatter="formatPrice4digit">Already Out</th>
+                    <th field="YetToOutQty" width="10%" align="right" formatter="formatPrice4digit">Yet To Out</th>
+                    <th field="StockBalance" width="10%" align="right" formatter="formatPrice4digit">Current Stock</th>
+                    <th width="10%" align="right" data-options="field:'CurrentOutQty',editor:{type:'numberbox',options:{precision:4}}">Out Qty</th>
+                </tr>
+            </thead>
+        </table>
+        <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:60%; text-align:right"></td>
+                    <td style="width:40%;text-align:right;">
+                        <a id="btnDisburse" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Disburse</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" onclick="Close()" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oStores =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Stores));
+        var nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var nProductionSheetID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionSheetID));
+        var oRMRequisition = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RMRequisition));
+        var oRMRequisitionSheets = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RMRequisitionSheets));
+        if(parseInt(nProductionSheetID)>0 && oRMRequisitionSheets!=null)
+        {
+            $("#cbosheet").data('ProductionSheets',oRMRequisitionSheets);
+            $("#cbosheet").icsLoadCombo({List: oRMRequisitionSheets,OptionValue: "ProductionSheetID",DisplayText: "SheetNoWithPlanQty"});
+
+            $('#txtRequisition').val(oRMRequisition.RefNo);
+            $('#txtRequisition').addClass('fontColorOfPickItem');
+            $('#txtRequisition').data('RMRequisitionID',oRMRequisition.RMRequisitionID);
+
+            $("#cbosheet").val(nProductionSheetID);
+            var oTempSheet =  $("#cbosheet").data('ProductionSheets').filter(function(obj){return obj.ProductionSheetID==parseInt($('#cbosheet').val());})[0];
+            $('#txtPINo').val(oTempSheet.SheetNo);
+            $('#txtBuyerName').val(oTempSheet.BuyerName);
+            $('#txtSheetQty').val(formatPrice(oTempSheet.SheetQty,0));
+        }
+        
+        sessionStorage.setItem('BUID',nBUID)
+        $("#cboStore").icsLoadCombo({List: oStores,OptionValue: "WorkingUnitID",DisplayText: "OperationUnitName",InitialValue:"Default"});
+        DynamicRefreshList([],'tblRMRequisitionMaterial');
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+    //$('#cbosheet').change(function(e)
+    //{
+    //    debugger;
+    //    if(parseInt($('#cbosheet').val())!=0)
+    //    {
+    //        var oTempSheet =  $("#cbosheet").data('ProductionSheets').filter(function(obj){return obj.ProductionSheetID==parseInt($('#cbosheet').val());})[0];
+    //        $('#txtPINo').val(oTempSheet.SheetNo);
+    //        $('#txtBuyerName').val(oTempSheet.BuyerName);
+    //        $('#txtSheetQty').val(oTempSheet.SheetQty);
+    //    }
+    //});
+    $('#cboStore,#cbosheet').change(function(e){
+        if(parseInt($('#cbosheet').val())!=0)
+        {
+            var oTempSheet =  $("#cbosheet").data('ProductionSheets').filter(function(obj){return obj.ProductionSheetID==parseInt($('#cbosheet').val());})[0];
+            $('#txtPINo').val(oTempSheet.SheetNo);
+            $('#txtBuyerName').val(oTempSheet.BuyerName);
+            $('#txtSheetQty').val(formatPrice(oTempSheet.SheetQty,0));
+        }
+        if($('#cboStore').val()>0 && parseInt($('#cbosheet').val())!=0)
+        {
+            var oProductionRecipe=
+            {
+                BUID : parseInt(sessionStorage.getItem("BUID")),
+                ProductionSheetID : parseInt($('#cbosheet').val()),
+                RMRequisitionID:parseInt($('#txtRequisition').data('RMRequisitionID')),
+                WUID : parseInt($('#cboStore').val()),
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+"/RawMaterialOut/GetsProductionRecipe",
+                traditional: true,
+                data:  JSON.stringify(oProductionRecipe),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oRMRequisitionMaterials = jQuery.parseJSON(data);
+                    if(oRMRequisitionMaterials.length>0){
+                        if (oRMRequisitionMaterials[0].RMRequisitionMaterialID>0) {
+                            DynamicRefreshList(oRMRequisitionMaterials,'tblRMRequisitionMaterial');
+                        }
+                        else{
+                            alert(oProductionRecipes[0].ErrorMessage);
+                        }
+                    }
+                    else
+                    {
+                        alert("No items found in this store.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+        else{
+            DynamicRefreshList([],'tblRMRequisitionMaterial');
+        }
+    });
+    function Validation(){
+
+        if(parseInt(sessionStorage.getItem("BUID"))<=0)
+        {
+            alert('No business unit found.');
+            return false;
+        }
+
+        if(parseInt($('#cboStore').val())<=0){
+            $('#cboStore').focus();
+            $('#cboStore').addClass("errorFieldBorder");
+            alert('Please select store.');
+            return false;
+        }
+        else{
+            $('#cboStore').removeClass("errorFieldBorder");
+        }
+
+        if(parseInt($('#txtRequisition').data('RMRequisitionID'))<=0){
+            $('#txtRequisition').focus();
+            $('#txtRequisition').addClass("errorFieldBorder");
+            alert('Requisition required.');
+            return false;
+        }
+        else{
+            $('#txtRequisition').removeClass("errorFieldBorder");
+        }
+
+        if(parseInt($('#cbosheet').val())<=0)
+        {
+            $('#txtProductionSheet').focus();
+            $('#txtProductionSheet').addClass("errorFieldBorder");
+            alert('Production sheet required.');
+            return false;
+        }
+        else
+        {
+            $('#txtProductionSheet').removeClass("errorFieldBorder");
+        }
+        var oRows=$('#tblRMRequisitionMaterial').datagrid('getRows');
+        if(oRows.length<=0)
+        {
+            alert("Raw material description required.");
+        }
+
+        var hasQty=false;
+        for(var i=0; i<oRows.length;i++)
+        {
+            if(parseFloat(oRows[i].CurrentOutQty)>0)
+            {
+                hasQty=true;
+            }
+            if(parseFloat(parseFloat(oRows[i].CurrentOutQty).toFixed(4)) > parseFloat(parseFloat(oRows[i].StockBalance).toFixed(4)))
+            {
+                alert("Insufficient stock balance qty. Maximum "+ formatPrice(oRows[i].StockBalance) +" qty allowed for "+ oRows[i].ProductName);
+                onClickRow(i)
+                return false;
+            }
+            //var nRequiredQtyWithPercent= parseFloat(parseFloat(oRows[i].RequiredQty)*5)/100 + parseFloat(oRows[i].RequiredQty);
+            //if(parseFloat(parseFloat(oRows[i].CurrentOutQty)+ parseFloat(oRows[i].OutQty))>parseFloat(nRequiredQtyWithPercent) )
+            //{
+            //    alert("Maximum quantity "+ formatPrice(nRequiredQtyWithPercent) +" allowed for "+ oRows[i].ProductName);
+            //    onClickRow(i)
+            //    return false;
+            //}
+
+            if( parseFloat(parseFloat(oRows[i].CurrentOutQty).toFixed(4)) > parseFloat(parseFloat(oRows[i].YetToOutQty).toFixed(4)))
+            {
+                alert("Maximum quantity "+ formatPrice(oRows[i].YetToOutQty) +" allowed for "+ oRows[i].ProductName);
+                onClickRow(i)
+                return false;
+            }
+        }
+        if(!hasQty)
+        {
+            alert("At least one item required, which has the 'Out Qty'");
+            return false;
+        }
+        return true;
+    }
+    function RefreshObject()
+    {
+        var oRows=$('#tblRMRequisitionMaterial').datagrid('getRows');
+        var oRMRequisitionMaterials=[];
+        for(var i=0;i<oRows.length;i++)
+        {
+            if(parseFloat(oRows[i].CurrentOutQty)>0)
+            {
+                oRMRequisitionMaterials.push(oRows[i]);
+            }
+        }
+
+        var oRMRequisitionMaterial={
+            WUID : parseInt($('#cboStore').val()),
+            ProductionSheetID : parseInt($('#cbosheet').val()),
+            RMRequisitionMaterials: oRMRequisitionMaterials
+        };
+        return oRMRequisitionMaterial;
+    }
+    $("#btnDisburse").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oRMRequisitionMaterial = RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/RawMaterialOut/CommitRawMaterialOut",
+            traditional: true,
+            data:  JSON.stringify(oRMRequisitionMaterial),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oProductionSheet = jQuery.parseJSON(data);
+                if (oProductionSheet.ErrorMessage==null || oProductionSheet.ErrorMessage=="") {
+                    alert("Data Saved successfully");
+                    MakeURL($('#txtRequisition').data('RMRequisitionID'), oRMRequisitionMaterial.ProductionSheetID);
+                    //window.location.href = window.location.href;
+                }
+                else {
+                    alert(oProductionSheet.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    ///Requisition Pick
+    function PickRequision(){
+        var sRefNo =$.trim($('#txtRequisition').val());
+        var oRMRequisition = { BUID : sessionStorage.getItem("BUID"), RefNo : sRefNo };//here 6 Is RMRequisition
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oRMRequisition,
+            ControllerName: "RMRequisition",
+            ActionName: "GetRMRequisitions",
+            IsWinClose: false
+        };
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            clearInterval(intervalID);
+            $("#progressbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].RMRequisitionID > 0) {
+                    var tblColums = []; var oColumn = { field: "RefNo", title: "Req No", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "RequisitionDateSt", title: "Issue Date", width: 120, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "PINo", title: "PI No", width: 120, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winRMRequisition',
+                        winclass: 'clsRMRequisition',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblRMRequisitions',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Requisition List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found.");
+            }
+        });
+    }
+    $("#btnPickRequisition").click(function () {
+        PickRequision();
+    });
+    $('#txtRequisition').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if(code == 13)// Enter
+        {
+            PickRequision();
+        }
+        if (code == 8) //backspace=8
+        {
+            $("#txtRequisition").removeClass("fontColorOfPickItem");
+            $('#txtRequisition').data('RMRequisitionID',0);
+        }
+    });
+    $("#btnResetRequisition").click(function () {
+        $("#txtRequisition").removeClass("fontColorOfPickItem");
+        $('#txtRequisition').data('RMRequisitionID',0);
+        $('#txtRequisition').val("");
+    });
+
+
+    //ProductionSheet Pick
+    function GetProductionSheets()
+    {
+        var oRMRequisition = {RMRequisitionID:$('#txtRequisition').data('RMRequisitionID')};
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oRMRequisition,
+            ControllerName: "RMRequisition",
+            ActionName: "GetSheets",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response)
+        {
+            if (response.status && response.objs.length > 0)
+            {
+                $("#cbosheet").data('ProductionSheets',response.objs);
+                $("#cbosheet").icsLoadCombo({List: response.objs,OptionValue: "ProductionSheetID",DisplayText: "SheetNoWithPlanQty"});
+            }else{
+                alert("Data Not Found.");
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winRMRequisition')
+        {
+            if (oreturnObj != null && oreturnObj.RMRequisitionID > 0)
+            {
+                $('#txtRequisition').addClass('fontColorOfPickItem');
+                $('#txtRequisition').val(oreturnObj.RefNo);
+                $('#txtRequisition').data('RMRequisitionID',oreturnObj.RMRequisitionID);
+                $('#txtRequisition').focus();
+                GetProductionSheets();
+            }
+        }
+    }
+
+    $("#btnRefreshDetail").click(function (){
+        endEditing();
+    });
+
+    $("#btnRemoveDetail").click(function () {
+        var oRMRequisitionMaterial =$('#tblRMRequisitionMaterial').datagrid('getSelected');
+        if(oRMRequisitionMaterial === null || parseInt(oRMRequisitionMaterial.RMRequisitionMaterialID)<=0){
+            alert("Please select a valid item from list.");
+            return false;
+        }
+        var nIndex= $('#tblRMRequisitionMaterial').datagrid('getRowIndex',oRMRequisitionMaterial);
+        $('#tblRMRequisitionMaterial').datagrid('deleteRow',nIndex);
+
+    });
+
+    var editIndex = undefined;
+
+    function endEditing(){
+        debugger;
+        if (editIndex == undefined){return true}
+        if ($('#tblRMRequisitionMaterial').datagrid('validateRow', editIndex)){
+            $('#tblRMRequisitionMaterial').datagrid('endEdit', editIndex);
+            $('#tblRMRequisitionMaterial').datagrid('selectRow',editIndex);
+            var oProductionRecipe=$('#tblRMRequisitionMaterial').datagrid('getSelected');
+            if(oProductionRecipe!=null)
+            {
+                $('#tblRMRequisitionMaterial').datagrid('updateRow',{index: editIndex,	row: oProductionRecipe});
+            }
+            editIndex = undefined;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    function onClickRow(index){
+        if (editIndex != index){
+            if (endEditing())
+            {
+                $('#tblRMRequisitionMaterial').datagrid('selectRow', index).datagrid('beginEdit', index);
+                editIndex = index;
+            }
+            else
+            {
+                $('#tblRMRequisitionMaterial').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function MakeURL(nRMRequisitionID, nProductionSheetID)
+    {
+        var sTargetLink = "";
+        var sLink = window.location.href;
+        var sLinkArray =[];sLinkArray = sLink.split('?');sTargetLink = sLinkArray[0]+'?';
+        var sAndArray = sLinkArray[1].split('&');sAndArray[0] = 'RMRequisitionID='+nRMRequisitionID;
+        sAndArray[1] = 'ProductionSheetID='+nProductionSheetID;
+        sTargetLink+=sAndArray[0];
+        for(var i =1;i<sAndArray.length;i++)
+        {
+            sTargetLink+="&"+sAndArray[i];
+        }
+        window.location.href = sTargetLink;
+        $('#txtRequisition').focus();
+    }
+
+    $('#btnClose').click(function(e){
+        window.location.href = window.location.href;
+    });
+
+</script>

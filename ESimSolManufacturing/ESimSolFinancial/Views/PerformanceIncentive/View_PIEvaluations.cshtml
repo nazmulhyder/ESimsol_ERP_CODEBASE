@@ -1,0 +1,812 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.PerformanceIncentiveEvaluation>
+    @{
+        ViewBag.Title = "Performance Incentive Evaluation";
+    }
+
+<div style="margin-left:0px;width:100%; height:100%" class="menuMainCollectionTable">
+    <div id="winLocationPicker" class="easyui-window winstyle" title="Location Picker" style="width:350px; height:400px" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="font-family:Tahoma">
+            <div class="easyui-panel" style="width:335px;height:300px;overflow:auto">
+                <ul id="locationtree" data-options="checkbox:false" singleselect="true"></ul>
+            </div>
+
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:400px; text-align:right"></td>
+
+                        <td style="width:50px">
+                            <a id="btnLocationPickerOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="OkButtonClick()">Ok</a>
+                        </td>
+                        <td style="width:50px">
+                            <a id="btnLocationPickerClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+
+    <table id="tblPIEvaluations" title="Performance Incentive Evaluation List" class="easyui-datagrid" style="width:100%; height:100%" fitcolumns="false" rownumbers="true" pagination="fasle" singleselect="true" selectoncheck="false" checkonselect="false" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th data-options="field:'Selected',checkbox:true"></th>
+                <th field="EmployeeCode" width="150" align="left">Code</th>
+                <th field="EmployeeName" width="250" align="left">Name</th>
+                <th field="Point" width="100" align="left">Point</th>
+                <th field="Amount" width="100" align="left" formatter="formatPrice">Amount</th>
+                <th field="MonthInString" width="100" align="left">Month</th>
+                <th field="Year" width="100" align="left">Year</th>
+                <th field="ApproveByName" width="150" align="left">Approve By</th>
+            </tr>
+        </thead>
+    </table>
+
+    <div id="toolbar" style="height:55px;">
+        @*<a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddPIEvaluation()">New</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="EditPIEvaluation()">Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="ViewPIEvaluation()">View</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="ChangeActiveStatus()">InActive</a>*@
+
+        <div>
+            <span id="regionDateFrom" style="padding-left: 5px;">
+                <span>
+                    <select id="cboYear" style="width:70px;"></select>
+                </span><span>
+                    <select id="cboMonth"></select>
+                </span>
+            </span>
+            &nbsp;&nbsp;
+            <input id="txtEmployee" style="width:13%;" type="text" placeholder="Type Code & Enter" />
+            <input id="btnEmployeePicker" type="button" value="P" class="pick-btn" />
+            <input id="btnCEmployee" type="button" value="C" class="pick-btn" />
+            <input id="txtLocation" style="width:13%" type="text"  placeholder="Location" />
+            <input id="btnLocationPicker" class="pick-btn" type="button" value="P" />
+            <input id="btnResetLocationPicker" class="pick-btn" type="button" value="R" />
+            &nbsp;
+            <input id="txtDepartment" style="width:13%" type="text" placeholder="Department"  />
+            <input id="btnDepartmentPicker" class="pick-btn" type="button" value="P" onclick="DepartmentPicker()" />
+            <input id="btnResetDepartmentPicker" class="pick-btn" type="button" value="R" />
+            &nbsp;
+            <input id="txtDesignation" style="width:13%" type="text"  placeholder="Desigantion"  />
+            <input id="btnDesignationPicker" class="pick-btn" type="button" value="P" onclick="DesignationPicker()" />
+            <input id="btnResetDesignationPicker" class="pick-btn" type="button" value="R" />
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()"></a>
+        </div>
+
+        <div style="width:50%; float:left;">
+            @using (Html.BeginForm("View_PIEvaluations", "PerformanceIncentive", FormMethod.Post, new { enctype = "multipart/form-data" }))
+            {
+                <table style="width:100%;">
+                    <tr style="width:100%;">
+                        <td style="width:100%;text-align:left;">
+                            <input type="file" id="filePIEs" name="filePIEs" />
+                            <input type="submit" id="btnImportPIEXL" value="Import" class="icon-up PrintList" style="margin-top: 4px;" />
+                        </td>
+                    </tr>
+                </table>
+            }
+        </div>
+        <div style="width:50%; float:left;">
+            <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Approve</a>
+
+        </div>
+
+    </div>
+</div>
+<style type="text/css">
+    .pick-btn {
+        width: 20px;
+        text-align: center;
+        font-size: 11px;
+    }
+</style>
+
+<script type="text/javascript">
+var _oPIEvaluations=[];
+var _sBaseAddress="";
+var _sPIEvaluationHeader="";
+var _sFeedBack=null;
+var _sEmployeeIDs="";
+
+var _sDesignationIds = "" ;
+var _sDesignationNames = "";
+var _sDepartmentIds = "" ;
+var _sDepartmentNames = "";
+
+var _nLocationID=0;
+
+$(document).ready(function () {
+    _oPIEvaluations =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _sFeedBack=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FeedBack));
+
+    var oPIEvaluations =sessionStorage.getItem("PIEvaluations");
+    _sPIEvaluationHeader=sessionStorage.getItem("PIEvaluationHeader");
+
+    if(oPIEvaluations!=null)
+    {
+        oPIEvaluations = jQuery.parseJSON(oPIEvaluations);
+    }
+    else
+    {
+        oPIEvaluations=_oPIEvaluations;
+    }
+
+    if(_sPIEvaluationHeader == "New PIEvaluation") {
+        var oPIEvaluations = $('#tblPIEvaluations').datagrid('getRows');
+        var nIndex = oPIEvaluations.length-1;
+        $('#tblPIEvaluations').datagrid('selectRow', nIndex);
+    }
+    else if(_sPIEvaluationHeader == "Edit PIEvaluation" || _sPIEvaluationHeader == "View PIEvaluation") {
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblPIEvaluations').datagrid('selectRow', nIndex);
+    }
+
+    sessionStorage.clear();
+
+    if(_sFeedBack!=null){alert(_sFeedBack);}
+    else if(_oPIEvaluations.length>0 && _oPIEvaluations[0].ErrorMessage=="Uploaded Successfully!"){
+        alert(_oPIEvaluations[0].ErrorMessage);
+        oPIEvaluations=_oPIEvaluations;
+    }
+    DynamicRefreshList(oPIEvaluations, "tblPIEvaluations");
+    debugger
+    SetDateTime();
+    var oDate=new Date();
+    SetStartTime(oDate);
+    
+});
+
+function AddPIEvaluation()
+{
+    var oPIEvaluations= $('#tblPIEvaluations').datagrid('getRows');
+    sessionStorage.setItem("PIEvaluations", JSON.stringify(oPIEvaluations));
+    sessionStorage.setItem("SelectedRowIndex", -1);
+    sessionStorage.setItem("PIEvaluationHeader", "New PIEvaluation");
+    window.location.href = _sBaseAddress+ "/PIEvaluation/View_PIEvaluation?sid=0&sMsg=N/A";
+}
+
+function RefreshList(oPIEvaluations) {
+    data = oPIEvaluations;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblPIEvaluations').datagrid('loadData', data);
+}
+
+function EditPIEvaluation()
+{
+    var oPIEvaluation = $('#tblPIEvaluations').datagrid('getSelected');
+    if (oPIEvaluation == null || oPIEvaluation.PIEvaluationID <= 0) {
+        alert("Please select an item from list!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblPIEvaluations').datagrid('getRowIndex', oPIEvaluation);
+    var oPIEvaluations= $('#tblPIEvaluations').datagrid('getRows');
+    sessionStorage.setItem("PIEvaluations", JSON.stringify(oPIEvaluations));
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("PIEvaluationHeader", "Edit PIEvaluation");
+    window.location.href = _sBaseAddress+ "/PIEvaluation/View_PIEvaluation?sid="+oPIEvaluation.EncryptPIID+"&sMsg=N/A";
+}
+
+function Delete() {
+    var oPIEvaluation = $('#tblPIEvaluations').datagrid('getSelected');
+    if (!confirm("Confirm to Delete?")) return;
+
+    if (oPIEvaluation == null || oPIEvaluation.PIID <= 0) {
+        alert("Invalid Field!!! please select a valid Field!");
+        return false;
+    }
+    var SelectedRowIndex = $('#tblPIEvaluations').datagrid('getRowIndex', oPIEvaluation);
+
+    if ( oPIEvaluation.PIID > 0) {
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPIEvaluation,
+            ControllerName: "PIEvaluation",
+            ActionName: "PI_Delete",
+            TableId: "tblPIEvaluations",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    }
+}
+
+function ViewPIEvaluation()
+{
+    var oPIEvaluation = $('#tblPIEvaluations').datagrid('getSelected');
+    if (oPIEvaluation == null || oPIEvaluation.PIID <= 0) {
+        alert("Please select an item from list!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblPIEvaluations').datagrid('getRowIndex', oPIEvaluation);
+    var oPIEvaluations= $('#tblPIEvaluations').datagrid('getRows');
+    sessionStorage.setItem("PIEvaluations", JSON.stringify(oPIEvaluations));
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("PIEvaluationHeader", "View PIEvaluation");
+    window.location.href = _sBaseAddress+ "/PIEvaluation/View_PIEvaluation?sid="+oPIEvaluation.EncryptPIID+"&sMsg=N/A";
+}
+
+function ChangeActiveStatus() {
+    debugger;
+    var oPIEvaluation = $('#tblPIEvaluations').datagrid('getSelected');
+    if (oPIEvaluation == null || oPIEvaluation.PIID <= 0) {
+        alert("Please select an item from list!");
+        return;
+    }
+    if (oPIEvaluation == null || oPIEvaluation.InactiveBy > 0) {
+        alert("Already Inactive !");
+        return;
+    }
+    var SelectedRowIndex = $('#tblPIEvaluations').datagrid('getRowIndex', oPIEvaluation);
+
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: _sBaseAddress + "/PIEvaluation/PIEvaluation_InActive",
+        traditional: true,
+        data: JSON.stringify(oPIEvaluation),
+        contentType: "application/json; charset=utf-8",
+
+        success: function(data) {
+            debugger;
+            oPIEvaluation = jQuery.parseJSON(data);
+            if (oPIEvaluation.PIID > 0) {
+                alert("Data Saved sucessfully");
+                $('#tblPIEvaluations').datagrid('updateRow', { index: SelectedRowIndex, row: oPIEvaluation });
+
+            } else {
+                alert(oPIEvaluation.ErrorMessage);
+            }
+        },
+        error: function(xhr, status, error) {
+            alert(error);
+        }
+    });
+}
+
+
+$('#btnImportPIEXL').click( function ()
+{
+    if ($.trim($("#filePIEs").val()) == "") {
+        alert("Please select a file.");
+        $("#filePIEs").addClass("errorFieldBorder");
+        $("#filePIEs").focus();
+        return false;
+    } else {
+        $("#filePIEs").removeClass("errorFieldBorder");
+    }
+    return true;
+});
+
+
+$('#btnApprove').click(function (e) {
+    var oPIEs = $('#tblPIEvaluations').datagrid('getChecked');
+    var nIndexes = [];
+    var sPIEvaluationIDs = "";
+    if (oPIEs.length <= 0) {
+        alert("please select at least one Item!");
+        return false;
+    }
+    for (var i = 0; i < oPIEs.length; i++) {
+        if (oPIEs[i].ApproveBy>0) {
+            alert("Some of items are already approved!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblPIEvaluations').datagrid('getRowIndex', oPIEs[i]);
+        nIndexes.push(SelectedRowIndex);
+        sPIEvaluationIDs += oPIEs[i].PIEvaluationID + ",";
+    }
+    sPIEvaluationIDs = sPIEvaluationIDs.substring(0, sPIEvaluationIDs.length - 1);
+    if (!confirm("Confirm to approve? !!")) return;
+    var tsv = ((new Date()).getTime()) / 1000;
+
+    $.ajax
+    ({
+        type: "POST",
+        dataType: "json",
+        url: _sBaseAddress + "/PerformanceIncentive/PIE_Approve",
+        traditional: true,
+        data: JSON.stringify({ sPIEIDs: sPIEvaluationIDs, nts: tsv }),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oPIEs = [];
+            oPIEs = jQuery.parseJSON(data);
+            if (oPIEs[0].ErrorMessage == "" && oPIEs.length > 0) {
+                for (var i = 0; i < oPIEs.length; i++) {
+                    $('#tblPIEvaluations').datagrid('updateRow', { index: nIndexes[i], row: oPIEs[i] });
+                }
+                alert("Approved Successfully !");
+            }
+            else {
+                alert(oPIEs[0].ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+function SetDateTime()
+{
+    var oDate=new Date();
+    oDate.setFullYear(2014);
+    /*---------------------------------------- Start Set Year-------------------------------------------*/
+    var sYear="";
+    sYear +="<option value='0'>"+'Year'+"</option>";
+    for(var i=0; i<=10; i++)
+    {
+        sYear += "<option value='" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"'>" + (parseInt(oDate.getFullYear()) + parseInt(i)) +"</option>";
+    }
+    $('#cboYear').html(sYear);
+    //$('#cboEndYear').html(sYear);
+    /*---------------------------------------- End Set Year-------------------------------------------*/
+
+
+    /*---------------------------------------- Start Set Month-------------------------------------------*/
+    var sMonth="";
+    var oMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    sMonth +="<option value='0'>"+'Month'+"</option>";
+    for(var i=0; i<oMonths.length; i++)
+    {
+        sMonth += "<option value='" +(parseInt(i)+1)+"'>" + oMonths[i] +"</option>";
+    }
+    $('#cboMonth').html(sMonth);
+    //$('#cboEndMonth').html(sMonth);
+    /*---------------------------------------- End Set Month-------------------------------------------*/
+
+
+    /*---------------------------------------- Start Set Date-------------------------------------------*/
+    //var sDay ="<option value='0'>"+'Day'+"</option>";
+    //$('#cboDay').html(sDay);
+    //$('#cboEndDay').html(sDay);
+    /*---------------------------------------- End Set Date-------------------------------------------*/
+}
+    
+//function SetDateEvent(nMonth)
+//{
+//    var oDate=new Date();
+//    var sDay="";
+//    if( parseInt(nMonth)>0)
+//    {
+//        //var nDay= new Date(parseInt(nYear), parseInt(nMonth), 0).getDate();
+//        var nDay=0;
+//        if(nMonth==1 || nMonth == 3 || nMonth == 5 || nMonth == 7 || nMonth == 8 || nMonth == 10 || nMonth == 12)
+//        {
+//            nDay = 31;
+//        }
+//        else if(nMonth==4 || nMonth == 6 || nMonth == 9 || nMonth == 11)
+//        {
+//            nDay = 30;
+//        }
+//        else if(nMonth == 2)
+//        {
+//            nDay = 29;
+//        }
+//        sDay +="<option value='0'>"+'Day'+"</option>";
+//        for(var i=1; i<=parseInt(nDay); i++)
+//        {
+//            if(i<10)
+//            {
+//                sDay += "<option value='" +i+"'>" + '0'+i +"</option>";
+//            }
+//            else
+//            {
+//                sDay += "<option value='" +i+"'>" + i +"</option>";
+//            }
+//        }
+//    }
+//    return sDay;
+//}
+
+//$('#cboYear').change(function(e)
+//{
+//    var nYear=$('#cboYear').val();
+//    var nMonth=$('#cboMonth').val();
+//    if(nYear>0 && nMonth>0)
+//    {
+//        $('#cboDay').html(SetDateEvent(nYear, nMonth));
+//    }
+//});
+
+function SetStartTime(oDate)
+{
+    var nyear=oDate.getFullYear();
+    var nmonth=oDate.getMonth()+1;
+    var nday=oDate.getDate();
+    $('#cboYear').val(nyear);
+    $('#cboMonth').val(nmonth); 
+    //$('#cboDay').html(SetDateEvent(nmonth)); 
+    //$('#cboDay').val(nday); 
+}
+
+function GenerateStartTimeInString()
+{
+    var sDate=  $('#cboMonth').val() +'-'+ $('#cboYear').val(); 
+    return sDate;
+}
+
+function ValidationOfStartTime()
+{
+    if($('#cboYear').val()==0)
+    {
+        alert("Please select a year.");
+        document.getElementById('cboYear').focus();
+        return false;
+    }
+    if($('#cboMonth').val()==0)
+    {
+        alert("Please select a month.");
+        document.getElementById('cboMonth').focus();
+        return false;
+    }
+    //if($('#cboDay').val()==0)
+    //{
+    //    alert("Please select a day.");
+    //    document.getElementById('cboDay').focus();
+    //    return false;
+    //}
+    return true;
+}
+
+$('#btnEmployeePicker').click(function (e)
+{
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=true;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    var nLeft=(window.screen.width/2)-(1000/2);
+    var nHeight=(window.screen.height/2)-(530/2);
+    _oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    if(_oEmployees!=null)
+    {
+        var sEmployeeName ="";
+        _sEmployeeIDs = "";
+        for(var i =0; i<_oEmployees.length;i++)
+        {
+            if(_oEmployees[i].DesignationName=="" || _oEmployees[i].DepartmentName=="" || _oEmployees[i].LocationName=="")
+            {
+                alert("Some Employee Has No Official Information !");
+                return;
+            }
+
+            if(_oEmployees[i].IsActive == false)
+            {
+                alert("Some Employee Is InActive!");
+                return;
+            }
+            _sEmployeeIDs += _oEmployees[i].EmployeeID +",";
+            sEmployeeName += _oEmployees[i].Name +",";
+
+        }
+        _sEmployeeIDs = _sEmployeeIDs.substring(0,_sEmployeeIDs.length-1);
+        sEmployeeName = sEmployeeName.substring(0,sEmployeeName.length-1);
+        $("#txtEmployee")[0].value=sEmployeeName;
+        Search();
+    }
+});
+
+$('#btnCEmployee').click(function (e)
+{
+    document.getElementById("txtEmployee").value = "" ;
+    _sEmployeeIDs = "" ;
+});
+
+$('#txtEmployee').keypress(function (e)
+{
+    debugger
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13)//Enter key-13
+    {
+        var sCodeName = $.trim($("#txtEmployee").val());
+        if(sCodeName==''){alert("Please enter name or code to search.");$("#txtEmployee").focus(); return;}
+        SearchEmployeeByText(sCodeName);
+    }
+});
+
+function SearchEmployeeByText(sEmpNameCode){
+    var oEmployee = { Params: sEmpNameCode +'~'+ 0};
+    var obj = {
+        BaseAddress: _sBaseAddress,
+        Object: oEmployee,
+        ControllerName: "Employee",
+        ActionName: "GetsByEmpCode",
+        IsWinClose: false
+    };
+    $.icsDataGets(obj, function (response) {
+
+        if (response.status && response.objs.length > 0) {
+            if (response.objs[0].EmployeeID > 0) {
+
+                var tblColums = [];var oColumn = { field: "Code", title: "Code", width: 70, align: "left" };tblColums.push(oColumn);
+                oColumn = { field: "Name", title: "Name", width: 120, align: "left" };tblColums.push(oColumn);
+                oColumn = { field: "DepartmentName", title: "Department", width: 100, align: "left" };tblColums.push(oColumn);
+                oColumn = { field: "DesignationName", title: "Designation", width: 100, align: "left" };tblColums.push(oColumn);
+                var oPickerParam = {
+                    winid: 'winEmployeePickerTextSearch',
+                    winclass:'clsEmployeePickerTextSearch',
+                    winwidth: 455,
+                    winheight: 460,
+                    tableid: 'tblEmployeePickerTextSearch',
+                    tablecolumns: tblColums,
+                    datalist: response.objs,
+                    multiplereturn: false,
+                    searchingbyfieldName:'Name',
+                    windowTittle: 'Employee list'
+                };
+
+                $.icsPicker(oPickerParam);
+                IntializeEmployeePickerTextSearch(oPickerParam);//multiplereturn, winclassName
+
+            }
+            else { alert(response.objs[0].ErrorMessage); }
+        }
+    });
+}
+
+function IntializeEmployeePickerTextSearch(oPickerobj)
+{
+    $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+        var oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        if(oreturnObj == null || oreturnObj.EmployeeID<=0){  alert("please select an employee."); return false;}
+
+        $("#"+oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winEmployeePickerTextSearch')
+        {
+            if (oreturnObj != null && oreturnObj.EmployeeID > 0)
+            {
+                _sEmployeeIDs=oreturnObj.EmployeeID;
+                $("#txtEmployee").val(oreturnObj.Name);
+                $("#winEmployeePicker").icsWindow('close');
+                Search();
+            }
+        }
+    });
+
+    $(document).find('.' +oPickerobj.winclass).keydown(function (e) {
+        if (e.which == 13)//enter=13
+        {
+            var oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+            if(oreturnObj == null || oreturnObj.EmployeeID<=0){  alert("please select an employee."); return false;}
+
+            $("#"+oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+
+            if (oPickerobj.winclass == 'clsEmployeePickerTextSearch')
+            {
+                if (oreturnObj != null && oreturnObj.EmployeeID > 0)
+                {
+                    _sEmployeeIDs=oreturnObj.EmployeeID;
+                    $("#txtEmployee").val(oreturnObj.Name);
+                    $("#winEmployeePicker").icsWindow('close');
+                    Search();
+                }
+            }
+        }
+    });
+}
+
+/*-------------Location Picker----------------*/
+    
+$("#btnLocationPicker").click(function(e){
+        
+    $("#winLocationPicker").icsWindow('open');
+    var oLocation={LocationID:0};
+    var obj = {
+        BaseAddress: _sBaseAddress,
+        Object: oLocation,
+        ControllerName: "Location",
+        ActionName: "GetsLocationMenuTree",
+        IsWinClose: false
+    };
+        
+    $.icsDataGet(obj, function (response) {
+
+        if (response.status && response.obj!=null) {
+            if (response.obj.TLocation.id > 0) {
+                $('#locationtree').tree({ data: [response.obj.TLocation] });
+            }
+        }
+    });
+});
+        
+$('#txtLocation').keypress(function (e)
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13)//Enter key-13
+    {
+        $("#winLocationPicker").icsWindow('open');
+        var oLocation={LocationID:0};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oLocation,
+            ControllerName: "Location",
+            ActionName: "GetsLocationMenuTree",
+            IsWinClose: false
+        };
+        
+        $.icsDataGet(obj, function (response) {
+
+            if (response.status && response.obj!=null) {
+                if (response.obj.TLocation.id > 0) {
+                    $('#locationtree').tree({ data: [response.obj.TLocation] });
+                }
+            }
+        });
+    }
+});
+
+$("#btnLocationPickerOk").click(function(e){
+    var oLocation = $('#locationtree').tree('getSelected');
+    if(oLocation!=null && oLocation.id>0){
+        $("#winLocationPicker").icsWindow('close');
+        $('#txtLocation').val(oLocation.text);
+        _nLocationID= oLocation.id;
+          
+    }
+    else{
+        alert("Please select a location.");
+    }
+});
+
+$("#btnLocationPickerClose").click(function(e){
+    $("#winLocationPicker").icsWindow('close');
+});
+  
+$("#btnResetLocationPicker").click(function(e){
+    $('#txtLocation').val("");
+    _nLocationID=0;
+});
+
+function DepartmentPicker()
+{
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = true;
+    var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id="+_nLocationID;
+    var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+    if (oReturnObjects != null)
+    {
+        for(var i=0; i<oReturnObjects.length; i++)
+        {
+            _sDepartmentNames+=oReturnObjects[i].text+",";
+            _sDepartmentIds+=oReturnObjects[i].id+",";
+        }
+
+        _sDepartmentNames=_sDepartmentNames.substring(0,_sDepartmentNames.length-1);
+        _sDepartmentIds=_sDepartmentIds.substring(0,_sDepartmentIds.length-1);
+
+        //_sDepartmentNames = oReturnObject.text;
+        //_nDepartmentId = oReturnObject.id ;
+        $("#txtDepartment").val(_sDepartmentNames);
+        //$("#txtDepartment")[0].value = oReturnObject.text;
+        //$("#departmentID")[0].value = oReturnObject.id;
+        //var departmentID= oReturnObject.id;
+    }
+}
+
+$('#txtDepartment').keypress(function (e)
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13)//Enter key-13
+    {
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id="+_nLocationID;
+        var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+        if (oReturnObject != null)
+        {
+            //for(var i=0; i<oReturnObjects.length; i++)
+            //{
+            //    _sDepartmentNames+=oReturnObjects[i].text+",";
+            //    _sDepartmentIds+=oReturnObjects[i].id+",";
+            //}
+
+            //_sDepartmentNames=_sDepartmentNames.substring(0,_sDepartmentNames.length-1);
+            //_sDepartmentIds=_sDepartmentIds.substring(0,_sDepartmentIds.length-1);
+
+            _sDepartmentNames = oReturnObject.text;
+            _sDepartmentIds = oReturnObject.id ;
+            $("#txtDepartment").val(_sDepartmentNames);
+            //$("#txtDepartment")[0].value = oReturnObject.text;
+            //$("#departmentID")[0].value = oReturnObject.id;
+            //var departmentID= oReturnObject.id;
+        }
+    }
+});
+
+$('#btnResetDepartmentPicker').click(function (e)
+{
+    document.getElementById("txtDepartment").value = "" ;
+    _sDepartmentIds = "" ;
+    _sDepartmentNames = "";
+});
+
+function DesignationPicker()
+{
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = true;
+    var url = _sBaseAddress + "/Designation/DesignationPickerWithCheckBox?id=0";
+    var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+    if(oReturnObjects!=null)
+    {
+        //$("#txtDesignation")[0].value = oReturnObject.text;
+        //$("#designationID")[0].value = oReturnObject.id;
+
+        for(var i=0; i<oReturnObjects.length; i++)
+        {
+            _sDesignationNames+=oReturnObjects[i].text+",";
+            _sDesignationIds+=oReturnObjects[i].id+",";
+        }
+
+        _sDesignationNames=_sDesignationNames.substring(0,_sDesignationNames.length-1);
+        _sDesignationIds=_sDesignationIds.substring(0,_sDesignationIds.length-1);
+        $("#txtDesignation").val(_sDesignationNames);
+    }
+
+}
+
+$('#txtDesignation').keypress(function (e)
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13)//Enter key-13
+    {
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id=0";
+        var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+        if (oReturnObject != null)
+        {
+            _sDesignationNames = oReturnObject.text;
+            _sDesignationIds = oReturnObject.id ;
+            $("#txtDesignation").val(_sDesignationNames);
+        }
+    }
+});
+
+$('#btnResetDesignationPicker').click(function (e)
+{
+    document.getElementById("txtDesignation").value = "" ;
+    _sDesignationIds = "" ;
+    _sDesignationNames = "";
+});
+
+function Search()
+{
+
+    var sMonth=$('#cboMonth').val();
+    var sYear=$('#cboYear').val(); 
+
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: _sBaseAddress + "/PerformanceIncentive/PIE_Search",
+        traditional: true,
+        data: JSON.stringify({sEmployeeIDs:_sEmployeeIDs,sMonth:sMonth,sYear:sYear,nLocationID:_nLocationID,sDepartmentIds:_sDepartmentIds,sDesignationIds:_sDesignationIds}),
+        contentType: "application/json; charset=utf-8",
+
+        success: function(data)
+        {
+            var oPIEs=[];
+            oPIEs = jQuery.parseJSON(data);
+            if (oPIEs.length>0 && oPIEs[0].ErrorMessage=="")
+            {
+                RefreshList(oPIEs);
+            }
+            else
+            {
+                alert(oPIEs[0].ErrorMessage);
+                oPIEs=[];
+                RefreshList(oPIEs);
+            }
+        },
+        error: function(xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+}
+
+</script>

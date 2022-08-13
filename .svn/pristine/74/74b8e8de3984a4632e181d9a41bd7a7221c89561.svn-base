@@ -1,0 +1,249 @@
+﻿<html>
+@{
+    ViewBag.title = "Capacity Allocation";
+}
+<body>
+    @model ESimSol.BusinessObjects.CapacityAllocation
+    <div class="menuMainCollectionTable panel-group" ng-app="CCapacityAllocationapp" ng-controller="CCapacityAllocationController" id="divCC" style="height:530px">
+        <div class=" panel-primary" >
+        <div style="height:490px;" class="panel-body regionCapacityAllocation">
+            <fieldset style=" height:100%; text-align:center;">
+                <legend style="font-weight:bold;">Basic Info : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; text-align:center; width:90%; margin:150px 90px 0 -40px">
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Code :
+                        </td>
+                        <td style="width:85%">
+                            <input type="text" ng-model="CapacityAllocation.Code" id="txtCode" class="form-control" style="width:100%" disabled />
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                           Buyer Name :
+                        </td>
+                        <td style="width:85%;" colspan="3">
+                            <input type="text" ng-model="CapacityAllocation.BuyerName" id="txtBuyerName" ng-keydown="SearchKeyDownBuyer($event)" placeholder="Type Buyer Name & Press Enter" class="form-control" style="width:100%" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Capacity/Month :
+                        </td>
+                        <td style="width:85%">
+                            <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+                                <tr>
+                                    <td style="width:70%"><input type="number" ng-model="CapacityAllocation.Quantity" id="txtQuantity" class="form-control" style="width:100%" /></td>
+                                    <td style="width:30%"><select ng-model="CapacityAllocation.MUnitID" id="cboMUnitID" class="form-control" ng-options="oItem.MeasurementUnitID as oItem.UnitName for oItem in MUnits" style="width:100%"></select></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%; text-align:right">
+                            Remarks :
+                        </td>
+                        <td style="width:85%;">
+                            <input type="text" ng-model="CapacityAllocation.Remarks" class="form-control" style="width:100%" />
+                        </td>
+                     </tr>
+                </table>
+            </fieldset>
+        </div>
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <button type="button" id="btnSave" class="btn btn-default btn-md btn-success" aria-label="right Align" ng-click="Save()"><span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Save</span></button>
+                        <button type="button" id="btnClose" class="btn btn-default btn-md btn-danger" aria-label="right Align" ng-click="Close()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span></button>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+            
+        </div>
+</body>
+</html>
+<style type="text/css">
+    .regionCapacityAllocation .form-horizontal .control-label {
+        padding-top: 1px;
+    }
+
+    .regionCapacityAllocation .form-control {
+        height: 26px;
+        padding: 0px 4px;
+        font-size: 12px;
+        width:100%;
+    }
+</style>
+
+
+<script type="text/javascript">
+    //debugger;
+    var oCapacityAllocation =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oMUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.MUnits));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var CCapacityAllocationApp = angular.module('CCapacityAllocationapp', ['ngAnimate', 'ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.edit', 'ui.grid.rowEdit','ui.grid.cellNav','ui.grid.resizeColumns','ms.service','uiKeyUpDown']);
+    CCapacityAllocationApp.controller('CCapacityAllocationController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+        $scope.CapacityAllocation = oCapacityAllocation;
+        oMUnits.push({MeasurementUnitID:0, UnitName:'--Select One--'});
+            
+            $scope.MUnits = oMUnits;
+            $scope.Save=function()
+            {
+                debugger;
+                if(!$scope.ValidateInput()) return;
+                var oCapacityAllocation=$scope.CapacityAllocation;
+                $http.post(_sBaseAddress+'/CapacityAllocation/Save',oCapacityAllocation).then(
+                      function (response)
+                      {
+                          var oCapacityAllocation= jQuery.parseJSON(response.data);
+                          if (oCapacityAllocation.ErrorMessage=="" || oCapacityAllocation.ErrorMessage==null)
+                          {
+                              alert("Data Save Successfully!!");
+                              if (confirm("Do You More?"))
+                              {
+                                  $scope.CapacityAllocation.CapacityAllocationID = 0;
+                                  $scope.CapacityAllocation.Code = "";
+                                  $('#txtBuyerName').focus();
+                                  return;
+                              }
+                                var oCapacityAllocations = sessionStorage.getItem("CapacityAllocations");
+                                var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                                if (oCapacityAllocations != null)
+                                {
+                                    oCapacityAllocations = jQuery.parseJSON(oCapacityAllocations);
+                                }
+                                else {
+                                    oCapacityAllocations = [];
+                                }
+                                if (nIndex != -1) {
+                                    oCapacityAllocations[nIndex] = oCapacityAllocation;
+                                }
+                                else {
+                                    sessionStorage.setItem("SelectedRowIndex", oCapacityAllocations.length);
+                                    oCapacityAllocations.push(oCapacityAllocation);
+                                }
+                                sessionStorage.setItem("CapacityAllocations", JSON.stringify(oCapacityAllocations));
+                                window.location.href = sessionStorage.getItem("BackLink");
+                              
+                          }
+                          else
+                          {
+                              alert(oCapacityAllocation.ErrorMessage);
+                          }
+
+                      },
+                          function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                  );
+            }
+            $scope.ValidateInput = function()
+            {
+                debugger;
+                if($scope.CapacityAllocation.BuyerID<=0)
+                {
+                    alert("Please enter  BuyerName!");
+                    $('#txtBuyerName').focus();
+                    return false;
+                }
+                //if($scope.CapacityAllocation.Quantity<=0)
+                //{
+                //    alert("Capacity Should be Greater than 0.");
+                //    $('#txtQuantity').focus();
+                //    return false;
+                //}
+                if($scope.CapacityAllocation.MUnitID<=0)
+                {
+                    alert("Select Unit.");
+                    $('#cboMUnitID').focus();
+                    return false;
+                }
+                return true;
+            }
+
+        
+        // Search Buyer Start
+            $scope.SearchKeyDownBuyer=function (e)
+            {
+                debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var BuyerName = $.trim($scope.CapacityAllocation.BuyerName);
+                    if(BuyerName==""||BuyerName==null)
+                    {
+                        alert("Type Buyer Name and Press Enter");
+                        return;
+                    }
+                    $scope.PickBuyer();
+                }else if (code == 8) //backspace=8
+                {
+                    //debugger;
+                    $scope.CapacityAllocation.BuyerName='';
+                    $scope.CapacityAllocation.BuyerID = 0;
+                }
+            };
+            $scope.PickBuyer= function () {
+                // debugger;
+                var oContractor = {
+                    Params: '2' + '~' + $.trim($scope.CapacityAllocation.BuyerName)
+                };
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/Contractor/ContractorSearchByNameType',$.param(oContractor), config).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        var oColumns = [];
+                                        var oColumn = { field: 'ContractorID', name: 'Code',width: '20%'  };oColumns.push(oColumn);
+                                        oColumn = { field: 'Name', name: 'Buyer Name',width: '50%', enableSorting: false  };oColumns.push(oColumn);
+                                        oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+                                        var results=response.data;
+                                        var modalObj={
+                                            size:'md',
+                                            //url:sessionStorage.getItem('BaseAddress')+'/CommonModal/CommonListModal',
+                                            modalcontroller:'ModalCommonListCtrl',
+                                            appcontroller:'CapacityAllocationController',
+                                            objs:results,
+                                            multiSelect:false,
+                                            pickertitle:'Buyer List',
+                                            searchingbyfieldName:'Name',
+                                            columns:oColumns
+                                        }
+                                        var modalInstance=msModal.Instance(modalObj);
+                                        modalInstance.result.then(function (result)
+                                        {
+                                            debugger;
+                                            $scope.CapacityAllocation.BuyerName=result.Name;
+                                            $scope.CapacityAllocation.BuyerID=result.ContractorID;
+                                        }, function () {
+                                            $log.info('Modal dismissed at: ' + new Date());
+                                        });
+                                    },
+                                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                                );
+            };
+
+
+            if(sessionStorage.getItem("CapacityAllocationHeader")=="View CapacityAllocation")
+            {
+                $("#divCC :input").prop('disabled', true);
+                $('#btnClose').prop('disabled', false);
+            }
+            $scope.Close = function()
+            {
+                window.location.href = sessionStorage.getItem("BackLink");
+            }
+            $scope.keydown = function(e)
+            {
+                if(e.which == 27)//escape=27
+                {
+                    //debugger;
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+            }
+        });
+
+</script>

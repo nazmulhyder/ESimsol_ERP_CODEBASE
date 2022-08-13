@@ -1,0 +1,452 @@
+﻿@{
+    ViewBag.Title = "Roster Plan";
+}
+<html>
+<head>
+    <title> Roster Plan </title> 
+</head>
+<body>
+    @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+    @model ESimSol.BusinessObjects.RosterPlan
+    <div style="font-family: Tahoma;width:500px; margin-left:25%;margin-top:5%">
+   
+        <fieldset>
+            <legend id="lblHeaderName" style="font-weight:bold"> </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="text-align: right">
+                        Description :
+                    </td>
+                    <td style="width: 150px">
+                        @Html.TextBoxFor(model => model.Description, new { style = "width: 145px;", id = "txtDescription" })
+                    </td>
+                    <td style=" text-align: right">
+                        Roster Cycle :
+                    </td>
+                    <td style="width: 150px">
+                        @Html.TextBoxFor(model => model.RosterCycle, new { style = "width: 145px;", id = "txtRosterCycle" })
+                    </td>
+                </tr>
+                <tr id="trShift">
+                    <td style="text-align: right">
+                        Shift :
+                    </td>
+                    <td>
+                        @Html.DropDownListFor(m => m.ShiftID, Model.Shifts.Select(x => new SelectListItem() { Text = x.ShiftWithDuration, Value = x.ShiftID.ToString() }), new { id = "cboShiftID", style = "width: 150px;" })
+                    </td>
+                    <td style="text-align: right">
+                        Next Shift :
+                    </td>
+                    <td>
+                        @Html.DropDownListFor(m => m.ShiftID, Model.Shifts.Select(x => new SelectListItem() { Text = x.ShiftWithDuration, Value = x.ShiftID.ToString() }), new { id = "cboNextShiftID", style = "width: 145px;" })
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <table>
+                            <tr>
+                                <td>
+                                    <input type="button" onclick="Add()" value="Add" id="btnAdd" style="margin-left:25px;" />
+                                    <input type="button" onclick="Remove()" value="Remove" id="btnRemove" />
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="font-family: Tahoma">
+                <table id="tblShift" class="easyui-datagrid" style="width: 465px; height: 250px"
+                       fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+                       autorowheight="false">
+                    <thead>
+                        <tr>
+                            <th field="Shift" width="158">
+                                Shift
+                            </th>
+                            <th field="NextShift" width="158">
+                                Next Shift
+                            </th>
+                            <th field="ToleranceTimeInString" width="110">
+                                Tolerance Time
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="width: 400px; text-align: right">
+                    </td>
+                    <td style="width: 50px; text-align: center">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"
+                            onclick="Save()">Save</a>
+                    </td>
+                    <td style="width: 50px">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    debugger;
+    var _oRosterPlan = null;
+    var _oRosterPlanDetail = null;
+    var _oRosterPlanDetails = [];
+    var _oRosterPlanShift = null;
+    var _sBaseAddress = "";
+    var _nMenuid=0;
+    var _sRPHeader="";
+
+    $(document).ready(function() {
+        debugger;
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oRosterPlan = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oRosterPlanDetails = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.RosterPlanDetails));
+        _oRosterPlanShift = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Shifts));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(MenuID));
+        _sRPHeader=sessionStorage.getItem("RosterPlanHeader");
+        if(_oRosterPlan.ErrorMessage!="")
+        {
+            alert(_oRosterPlan.ErrorMessage);
+            _oRosterPlan.ErrorMessage=="";
+        }
+        $('#txtRosterCycle').numberbox({min:0, max:30});
+        
+        $("#lblHeaderName").html(_sRPHeader);
+
+        if (_sRPHeader == "Edit RosterPlan") {
+            $("#txtRosterCycle").prop("disabled", true);
+            RefreshList(_oRosterPlanDetails);     
+        }
+        if (_sRPHeader== "View RosterPlan") {
+            debugger;
+            RefreshList(_oRosterPlanDetails);
+            $("btnSave").hide();
+            $("trShift").hide();
+            $("#btnSave").prop("disabled", true);
+            $("#txtDescription").prop("disabled", true);
+            $("#txtRosterCycle").prop("disabled", true);
+            $("#btnAdd").prop("disabled", true);
+            $("#btnRemove").prop("disabled", true);
+        }
+    });
+
+    function RefreshList(oRosterPlanDetails)
+    {    
+            data = oRosterPlanDetails;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblShift').datagrid('loadData', data);
+   }
+    
+    function Add() {
+        debugger;
+        _oRosterPlan.RosterCycle = $("#txtRosterCycle").val();
+        if (!ValidateInput()) return;
+        if (!CheckSameData()) return;
+        var tolerance;
+        var oRosterPlanDetail;
+        
+        var cboShift = document.getElementById("cboShiftID");
+        var cboNextShift = document.getElementById("cboNextShiftID");
+        var oShiftId = cboShift.options[cboShift.selectedIndex].value;
+        for (var i = 0; i <= _oRosterPlanShift.length; i++) {
+            if (oShiftId == _oRosterPlanShift[i].ShiftID) {
+                tolerance = _oRosterPlanShift[i].ToleranceTimeInString;
+                break;
+            }
+        }
+        if (document.getElementById("txtRosterCycle").value == 0) {
+            oRosterPlanDetail = {
+                RosterPlanID: _oRosterPlan.RosterPlanID,
+                RosterPlanDetailID: 0,
+                ShiftID: cboShift.options[cboShift.selectedIndex].value,
+                Shift: cboShift.options[cboShift.selectedIndex].text,
+                ToleranceTime: tolerance,
+                ToleranceTimeInString:tolerance
+            };
+            $('#tblShift').datagrid('appendRow', oRosterPlanDetail);
+        } else {
+            oRosterPlanDetail = {
+                RosterPlanID: _oRosterPlan.RosterPlanID,
+                RosterPlanDetailID: 0,
+                ShiftID: cboShift.options[cboShift.selectedIndex].value,
+                Shift: cboShift.options[cboShift.selectedIndex].text,
+                NextShiftID: cboNextShift.options[cboNextShift.selectedIndex].value,
+                NextShift: cboNextShift.options[cboNextShift.selectedIndex].text,
+                ToleranceTime: tolerance,
+                ToleranceTimeInString:tolerance
+            };
+            $('#tblShift').datagrid('appendRow', oRosterPlanDetail);
+        }
+        var data = $('#tblShift').datagrid('getRows');
+        if (data.length > 0) {
+            $("#txtRosterCycle").prop("disabled", true);
+        }
+    }
+
+    function CheckSameData() {
+        debugger;
+        var cboShift = document.getElementById("cboShiftID");
+        var cboNextShift = document.getElementById("cboNextShiftID");
+        var data = $('#tblShift').datagrid('getRows');
+        var value1 = cboShift.options[cboShift.selectedIndex].value;
+        var value2 = cboNextShift.options[cboShift.selectedIndex].value;
+        for (var i = 0; i < data.length; i++) {
+            if ((value1 == data[i].ShiftID) || (value1 == data[i].ShiftID) && (value2 == data[i].NextShiftID)) {
+                alert("Same type of data exits!");
+                $('#cboShiftID').focus();
+                return false;
+            }
+        }
+        if (document.getElementById("cboShiftID").selectedIndex <= 0) {
+            alert("Please select a shift!");
+            $('#cboShiftID').focus();
+            return false;
+        }
+        if (_oRosterPlan.RosterCycle > 0) {
+            if (document.getElementById("cboNextShiftID").selectedIndex <= 0) {
+                alert("Please select a shift for Next Shift!");
+                $('#cboShiftID').focus();
+                return false;
+            }
+        }
+        if ($("#cboNextShiftID").val() == $("#cboShiftID").val()) {
+            alert("Please select a different next shift!");
+            $('#cboNextShiftID').focus();
+            return false;
+        }
+        debugger;
+        cboShift = document.getElementById("cboShiftID");
+        cboNextShift = document.getElementById("cboNextShiftID");
+        var oShiftId = cboShift.options[cboShift.selectedIndex].value;
+        var startTimeShift;
+        var startTimeNextShift;
+        var endTimeShift;
+        for (var j = 0; j <= _oRosterPlanShift.length; j++) {
+            if (oShiftId == _oRosterPlanShift[j].ShiftID) {
+                startTimeShift = _oRosterPlanShift[j].StartTime;
+                endTimeShift = _oRosterPlanShift[j].EndTime;
+                break;
+            }
+        }
+        oShiftId = cboNextShift.options[cboNextShift.selectedIndex].value;
+        for (j = 0; j <= _oRosterPlanShift.length; j++) {
+            if (oShiftId == _oRosterPlanShift[j].ShiftID) {
+                startTimeNextShift = _oRosterPlanShift[j].StartTime;
+                break;
+            }
+        }
+//        if (startTimeNextShift > startTimeShift && startTimeNextShift < endTimeShift) {
+//            alert("Please select a different next shift. Time schedule is clashing!");
+//            return false;
+//        }
+        return true;
+    }
+
+    function ValidateInput() {
+        debugger;
+        if ($("#txtDescription").val() == null || $("#txtDescription").val()== "") {
+            alert("Please enter a description!");
+            $('#txtDescription').focus();
+            return false;
+        }
+        if ($("#txtRosterCycle").val()  == null || $("#txtRosterCycle").val()== "") {
+            alert("Please enter a numeric value!");
+            $('#txtRosterCycle').focus();
+            return false;
+        }
+        if ($("#txtRosterCycle").val()<0 || $("#txtRosterCycle").val()>30) {
+            alert("Please enter a numeric value from 0 to 30!");
+            $('#txtRosterCycle').focus();
+            return false;
+        }
+        return true;
+    }
+
+// values from user interface is taken to object properties here
+
+    function EditObject() {
+        debugger;
+    }
+
+    function RefreshObject() {
+        debugger;
+        var oRosterPlan = {
+            RosterPlanID: _oRosterPlan.RosterPlanID,
+            Description: _oRosterPlan.Description,
+            RosterCycle: _oRosterPlan.RosterCycle,
+            IsActive: _oRosterPlan.IsActive,
+            RosterPlanDetails: $('#tblShift').datagrid('getRows')
+        };
+        return oRosterPlan;
+    }
+
+    function Save() {
+        debugger;
+        if (!ValidateInput()) return;
+        var data = $('#tblShift').datagrid('getRows');
+        if (data.length == 0) {
+            if(!CheckSameData()) return;
+            data = $('#tblShift').datagrid('getRows');
+            if (data.length == 0)
+                return;
+        }
+        _oRosterPlan.Description = $("#txtDescription").val();
+        var oRosterPlan = RefreshObject();
+        
+        if (oRosterPlan.RosterPlanID>0) {
+           $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/RosterPlan/RosterPlan_Update",
+            traditional: true,
+            data: JSON.stringify(oRosterPlan),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                debugger;
+                var oRosterPlan = jQuery.parseJSON(data);
+                if (oRosterPlan.RosterPlanID > 0) {
+
+                    alert("Data Saved sucessfully");
+                    var oRosterPlans =sessionStorage.getItem("RosterPlans");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oRosterPlans!=null)
+                    {
+                        oRosterPlans = jQuery.parseJSON(oRosterPlans);
+                    }
+                    else
+                    {
+                        oRosterPlans=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oRosterPlans[nIndex]=oRosterPlan;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oRosterPlans.length);
+                        oRosterPlans.push(oRosterPlan);
+                    }
+                    sessionStorage.setItem("RosterPlans", JSON.stringify(oRosterPlans));
+                    window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlans?menuid="+_nMenuid;
+
+                }else {
+                    alert(oRosterPlan.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+           }); 
+        }
+        if (oRosterPlan.RosterPlanID == 0) {
+            $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/RosterPlan/RosterPlan_Insert",
+            traditional: true,
+            data: JSON.stringify(oRosterPlan),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                debugger;
+                var oRosterPlan = jQuery.parseJSON(data);
+                if (oRosterPlan.RosterPlanID > 0) {
+                    alert("Data Saved sucessfully");
+                    var oRosterPlans =sessionStorage.getItem("RosterPlans");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oRosterPlans!=null)
+                    {
+                        oRosterPlans = jQuery.parseJSON(oRosterPlans);
+                    }
+                    else
+                    {
+                        oRosterPlans=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oRosterPlans[nIndex]=_oRosterPlan;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oRosterPlans.length);
+                        oRosterPlans.push(_oRosterPlan);
+                    }
+                    sessionStorage.setItem("RosterPlans", JSON.stringify(oRosterPlans));
+                    window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlans?menuid="+_nMenuid;
+                } else {
+                    alert(oRosterPlan.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+            });
+        }
+    }
+
+    function Remove() {
+        debugger;
+        var oRosterPlanDetail = $('#tblShift').datagrid('getSelected');
+        if (oRosterPlanDetail == null) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+        var selectedRowIndex = $('#tblShift').datagrid('getRowIndex', oRosterPlanDetail);
+        $('#tblShift').datagrid('deleteRow', selectedRowIndex);
+        var data = $('#tblShift').datagrid('getRows');
+        if (data.length == 0) {
+            document.getElementById('txtRosterCycle').disabled = false;
+        }
+
+        if (oRosterPlanDetail.RosterPlanDetailID > 0) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/RosterPlan/RosterPlanDetailDelete",
+                data: { id: oRosterPlanDetail.RosterPlanDetailID },
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+                    debugger;
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    debugger;
+                    if (feedbackmessage == "") {
+                        alert("Delete sucessfully");
+                        $('#tblRosterPlan').datagrid('deleteRow', selectedRowIndex);
+
+                    } else {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }
+
+    $("#btnClose").click(function () {
+        window.location.href = _sBaseAddress+ "/RosterPlan/ViewRosterPlans?menuid="+_nMenuid;
+    });
+   
+    $(document).keydown(function (e)
+    {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 27)
+        {
+            window.close();
+        }
+    });
+</script>

@@ -1,0 +1,724 @@
+﻿@{
+    ViewBag.Title = "Yarn Out";
+}
+<html>
+<body>
+@model ESimSol.BusinessObjects.FabricBatch
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Fabric Batch" style="font-family:Tahoma;text-align:center; width:100%;height:100%;">
+            <div style="height:87%">
+                <fieldset>
+                    <legend>Fabric Batch Info </legend>
+                    <table border="0" cellpadding="1" cellspacing="1">
+
+                        <tr>
+                            <td style="width:190px; text-align:right;">Batch No:</td>
+                            <td style="width:250px;text-align:left;">@Html.TextBoxFor(model => model.BatchNo, new { style = "width:250px;", id = "txtBatchNo", disabled = "disabled" })</td>
+                            <td style="width:20px"></td>
+                            <td style="width:190px; text-align:right;">Issue Date:</td>
+                            <td style="width:250px;text-align:left;">
+                                @Html.TextBoxFor(model => model.IssueDateSt, new { style = "width:250px;", id = "txtIssueDateSt", disabled = "disabled" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:190px; text-align:right;">Order No :</td>
+                            <td style="width:250px;text-align:left;">
+                                @Html.TextBoxFor(model => model.FEONo, new { style = "width:250px;", id = "txtOrderNoFB", disabled = "disabled" })
+                            </td>
+                            <td style="width:20px"></td>
+                            <td style="width:190px; text-align:right;">Construction :</td>
+                            <td style="width:250px;text-align:left;">
+                                @Html.TextBoxFor(model => model.Construction, new { style = "width:250px;", id = "txtConstruction", disabled = "disabled" })
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+
+                <table id="tblFabricBatchRawMaterial" title="Fabric Batch RawMaterial" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar" data-options="onClickRow: onClickRow">
+                <thead>
+                    <tr>
+                        <th field="ProductName" width="250">Yarn</th>
+                        <th data-options="field:'ColorName',align:'left',editor:{type:'text'}" width="100">Color</th>
+                        <th field="LotNo" width="150">Lot No</th>
+                        <th data-options="field:'Qty',align:'center',editor:{type:'numberbox',options:{precision:2}}" width="150" align="right">Qty</th>
+                        <th field="ReceiveByDateInString" width="100">Out Date</th>
+                    </tr>
+                    </thead>
+                </table>
+                <div id="toolbar">
+                    <a id="btnYarnPickByThisOrder" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" >Yarn Pick By Order</a>&nbsp;
+                    Store :<select id="cboStore"></select>
+                   <input type="text" id="txtProductName" placeholder="Type Yarn Name" style="width:170px" /><a id="btnPickProduct" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="PickProduct()">Pick</a>
+                    <select id="cboLot" style="width:150px;"></select><a id="btnLotRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshLot()"></a>
+                    Qty: <input type="text" id="txtQty" style="width:60px;" value="0" class="number"/>
+                    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddDetail()">Add</a>
+                    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="DeleteDetail()">Remove</a>
+                </div>
+            </div>
+            <fieldset>
+                <legend style="font-weight:bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:85%; text-align:right"></td>
+                        <td style="width:10%;">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Out()">Out</a>
+                        </td>
+                        <td style="width:5%;">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oFabricBatch=null;
+    var _sBaseAddress="";
+    var _objName = "";
+    var _oStores = [];
+    var _lBackLink = "";
+    var _oProduct = "";
+    $(document).ready(function () {
+        //
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricBatch =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Stores));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BUID));
+        $("#cboStore").icsLoadCombo({List: _oStores,OptionValue: "WorkingUnitID",DisplayText: "WorkingUnitName"});
+     _objName = sessionStorage.getItem("FabricBatchHeader");
+     _lBackLink = sessionStorage.getItem("BackLink");
+     RefreshControl();
+    });
+
+    function RefreshControl()
+    {
+        if(_oFabricBatch.FabricBatchRawMaterials.length>0)
+        {
+            RefreshList(_oFabricBatch.FabricBatchRawMaterials);
+        }
+    }
+
+    function RefreshList(oFabricBatchRawMaterials)
+    {
+        data=oFabricBatchRawMaterials;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblFabricBatchRawMaterial').datagrid('loadData',data);
+    }
+
+
+    var editIndex = undefined;
+    function endEditing(){
+        if (editIndex == undefined){return true}
+        if ($('#tblFabricBatchRawMaterial').datagrid('validateRow', editIndex)){
+            $('#tblFabricBatchRawMaterial').datagrid('endEdit', editIndex);
+            $('#tblFabricBatchRawMaterial').datagrid('selectRow',editIndex);
+            var oFabricBatchRawMaterial=$('#tblFabricBatchRawMaterial').datagrid('getSelected');
+            if(parseInt(oFabricBatchRawMaterial.ReceiveBy)<=0)
+            {
+                var oFBRMS =[];
+
+                if(oFabricBatchRawMaterial.FEOYID > 0)
+                {
+                    oFabricBatchRawMaterial.ColorName = _sColorName;
+                }
+
+                oFBRMS.push(oFabricBatchRawMaterial);
+                Out(oFBRMS, true,editIndex);
+            }else{
+                //alert("Already Received");
+                $('#tblFabricBatchRawMaterial').datagrid('updateRow',{index: editIndex,	row: oFabricBatchRawMaterial});
+            }
+
+            editIndex = undefined;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    var _sColorName = "";
+    function onClickRow(index){
+
+        if (editIndex != index){
+            if (endEditing())
+            {
+                $('#tblFabricBatchRawMaterial').datagrid('selectRow', index).datagrid('beginEdit', index);
+                var oFabricBatchRawMaterial=$('#tblFabricBatchRawMaterial').datagrid('getSelected');
+                _sColorName = oFabricBatchRawMaterial.ColorName;
+                editIndex = index;
+            }
+            else
+            {
+                $('#tblFabricBatchRawMaterial').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+
+
+    $("#btnYarnPickByThisOrder").click(function () {
+        if(parseInt(_oFabricBatch.FEOID)<=0)
+        {
+            alert("Sorry, there is no Fabric Batch");
+            return;
+        }
+
+        var oFabricBatch = {
+            FabricSalesContractDetailID:_oFabricBatch.FEOID
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricBatch,
+            ControllerName: "FabricBatch",
+            //ActionName: "GetYarnByFEO",
+            ActionName: "GetsFabricExecutionOrderYarnReceive",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0)
+            {
+                if (response.objs[0].FEOYID > 0) {
+                    var tblColums = [];var oColumn = { field: "ProductName", title: "ProductName", width: "20%", align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ColorName", title: "Color", width: "15%", align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "LotNo", title: "Lot No", width: "15%", align: "left" };tblColums.push(oColumn);
+                 
+                    oColumn = { field: "ReceiveQty", title: "Qty", width: "14%", align: "right" };tblColums.push(oColumn);
+                    oColumn = { field: "LotBalance", title: "Lot Balance", width: "14%", align: "right" };tblColums.push(oColumn);
+                    oColumn = { field: "UnitName", title: "Working Unit", width: "18%", align: "left" };tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winFEOReReceiveYarn',
+                        winclass:'clsFEOReReceiveYarn',
+                        winwidth: 750,
+                        winheight: 460,
+                        tableid: 'tblFEOReReceiveYarns',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName:'ProductName',
+                        windowTittle: 'Yarn List Of Production Execution Order'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found");
+            }
+        });
+    });
+    $("#btnPickProduct").click(function () {
+        var sProductName = $("#txtProductName").val();
+        if(parseInt($('#cboStore').val())<=0)
+        {
+            alert("Please select Store.");
+            return;
+        }
+
+        var oLot= { ProductName:$.trim(sProductName), BUID: _nBUID, WorkingUnitID : parseInt($('#cboStore').val())  };
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oLot,
+            ControllerName: "FabricBatch",
+            ActionName: "GetProducts", 
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+
+                    var tblColums = [];var oColumn = { field: "ProductCode", title: "Product Code", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "ProductName", width: 150, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winProduct',
+                        winclass:'clsProduct',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblProducts',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'ProductName',
+                        windowTittle: 'Product List '
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found");
+            }
+        });
+
+
+    });
+
+    $("#txtProductName").keydown(function (e){
+
+        if (e.keyCode === 13) // Enter Press
+        {
+            if(parseInt($('#cboStore').val())<=0)
+            {
+                alert("Please select Store.");
+                return;
+            }
+         
+            var oLot= { ProductName:$.trim(sProductName), BUID: _nBUID, WorkingUnitID : parseInt($('#cboStore').val())  };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oLot,
+                ControllerName: "FabricBatch",
+                ActionName: "GetProducts", 
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ProductID > 0) {
+
+                        var tblColums = [];var oColumn = { field: "ProductCode", title: "Product Code", width: 100, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "ProductName", title: "ProductName", width: 150, align: "left" };tblColums.push(oColumn);
+
+                        var oPickerParam = {
+                            winid: 'winProduct',
+                            winclass:'clsProduct',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblProducts',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: false,
+                            searchingbyfieldName:'ProductName',
+                            windowTittle: 'Product List '
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }else{
+                    alert("Data Not Found");
+                }
+            });
+
+        }
+    });
+    $("#txtProductName").keydown(function (e){
+        if (e.keyCode === 8 || e.keyCode==27) // Back spce
+        {
+            $("#txtProductName").removeClass("fontColorOfPickItem");
+            $("#txtProductName").val("");
+            _oProduct = "";
+            $('#cboLot').empty();
+            $('#cboStore').val(0);
+            sessionStorage.setItem("Lots",[])//reset lots session storage
+            $('#cboStore').focus();
+
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj)
+    {
+
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+
+            ButtonEvents(oPickerobj);
+        });
+        $(document).find('.' +oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                ButtonEvents(oPickerobj);
+            }
+        });
+    }
+
+    function ButtonEvents(oPickerobj)
+    {
+        var oreturnobj = "";var oreturnobjs = [];
+        if(oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }else{
+            oreturnobj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winclass == 'clsFEOReReceiveYarn')
+        {
+            debugger;
+            if (oreturnobjs != null && oreturnobjs.length > 0)
+            {
+                var oNewFBRMaterials = [];
+                for(var i=0;i<oreturnobjs.length;i++)
+                {
+
+                    var oFBRMaterial = {
+                        FBID :_oFabricBatch.FBID,
+                        FBRMID :0,
+                        ProductID :oreturnobjs[i].ProductID,
+                        LotID:oreturnobjs[i].LotID,
+                        LotNo :oreturnobjs[i].LotNo,
+                        Qty:oreturnobjs[i].ReceiveQty,
+                        ColorName : oreturnobjs[i].ColorName,
+                        ProductName : oreturnobjs[i].ProductName,
+                        WeavingProcess :0,
+                        FEOYID : oreturnobjs[i].FEOYID
+                    };
+                    oNewFBRMaterials.push(oFBRMaterial);
+                }
+                Out(oNewFBRMaterials, false,-1);
+                $('#cboStore').focus();
+            }
+            else{
+                alert("Please select item(s) from list.");
+                return false;
+            }
+        }else if(oPickerobj.winclass == 'clsProduct')
+        {
+            if (oreturnobj != null && oreturnobj.ProductID> 0)
+            {
+                _oProduct = oreturnobj;
+                //alert( _oProduct.ProductID);
+                $("#txtProductName").val(oreturnobj.ProductName);
+                $("#txtProductName").addClass("fontColorOfPickItem");
+                $('#txtProductName').focus();
+            }
+            else{
+                alert("Please select an item from list.");
+                return false;
+            }
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+ }
+
+    function  AddDetail()
+    {
+        debugger;
+     
+        if (parseInt($("#cboStore").val()) == 0) {
+            alert("Please select a store");
+            $("#cboStore").focus();
+            $("#cboStore").addClass("errorFieldBorder");
+            return false;
+        } else {
+            $("#cboStore").removeClass("errorFieldBorder");
+        }
+        if ( _oProduct ==null || _oProduct.ProductID <= 0) {
+            alert("Please select a product.");
+            $("#txtProductName").focus();
+            $("#txtProductName").addClass("errorFieldBorder");
+            return false;
+        } else {
+            $("#txtProductName").removeClass("errorFieldBorder");
+        }
+        if (parseInt($("#cboLot").val()) == 0) {
+            alert("Please select a Lot");
+            $("#cboLot").focus();
+            $("#cboLot").addClass("errorFieldBorder");
+            return false;
+        } else {
+            $("#cboLot").removeClass("errorFieldBorder");
+        }
+        if($('#txtQty').val()<=0)
+        {
+            alert("Qty Should be Greater than 0");
+            $("#txtQty").focus();
+            $("#txtQty").addClass("errorFieldBorder");
+            return false;
+        }else{
+            $("#txtQty").removeClass("errorFieldBorder");
+        }
+        //var nLotQty = GetLotQty($("#cboLot").val());
+        //if($('#txtQty').val()>nLotQty)
+        //{
+        //    alert("Qty Should Less than or Equal Lot Qty");
+        //    $("#txtQty").focus();
+        //    $("#txtQty").addClass("errorFieldBorder");
+        //    return false;
+        //}else{
+        //    $("#txtQty").removeClass("errorFieldBorder");
+        //}
+        var oNewFBRMaterials = [];
+            var oFBRMaterial = {
+                FBID :_oFabricBatch.FBID,
+                FBRMID :0,
+                ProductID :_oProduct.ProductID,
+                LotID:$("#cboLot").val(),
+                Qty:$('#txtQty').val(),
+                WeavingProcess :0
+            };
+            if(parseFloat(oFBRMaterial.Qty)<=0)
+            {
+                alert("Sorry, Lot Qty should be greater than 0.");
+                return;
+            }
+            oNewFBRMaterials.push(oFBRMaterial);
+            $("#txtProductName").removeClass("fontColorOfPickItem");
+            $("#txtProductName").val("");
+            _oProduct = "";
+            $('#cboLot').empty();
+            $('#cboStore').val(0);
+            $("#txtQty").val(0);
+            sessionStorage.setItem("Lots",[])//reset lots session storage
+            $('#cboStore').focus();
+
+        Out(oNewFBRMaterials, false,-1);
+    }
+    function DeleteDetail()
+    {
+        var oFBRM= $("#tblFabricBatchRawMaterial").datagrid("getSelected");
+        if (oFBRM == null || parseInt(oFBRM.FBRMID) <= 0) {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if (parseInt(oFBRM.ReceiveBy)!=0) {
+            alert("Sorry, This item already Received!");
+            return false;
+        }
+
+        if (!confirm("Confirm to Delete?")) return false;
+        var nRowIndex = $("#tblFabricBatchRawMaterial").datagrid("getRowIndex", oFBRM);
+        if (parseInt(oFBRM.FBRMID) > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/FabricBatch/DeleteRowMaterial",
+                data: { id: oFBRM.FBRMID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $("#tblFabricBatchRawMaterial").datagrid("deleteRow", nRowIndex);
+                        editIndex = undefined;
+                        endEditing();
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+
+    }
+
+    function GetLotQty(nLotID)
+    {
+        debugger
+        var oLots =  jQuery.parseJSON(sessionStorage.getItem("Lots"));
+        for(var i=0;i<oLots.length;i++)
+        {
+            if(parseInt(oLots[i].LotID)== parseInt(nLotID))
+            {
+                return oLots[i].Balance;
+            }
+        }
+        return 0;
+    }
+
+    function RefreshLot()
+    {
+        
+
+        if (parseInt($("#cboStore").val()) == 0) {
+            alert("Please select a store");
+            $("#cboStore").focus();
+            $("#cboStore").addClass("errorFieldBorder");
+            return false;
+        } else {
+            $("#cboStore").removeClass("errorFieldBorder");
+        }
+
+        if ( _oProduct ==null || _oProduct.ProductID <= 0) {
+            alert("Please select a product.");
+            $("#txtProductName").focus();
+            $("#txtProductName").addClass("errorFieldBorder");
+            return false;
+        } else {
+            $("#txtProductName").removeClass("errorFieldBorder");
+        }
+
+        var oLot = {
+            ProductID: _oProduct.ProductID,
+            WorkingUnitID: parseInt($("#cboStore").val())
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Lot/GetsLot",
+            traditional: true,
+            data: JSON.stringify(oLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLots =  jQuery.parseJSON(data);
+                if (oLots != null) {
+                    if (oLots.length > 0) {
+                        sessionStorage.setItem("Lots",oLots);
+                        $("#cboLot").icsLoadCombo({
+                            List: oLots,
+                            OptionValue: "LotID",
+                            DisplayText: "LotWithBalance"
+                        });
+                    }
+                    else {
+                        alert("No Lot Found.");
+                    }
+                }
+                else {
+                    alert("No Lot Found");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+
+
+    function ValidateInput()
+    {
+       if(parseInt(_oFabricBatch.FBID)<=0)
+       {
+           alert("Sorry, there is no Fabric Bathc!");
+           return false;
+       }
+
+       if(parseInt(_oFabricBatch.FEOID)<=0)
+       {
+           alert("Sorry, there is no Fabric Execution Order!");
+           return false;
+       }
+
+        return true;
+    }
+
+
+    function RefreshObject()
+    {
+
+        var oFabricBatch= {
+                        FBID:_oFabricBatch.FBID,
+                        IsRawMaterialOut:true,
+                        StatusInInt:0,
+                        FabricBatchRawMaterials:$('#tblFabricBatchRawMaterial').datagrid('getRows')
+                      
+                    };
+        return oFabricBatch;
+    }
+
+    function Out(oFabricBatchRawMaterials, bIsEdit,nSelectedIndex)
+    {
+        if(parseInt(_oFabricBatch.StatusInInt)==14)
+        {
+            alert("Already finished!");
+            return false;
+        }
+        if(parseInt(_oFabricBatch.StatusInInt)>1)
+        {
+            alert("Please select Initialize or InFloor Item from List!");
+            return false;
+        }
+
+        if(!ValidateInput()) return;
+        var oFabricBatch = {FabricBatchRawMaterials:[], FBID:0};
+        if(oFabricBatchRawMaterials!=null && oFabricBatchRawMaterials.length>0)
+        {
+            //for add, edit
+            oFabricBatch.FabricBatchRawMaterials = oFabricBatchRawMaterials;
+        }else{
+            //for out
+            endEditing();
+            oFabricBatch = RefreshObject();
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricBatch/OutRowMaterials",
+            traditional: true,
+            data:  JSON.stringify(oFabricBatch),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oFabricBatch = jQuery.parseJSON(data);
+                if (oFabricBatch.IsRawMaterialOut==false && (oFabricBatch.ErrorMessage==null || oFabricBatch.ErrorMessage==""))
+                {
+                    if(bIsEdit)
+                    {
+                        $('#tblFabricBatchRawMaterial').datagrid('updateRow', { index: nSelectedIndex, row: oFabricBatch.FabricBatchRawMaterials[0] });
+                    }else{
+                        for(var i=0;i<oFabricBatch.FabricBatchRawMaterials.length;i++)
+                        {
+                            $("#tblFabricBatchRawMaterial").datagrid("appendRow", oFabricBatch.FabricBatchRawMaterials[i]);
+                        }
+
+                    }
+
+                }else if(oFabricBatch.IsRawMaterialOut && (oFabricBatch.ErrorMessage==null || oFabricBatch.ErrorMessage==""))
+                {
+                    oFabricBatch.StatusInInt=1;
+                   alert("Yarn Out Successfully.");
+                    var oFabricBatchs = sessionStorage.getItem("FabricBatchs");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oFabricBatchs != null) {
+                        oFabricBatchs = jQuery.parseJSON(oFabricBatchs);
+                    }
+                    else {
+                        oFabricBatchs = [];
+                    }
+                    if (nIndex != -1) {
+                        oFabricBatchs[nIndex] = oFabricBatch;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oFabricBatchs.length);
+                        oFabricBatchs.push(_oFabricBatch);
+                    }
+                    sessionStorage.setItem("FabricBatchs", JSON.stringify(oFabricBatchs));
+                    window.location.href = _lBackLink;
+                }
+                else {
+                    alert(oFabricBatch.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Close()
+    {
+        window.location.href = _lBackLink;
+    }
+
+    $(document).keydown(function(e) {
+    //
+    if(e.which == 27)//escape=27
+    {
+        //
+        window.close();
+    }
+});
+</script>

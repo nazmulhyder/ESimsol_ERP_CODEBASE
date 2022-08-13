@@ -1,0 +1,172 @@
+﻿
+@model ESimSol.BusinessObjects.SP_GeneralLedger
+@{
+    ViewBag.Title = "General Ledger";
+}
+<div style="margin-left:0px; height:550px">
+    <table id="tblGeneralLedger" title="General Ledger List"  class="easyui-datagrid" style="width:897px;height:548px" fitColumns="false" rownumbers="true" pagination="true" singleSelect="true", autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr> 
+                <th field="VoucherDateInString" width="90" align="left"> Voucher Date</th>  
+                <th field="VoucherNo" width="150"  align="left">Voucher No</th>
+                <th field="RevarseHead" width="200"  align="left">Particulars</th>                
+                <th field="DebitAmountInString" width="130"  align="right" >Debit</th>  
+                <th field="CreditAmountInString" width="130"  align="right" >Credit</th>  
+                <th field="CurrentBalanceInString" width="140" align="right">Balance</th>                
+            </tr>  
+        </thead> 
+    </table>​  
+    <div id="toolbar">
+        Account Head : <input type="text" id="txtAccountHeadName" value="Press Enter" style="width:200px""/>
+        Date : <input type="text" id="txtStartDate" style="width:150px""/> to <input type="text" id="txtEndDate" style="width:150px""/>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="Refresh()">Refresh</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true">Print</a>
+    </div>  
+</div>
+<script type="text/javascript">
+    var _oGeneralLedgers=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {
+          //debugger;          
+          _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));            
+           $('#txtStartDate').datebox({required: true});
+           $('#txtEndDate').datebox({required: true});
+    });     
+    
+    function formatPrice(val,row){  
+//debugger;
+
+    if(val==null)
+    {
+        val=0.00;
+    }
+    val=parseFloat(val);
+    var test = val.toFixed(2);
+    var tests = addComma(test);
+    return tests;       
+} 
+function addComma(nStr)
+{
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var process = /(\d+)(\d{3})/;
+	while (process.test(x1)) {
+		x1 = x1.replace(process, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
+}
+
+  $('#txtAccountHeadName').keypress(function (e) {
+    //debugger;
+    var keyCode = e.keyCode || e.which;
+    if (keyCode == 13) {
+    //debugger;
+        var oParameter = new Object();
+        oParameter.MultipleReturn = false;
+        var url =_sBaseAddress+ "/ChartsOfAccount/ChartOfAccountPiker";
+       _oCreditChartOfAccount = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:705px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');                    
+       // debugger;
+        if (_oCreditChartOfAccount != null) {
+            document.getElementById('txtAccountHeadName').value = _oCreditChartOfAccount.AccountHeadCodeName;            
+        }
+        else
+        {
+            $('#txtAccountHeadName').focus();
+        }
+        return false;
+    }
+});
+
+function ValidateInput()
+ {
+    if (_oCreditChartOfAccount ==null ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if (_oCreditChartOfAccount.AccountHeadID <=0 ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if ( $('#txtStartDate').datebox('getValue')=="") {
+       alert("please select start date!");
+       $('#txtStartDate').focus();
+       return false;
+    }
+
+    if ( $('#txtEndDate').datebox('getValue')=="") {
+        alert("Please select end date!!");
+         $('#txtEndDate').focus();
+        return false;
+    }   
+    return true;
+ }
+
+   
+function Refresh()
+{ 
+//debugger;  
+    if(!ValidateInput())return;        
+    var oGeneralLedger= {
+                            AccountHeadID : _oCreditChartOfAccount.AccountHeadID,
+                            StartDate:$('#txtStartDate').datebox('getValue'),
+                            EndDate:$('#txtEndDate').datebox('getValue')
+                        }
+                 
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url: '@Url.Action("RefreshGeneralLedger", "FinancialStatement")',
+        data: JSON.stringify(oGeneralLedger),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            _oGeneralLedgers = jQuery.parseJSON(data);
+            if (_oGeneralLedgers != null) {                   
+                if(_oGeneralLedgers.length>0)
+                {
+                    if(_oGeneralLedgers[0].ErrorMessage!="")
+                    {
+                        alert(_oGeneralLedgers[0].ErrorMessage);
+                    }
+                    else
+                    {
+                        data =_oGeneralLedgers;       
+                        data={"total":""+data.length+"","rows":data};
+                        $('#tblGeneralLedger').datagrid('loadData',data);
+                    }
+                }    
+                else
+                {
+                    alert("Data not found!!");
+                }              
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+}    
+
+    function RefreshList(oGeneralLedgers)
+    {    
+          data=oGeneralLedgers;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblGeneralLedger').datagrid('loadData',data);          
+    }
+    
+    
+    $("#btnPrint").click(function(){
+        if(!ValidateInput())return;        
+        var id= _oCreditChartOfAccount.AccountHeadID;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');    
+        window.open(_sBaseAddress+'/FinancialStatement/GeneralLedger?id=' + id + '&date1=' + date1 + '&date2=' + date2, "_blank");
+     });
+</script>

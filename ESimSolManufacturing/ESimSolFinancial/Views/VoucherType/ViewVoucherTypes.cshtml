@@ -1,0 +1,166 @@
+﻿@{
+    ViewBag.Title = "Voucher Type";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VoucherType>
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblVoucherTypes" title="Voucher Type List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="VoucherName" width="200">Voucher Name</th>
+                <th field="VoucherCategoryInString" width="200">Voucher Category</th>
+                <th field="NumberMethodInString" width="200">Number Method</th>
+                <th field="VoucherNumberFormat" width="200">Voucher Number Format</th>
+
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+        <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:200px"/>
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        <a id="btnLedgerConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Ledger Configure</a>
+    </div>
+</div>
+
+<script type="text/javascript">        
+    var _oVoucherTypes=[];     
+    $(document).ready(function () {        
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));        
+        _oVoucherTypes =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oVoucherTypes =sessionStorage.getItem("VoucherTypes");
+        if(oVoucherTypes!=null)
+        {
+            oVoucherTypes = jQuery.parseJSON(oVoucherTypes);            
+        }
+        else
+        {
+            oVoucherTypes=_oVoucherTypes;
+        }
+        RefreshList(oVoucherTypes);
+        RefreshControlLayout(oAURolesMapping);
+    });
+    
+    $("#btnAdd").click(function(){   
+        var oVoucherTypes= $('#tblVoucherTypes').datagrid('getRows');
+        sessionStorage.setItem("VoucherTypes", JSON.stringify(oVoucherTypes)); 
+        sessionStorage.setItem("SelectedRowIndex", -1);   
+        sessionStorage.setItem("VoucherTypeHeader", "Add Voucher Type");
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/VoucherType/ViewVoucherType?id=0";
+    });
+
+    $("#btnEdit").click(function(){    
+        var oVoucherType= $('#tblVoucherTypes').datagrid('getSelected'); 
+        if(oVoucherType==null || oVoucherType.VoucherTypeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblVoucherTypes').datagrid('getRowIndex',oVoucherType);
+        var oVoucherTypes= $('#tblVoucherTypes').datagrid('getRows');
+        sessionStorage.setItem("VoucherTypes", JSON.stringify(oVoucherTypes));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("VoucherTypeHeader", "Edit Voucher Type");
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/VoucherType/ViewVoucherType?id="+oVoucherType.VoucherTypeID;
+    });
+
+    $("#btnLedgerConfigure").click(function(){    
+        var oVoucherType= $('#tblVoucherTypes').datagrid('getSelected'); 
+        if(oVoucherType==null || oVoucherType.VoucherTypeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblVoucherTypes').datagrid('getRowIndex',oVoucherType);
+        var oVoucherTypes= $('#tblVoucherTypes').datagrid('getRows');
+        sessionStorage.setItem("VoucherTypes", JSON.stringify(oVoucherTypes));        
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex); 
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+  "/HeadDisplayConfigure/ViewLedgerConfigure?id="+oVoucherType.VoucherTypeID;
+    });
+
+
+    $('#txtSearchByName').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        var bFlag=false;
+        var sTempName="";
+        var rows = $('#tblVoucherTypes').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sTempName=rows[i]['VoucherName'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblVoucherTypes').datagrid('selectRow', i);
+        }
+    });
+    
+    $("#btnRefresh").click(function(){
+        var oVoucherTypes = $('#tblVoucherTypes').datagrid('getRows');
+        RefreshList(oVoucherTypes);
+    });
+        
+    $("#btnDelete").click(function(){        
+        var oVoucherType = $('#tblVoucherTypes').datagrid('getSelected');
+        if(oVoucherType==null || oVoucherType.VoucherTypeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        var SelectedRowIndex=$('#tblVoucherTypes').datagrid('getRowIndex',oVoucherType);
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url: '@Url.Action("Delete", "VoucherType")',
+            data: { id:oVoucherType.VoucherTypeID},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Data delete successfully") {
+                    alert("Data delete successfully");
+                    $('#tblVoucherTypes').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshList(oVoucherTypes)
+    {
+        debugger;
+        data=oVoucherTypes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVoucherTypes').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblVoucherTypes').datagrid('selectRow',nIndex);        
+    }
+
+    function RefreshControlLayout(oAURolesMapping)
+    {        
+        $("#btnAdd").hide();
+        $("#btnEdit").hide();    
+        $("#btnDelete").hide();
+        
+        
+        if(PermissionChecker('Add','VoucherType',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','VoucherType',oAURolesMapping)){$("#btnEdit").show();}        
+        if(PermissionChecker('Delete','VoucherType', oAURolesMapping)){$("#btnDelete").show();}        
+    }
+</script>

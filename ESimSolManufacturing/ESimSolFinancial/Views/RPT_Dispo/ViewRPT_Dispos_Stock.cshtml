@@ -1,0 +1,329 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Dispo Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RPT_Dispo>
+    <div ng-app="RPT_DispoAPP" class="form-horizontal regionRPT_Dispo menuMainCollectionTable">
+        <div ng-controller="RPT_DispoCtrl" style="width:100%">
+            <div class=" ui-grid-top-panel" style="margin:5px;">
+                <div class="form-inline">
+                    @*<input type="text" class="form-control" id="txtOrderNo" ng-keydown="SearchByOrderNo($event)" placeholder="Search by Order No" style="width:180px" />*@
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Adv. Search</button>
+                    <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="ExportToExcel()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Export to Excel</button>
+                    @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview(Dispo)</button>*@
+                    @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewPO()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview(PO)</button>*@
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable" style="width:99%; height:510px"></div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .regionRPT_Dispo .form-horizontal .control-label {
+            padding-top: 3px;
+        }
+
+        .regionRPT_Dispo .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .regionRPT_Dispo .col-md-12 {
+            width: 70%;
+            padding-right: 5px;
+            padding-left: 5px;
+            margin-bottom: 5px;
+            margin-left: 90px;
+        }
+
+        .regionRPT_Dispo .col-md-1 {
+            width: 4%;
+            padding-right: 2px;
+            padding-left: 2px;
+            padding-top: 3px;
+        }
+
+        .regionRPT_Dispo .col-md-2 {
+            width: 22%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-3 {
+            width: 24%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-4 {
+            width: 28%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-5 {
+            width: 40%;
+            padding-right: 5px;
+            padding-left: 0px;
+        }
+
+        .regionRPT_Dispo .col-md-6 {
+            width: 54.5%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionRPT_Dispo .col-md-10 {
+            width: 88%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+        .regionRPT_Dispo .col-md-7 {
+            width: 54.6%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+        .regionRPT_Dispo .col-md-8 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+        .regionRPT_Dispo .col-md-9 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+        .regionRPT_Dispo .btn-sm {
+            padding: 3px 10px;
+        }
+        .regionRPT_Dispo .input-group-addon {
+            padding: 4px 8px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var oRPT_Dispos =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oOrderTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+    var oProcessTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProcessTypes));
+    var oFabricWeaves = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricWeaves));
+    var oExeStauts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ExeStauts));
+        var oMktPersons = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MktPersons));
+        var _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var _txtOrderNo = "";
+    debugger;
+    var date=new Date();
+    $('.date-container').datepicker({
+        format: "dd M yyyy",
+        calendarWeeks: true,
+        autoclose: true,
+        todayHighlight: true,
+    });
+    var RPT_DispoModule = angular.module('RPT_DispoAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ui.grid.resizeColumns','ui.grid.cellNav','ms.service']);
+    RPT_DispoModule.controller('RPT_DispoCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal,icsMethod, userSession,msGridControl,userSession,advanceSearch,uiGridConstants) {
+        debugger;
+        var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        sessionStorage.setItem('BaseAddress',_sBaseAddress)
+        var viewType = sessionStorage.getItem("Operation");
+
+        $scope.gridOptions= {
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableColumnResizing: true,
+
+            
+            //Count	    Dispo	Rqr. Dt.(PO Full Qty)	Current Date	Dateline	 Require (Req Qty) 	 Issued (Soft Issue) 	 Balance 	Customer	
+            //Yarn Type	Section	Ref.Dispo/PO	Issued Date	 Revise Dt./Sc.rtn
+
+
+            columnDefs: 
+                [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'YarnType',            name:'Count',                     width:'10%' },
+                    { field: 'ExeNo',                  name:'Dispo No',                  width:'10%', 
+                    cellTemplate:'<div ng-click="grid.appScope.DispoStatement(row.entity)" >' +'<a> {{row.entity.ExeNo}} </a>' +'</div>' },
+
+                    { field: 'ExeDateSt',              name:'Rqr Date',                         width:'10%' },
+                    { field: 'CurrentDateSt',          name:'Current Date',                     width:'10%' },
+                    { field: 'Dateline',               name:'Dateline',                         width:'10%' },
+                   
+                    { field: 'Qty_Greige',             name:'Req Qty',                          width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Qty_SRS',                name:'SRS Qty',                          width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Qty_SRM',                name:'SRM Qty',                          width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    //{ field: 'Qty_SW',                 name:'Issued Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Qty_Balance',            name:'Balance',                          width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'ContractorName',         name:'Customer',                         width:'10%' },
+                    { field: 'BuyerName',              name:'End Buyer',                        width:'10%' },
+                    { field: 'ProductName',            name:'Yarn Type',                        width:'10%' },
+                    { field: 'DCNo',                   name:'Section',                          width:'10%' },
+                    { field: 'SCNoFull',               name:'PO No',                            width:'10%' },
+                    { field: 'ReviseDateSt',           name:'Revise Date',                      width:'10%' },
+                    
+                    //{ field: 'ContractorName',         name:'Garments name',                    width:'10%' },
+                    //{ field: 'ProductName',            name:'Product name',                     width:'10%' },
+                    //{ field: 'Qty_Dispo',              name:'Dispo Qty(Yds)',                   width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    //{ field: 'Qty_Dye',              name:'Dye Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    //{ field: 'Qty_Greige',              name:'Greige Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    //{ field: 'Qty_SRS',              name:'SRS Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    //{ field: 'Qty_SRM',              name:'SRM Qty',                           width:'8%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                ],
+            data: oRPT_Dispos,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+
+                $scope.gridApi.core.refresh();
+                if(oRPT_Dispos.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oRPT_Dispos);
+                    $scope.gridApi.selection.selectRow(oRPT_Dispos[userSession.getRowIndex()]);
+                }
+            }
+        };
+        //$scope.SearchByOrderNo = function(e)
+        //{
+        //    var code = (e.keyCode ? e.keyCode : e.which);
+        //    if (code != 13)
+        //    {
+        //        return;
+        //    }
+        //    if($('#txtOrderNo').val()=="")
+        //    {
+        //        alert("Please Enter Order No");
+        //        return;
+        //    }
+        //    _txtOrderNo = $('#txtOrderNo').val();
+        //    var sString = "~~~~~0~0~0~0~18 Oct 2018~18 Oct 2018~0~0~" + _txtOrderNo+"~";
+        //    sessionStorage.setItem("AdvSearchString",sString);
+        //    var oRPT_Dispo = {
+        //        Params : sString
+        //    };
+        //    $.ajax({
+        //        type: "POST",
+        //        dataType: "json",
+        //        url : _sBaseAddress+  "/RPT_Dispo/AdvSearch",
+        //        traditional: true,
+        //        data:  JSON.stringify(oRPT_Dispo),
+        //        contentType: "application/json; charset=utf-8",
+        //        success: function (data) {
+        //            debugger;
+        //            $scope.gridOptions.data=data;
+        //        },
+        //        error: function (xhr, status, error) {
+        //            alert(error);
+        //        }
+        //    });
+        //}
+        $scope.ExportToExcel = function ()
+        {
+            debugger;
+            var sParams = sessionStorage.getItem('AdvSearchString');
+
+            if(sParams==null || sParams == undefined)
+            {
+                alert("Nothing To Print!");
+                return;
+            }
+            window.open(_sBaseAddress+ '/RPT_Dispo/PrintExcelDispoWiseStock?sParam=' + sParams + '&nReportType=1&nBUID='+_nBUID );
+        }
+        $scope.PrintPreview = function ()
+        {
+            var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FEOSID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/RPT_Dispo/PrintDispoStatement?nId=' +oRPT_Dispo.FEOSID + "&nts=" + nts, "_blank");
+        };
+        $scope.DispoStatement = function (oRPT_Dispo)
+        {
+            //var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FEOSID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/RPT_Dispo/PrintDispoStatement?nId=' +oRPT_Dispo.FEOSID+"&nPID="+oRPT_Dispo.ProductID +"&nDOID="+oRPT_Dispo.DyeingOrderID +"&nBUID="+_nBUID+ "&nts=" + nts, "_blank");
+        };
+        $scope.AdvanceSearch=function()
+        {
+            _txtOrderNo = "";
+            var oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Buyer List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            var oColumnsGarments = [];
+            var oColumnGarments = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+            oColumnGarments = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+
+            var paramObj_Garments={
+                obj:{Params: '3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Garments List',
+                multiSelect:true,
+                columns:oColumnsGarments
+            }
+
+            var oRPT_Dispo = [
+                                { DisplayName: "PO No",                BOField: "SCNoFull",          InputType: 'text' },
+                                { DisplayName: "Dispo No",             BOField: "ExeNo",             InputType: 'text' },
+                                { DisplayName: "Dispo Date",           BOField: "ExeDate",           InputType: 'date' },
+                                //{ DisplayName: "Buyer Name",        BOField: "ContractorName",      InputType: 'picker',   PickerObject:paramObj_Contractor },
+                                //{ DisplayName: "Garments Name",        BOField: "GarmentsName",      InputType: 'picker',   PickerObject:paramObj_Garments },
+
+                                //{ DisplayName: "Constraction",      BOField: "Constraction",        InputType: 'text' },
+                                //{ DisplayName: "MKT Name",    	    BOField: "Name",                InputType: 'select',   OptionList:$scope.MktPersons, OptionValue:{id:'EmployeeID', Value:'Name'}},
+                                //{ DisplayName: "Process Type",    	BOField: "ProcessType",         InputType: 'select',   OptionList:oProcessTypes, OptionValue:{id:'FabricProcessID', Value:'Name'}},
+                                //{ DisplayName: "Order Type",    	BOField: "OrderType",           InputType: 'select',   OptionList:oOrderTypes, OptionValue:{id:'Value', Value:'Text'}},
+                                //{ DisplayName: "Weave Type",    	BOField: "FabricWeaves",        InputType: 'select',   OptionList:oFabricWeaves, OptionValue:{id:'FabricProcessID', Value:'Name'}},
+                                //{ DisplayName: "Exe Stauts",    	BOField: "ExeStauts",           InputType: 'select',   OptionList:oExeStauts, OptionValue:{id:'id', Value:'Value'}},
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oRPT_Dispo,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/RPT_Dispo/AdvSearch_Stock'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        //$scope.Close = function () {
+        //    userSession.previousPage();
+        //};
+    });
+    </script>
+
+
+
+
+
+
+
+

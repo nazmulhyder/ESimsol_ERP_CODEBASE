@@ -1,0 +1,434 @@
+﻿@model ESimSol.BusinessObjects.SP_GeneralJournal
+@{
+    ViewBag.Title = "General Journal";
+}
+<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/datagrid-detailview.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    <table border="0" cellspacing="2" cellpadding="2" style="width:100%">
+        <tr>
+            <td style="background-color:#CFB53B; color:White">
+                Account Head Name : <label id="lblHeaderName" style="font-size:15px; font-weight:bold;"></label>
+                <label style="float:right;">From : <label id="lblStartDate" style="font-size:15px; font-weight:bold;"></label>
+                 To  <label id="lblEndDate" style="font-size:15px; font-weight:bold; "></label></label>
+            </td>
+        </tr>
+    </table>
+    <div style="margin-left: 0px; height: 85%; width:100%">
+        <table id="tblGeneralJournal" title="General Journal List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar" data-options="onLoadSuccess: onLoadSuccess">
+            <thead>
+                <tr>
+                    <th field="VoucherDateInString" width="90" align="center"> Voucher Date</th>
+                    <th field="VoucherNoInString" width="110" align="left" formatter="FormatStyle">Voucher No</th>
+                    <th field="AccountCode" width="100" align="left">Account Code</th>
+                    <th field="AccountHeadName" width="300" align="left">Particulars</th>
+                    <th field="DebitAmountInString" width="120" align="right">Debit</th>
+                    <th field="CreditAmountInString" width="120" align="right">Credit</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            Date:&nbsp;<select id="cboDateSearch" style="width:100px;font-size:12px;" class="_select_changeA"></select>
+            <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            To <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            Voucher Type:<select id="cboVoucherType" name="cboVoucherTypeNane" style="width: 150px;"> </select>
+            <select id="cboDisplayMode" style="font-size:12px;"> </select>
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">PrintXL</a>
+            <a id="btnPrintVoucher" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print Voucher</a>
+            <a id="btnACConfig" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Configuration</a>
+        </div>
+    </div>
+    <fieldset>
+        <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+            <tr>
+                <td style="width:1100px; text-align:right"></td>
+                <td style="width:100px">
+                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+</body>
+</html>
+<script type="text/javascript">
+    var _oGeneralJournals=[];
+    var _oGeneralJournal=null;
+    var _oGeneralJournals=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _oSP_GeneralJournalList = [];
+    var _obj = window.dialogArguments;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oGeneralJournal =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oSP_GeneralJournalList = _oGeneralJournal.SP_GeneralJournalList;
+        debugger;
+        RefreshList(_oSP_GeneralJournalList);
+        RefreshDateSearch();
+        LoadVoucbocherType();
+        var oDisplayModeObjs = _oGeneralJournal.DisplayModes;
+        LoadDisplayMode(oDisplayModeObjs);
+        $("#lblHeaderName").text(_obj.AccountHeadName);
+        $("#lblStartDate").text(_obj.StartDate);
+        $("#lblEndDate").text(_obj.EndDate);
+        $('#txtStartDate').datebox({disabled: false});
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox({disabled: true});
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+    function PrepareDataGridForTransaction(oGeneralJournals)
+    {
+        $('#tblGeneralJournal').datagrid({
+            data : oGeneralJournals,
+            columns:[[
+                    {field:'VoucherDateInString',title:'Voucher Date',width:80,align:'center'},
+                    {field:'VoucherNoInString',title:'Voucher No',width:80, align:'left',formatter:function(value,row,index){ return FormatStyle(value, true); }},
+                    {field:'AccountCode',title:'Account Code', width:80,align:'left'},
+                    {field:'AccountHeadName',title:'Particulars',width:200,align:'left'},
+                    {field:'DebitAmountInString',title:'Debit',width:80,align:'right'},
+                    {field:'CreditAmountInString',title:'Credit',width:80,align:'right'}
+            ]]
+        });
+    }
+
+    function onLoadSuccess(data){
+        var rows = $('#tblGeneralJournal').datagrid('getRows');
+        for(i=0;i<rows.length;i++){
+            if(rows[i].VoucherID == 0 && i > 0)
+            {
+                $('#tblGeneralJournal').datagrid('mergeCells',{
+                    index: i,
+                    field: 'VoucherNoInString',
+                    colspan: 5
+                });
+            }
+        }
+    }
+
+    function LoadDisplayMode(Items)
+    {
+        var listItems="";
+        for (i = 1; i < Items.length; i++)
+        {
+            listItems += "<option value='" + Items[i].Id+"'>" + Items[i].Value+"</option>";
+        }
+        $("#cboDisplayMode").html(listItems);
+        $("#cboDisplayMode").val(1);
+    }
+
+    function RefreshDateSearch()
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+    }
+
+    $('._select_changeA').change(function () {
+        debugger;
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    });
+
+    function FormatStyle(value){
+        var values=value.split("~");
+        var sVoucherNo = values[0];
+        var nVoucherID = values[1];
+        var s = "";
+        if(nVoucherID > 0)
+        {
+            s = '<label id="lblOpening~'+nVoucherID+'" style="color:Blue;cursor:pointer" onclick="Detail('+nVoucherID+')">'+sVoucherNo+'</label>';
+        }
+        else
+        {
+            s = '<label>'+sVoucherNo+'</label>';
+        }
+        return s;
+    }
+
+    function Detail(nVoucherID)
+    {
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Voucher";
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/Voucher/ViewSingleVoucherDetails?id="+parseInt(nVoucherID)+"&ts="+tsv;
+        var oVoucher = window.showModalDialog(url, oParameter, 'dialogHeight:565px;dialogWidth:1000px;dialogLeft:230;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    function LoadVoucbocherType() {
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url: '@Url.Action("Gets", "VoucherType")',
+            data: {},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var VoucherTypes = jQuery.parseJSON(data)
+                if (VoucherTypes != null) {
+                    _oVoucherTypes =VoucherTypes;
+                    var numItems = 0;
+                    document.getElementById("cboVoucherType").options.length = 0;
+                    if (VoucherTypes != null) {
+                        for (var i = 0; i < VoucherTypes.length; i++) {
+                            addOption = new Option(VoucherTypes[i].VoucherName, VoucherTypes[i].VoucherTypeID);
+                            document.getElementById("cboVoucherType").options[numItems] = addOption
+                            numItems++;
+                        }
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function ValidateInput()
+    {
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        if (sStartDate==null || sStartDate =="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        if ( sEndDate ==null || sEndDate=="") {
+            alert("Please select end date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+        if(dEndDate <= dStartDate) {
+            alert("End date must be grater then start date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnRefresh").click(function(){
+        if(!ValidateInput())return;
+        var e = document.getElementById("cboVoucherType");
+        var nVoucherTypeId=e.options[e.selectedIndex].value;
+
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        var oGeneralJournal= {
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            VoucherTypeID:nVoucherTypeId,
+            DisplayModeInInt : cboDisplayModeVal
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("RefreshGeneralJournal", "GeneralJournal")',
+            data: JSON.stringify(oGeneralJournal),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oSP_GeneralJournal = jQuery.parseJSON(data);
+                _oGeneralJournals = oSP_GeneralJournal.SP_GeneralJournalList;
+                if (_oGeneralJournals != null) {
+                    if(_oGeneralJournals.length>0)
+                    {
+                        if(_oGeneralJournals[0].ErrorMessage!="")
+                        {
+                            alert(_oGeneralJournals[0].ErrorMessage);
+                        }
+                        else
+                        {
+                            var selectedCbo =document.getElementById("cboDisplayMode");
+                            var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+                            if(parseInt(cboDisplayModeVal) == 1)
+                            {
+                                PrepareDataGridForTransaction(_oGeneralJournals);
+                            }
+                            else
+                            {
+                                PrepareDataGrid();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                        RefreshList([]);
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshList(oGeneralJournals)
+    {
+        var data=oGeneralJournals;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblGeneralJournal').datagrid('loadData',data);
+    }
+    $("#btnPrint").click(function(){
+        if(!ValidateInput())return;
+        var e = document.getElementById("cboVoucherType");
+        var nVoucherTypeId=e.options[e.selectedIndex].value;
+        var VoucherTypInString ="";
+        if(parseInt(nVoucherTypeId)!=0)
+        {
+            VoucherTypInString = e.options[e.selectedIndex].text;
+        }
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        window.open(_sBaseAddress+'/GeneralJournal/PrintGeneralJournal?date1=' + date1 + '&date2=' + date2+ '&nVoucherTypeID=' + nVoucherTypeId+'&VoucherTypInString='+ VoucherTypInString,"_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+        if(!ValidateInput())return;
+        var e = document.getElementById("cboVoucherType");
+        var nVoucherTypeId=e.options[e.selectedIndex].value;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        window.open(_sBaseAddress+'/GeneralJournal/PrintGeneralJournalInXL?date1=' + date1 + '&date2=' + date2+ '&nVoucherTypeID=' + nVoucherTypeId, "_blank");
+    });
+
+    $("#btnPrintVoucher").click(function(){
+        var oGeneralJournal = $('#tblGeneralJournal').datagrid('getSelected');
+        if(oGeneralJournal==null || oGeneralJournal.VoucherID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        window.open(_sBaseAddress+'/Voucher/PrintVoucher?id=' + oGeneralJournal.VoucherID+'&buid=0', "_blank");
+    });
+
+    $("#btnACConfig").click(function(){
+        var sConfigType = "GJ";
+        var oParameter = new Object();
+        oParameter.OperationName=  "View AC Config";
+        oParameter.AccountHeadName = $("#txtAccountHeadName").val();
+        oParameter.OprationType = "General Journal";
+        var url =_sBaseAddress+ "/ACConfig/ViewACConfig?sConfigType="+sConfigType;
+        var oACConfig = window.showModalDialog(url, oParameter, 'dialogHeight:320px;dialogWidth:300px;dialogLeft:470;dialogTop:150;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    function PrepareDataGrid()
+    {
+        var selectedCbo =document.getElementById("cboDisplayMode");
+        var cboDisplayModeVal = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var sTitleName = "";
+        if(parseInt(cboDisplayModeVal) == 2)
+        {
+            sTitleName = "Date";
+        }
+        else if(parseInt(cboDisplayModeVal) == 3)
+        {
+            sTitleName = "Week";
+        }
+        else if(parseInt(cboDisplayModeVal) == 4)
+        {
+            sTitleName = "Month Name";
+        }
+
+        $('#tblGeneralJournal').datagrid({
+            columns:[[
+                        {field:'VoucherDateInString',title:sTitleName,width:80,align:'left'},
+                        {field:'DebitAmountInString',title:'Debit',width:100,align:'right'},
+                        {field:'CreditAmountInString',title:'Credit',width:100,align:'right'},
+            ]]
+        });
+
+        $('#tblGeneralJournal').datagrid({
+            data:_oGeneralJournals,
+            view: detailview,
+            detailFormatter:function(index,row){
+                return '<div style="padding:2px;width:100%"><table id="tblDisplayModeWise" class="ddv"></table></div>';
+            },
+            onExpandRow: function(index,row){
+                var ddv = $(this).datagrid('getRowDetail',index).find('table.ddv');
+                ddv.datagrid({
+                    data:row.DisplayVouchers,
+                    fitColumns:true,
+                    singleSelect:true,
+                    rownumbers:true,
+                    loadMsg:'',
+                    height:'auto',
+                    columns:[[
+                         {field:'VoucherDateInString',title:'Voucher Date',width:80,align:'center'},
+                         {field:'VoucherNoInString',title:'Voucher No',width:80, align:'left',formatter:function(value,row,index){ return FormatStyle(value, true); }},
+                         {field:'AccountCode',title:'Account Code', width:80,align:'left'},
+                         {field:'AccountHeadName',title:'Particulars',width:200,align:'left'},
+                         {field:'DebitAmountInString',title:'Debit',width:80,align:'right'},
+                         {field:'CreditAmountInString',title:'Credit',width:80,align:'right'}
+                    ]],
+                    onResize:function(){
+                        $('#tblGeneralJournal').datagrid('fixDetailRowHeight',index);
+                    },
+                    onLoadSuccess:function(){
+                            $('#tblGeneralJournal').datagrid('fixDetailRowHeight',index);
+                            var rows = $('#tblDisplayModeWise').datagrid('getRows');
+                            for(i=0;i<rows.length;i++){
+                                if(rows[i].VoucherID == 0)
+                                {
+                                    $('#tblDisplayModeWise').datagrid('mergeCells',{
+                                        index: i,
+                                        field: 'VoucherNoInString',
+                                        colspan: 5
+                                    });
+                                }
+                            }
+                    }
+                });
+                $('#tblGeneralJournal').datagrid('fixDetailRowHeight',index);
+            }
+        });
+    }
+
+    $("#btnClose").click(function(){
+        window.close();
+    });
+
+
+</script>

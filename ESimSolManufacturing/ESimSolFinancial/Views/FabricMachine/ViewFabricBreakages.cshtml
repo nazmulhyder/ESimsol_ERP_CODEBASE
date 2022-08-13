@@ -1,0 +1,168 @@
+﻿@{
+    ViewBag.Title = "Fabric Breakage List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricBreakage>
+    <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblFabricBreakages" title="Fabric Breakage List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="Name" width="420">Name</th>
+                    <th field="WeavingProcessInString" width="390">Type</th>
+                </tr>
+            </thead>
+        </table>​  
+            <div id="toolbar"> 
+                Name : <input type="text" id="txtName" placeholder="Type Breakage Name" style="width:200px" />
+               Type:<select id="cboWeavingProcess" style="width:200px;"><option value="-1">--Select One--</option> <option value="0">Warping</option><option value="1">Sizing</option><option value="2">Drawing_IN</option> <option value="3">Loom</option></select>
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()"></a>  
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="Add()">New</a>  
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            </div>  
+</div>
+
+
+
+<script type="text/javascript">
+var _oFabricBreakages=[];
+var _sBaseAddress="";
+var _oFabricBreakage = null;
+$(document).ready(function () {
+    //debugger;
+    _oFabricBreakages =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    var oFabricBreakages =sessionStorage.getItem("FabricBreakages");
+    if(oFabricBreakages!=null)
+    {
+        oFabricBreakages = jQuery.parseJSON(oFabricBreakages);            
+    }
+    else
+    {
+        oFabricBreakages=_oFabricBreakages;
+    }
+    $('#cboWeavingProcess').val(-1);//select none
+    RefreshList(oFabricBreakages);
+});
+
+    function Search()
+    {
+        var oFBreakges =[];
+        if($('#cboWeavingProcess').val()==-1)
+        {
+            RefreshList(_oFabricBreakages);
+        }
+        else
+        {
+            for(var i=0;i<_oFabricBreakages.length;i++)
+            {
+                if(parseInt(_oFabricBreakages[i].WeavingProcess)== parseInt($('#cboWeavingProcess').val()))
+                {
+                    oFBreakges.push(_oFabricBreakages[i]);
+                }
+            }
+            RefreshList(oFBreakges);
+        }
+    }
+
+
+function Add()
+{
+ 
+    if($('#txtName').val()==null || $('#txtName').val()=="")
+    {
+        alert("Please Type Name");
+        $('#txtName').focus();
+        return;
+    }
+    if($('#cboWeavingProcess').val()==-1)
+    {
+        alert("Select Weaving Process");
+        $('#cboWeavingProcess').focus();
+        return;
+    }
+    //debugger;
+    var oFabricBreakage = {
+                    FBreakageID:0,
+                    Name : $('#txtName').val(),
+                    WeavingProcess :$('#cboWeavingProcess').val()
+                };
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : _sBaseAddress+"/FabricMachine/SaveFabricBreakage",
+        traditional: true,
+        data:  JSON.stringify(oFabricBreakage),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            _oFabricBreakage = jQuery.parseJSON(data);
+            if (_oFabricBreakage.ErrorMessage=="" || _oFabricBreakage.ErrorMessage==null) {
+                alert("Data Saved sucessfully");
+                $('#tblFabricBreakages').datagrid('appendRow',_oFabricBreakage);
+                $('#txtName').val("");
+                $('#cboWeavingProcess').val(0);
+            }
+            else {
+                alert(_oFabricBreakage.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+} 
+
+function Delete()
+{
+        //debugger;  
+        var oFabricBreakage= $('#tblFabricBreakages').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+        
+        if(oFabricBreakage==null || oFabricBreakage.FBreakageID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        var SelectedRowIndex=$('#tblFabricBreakages').datagrid('getRowIndex',oFabricBreakage);
+
+        if (parseInt(oFabricBreakage.FBreakageID) > 0) 
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",                
+                url : _sBaseAddress+  "/FabricMachine/DeleteFabricBreakage",
+                data: { id: oFabricBreakage.FBreakageID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully") 
+                    {
+                        alert("Delete sucessfully");                        
+                        $('#tblFabricBreakages').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        }
+}
+    
+function RefreshList(oFabricBreakages)
+{    
+    data=oFabricBreakages;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblFabricBreakages').datagrid('loadData',data);  
+    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+    $('#tblFabricBreakages').datagrid('selectRow',nIndex);   
+}
+
+</script>

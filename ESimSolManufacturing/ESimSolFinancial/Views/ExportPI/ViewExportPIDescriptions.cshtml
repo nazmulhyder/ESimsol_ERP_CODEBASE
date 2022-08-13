@@ -1,0 +1,196 @@
+﻿@{
+    ViewBag.Title = "Export PI Descriptions";
+}
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Export PI Descriptions</title>
+</head>
+<body>
+    
+    <div class="menuMainCollectionTable">
+        <table id="tblExportPIDescriptions" title="Export PIs" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="Descriptions" width="40%">Description</th>
+                    <th field="IsActiveSt" width="10%">Active</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <table>
+                <tr>
+                    <td>
+                        <input id="txtDescription" type="text" style="width: 221px;" placeholder="Type Description & Press Add Button" />
+                        <a id="btnUpdate" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Update</a>
+                        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                        <a id="btnChangeActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Change Activity</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oExportPIDescriptions=[];
+    var _oExportPIDescription=null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oExportPIDescriptions =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $("#btnUpdate").hide();
+        DynamicRefreshList(_oExportPIDescriptions,"tblExportPIDescriptions");
+    });
+
+    $("#btnChangeActivity").click(function(){
+        var oExportPIDescription = $("#tblExportPIDescriptions").datagrid("getSelected");
+        if(oExportPIDescription == null || oExportPIDescription.EPIDID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+
+        var sMessage = "";
+        if(oExportPIDescription.IsActive == 1)
+        {
+            if (!confirm("Confirm to Inactive?")) return;
+            oExportPIDescription.IsActive=0;
+            sMessage = "Successfully Inactive.";
+        }
+        else
+        {
+            if (!confirm("Confirm to Active?")) return;
+            oExportPIDescription.IsActive=1;
+            sMessage = "Successfully Active.";
+        }
+
+        _oExportPIDescription = oExportPIDescription;
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oExportPIDescription,
+            ObjectId: oExportPIDescription.EPIDID,
+            ControllerName: "ExportPI",
+            ActionName: "ChangeActivity",
+            TableId: "tblExportPIDescriptions",
+            IsWinClose: true,
+            Message:sMessage
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if (response.obj.EPIDID > 0) {
+                    $("#btnUpdate").hide();
+                    _oExportPIDescription = response.obj;
+                }
+            }
+        });
+    });
+
+    function Validation()
+    {
+        if($.trim($("#txtDescription").val()) == "")
+        {
+            alert("Please Type Description and Press Add Button");
+            $("#txtDescription").addClass("errorFieldBorder");
+            $("#txtDescription").focus();
+            return false;
+        }else{
+            $("#txtDescription").removeClass("errorFieldBorder");
+        }
+
+        return true;
+    }
+
+    function RefreshObject() {
+        var oExportPIDescription = {
+            EPIDID  : (_oExportPIDescription == null ? 0 : _oExportPIDescription.EPIDID),
+            Descriptions : $.trim($("#txtDescription").val())
+        };
+        return oExportPIDescription;
+    }
+
+    $("#btnAdd").click(function(){
+        _oExportPIDescription = null;
+        AddNew();
+    });
+
+    $("#txtDescription").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            _oExportPIDescription = null;
+            AddNew();
+        }
+    });
+
+    function AddNew()
+    {
+        if (!Validation())
+        {
+            return false;
+        }
+        else
+        { 
+            var oExportPIDescription = RefreshObject();
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oExportPIDescription,
+                ObjectId: oExportPIDescription.EPIDID,
+                ControllerName: "ExportPI",
+                ActionName: "SaveExportPIDescription",
+                TableId: "tblExportPIDescriptions",
+                IsWinClose: true
+            };
+            $.icsSave(obj, function (response) {
+                if (response.status && response.obj != null) {
+                    if (response.obj.EPIDID > 0) {
+                        $("#txtDescription").val("");
+                        $("#txtDescription").focus();
+                        $("#btnUpdate").hide();
+                    }
+                }
+            });
+        }
+    }
+
+    $("#btnDelete").click(function(){
+        var oExportPIDescription = $("#tblExportPIDescriptions").datagrid("getSelected");
+        if(oExportPIDescription == null || oExportPIDescription.EPIDID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oExportPIDescription,
+            ControllerName: "ExportPI",
+            ActionName: "DeleteExportPIDescription",
+            TableId: "tblExportPIDescriptions",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnEdit").click(function(){
+        var oExportPIDescription = $("#tblExportPIDescriptions").datagrid("getSelected");
+        if(oExportPIDescription == null || oExportPIDescription.EPIDID <=0)
+        {
+            alert("Please select an item from list.");
+            return;
+        }
+        _oExportPIDescription = oExportPIDescription;
+        $("#txtDescription").removeClass("errorFieldBorder");
+        $("#txtDescription").val(oExportPIDescription.Descriptions);
+        $("#btnUpdate").show();
+    });
+
+    $("#btnUpdate").click(function(){
+        AddNew();
+    });
+</script>

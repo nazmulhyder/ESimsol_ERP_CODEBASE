@@ -1,0 +1,442 @@
+﻿@model ESimSol.BusinessObjects.VoucherRefReport
+    @{
+        ViewBag.Title = "Bill";
+    }
+    
+   
+    <div id="winReport" class="easyui-panel menuMainCollectionTable" title="Trial Balance" style="margin-left: 0px; height: 100%; width:100%;" fit="true">
+        <div id="divVoucherRefReport" style="height:100%;width:100%;">
+            <table id="tblVoucherRefReports" class="easyui-datagrid" style="width:100%; height:96.5%;" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false"
+                   toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="BillDateInString" width="8%" align="left" rowspan="2">Date</th>
+                        <th field="BillNo" width="30%" align="left" rowspan="2" formatter="FormatStyle">Bill No</th>
+                        <th colspan="2">Closing Balance</th>
+                        <th field="RemainingBalanceSt" width="10%" align="right" rowspan="2">Remaining Balance</th>
+                        <th field="DueDateInString" width="8%" align="left" rowspan="2">Due Date</th>
+                        <th field="OverdueDays" width="8%" align="left" rowspan="2">Overdue Days</th>
+                    </tr>
+                    <tr>
+                        <th field="DebitClosingBalanceSt" width="17%" align="right">Debit</th>
+                        <th field="CreditClosingBalanceSt" width="17%" align="right">Credit</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                From <input id="txtSettingFromDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                To <input id="txtSettingToDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:219px;margin-left: 5px;" />
+                Sub Ledger :<input type="text" style=" width:284px;" id="txtCostCneterName" placeholder="Type Sub Ledger Name" />
+                <select id="cboCurrency" style="width:90px;"></select>
+                <label><input type="checkbox" id="chkboxApproved" style="width:20px;" />Approved</label> 
+                <label><input type="checkbox" id="chkboxAllBill" style="width:20px;" />AllBill</label> 
+                <input type="text" id="txtBUName" style="width:200px;" disabled /> <input type="button" onclick="BUClean()" value="C" />  <input type="button" value="Pick" onclick="PickBusinessUnit()" style="width:50px;" />
+                <a id="btnRefreshVBT" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPDF()">Print</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintXL()">Export To Excel</a>
+            </div>
+            <div style="height:10px;width:100%;">
+                <table style="height:100%;width:100%;">
+                    <tr>
+                        <td style="width:26px;text-align:left;"></td>
+                        <td style="width:38%;">
+                            <label id="lblTotalBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:17%;text-align:right;">
+                            <label id="lblVBSDebitBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:17%;text-align:right;">
+                            <label id="lblVBSCreditBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:26%;"></td>
+                        <td style="width:38px;"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+    </div>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            debugger;
+            var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+            var oVoucherRefReport =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+              $('#divVoucherRefReport').data('obj',oVoucherRefReport);
+            $('#divVoucherRefReport').data('objs',oVoucherRefReport.VoucherRefReports);
+
+            var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+            $("#cboCurrency").data('objs',oCurrencies);
+            $("#cboCurrency").icsLoadCombo({List: oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+
+            var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+            $("#txtAccountHeadName").data('obj',oCOA);
+
+            var oCC= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CC));
+            $("#txtCostCneterName").data('obj',oCC);
+
+            var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+            
+            $("#txtBUName").data('BusinessUnits',oBusinessUnits);
+            $('#txtBUName').val(oVoucherRefReport.BUName);
+            $('#txtBUName').addClass('fontColorOfPickItem');
+
+            sessionStorage.setItem("Company", JSON.stringify(oCompany));
+            sessionStorage.setItem("VoucherWindow", 'Close');
+
+            $('#txtSettingFromDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtSettingToDate').datebox('setValue', icsdateformat(new Date()));
+
+           
+
+            ////refresh control
+            $('#txtSettingFromDate').datebox('setValue', oVoucherRefReport.StartDateSt);
+            $('#txtSettingToDate').datebox('setValue', oVoucherRefReport.EndDateSt);
+            $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+            $("#txtCostCneterName").val(oCC.Name);
+            $('#cboCurrency').val(oVoucherRefReport.CurrencyID);
+            document.getElementById('chkboxApproved').checked =  oVoucherRefReport.IsApproved;
+            document.getElementById('chkboxAllBill').checked =  oVoucherRefReport.IsAllBill;
+
+            /////end refresh control
+            var sHeaderText=RefreshHeader();
+            
+            $('#winReport').panel({ title:sHeaderText});
+            $('#Mainlayout').layout('collapse', 'west');
+
+
+
+            DynamicRefreshList(oVoucherRefReport.VoucherRefReports,'tblVoucherRefReports');
+            RefreshTotalSummary(oVoucherRefReport.VoucherRefReports);
+
+            $('#txtAccountHeadName').icsAutoComplete({
+                BaseAddress : sessionStorage.getItem('BaseAddress'),
+                ControllerName: "ChartsOfAccount",
+                ActionName: "GetsAccountsHead",
+                Object: {AccountHeadName:''},
+                PropertyName: "AccountHeadName",
+                ParamName: "AccountHeadName",
+                Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+            });
+            $('#txtCostCneterName').icsAutoComplete({
+                BaseAddress : sessionStorage.getItem('BaseAddress'),
+                ControllerName: "ACCostCenter",
+                ActionName: "GetsByCodeOrName",
+                Object: {NameCode:''},
+                PropertyName: "Name",
+                ParamName: "NameCode",
+                Columns:[{field:'Name',width:'70%'},{field:'CategoryName',width:'30%'}]});
+
+        });
+
+        function RefreshHeader(){
+            var sHeaderText='';
+            if($('#txtCostCneterName').data('obj') && $('#txtCostCneterName').data('obj').ACCostCenterID>0){
+                sHeaderText='Bill Transactions || '+$('#txtCostCneterName').data('obj').Name;
+            }else if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0){
+                sHeaderText='Bill Transactions || ' +$('#txtAccountHeadName').data('obj').AccountHeadName;
+            }else{
+                sHeaderText='Bill Transactions ';
+            }            
+            var oVoucherRefReport =   $('#divVoucherRefReport').data('obj');
+            var sBUName = $('#txtBUName').val();
+            if(oVoucherRefReport.BusinessUnitIDs!="")//( parseInt($('#txtBUName').val()) &&  parseInt($('#txtBUName').val())>0)
+           {
+                sHeaderText=sHeaderText+' || '+sBUName+' || "'+$('#txtSettingFromDate').datebox('getValue')+'" to "'+$('#txtSettingToDate').datebox('getValue')+'"';
+
+            }else{
+                sHeaderText=sHeaderText+' || '+jQuery.parseJSON(sessionStorage.getItem("Company")).Name+' || "'+$('#txtSettingFromDate').datebox('getValue')+'" to "'+$('#txtSettingToDate').datebox('getValue')+'"';
+            }
+            return sHeaderText;
+        }
+
+        function FormatStyle(value,row,index){
+            debugger;
+            var s='';
+            var param=row.AccountHeadID+","+row.CCID+","+row.VoucherBillID;
+            if(value!='Opening Balance'){
+                s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="BillLedger('+param+')">'+value+'</label>';
+            }
+            else{
+                s=value;
+            }
+            return s;
+        }
+
+        
+        function BillLedger(nParentHeadID, nCCID, nVoucherBillID)
+        {
+            debugger;
+            var oTempVoucherRefReport=      $('#divVoucherRefReport').data('obj');
+            var oVoucherRefReport = {
+                AccountHeadID : nParentHeadID,
+                CCID:nCCID,
+                VoucherBillID:nVoucherBillID,
+                BusinessUnitIDs: oTempVoucherRefReport.BusinessUnitIDs, //parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0,
+                BUName:oTempVoucherRefReport.BUName,
+                StartDate : $('#txtSettingFromDate').datebox('getValue'),
+                EndDate : $('#txtSettingToDate').datebox('getValue'),
+                CurrencyID : parseInt($('#cboCurrency').val()),
+                IsApproved:$('#chkboxApproved').is(':checked')
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/FinancialStatement/SetVRRSessionData",
+                traditional: true,
+                data:  JSON.stringify(oVoucherRefReport),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);                
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem("BaseAddress")+ "/FinancialStatement/ViewBillLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+
+        
+        }
+
+
+    $('#btnRefreshVBT').click(function(){
+        if(!ValidateInput()){return false;}
+        RefreshData();
+    });
+   
+
+    function RefreshTotalSummary(objs){
+        
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='DebitClosingBalance';
+        sParamCredit='CreditClosingBalance';
+        sLabelDebit='lblVBSDebitBalance';
+        sLabelCredit='lblVBSCreditBalance';
+        
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+        }
+
+        var nTotalBalance =0.00;
+        nTotalBalance = (nDebit + nCredit)
+
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        nTotalBalance=nTotalBalance<0?'('+formatPrice((nTotalBalance*(-1)).toFixed(2))+')':nTotalBalance===0.00?'-':formatPrice(nTotalBalance.toFixed(2));
+
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+        $('#lblTotalBalance').html('Total Balance: '+ nTotalBalance);
+    }
+
+    function PrintPDF(){
+        if(!ValidateInput())return;
+        var oVoucherRefReport =     $('#divVoucherRefReport').data('obj');
+        var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+        var sEndDate=$('#txtSettingToDate').datebox('getValue');
+        var sHeader=sessionStorage.getItem("HeaderText");
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+        var nACCostCenterID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0
+        var bIsAllBill = $('#chkboxAllBill').is(':checked');
+
+
+
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+oVoucherRefReport.BusinessUnitIDs+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader+'~'+nACCostCenterID+'~'+bIsAllBill;
+        window.open(sessionStorage.getItem("BaseAddress")+'/FinancialStatement/PrintBillTransactions?Params=' +sParam, "_blank");
+    }
+    function PrintXL(){
+        if(!ValidateInput())return;
+        var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+        var sEndDate=$('#txtSettingToDate').datebox('getValue');
+        var oVoucherRefReport =     $('#divVoucherRefReport').data('obj');
+        var sHeader=sessionStorage.getItem("HeaderText");
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+        var nACCostCenterID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0
+        var bIsAllBill = $('#chkboxAllBill').is(':checked');
+
+
+
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+oVoucherRefReport.BusinessUnitID+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader+'~'+nACCostCenterID+'~'+bIsAllBill;
+        window.open(sessionStorage.getItem("BaseAddress")+'/FinancialStatement/ExportBillTSToExcel?Params=' +sParam, "_blank");
+    }
+    function ValidateInput()
+    {
+        if ( $('#txtSettingFromDate').datebox('getValue')=="") {
+            alert("please select Start date!");
+            $('#txtSettingFromDate').focus();
+            return false;
+        }
+
+        if ( $('#txtSettingToDate').datebox('getValue')=="") {
+            alert("Please select end date!!");
+            $('#txtSettingToDate').focus();
+            return false;
+        }
+
+        var sStartDate=$('#txtSettingFromDate').datebox('getValue');
+        var sEndDate = $('#txtSettingToDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+
+        if(dEndDate < dStartDate) {
+            alert("End date must be grater then start date!!");
+            $('#txtSettingToDate').focus();
+            return false;
+        }
+
+        if ((!$('#txtAccountHeadName').data('obj') || $('#txtAccountHeadName').data('obj') == null) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }
+
+        if ((!parseInt($('#txtAccountHeadName').data('obj').AccountHeadID) || parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)<=0) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }
+        return true;
+    }
+    function RefreshData(){
+        debugger;
+        var nAccountHeadID,nBUID,nCCID=0;
+        var sHeaderText,sControllerName,sActionName,sStartDate,sEndDate='';
+        var obj={};
+
+        var oTempVoucherRefReport =    $('#divVoucherRefReport').data('obj');
+        sControllerName='FinancialStatement';
+        sActionName='GetsBillTransactions';
+        sStartDate=$('#txtSettingFromDate').datebox('getValue');
+        sEndDate=$('#txtSettingToDate').datebox('getValue');
+
+        nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+        
+        sHeaderText=RefreshHeader();
+        
+        if(sActionName===''){return false;}
+
+        
+        obj={
+            AccountHeadID:nAccountHeadID,
+            CCID:nCCID,
+            StartDate:sStartDate,
+            EndDate:sEndDate,
+            BusinessUnitIDs: oTempVoucherRefReport.BusinessUnitIDs, //parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0,
+            BUName:oTempVoucherRefReport.BUName,
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            IsApproved:$('#chkboxApproved').is(':checked'),
+            IsAllBill:$('#chkboxAllBill').is(':checked')
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/FinancialStatement/SetVRRSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);                
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/FinancialStatement/ViewBillTransactions?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+
+
+    
+    function BUClean() 
+    {
+        $("#txtBUName").removeClass("fontColorOfPickItem");
+        $("#txtBUName").val("Group Accounts");
+        var oVoucherRefReport =     $('#divVoucherRefReport').data('obj',oVoucherRefReport);;
+        oVoucherRefReport.BusinessUnitIDs="0";
+            $('#divVoucherRefReport').data('obj',oVoucherRefReport);
+    }
+    function PickBusinessUnit()
+    {
+        //debugger;
+        var oBusinessUnits=  $("#txtBUName").data('BusinessUnits');
+        var tblColums = []; var oColumn = { field: "Code", title: "Code", width:60, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 120, align: "left" }; tblColums.push(oColumn);
+       
+        var oPickerParam = {
+            winid: 'winBusinessUnit',
+            winclass: 'clsBusinessUnit',
+            winwidth: 420,
+            winheight: 460,
+            tableid: 'tblBusinessUnits',
+            tablecolumns: tblColums,
+            datalist: oBusinessUnits,
+            multiplereturn: true,
+            searchingbyfieldName: 'Name',
+            windowTittle: 'Business Unit List'
+        };
+        $.icsPicker(oPickerParam);
+        IntializePickerbutton(oPickerParam);
+        var oVoucherRefReport =     $('#divVoucherRefReport').data('obj');
+        var aSelectedBU = oVoucherRefReport.BusinessUnitIDs.split(',');
+        var oBUList = $('#tblBusinessUnits').datagrid('getRows');
+        debugger;
+        for(var i =0;i<oBUList.length;i++)
+        {
+            if(ICS_IsExistInArray(oBUList[i].BusinessUnitID,aSelectedBU))
+            {
+                $('#tblBusinessUnits').datagrid('checkRow',i);
+            }
+        }
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winBusinessUnit')
+        {
+            if (oreturnobjs.length>0)
+            {
+                $('#txtBUName').val(ICS_PropertyConcatation(oreturnobjs,'ShortName'));
+                $('#txtBUName').addClass('fontColorOfPickItem');
+                var oVoucherRefReport =     $('#divVoucherRefReport').data('obj');
+                oVoucherRefReport.BusinessUnitIDs=ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+                    $('#divVoucherRefReport').data('obj',oVoucherRefReport);
+            }
+        }
+    }
+   
+    </script>
+    

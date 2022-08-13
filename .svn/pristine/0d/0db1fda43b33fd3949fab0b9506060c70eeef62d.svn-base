@@ -1,0 +1,415 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.DUOrderRS>
+    @{
+        ViewBag.Title = "QC Report";
+    }
+
+    <div ng-app="LotStockApp" class="form-horizontal menuMainCollectionTable" style="height:90%">
+        <div ng-controller="LotStockCntrl" style="height:90%">
+            <div class="ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        @*<input id="txtLotNo" type="text" class="form-control" placeholder="Type Lot No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownLot($event)" style="width:180px" ng-model="txtLotNo" disabled>
+                        <input id="txtLotNo" type="text" class="form-control" placeholder="Type Order No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownExe($event)" style="width:180px" ng-model="txtExeNo" disabled>*@
+                        <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+                        <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printView()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print </span></button>
+                        <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export To XL </span></button>
+                    </div>
+                </div>
+                <div class="grid-angular" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns style="width: 99%; height:535px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid-angular {
+            height: 500px;
+            width: 99%;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .btn-sm {
+            padding: 3px 10px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var _oLotStockLists =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var _oOrderTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+
+
+    sessionStorage.setItem('BUID',_nBUID);
+    var  LotStockApp = angular.module('LotStockApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.cellNav', 'ui.grid.pinning','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+    LotStockApp.controller('LotStockCntrl', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod, advanceSearch)
+    {
+        $scope.BusinessUnits=oBusinessUnits;
+        $scope.BusinessUnitID=_nBUID;
+        $scope.ExportBusinessUnitID=_nBUID; //ForDisable CBO_BusinessUnit
+        $scope.WorkingUnitIds=sessionStorage.getItem("WorkingUnitIds");
+        if($scope.WorkingUnitIds!=null && $scope.WorkingUnitIds.length>0)
+            $scope.IssueStore=" "+$scope.WorkingUnitIds.length+" Stores Selected ";
+
+        var oDetailColumns = [];
+        var oColumn = { name: '#', width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true};oDetailColumns.push(oColumn);
+        oColumn = { field: 'ProductName', name: 'ProductName', width: '20%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'LotNo', name: 'Lot No', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        oColumn = { field: 'RouteSheetNo', name: 'Batch/Lot No', width: '10%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'OrderNo', name: 'OrderNo', width: '8%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'BuyerName', name: 'Buyer Name', width: '17%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'QCApproveByName', name: 'QC Approve By', width: '12%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        oColumn = { field: 'Qty', name:  'DyeingQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'PackingQty', name:  'PackingQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'ShadingQty', name:  'ShadingQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'WastageQty', name: 'WastageQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'ColorMisQty', name: 'ColorMisQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'FinishQty', name:  'FinishQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'ExcessShortQty', name:  'Process Gain/ Loss', width: '13%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'ProcessGLPercent', name:  'Process GL(%)', width: '13%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'BalanceQty', name:  'Fresh Gain/ Loss', width: '13%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        oColumn = { field: 'FreshGLPercent', name:  'Fresh GL(%)', width: '13%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+
+        //oColumn = { field: 'RSDateSt', name: 'BatchDate', width: '11%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'QCDateSt', name: 'QCDate', width: '11%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'ShiftName', name: 'Shift', width: '5%' ,  cellClass: 'text-left',pinnedLeft:true };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'ColorName', name: 'ColorName', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'MUnit', name: 'MUnit', width: '10%' ,  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'BalanceQty', name: 'BalanceQty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+        //oColumn = { field: 'ExcaseShortQty', name: 'Exc/Short', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  };oDetailColumns.push(oColumn);
+
+        var oDUOrderRSs=userSession.getData('LotStockList');
+        $scope.gridOptions ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            columnDefs: oDetailColumns,
+            data:oDUOrderRSs,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.grid.modifyRows(oDUOrderRSs);
+                $scope.gridApi.selection.selectRow(oDUOrderRSs[userSession.getRowIndex()]);
+                userSession.clear();
+                debugger;
+
+                //$scope.gridApi.cellNav.on.navigate($scope,function(newRowCol, oldRowCol){
+                //    $scope.gridApi.selection.selectRow(newRowCol.row.entity);
+                //})
+            }
+        };
+
+        var oProductColumns = [];
+        var oColumn = { name: '#', width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true};oProductColumns.push(oColumn);
+        oColumn =  { field:'ProductCode', name: 'Code', width:'10%',  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'CategoryName', name: 'Category', width: '10%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'ProductName_Base', name: 'Base Product', width: '12%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'ProductName', name: 'Product', width: '20%' ,  cellClass: 'text-left',pinnedLeft:true };oProductColumns.push(oColumn);
+        oColumn = { field: 'Qty_Total', name: 'Total Qty', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' };oProductColumns.push(oColumn);
+        oColumn = { field: 'Balance', name: 'Balance', width: '10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'};oProductColumns.push(oColumn);
+        oColumn = { field: 'OperationUnitName', name: 'Store', width: '10%' ,  cellClass: 'text-left'};oProductColumns.push(oColumn);
+
+        $scope.gridOptionsProduct ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            enableHorizontalScrollbar : 2,
+            enableVerticalScrollbar : 2,
+            columnDefs: oProductColumns,
+            data:[],
+            onRegisterApi:function(gridApi) {
+                $scope.gridProductApi = gridApi;
+            }
+        };
+
+        $scope.SearchKeyDownLot = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sOrderRefNo=$scope.txtLotNo;
+                var txtLotNo = $.trim(sOrderRefNo);
+                if(txtLotNo=="" || txtLotNo==null)
+                {
+                    alert("Type Lot No and Press Enter");
+                    return;
+                }
+
+                //if($scope.WorkingUnitIds==null || $scope.WorkingUnitIds=='')
+                //{
+                //    alert("Please Pick Store!!");
+                //    angular.element('#txtStore').trigger('focus');
+                //    return;
+                //}
+                $scope.oDUOrderRS= {
+                    SearchingCriteria: $scope.WorkingUnitIds,
+                    BUID:$scope.BusinessUnitID,
+                    LotNo:txtLotNo
+                }
+                debugger;
+                $http.post(_sBaseAddress + '/LotStockReport/AdvSearch',JSON.stringify($scope.oDUOrderRS)).then(
+                      function (response) {
+                          debugger;
+                          $scope.results = response.data;
+                          if ($scope.results.length > 0) {
+
+                              $scope.gridOptions.data=$scope.results;
+                          }
+                          else
+                          {
+                              //alert($scope.results.Item1[0].ErrorMessage);
+                              msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                              return;
+                          }
+                      },
+                      function (response) { alert(response.statusText); }
+                );
+            }
+        };
+        $scope.SearchKeyDownExe = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sOrderRefNo=$scope.txtExeNo;
+                var txtExeNo = $.trim(sOrderRefNo);
+                if(txtLotNo=="" || txtExeNo==null)
+                {
+                    alert("Type Lot No and Press Enter");
+                    return;
+                }
+                $scope.oDUOrderRS= {
+                    SearchingCriteria: $scope.WorkingUnitIds,
+                    BUID:$scope.BusinessUnitID,
+                    ExeNo:txtExeNo
+                }
+                debugger;
+                $http.post(_sBaseAddress + '/LotStockReport/AdvSearch',JSON.stringify($scope.oDUOrderRS)).then(
+                      function (response) {
+                          debugger;
+                          $scope.results = response.data;
+                          if ($scope.results.length > 0) {
+
+                              sessionStorage.setItem('AdvSearchObject',JSON.stringify($scope.oDUOrderRS));
+                              $scope.gridOptions.data=$scope.results;
+                          }
+                          else
+                          {
+                              //alert($scope.results.Item1[0].ErrorMessage);
+                              msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                              return;
+                          }
+                      },
+                      function (response) { alert(response.statusText); }
+                );
+            }
+        };
+        $scope.AdvanceSearch=function()
+        {
+            /* ===================== PRODUCT PICKER ========================*/
+            var oColumns = [];
+            var oColumn = { field: 'ProductNameCode', name: 'Product Name',width: '100%', enableSorting: false  };oColumns.push(oColumn);
+           
+            var paramObj_Product={
+                obj: { BUID:        sessionStorage.getItem("BUID"),
+                       ProductName: '@@ProductID'},
+                objName:'ProductName',
+                objField:'ProductID',
+                url:_sBaseAddress+'/Product/SearchByProductBUWise',
+                title:'Product List',
+                multiSelect:true,
+                columns:oColumns
+            }     
+            /* ===================== PRODUCT ENDS ========================*/
+
+            
+            /* ===================== ORDER PICKER ========================*/
+            var tblColums = [];
+            oColumn = { field: "OrderNo", name: "OrderNo", width: 100, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "OrderQty", name: "OrderQty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+            oColumn = { field: "Qty_Pro", name: "Prod Qty", width: 75, align: "right",formatter:formatPrice };tblColums.push(oColumn);
+            oColumn = { field: "Qty_RS", name: "Due Pro", width: 75, align: "right" };tblColums.push(oColumn);
+            oColumn = { field: "ProductName", name: "Yarn", width: 225, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "ColorName", name: "ColorName", width: 100, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "ShadeSt", name: "Shade", width: 40, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "ColorNo", name: "ColorNo", width: 80, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "LabdipNo", name: "LabdipNo", width: 100, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "OrderTypeSt", name: "OrderType", width: 100, align: "left" };tblColums.push(oColumn);
+       
+            var paramObj_Order={
+                obj: {  
+                        BUID:     sessionStorage.getItem("BUID"),
+                        OrderNo: '@@DODID'
+                     },
+                objName:'OrderNo',
+                objField:'DODID',
+                searchObj: [{field:"OrderType", BOField: "OrderType"}],
+                url:_sBaseAddress+'/DUPSchedule/GetsDyeingOrder',
+                title:'Order List',
+                multiSelect:true,
+                columns:tblColums
+            }
+            /* ===================== ORDER ENDS ========================*/
+
+            
+            /* ===================== LOT PICKER ========================*/
+            var oColumns_lot = []; 
+            oColumn = { field: 'LotNo', name: 'LotNo',width: '40%', enableSorting: false  };oColumns_lot.push(oColumn);
+            oColumn = { field: 'ProductName', name: 'ProductName',width: '40%', enableSorting: false  };oColumns_lot.push(oColumn);
+           
+            var paramObj_Lot={
+                obj: { 
+                        BUID:        sessionStorage.getItem("BUID"),
+                        LotNo: '@@LotID'
+                     },
+                objName:'LotNo',
+                objField:'LotID',
+                searchObj: [{field:"ProductName", BOField: "ProductName"}],
+
+                url:_sBaseAddress+'/DUOrderTracker/GetsLot',
+                title:'Product List',
+                multiSelect:true,
+                columns:oColumns_lot
+            }     
+            /* ===================== LOT ENDS ========================*/
+
+            
+            /* ===================== ADVANCE SEARCH PICKER ========================*/
+            var oElementList = [
+                                //{ DisplayName: "Dyeing Card Date",  BOField: "SearchRSDate",   InputType: 'date' },
+                                { DisplayName: "QC Date",           BOField: "SearchQCDate",   InputType: 'date' },
+                                { DisplayName: "ProductName ",      BOField: "ProductName",      InputType: 'picker', PickerObject: paramObj_Product },
+
+                                { DisplayName: "OrderType",         BOField: "OrderType",        InputType: 'select', OptionList:_oOrderTypes, OptionValue:{ id: "OrderType", Value: "ShortName"}},
+                                { DisplayName: "Order",             BOField: "OrderNo",          InputType: 'picker', PickerObject: paramObj_Order },
+                                
+                                { DisplayName: "Hanks/Cone",         BOField: "HanksCone",        InputType: 'select', OptionList:[{id:1, Value:"Hanks"},{id:2, Value:"Cone"}]},
+
+                                { DisplayName: "Dyeing Lot No",     BOField: "RouteSheetNo",            InputType: 'text' },
+                                { DisplayName: "Raw Lot",               BOField: "LotNo",          InputType: 'picker', PickerObject: paramObj_Lot },
+                                
+                                { BOField: "BUID",                  InputType: 'hidden', Value: sessionStorage.getItem("BUID")},
+                                //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+                                //{ DisplayName: "SomeType",    BOField: "SomeType",       InputType: 'select', OptionList:[{id:2,Value:"KisuNai"}]},
+            ];
+
+
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + "/DUOrderTracker/AdvanchSearchRSQC"
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.PickStore= function ()
+        {
+            var oDUOrderRS= {
+                BUID:$scope.BusinessUnitID
+            }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/DUOrderRS/GetsIssueStore_Permission',$.param(oDUOrderRS), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    var oColumns = [];
+                                    var oColumn = { field: 'OperationUnitName', name: 'Store',width: '30%'  };oColumns.push(oColumn);
+                                    oColumn = { field: 'WorkingUnitNameWithBU', name: 'Unit',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+                                    var results=response.data;
+                                    var modalObj={
+                                        size:'md',
+                                        modalcontroller:'ModalCommonListCtrl',
+                                        appcontroller:'LotStockCntrl',
+                                        objs:results,
+                                        multiSelect:true,
+                                        pickertitle:'Applicant List',
+                                        searchingbyfieldName:'Name',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        if(result.length>0)
+                                        {
+                                            $scope.WorkingUnitIds=result[0].WorkingUnitID;
+                                            $scope.IssueStore=result[0].OperationUnitName;
+                                            for(var i=1;i<result.length;i++)
+                                            {
+                                                $scope.WorkingUnitIds+=","+result[i].WorkingUnitID;
+                                                $scope.IssueStore=" "+(i+1)+" Stores Selected "
+                                            }
+                                            $scope.RefreshAll();
+                                        }
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(response.statusText);}
+                            );
+        };
+
+        $scope.printView = function()
+        {
+            var oDUOrderRS= JSON.parse(sessionStorage.getItem('AdvSearchObject'));
+
+            if(oDUOrderRS==null)
+            {
+                alert("Please select a search criteria (advance) & try again!");return;
+            }
+            window.open(_sBaseAddress + '/DUOrderTracker/Print_DateWise?sParams='+oDUOrderRS.ErrorMessage+"&buid="+_nBUID+"&ts=0", "_blank");
+            //$http.post(_sBaseAddress + '/LotStockReport/SetSessionSearchCriteria',JSON.stringify(oDUOrderRS)).then(
+            //         function (response)
+            //         {
+            //             debugger;
+            //             window.open(_sBaseAddress + '/LotStockReport/Print_OrderWiseLot?buid='+_nBUID, "_blank");
+            //         },
+            //         function (response) { alert(response.statusText); }
+            // );
+        };
+        $scope.printExcel = function()
+        {
+            var oDUOrderRS= JSON.parse(sessionStorage.getItem('AdvSearchObject'));
+
+            if(oDUOrderRS==null)
+            {
+                alert("Please select a search criteria (advance) & try again!");return;
+            }
+            window.open(_sBaseAddress + '/DUOrderTracker/ExportToExcel_DateWise?sParams='+oDUOrderRS.ErrorMessage+"&buid="+_nBUID+"&ts=0", "_blank");
+        };
+
+    });
+    </script>

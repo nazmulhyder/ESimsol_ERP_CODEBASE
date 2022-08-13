@@ -1,0 +1,201 @@
+﻿@{
+    ViewBag.Title = "Operation Stage";
+}
+@model IEnumerable <ESimSol.BusinessObjects.OperationStage>
+    <div ng-app="OperationStageApp">
+        <div ng-controller="OperationStageCntrl">
+            <div class=" ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" ng-model="OperationStage.Name" class="form-control" style="width:350px" placeholder="Enter Group Name" />
+                        <select ng-model="OperationStage.OperationStageEnum" ng-options="obj.id as obj.Value for obj in EnumOperationStages" class="form-control" style="width:350px">
+                            <option value=""> --Select Operation--</option>
+                        </select>
+                        <button type="button" class="btn btn-sm  btn-primary" aria-label="Left Align" ng-click="Save()" ng-if="OperationStage.OperationStageID >0"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Update</button>
+                        <button type="button" class="btn btn-sm  btn-primary" aria-label="Left Align" ng-click="Save()" ng-if="OperationStage.OperationStageID <=0"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>New</button>
+                        <button type="button" class="btn btn-sm  btn-primary" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>Edit</button>
+                        <button type="button" class="btn btn-sm  btn-primary" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+
+                    </div>
+                </div>
+            </div>
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+        </div>
+
+
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 530px;
+            width: 100%;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oOperationStages =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+        var oEnumOperationStages =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.EnumOperationStages));
+        var nBUID = @Html.Raw(Json.Encode(ViewBag.BUID));
+        sessionStorage.getItem('BUID',nBUID);
+       
+        var  OperationStageApp = angular.module('OperationStageApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns',,'ms.service']);
+
+        OperationStageApp.controller('OperationStageCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+
+            $scope.EnumOperationStages=oEnumOperationStages;
+            $scope.OperationStage ={
+                Name:"",
+                OperationStageEnum:"",
+                OperationStageID:0
+
+            } 
+            $scope.gridOptions ={
+                enableRowSelection: true,
+                enableRowHeaderSelection: false,
+                multiSelect: false,
+                enableColumnResizing: true,
+                showColumnFooter: true,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.ALWAYS,
+                enableHorizontalScrollbar : 2,
+                enableVerticalScrollbar : 2,
+                columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,enableCellEdit:false},
+                    { field:'Name', name: 'Operation Name', width: '45%' },
+                    { field:'OperationStageEnumStr', name: 'Operation Stage', width: '45%' },
+
+                ],
+                data:oOperationStages,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+                    $scope.gridApi.grid.modifyRows(oOperationStages);
+                }
+            };
+            $scope.Validation = function(){
+                if($scope.OperationStage.Name=="" ||$scope.OperationStage.Name==undefined){
+                    msModal.Message({headerTitle : '', bodyText:'Operation Name Required.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if($scope.OperationStage.OperationStageEnum== ""||$scope.OperationStage.OperationStageEnum==undefined || $scope.OperationStage.OperationStageEnum < 0){
+                    msModal.Message({headerTitle : '', bodyText:'Select Operation.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                return true;
+            }
+
+
+            $scope.Save = function () {
+                debugger;
+                if(!$scope.Validation())
+                    return false;
+                var obj = $.param($scope.OperationStage);
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+
+                $http.post(_sBaseAddress+'/ExportOutstanding/SaveOperationStage', obj, config).then(
+                                 function (response) {
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.OperationStageID>0)
+                                     {
+                                         if($scope.OperationStage.OperationStageID>0){
+                                             $scope.gridOptions.data[$scope.index]=result;
+                                             $scope.gridApi.modifyRows($scope.gridOptions.data);
+                                         }
+                                         else{
+                                             $scope.gridOptions.data.push(result);
+                                         }
+                                        
+                                         $scope.OperationStage.Name="";
+                                         $scope.OperationStage.OperationStageEnum="";
+                                         msModal.Message({headerTitle : '', bodyText:'Save Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                     }
+                                     else{
+                                         msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+            };
+
+            $scope.delete = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                   
+                    msModal.Message({headerTitle : '', bodyText:'No item found to delete. Select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                $scope.OperationStage.Name =data[0].Name;
+                $scope.OperationStage.OperationStageEnum =data[0].OperationStageEnum;
+                msModal.Message({headerTitle : '', bodyText:'Are you sure to Delete?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                    if(result){
+                        $http.post(_sBaseAddress+'/ExportOutstanding/DeleteOperationStage',JSON.stringify(data[0])).then(
+                                    function (response) {
+                                        if(jQuery.parseJSON(response.data)=='Deleted'){
+                                            angular.forEach($scope.gridOptions.data,function(value,index){
+                                                if(value.OperationStageID==data[0].OperationStageID){
+                                                    $scope.gridOptions.data.splice(index,1);
+                                                }
+                                            },$scope.gridOptions.data);
+                                            //msModal.Message({headerTitle : '', bodyText:'Deleted Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                            alert('Deleted Successfully.');
+                                        }
+                                        else{
+                                            alert(jQuery.parseJSON(response.data));
+                                        }
+                                    },
+                                    function (response) {alert(jQuery.parseJSON(response.data));}
+                                );
+                    }
+                });
+
+            };
+
+            $scope.edit = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:' Select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                $scope.index=$scope.gridOptions.data.indexOf(data[0]);
+                $http.post(_sBaseAddress+'/ExportOutstanding/GetOperationStage',JSON.stringify(data[0])).then(
+                  function (response) {  
+
+                      var result=jQuery.parseJSON(response.data);
+                      debugger;
+                                          if(result.OperationStageID>0)
+                                          {
+                                              $scope.OperationStage.Name=result.Name;
+                                              $scope.OperationStage.OperationStageEnum=result.OperationStageEnum;
+                                              $scope.OperationStage.OperationStageID=result.OperationStageID;
+                                          }
+                                        else{
+                                            alert(jQuery.parseJSON(response.data));
+                                        }
+                                    },
+                      function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+                  
+
+            };
+
+
+
+
+        });
+
+
+
+
+    </script>
+

@@ -1,0 +1,378 @@
+﻿<html>
+@{
+    ViewBag.Title = "Sample Adjustment";
+}
+<body>
+    @model ESimSol.BusinessObjects.SampleAdjustment
+    <div class="menuMainCollectionTable" ng-app="SampleAdjustmentApp" ng-controller="SampleAdjustmentController as MLCC" id="divSampleAdjustment">
+        <div style="font-family:Tahoma;text-align:center;height:87%;" class="regionCI">
+            <fieldset>
+                <legend>Basic Info :</legend>
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right">
+                        <label class="control-label">SA No:</label>
+                    </div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="SampleAdjustment.AdjustmentNo" class="form-control" disabled />
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">Issue Date:</label></div>
+                    <div class="col-md-2 text-left">
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" ng-model="SampleAdjustment.IssueDateInString"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">Invoice No:</label></div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="SampleAdjustment.SANNo" class="form-control" disabled />
+                    </div>
+                </div>
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right"><label class="control-label">Party:</label></div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="SampleAdjustment.ContractorName" class="form-control" disabled />
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">SAN Amount:</label></div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="SampleAdjustment.RemainingAdjustInSt" class="form-control" disabled />
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">Remarks:</label></div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="SampleAdjustment.Remarks" class="form-control" />
+                    </div>
+                </div>
+
+            </fieldset>
+            <div class="ui-grid-top-panel" style="text-align:left;">
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickInvoice()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Pick</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RemoveDetail()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Remove</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RefreshDetail()"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
+            </div>
+            <div style="width: 100%; height:350px;" ui-grid="gridOptionsDetail" ui-grid-selection ui-grid-cellnav ui-grid-edit></div>
+        </div>
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" id="btnApprove" class="btn btn-sm" aria-label="Left Align" ng-show="btnApprove" ng-click="Approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"> Approve</span> </button>
+                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-hide="btnSave" ng-click="Save()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Save</span> </button>
+                <button type="button" id="btnclose" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    .regionCI .form-horizontal .control-label {
+        padding-top: 1px;
+    }
+
+    .regionCI .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .regionCI .form-controlsm {
+        height: 20px;
+        padding: 0px 2px;
+        text-align: right;
+        width: 100%;
+        font-size: 12px;
+    }
+
+    .regionCI .col-md-12 {
+        width: 100%;
+        padding-right: 5px;
+        padding-left: 5px;
+        margin-bottom: 3px;
+    }
+
+    .regionCI .col-md-2 {
+        width: 16.66%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .regionCI .col-md-10 {
+        width: 83.34%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .regionCI .btn-sm {
+        padding: 3px 10px;
+    }
+
+    .regionCI .input-group-addon {
+        padding: 4px 8px;
+    }
+</style>
+<script type="text/javascript">
+    //debugger;
+    var oSampleAdjustment =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oSampleAdjustmentDetails= oSampleAdjustment.SampleAdjustmentDetails;
+    var SampleAdjustmentApp = angular.module('SampleAdjustmentApp', ['ngAnimate', 'ui.bootstrap','ui.grid', 'ui.grid.selection','ui.grid.edit', 'ms.service']);
+    SampleAdjustmentApp.controller('SampleAdjustmentController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,icsMethod,userSession,msGridControl) {        
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+
+        debugger;
+        if(oSampleAdjustment.SampleAdjustmentID<=0 && oSampleAdjustment.ContractorID<=0)
+        {
+            oSampleAdjustment = jQuery.parseJSON(sessionStorage.getItem("SampleAdjustment"));
+        }else{
+            var nRemainingAdjust = parseFloat((parseFloat(oSampleAdjustment.RemainingAdjust) + parseFloat(oSampleAdjustment.AdjustAmount)).toFixed(3));
+            oSampleAdjustment.RemainingAdjust = nRemainingAdjust;
+            oSampleAdjustment.RemainingAdjustInSt = oSampleAdjustment.CurrencyName+" "+formatPrice(oSampleAdjustment.RemainingAdjust);
+        }
+        oSampleAdjustment.BUID = sessionStorage.getItem('BUID');
+        $scope.SampleAdjustmentDetails=oSampleAdjustmentDetails;
+        $scope.SampleAdjustment=oSampleAdjustment;
+
+
+        var oDetailColumns = [];
+        var oColumn ={ field: 'InvoiceNo', name: 'Invoice No', width: '25%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'SampleInvoiceDateSt', name: 'Invoice Date', width: '30%',align:'left',cellClass: 'text-left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'RefAmount', name: 'Invoice Amount', cellClass: 'text-right',enableCellEdit:false, width: '20%',align:'left',cellFilter: 'number: 2'};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'AdjustAmount', name: 'Amount',cellClass: 'text-right',enableCellEdit:true, width: '20%',align:'left',cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum,aggregationHideLabel: true,footerCellClass: 'text-right',footerCellFilter: 'number:2' };oDetailColumns.push(oColumn);
+
+        ////Commercial invoice LC Detail
+        $scope.gridOptionsDetail = {
+            showColumnFooter: true,
+            multiSelect: false,
+            enableRowSelection: true,
+            enableSelectAll: false,
+            columnDefs:oDetailColumns,
+            data:oSampleAdjustmentDetails,
+            onRegisterApi: function (gridApi) {
+                $scope.gridDetailApi = gridApi;
+                gridApi.edit.on.afterCellEdit($scope,
+                  function (rowEntity, colDef, newValue, oldValue)
+                  {
+                      debugger;
+                      rowEntity.AdjustAmount= parseFloat(rowEntity.AdjustAmount);
+                      return rowEntity;
+                  });
+
+            }
+        };
+
+    
+        $scope.RefreshDetail = function ()
+        {
+            $scope.gridOptionsDetail.data =  $scope.gridOptionsDetail.data;
+        };
+
+        $scope.PickInvoice = function () {
+            debugger;
+            var oSampleInvoice = {
+                ContractorID: $scope.SampleAdjustment.ContractorID,
+                BUID:sessionStorage.getItem('BUID')
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress') + '/SampleAdjustment/GetSampleInvoiceList', $.param(oSampleInvoice), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    var oColumns = [];
+                                    var oColumn = { field: 'InvoiceNo', name: 'Invoice No', width: '20%' }; oColumns.push(oColumn);
+                                    oColumn = { field: 'AdjustAmount', name: 'Amount', width: '50%', cellClass: 'text-right', enableSorting: false, cellFilter: 'number:2' }; oColumns.push(oColumn);
+                                        
+                                    var results=(response.data);
+                                    var modalObj={
+                                        size:'md',
+                                        modalcontroller:'ModalCc',
+                                        appcontroller:'CCategoryController',
+                                        objs:results,
+                                        multiSelect:true,
+                                        pickertitle:'Sample Invoice List',
+                                        searchingbyfieldName: 'SampleInvoiceNo',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        if (result != null && result.length > 0)
+                                        {
+                                            for (var i = 0; i<result.length; i++)
+                                            {
+                                                var oSADetails = $scope.gridOptionsDetail.data;
+                                                if (!icsMethod.ICS_IsExist(oSADetails, 'SampleInvoiceID', result[i].SampleInvoiceID))
+                                                {                                                    
+                                                    $scope.gridOptionsDetail.data.push(result[i]);
+                                                }
+                                            }
+                                         
+                                        }
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+        };
+
+        $scope.RemoveDetail = function ()
+        {
+            debugger;
+            var oMLCDetail = $scope.gridDetailApi.selection.getSelectedRows()[0];
+            if(oMLCDetail==null)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var SelectedRowIndex=$scope.gridOptionsDetail.data.indexOf(oMLCDetail);
+            if (!confirm("Confirm to Delete?")) return ;
+            $scope.gridOptionsDetail.data.splice(SelectedRowIndex,1);
+            
+        };
+
+        $scope.Save = function ()
+        {
+            debugger;
+            if(!$scope.ValidateInput()) return;
+            var oSampleAdjustment= $scope.SampleAdjustment;
+            var oSADetails = $scope.gridOptionsDetail.data;
+            oSampleAdjustment.AdjustAmount = ICS_TotalCalculation(oSADetails,'AdjustAmount');
+            oSampleAdjustment.IssueDate = new Date(oSampleAdjustment.IssueDateInString);
+            oSampleAdjustment.SampleAdjustmentDetails = $scope.gridOptionsDetail.data;
+
+            $http.post(sessionStorage.getItem('BaseAddress')+'/SampleAdjustment/Save',oSampleAdjustment).then(
+                        function (response)
+                        {
+                            var oSampleAdjustment= jQuery.parseJSON(response.data);
+                            if (oSampleAdjustment.ErrorMessage=="" || oSampleAdjustment.ErrorMessage==null)
+                            {
+                                alert("Data Save Successfully!!");
+                                var oSampleAdjustments = sessionStorage.getItem("SampleAdjustments");
+                                var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                                if (oSampleAdjustments != null) {
+                                    oSampleAdjustments = jQuery.parseJSON(oSampleAdjustments);
+                                }
+                                else {
+                                    oSampleAdjustments = [];
+                                }
+                                if (nIndex != -1) {
+                                    oSampleAdjustments[nIndex] = oSampleAdjustment;
+                                }
+                                else {
+                                    sessionStorage.setItem("SelectedRowIndex", oSampleAdjustments.length);
+                                    oSampleAdjustments.push(oSampleAdjustment);
+                                }
+                                sessionStorage.setItem("SampleAdjustments", JSON.stringify(oSampleAdjustments));
+                                window.location.href = sessionStorage.getItem("BackLink");
+                            }
+                            else
+                            {
+                                alert(oSampleAdjustment.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+
+        };
+
+        $scope.Approve = function ()
+        {
+            if(!$scope.ValidateInput()) return;
+            var oSampleAdjustment= $scope.SampleAdjustment;
+
+            $http.post(sessionStorage.getItem('BaseAddress')+'/SampleAdjustment/Approve',oSampleAdjustment).then(
+                        function (response)
+                        {
+                            var oSampleAdjustment= jQuery.parseJSON(response.data);
+                            if (oSampleAdjustment.ErrorMessage=="" || oSampleAdjustment.ErrorMessage==null)
+                            {
+                                alert("Data Save Successfully!!");
+                                var oSampleAdjustments = sessionStorage.getItem("SampleAdjustments");
+                                var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                                if (oSampleAdjustments != null) {
+                                    oSampleAdjustments = jQuery.parseJSON(oSampleAdjustments);
+                                }
+                                else {
+                                    oSampleAdjustments = [];
+                                }
+                                if (nIndex != -1) {
+                                    oSampleAdjustments[nIndex] = oSampleAdjustment;
+                                }
+                                else {
+                                    sessionStorage.setItem("SelectedRowIndex", oSampleAdjustments.length);
+                                    oSampleAdjustments.push(oSampleAdjustment);
+                                }
+                                sessionStorage.setItem("SampleAdjustments", JSON.stringify(oSampleAdjustments));
+                                window.location.href = sessionStorage.getItem("BackLink");
+                            }
+                            else
+                            {
+                                alert(oSampleAdjustment.ErrorMessage);
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+
+        $scope.ValidateInput =  function ()
+        {
+            debugger;
+            if($scope.SampleAdjustment.ContractorID==0)
+            {
+                alert('Sorry, There is No Contractor');
+                return false;
+            }
+            if($scope.gridOptionsDetail.data.length <=0){alert("Please Add Sample Adjustment Details");  return false;}
+            var oSADetails = $scope.gridOptionsDetail.data;
+            for(var i = 0;i<oSADetails.length;i++)
+            {
+                if(parseFloat(oSADetails[i].AdjustAmount)<=0)
+                {
+                    alert(" Adujust Amount Should be greater than 0 For Invoice No: '"+oSADetails[i].InvoiceNo+"'");
+                    return false;
+                }
+                if(parseFloat(oSADetails[i].RefAmount)<parseFloat(oSADetails[i].AdjustAmount))
+                {
+                    alert(" Adujust Amount Should be Less than OR Equal Refference Amount For Invoice No: '"+oSADetails[i].InvoiceNo+"'");
+                    return false;
+                }
+                //RefAmount
+            }
+            var nGridTotal = ICS_TotalCalculation(oSADetails,'AdjustAmount');
+            var nBalance = (parseFloat($scope.SampleAdjustment.RemainingAdjust)-parseFloat(nGridTotal));
+            if(nBalance<0)
+            {
+                nBalance = (nBalance * (-1));
+                if(nBalance>0.005)
+                {
+                    alert("Adujust Amount Should be Less than or equal  SAN Amount");
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        if(sessionStorage.getItem("SampleAdjustmentHeader")=="View Sample Adjustment")
+        {
+            $("#divSampleAdjustment :input").prop('disabled', true);
+            $('#btnclose').prop('disabled', false);
+        }else if(sessionStorage.getItem("SampleAdjustmentHeader")=="Approve Sample Adjustment")
+        {
+            $scope.btnSave = true;
+            $scope.btnApprove = true;
+            $("#divSampleAdjustment :input").prop('disabled', true);
+            $('#btnApprove,#btnclose').prop('disabled', false);
+        }
+
+        $scope.Close=function ()
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        };
+
+
+    });
+
+</script>

@@ -1,0 +1,159 @@
+﻿<html>
+@{
+    ViewBag.Title = "Measurement Spec Image";
+}
+
+<body>
+    @model ESimSol.BusinessObjects.MeasurementSpecAttachment
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" id="divPanel" title="Measurement Spec Image" style="font-family:Tahoma;height:100%;">
+            <div style="width:100%;height:90%">
+                @using (Html.BeginForm("UploadAttchment", "TechnicalSheet", FormMethod.Post, new { enctype = "multipart/form-data" }))
+                {
+                    @Html.HiddenFor(model => model.TechnicalSheetID)
+                    @Html.HiddenFor(model => model.IsMeasurmentSpecAttachment)
+                    <div style="margin-left:0px; margin-top:1px; height:470px;">
+                        <table id="tblAttachment" class="easyui-datagrid" style="width:100%;height:470px" toolbar="#toolbar" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false">
+                            <thead>
+                                <tr>
+                                    <th field="AttatchmentName" width="320">AttatchmentName</th>
+                                    <th field="Remarks" width="220">Remarks</th>
+                                    <th field="AttatchFileinString" width="60" align="center" formatter="FormatDownload">Download</th>
+                                </tr>
+                            </thead>
+                        </table>
+                        <div id="toolbar" style="font-family:Tahoma; margin-left:0px;float:left;width:100%; height:auto">
+                            <table border="0" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td><label class="asterixStyle">*</label></td>
+                                    <td><input type="file" name="file" style="width:25%" /> </td>
+                                    <td>Remark:@Html.TextBoxFor(model => model.Remarks, new { style = "width: 150px;", id = "txtRemarks" })</td>
+                                    <td><input id="btnSubmit" type="submit" value="Upload" style="width:70px; font-weight:bold" /></td>
+                                    <td><input id="btnDelete" type="button" value="Delete" style="width:70px; font-weight:bold" /></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                }
+
+            </div>
+            <fieldset style="width:auto; text-align:right; height:10%;">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%">
+                    <tr>
+                        <td style="width:85%; text-align:right">@TempData["message"]</td>
+                        <td style="width:15%">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+
+    var _sBaseAddress="";
+    var _oMeasurementSpecAttachments=[]
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oMeasurementSpecAttachments=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.MeasurementSpecAttachments));
+        RefreshList(_oMeasurementSpecAttachments);
+    });
+
+
+    $('#btnDelete').click(function (e) {
+        //debugger;
+        var oMeasurementSpecAttachment= $('#tblAttachment').datagrid('getSelected');
+        if(oMeasurementSpecAttachment==null ||  parseInt(oMeasurementSpecAttachment.MeasurementSpecAttachmentID)<=0)
+        {
+            alert("Invalid Attachment!!! please select a valid Attachment!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+
+        var SelectedRowIndex=$('#tblAttachment').datagrid('getRowIndex',oMeasurementSpecAttachment);
+
+        if (oMeasurementSpecAttachment.MeasurementSpecAttachmentID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/TechnicalSheet/DeleteAttachment",
+                data:  JSON.stringify(oMeasurementSpecAttachment),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblAttachment').datagrid('deleteRow',SelectedRowIndex);
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+
+
+    function FormatDownload(value)
+    {
+        debugger;
+        var nMSID =parseInt(value);
+        var s = '   <input type="image" src="@Url.Content("~/Content/CSS/icons/down.png")"   onclick="DownLoadAttachment('+nMSID+')", value="" id="btnDownload"'+nMSID+'/> ';
+        return s;
+    }
+
+    function FormatApproved(value)
+    {
+        debugger;
+        var s='';
+        if(value==true)
+        {
+            s = '   <input type="image" src="@Url.Content("~/Content/CSS/icons/ok.png")"   value=""/> ';
+        }
+        return s;
+    }
+
+    function DownLoadAttachment(nMSID)
+    {
+        debugger;
+        if(nMSID==null || nMSID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var oParameter = new Object();
+        var tsv= ((new Date()).getTime())/1000;
+        var url =_sBaseAddress+  "/TechnicalSheet/DownloadAttachment?id="+ nMSID+"&ts="+tsv;
+        var oSaleContract = window.showModalDialog(url, oParameter, 'dialogHeight:420px;dialogWidth:500px;dialogLeft:350;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    function RefreshList(oMeasurementSpecAttachments)
+    {
+        data=oMeasurementSpecAttachments;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblAttachment').datagrid('loadData',data);
+    }
+
+    function Close()
+    {
+        window.close();
+    }
+</script>

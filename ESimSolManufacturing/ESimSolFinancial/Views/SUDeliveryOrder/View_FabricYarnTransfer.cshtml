@@ -1,0 +1,292 @@
+﻿@{
+    ViewBag.Title = "Yarn Transfer Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.SUDOFabricYarnTransfer>
+<html>
+    <head>
+        <title>Yarn Transfer Report</title>
+    </head>
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tblFYTs" title="Yarn Transfer Report" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarFYT">
+                <thead>
+                    <tr>
+                        <th field="DONo" width="15%">DONo</th>
+                        <th field="DODateSt" width="10%" align="center">DO Date</th>
+                        <th field="BuyerName" width="15%">Buyer</th>
+                        <th field="FEONo" width="15%">FEO No</th>
+                        <th field="EXEDateSt" width="10%" align="center">Exe. Date</th>
+                        <th field="Construction" width="10%">Construction</th>
+                        <th field="ProductName" width="15%">Count</th>
+                        <th field="QtySt" width="10%" align="right">Qty(KGS)</th>
+                        <th field="DeliveredQtySt" width="12%" align="right">Delivered Qty(KGS)</th>
+                        <th field="BalanceQtySt" width="12%" align="right">Balance Qty(KGS)</th>
+                        <th field="DeliveryPoint" width="10%">Whom/Where</th>
+                        <th field="FEOQtySt" width="12%" align="right">Fab. Order Qty(YDS)</th>
+                        <th field="Remarks" width="10%">Remarks</th>
+                        <th field="ChallanDateSt" width="10%" align="center">Y.Trans. Date</th>
+                        <th field="DelayDateSt" width="8%" align="right">Delay Date</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarFYT">
+                <table>
+                    <tr>
+                        <td>
+                            <input id="txtDONo" type="text" style="width:158px;" placeholder="Type YTO No & Press Enter"/>
+                            <span>
+                                <input id="chkDODate" type="checkbox" />
+                                Date :
+                                <input id="dtFromDODate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                To
+                                <input id="dtToDODate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                            </span>
+                            <input id="txtBuyerName" type="text" style="width:158px;" placeholder="Type Buyer & Press Enter" />
+                            <span>
+                                Exe No : <input id="txtFEONoCode" type="text" style="width:40px;" maxlength="4" class="number"/> /
+                                <input id="txtFEONoYear" type="text" style="width:20px;" maxlength="2" class="number"/> 
+                            </span>
+                            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            @using (Html.BeginForm("PrintFYTs", "SUDeliveryOrder", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                            {
+                                <input type="text" name="txtFYTCollectionList" id="txtFYTCollectionList" hidden="hidden" />
+                                <input type="submit" id="btnPrintFYT" value="   Print List" class="icon-print PrintList" onclick=" return isValidFYT(); " />
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </body>
+</html>
+
+<script type="text/javascript">
+    var _sBaseAddress=null;
+    var _oSUDOFYTYarnTransfers=[];
+    var _sBuyerIDs="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oSUDOFYTYarnTransfers =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $("#txtDONo").focus();
+        $("#txtFEONoYear").val(new Date().getFullYear().toString().slice(-2));
+        $("#dtFromDODate,#dtToDODate").datebox({ disabled: true });
+        $("#dtFromDODate,#dtToDODate").datebox("setValue", icsdateformat(new Date()));
+        DynamicRefreshList(_oSUDOFYTYarnTransfers,"tblFYTs");
+    });
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+    function isValidFYT()
+    {
+        _oSUDOFYTYarnTransfers = $("#tblFYTs").datagrid("getRows");
+        if (_oSUDOFYTYarnTransfers.length <= 0) {
+            alert("Empty List");
+            return false;
+        }
+        else
+        {
+            for(var i=0;i<_oSUDOFYTYarnTransfers.length;i++)
+            {
+                _oSUDOFYTYarnTransfers[i].DODate=_oSUDOFYTYarnTransfers[i].DODateSt_rpt;
+                _oSUDOFYTYarnTransfers[i].DODate_End=_oSUDOFYTYarnTransfers[i].DODate_EndSt_rpt;
+                _oSUDOFYTYarnTransfers[i].ExpectedDeliveryDate=_oSUDOFYTYarnTransfers[i].ExpectedDeliveryDateSt_rpt;
+                _oSUDOFYTYarnTransfers[i].EXEDate=_oSUDOFYTYarnTransfers[i].EXEDateSt_rpt;
+                _oSUDOFYTYarnTransfers[i].ChallanDate=_oSUDOFYTYarnTransfers[i].ChallanDateSt_rpt;
+            }
+            $("#txtFYTCollectionList").val(JSON.stringify(_oSUDOFYTYarnTransfers));
+        }
+    }
+    
+
+    $("#txtBuyerName").keydown(function (e) {
+        if (e.keyCode === 13)
+        {
+            PickBuyer(false);
+        }
+        else if (e.keyCode === 8) {
+            CleaBuyerIDs();
+        }
+    });
+
+    $("#btnPickBuyer").click(function () {
+        PickBuyer();
+    });
+
+    $("#btnClearBuyer").click(function () {
+        $("#txtBuyerName").val("");
+        CleaBuyerIDs();
+    });
+
+    function PickBuyer() {
+        var oContractor = null;
+        var oContractor = {
+            Params: 2 + '~' + $.trim($("#txtBuyerName").val())
+        };
+   
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oContractor,
+            ControllerName: "Contractor",
+            ActionName: "ContractorSearchByNameType",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ContractorID > 0) {
+                    var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ContractorTypeInString", title: "Type", width: 150, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winBuyers',
+                        winclass: 'clsBuyer',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblBuyers',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Buyer List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else
+            {
+                alert("Sorry, No Product Found.");
+                ClearProductInfoFEORY();
+            }
+        });
+    }
+
+    
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } 
+       
+
+        if (oPickerobj.winid == 'winBuyers') {
+            if(oreturnobjs!=null){
+                if(oreturnobjs.length>0){
+                    for(var i=0;i<oreturnobjs.length;i++){
+                        _sBuyerIDs = oreturnobjs[i].ContractorID + "," + _sBuyerIDs;
+                    }
+                    _sBuyerIDs = _sBuyerIDs.substring(0, _sBuyerIDs.length - 1);
+                    $("#" + oPickerobj.winid).icsWindow("close");
+                    $("#" + oPickerobj.winid).remove();
+                    $("#txtBuyerName").val(oreturnobjs.length + " Buyer"+ (oreturnobjs.length > 1 ? "'s" : "") +" Selected")
+                }
+                else{
+                    alert("Please select minimum one Buyer.");
+                    $("#txtBuyerName").val("");
+                }
+            }else{
+                alert("Please select minimum one Buyer.");
+                $("#txtBuyerName").val("");
+            }
+        }
+    }
+
+
+    function CleaBuyerIDs(){
+        _sBuyerIDs="";
+        $("#txtBuyerName").val("");
+    }
+
+
+  
+
+    $("#btnSearch").click(function(){
+        var sFEONo="";
+        if($.trim($("#txtFEONoCode").val()) != ""){
+            sFEONo = ConvertANumberIntoCustomDigits($("#txtFEONoCode").val(),4) + "/" + $("#txtFEONoYear").val();
+        }
+        var oFYTYarnTransfer = {
+            DONo : $("#txtDONo").val(),
+            IsDoDate : $("#chkDODate").is(":checked"),
+            DODate : $('#dtFromDODate').datebox('getValue'),
+            DODate_End : $('#dtToDODate').datebox('getValue'),
+            BuyerIDs : _sBuyerIDs,
+            FEONo : sFEONo
+        };
+        GetsFYT(oFYTYarnTransfer);
+    });
+
+    $("#txtDONo").keydown(function(e){
+        if(e.keyCode === 13){
+            if($.trim($(this).val()) == ""){
+                alert("Please give YTO No.");
+                $(this).focus();
+                $(this).addClass("errorFieldBorder");
+            }else{
+                $(this).removeClass("errorFieldBorder");
+            }
+            var oFYTYarnTransfer = {
+                DONo : $(this).val(),
+            };
+            GetsFYT(oFYTYarnTransfer);
+        }
+    });
+
+    $("#txtFEONoCode,#txtFEONoYear").keydown(function(e){
+        if(e.keyCode === 13){
+            if($.trim($(this).val()) == ""){
+                alert("Please give Exe No.");
+                $(this).focus();
+                $(this).addClass("errorFieldBorder");
+            }else{
+                $(this).removeClass("errorFieldBorder");
+            }
+            var oFYTYarnTransfer = {
+                FEONo: ConvertANumberIntoCustomDigits($("#txtFEONoCode").val(),4) + "/" + $("#txtFEONoYear").val()
+            };
+            GetsFYT(oFYTYarnTransfer);
+        }
+    });
+
+    $("#chkDODate").change(function(){
+        if(this.checked){
+            $("#dtFromDODate,#dtToDODate").datebox({ disabled: false });
+        }else{
+            $("#dtFromDODate,#dtToDODate").datebox({ disabled: true });
+        }
+        $("#dtFromDODate,#dtToDODate").datebox("setValue", icsdateformat(new Date()));
+    });
+
+    function GetsFYT(oFYTYarnTransfer){
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFYTYarnTransfer,
+            ControllerName: "SUDeliveryOrder",
+            ActionName: "GetsFYT",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                DynamicRefreshList(response.objs,"tblFYTs");
+            }else{
+                alert("Sorry No List Found.");
+            }
+        });
+    }
+</script>

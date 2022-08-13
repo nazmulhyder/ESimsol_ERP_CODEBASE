@@ -1,0 +1,228 @@
+﻿<html>
+
+<body>
+
+    @model ESimSol.BusinessObjects.BankBranch
+    <div id="divBankPersonnel" class="easyui-panel" title="Add Bank Branch" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblBankPersonnels" class="easyui-datagrid" style="width:100%; height:100%;"
+                   data-options="
+                singleSelect: true,
+                fitColumns:false,
+                rownumbers:true,
+                pagination:false,
+                autoRowHeight:false,
+                toolbar: '#toolbar'
+            ">
+                <thead>
+                    <tr>
+                        <th field="Name" width="150" align="left">Personnel Name</th>
+                        <th field="Address" width="200" align="left">Address</th>
+                        <th field="Phone" width="200" align="left">Phone Number</th>
+                        <th field="Email" width="200" align="left">Email Address</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:200px" />
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+        </div>
+
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript"> 
+ var _oBankPersonnel;
+ var _oBankPersonnels=[]; 
+ var _oSelectedBankBranch=null; 
+ var _sBaseAddress="";
+ var _sBankHeader="";
+ $(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oSelectedBankBranch =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));         
+    _oBankPersonnels=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankPersonnels));    
+     debugger;
+    RefreshList();
+         
+    _sBankHeader=sessionStorage.getItem("BankPersonnelHeader");
+    var nIndex =sessionStorage.getItem("SelectedRowIndex");
+    _sBankHeader=_sBankHeader+' ->Branch for :' +_oSelectedBankBranch.BranchName; 
+    $('#divBankPersonnel').panel({ title:_sBankHeader});
+  
+    if(nIndex!=null)
+    {
+        $('#tblBankPersonnels').datagrid('selectRow', nIndex);
+    }
+ }); 
+
+
+$('#txtSearchByName').keypress(function (e) {
+    var c = String.fromCharCode(e.which);
+    var txtSearchByName = document.getElementById('txtSearchByName').value;
+    txtSearchByName = txtSearchByName + c;
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblBankPersonnels').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['Name'].substring(0, txtSearchByName.length);
+        if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblBankPersonnels').datagrid('selectRow', i);
+    }
+});
+
+$("#btnAdd").click(function(){
+
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getRows');
+    sessionStorage.setItem("BankPersonnel", JSON.stringify(oBankPersonnel)); 
+    sessionStorage.setItem("SelectedRowIndex", -1);   
+    sessionStorage.setItem("BankAccountHeader", "Add Bank Personnel");
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankPersonnel?id=0&nid="+_oSelectedBankBranch.BankBranchID;
+
+
+});
+
+$("#btnEdit").click(function(){
+    debugger;
+    
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getSelected'); 
+    if(oBankPersonnel==null || oBankPersonnel.BankPersonnelID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBankPersonnels').datagrid('getRowIndex',oBankPersonnel);
+   
+   
+    var oBankPersonnels= $('#tblBankPersonnels').datagrid('getRows');
+    sessionStorage.setItem("BankPersonnel", JSON.stringify(oBankPersonnels)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("BankAccountHeader", "Edit BankPersonnel");
+   
+    
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankPersonnel?id="+oBankPersonnel.BankPersonnelID+"&nid="+_oSelectedBankBranch.BankBranchID;
+
+});
+
+$("#btnView").click(function(){
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getSelected'); 
+   
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getSelected'); 
+    if(oBankPersonnel==null || oBankPersonnel.BankPersonnelID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBankPersonnels').datagrid('getRowIndex',oBankPersonnel);
+   
+   
+    var oBankPersonnels= $('#tblBankPersonnels').datagrid('getRows');
+    sessionStorage.setItem("BankPersonnel", JSON.stringify(oBankPersonnels)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("BankAccountHeader", "View BankPersonnel");
+
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankPersonnel?id="+oBankPersonnel.BankPersonnelID+"&nid="+_oSelectedBankBranch.BankBranchID;
+
+});
+
+
+function RefreshList()
+{    
+    var data=_oBankPersonnels;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBankPersonnels').datagrid('loadData',data); 
+}
+    
+$("#btnRefresh").click(function(){
+    var data=$('#tblBankPersonnels').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBankPersonnels').datagrid('loadData',data);  
+});
+
+    
+$("#btnClose").click(function(){
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+  "/Bank/ViewBankBranchs?id="+_oSelectedBankBranch.BankID+"&ts="+tsv;  
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+  "/Bank/ViewBankBranchs?id="+_oSelectedBankBranch.BankID+"&ts="+tsv;  
+    }
+});
+
+    
+$("#btnDelete").click(function(){
+   
+    
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getSelected'); 
+   
+    var oBankPersonnel= $('#tblBankPersonnels').datagrid('getSelected'); 
+    if(oBankPersonnel==null || oBankPersonnel.BankPersonnelID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBankPersonnels').datagrid('getRowIndex',oBankPersonnel);
+    if (!confirm("Confirm to Delete?")) return ;
+
+
+    if (oBankPersonnel.BankPersonnelID> 0) 
+    {
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",                
+            url : _sBaseAddress+  "/BankPersonnel/Delete",
+            data: { id: oBankPersonnel.BankPersonnelID},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted") 
+                {
+                    alert("Delete sucessfully");                        
+                    $('#tblBankPersonnels').datagrid('deleteRow',SelectedRowIndex);
+                          
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+    }
+});
+</script>

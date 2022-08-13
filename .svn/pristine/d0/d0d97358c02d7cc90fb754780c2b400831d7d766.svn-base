@@ -1,0 +1,223 @@
+﻿@{
+    ViewBag.Title = "Feature List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Feature>
+
+    <div class="menuMainCollectionTable" ng-app="FeatureApp">
+        <div ng-controller="FeatureController" style="width:99.85%">
+            <div style="margin-bottom:2px; display:block;" title="Feature List" class="ui-grid-top-panel">
+                <input type="text" ng-model="txtSearchByName" ng-keyup="SearchByName($event)" placeholder="Search by Name" style="width:200px" />
+                <button type="button" id="btnAdd" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+                <button type="button" id="btnEdit" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+                <button type="button" id="btnDetails" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+                <button type="button" id="btnDelete" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+                <button type="button" id="btnPrintList" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+                <button type="button" id="btnExportToExcel" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="ExportToExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export to Excel</span></button>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection  class="grid-angular"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:540px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oFeatures =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+   
+    debugger;
+    var CCapp= angular.module('FeatureApp', ['ui.grid','ui.grid.selection','ms.service']);
+    CCapp.controller('FeatureController',function ($scope,uiGridConstants,userSession) 
+    {
+        oFeatures= (userSession.getData('Features').length>0)? userSession.getData('Features'):oFeatures;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'FeatureCode', name:'Code', width:'10%' },
+              { field: 'FeatureName', name:'Name', width:'20%' },
+              { field: 'FeatureTypeST', name:'Type', width:'12%' },
+              { field: 'PriceST', name:'Price', width:'15%' },
+              { field: 'ModelNo', name:'Model', width:'10%' , enableSorting: false},
+            { field: 'Remarks', name:'Remarks', width:'30%' , enableSorting: false}
+            ],
+            data: oFeatures,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFeatures.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFeatures);
+                    $scope.gridApi.selection.selectRow(oFeatures[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFeatures[userSession.getRowIndex()]);
+                }
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity ); });
+                userSession.clear();
+            }
+        };
+        $scope.SearchByName = function(e)
+        {
+            debugger;
+            var txtSearchByName = $scope.txtSearchByName;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oFeatures;
+            }     
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].FeatureName;        
+                n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("Features", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("FeatureHeader", "Add Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/Feature/ViewFeature?id=0";
+        }            
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFeature= data[0];//get selected index
+            if(oFeature==null || oFeature.FeatureID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFeature);
+            sessionStorage.setItem("Features", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FeatureHeader", "Edit Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/Feature/ViewFeature?id="+oFeature.FeatureID
+        }
+                
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFeature= data[0];//get selected index
+            if(oFeature==null || oFeature.FeatureID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFeature);
+            sessionStorage.setItem("Features", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("FeatureHeader", "View Color Category");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/Feature/ViewFeature?id="+oFeature.FeatureID;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oFeature= data[0];//get selected index
+            if(oFeature==null || oFeature.FeatureID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oFeature);
+            if (oFeature.FeatureID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/Feature/Delete",
+                    data: { id: oFeature.FeatureID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Data delete successfully")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+        $scope.PrintList = function()
+        {
+            var oFeatures= $scope.gridOptions.data;
+            var ids ="";
+            if(oFeatures.length >0)
+            {
+                for(var i =0;i<oFeatures.length;i++)
+                {
+                    ids =ids+oFeatures[i].FeatureID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/Feature/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oFeatures=  $scope.gridOptions.data;
+            var ids ="";
+            if(oFeatures.length >0)
+            {
+                for(var i =0;i<oFeatures.length;i++)
+                {
+                    ids =ids+oFeatures[i].FeatureID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/Feature/FeatureExportToExcel?sIDs='+ids);
+        }
+
+        //button hide unhide
+            $('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide(); 
+            if(PermissionChecker('Add','Feature',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+            if(PermissionChecker('Edit','Feature',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+            if(PermissionChecker('View','Feature',oAuthorizationRolesMapping)){$("#btnView").show();}
+            if(PermissionChecker('Delete','Feature',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+            if(PermissionChecker('PrintList','Feature',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+
+</script>

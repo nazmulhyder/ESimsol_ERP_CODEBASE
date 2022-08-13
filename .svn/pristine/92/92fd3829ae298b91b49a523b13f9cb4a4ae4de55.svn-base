@@ -1,0 +1,415 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @using System.Collections.Concurrent
+    @using System.Web.UI.WebControls
+    @model ESimSol.BusinessObjects.AttendanceCalendarSession
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width: 610px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                        Attendance Calendar Session Holiday
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <table align="center" border="0" cellspacing="2" cellpadding="2" style="font-size: 11px;">
+                <tr>
+                    <td style="width:150">Attendance Calendar:</td>
+                    <td>@Html.TextBoxFor(model => model.CalendarName, new { id = "txtCalendarName", style = "width:250px;", disabled = "disabled" })</td>
+                </tr>
+                <tr>
+                    <td style="width:150">Session:</td>
+                    <td>@Html.TextBoxFor(model => model.Session, new { id = "txtSession", style = "width:250px;" })</td>
+                </tr>
+            </table>
+            <table align="center" border="0" cellspacing="2" cellpadding="2" style="font-size: 11px;">
+                <tr>
+                    <td>
+                        Start Date
+                        <input id="txtStartDate" type="text" class="easyui-datebox" style="width: 150px;
+                            margin-left: 20px" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    </td>
+                    <td>
+                        End Date
+                        <input id="txtEndDate" type="text" class="easyui-datebox" style="width: 150px;"
+                               data-options="formatter:icsdateformat ,parser:icsdateparser" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <input type="button" style="width: 90px;" onclick="PickHoliday()" value="Pick Holiday" id="btnPickHoliday" />
+                    </td>
+                    <td>
+                        <input type="button" style="width: 90px; float: right" onclick="Remove()" value="Remove" id="btnRemove" />
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+        <div style="font-family: Tahoma">
+            <table id="tblAttendanceCalendarSessionHoliday" title="Holiday"  class="easyui-datagrid" style="width:600px;height:250px" 
+                data-options="
+                singleSelect: false, 
+                fitColumns:false, 
+                rownumbers:true,
+                pagination:false,
+                autoRowHeight:false,
+                showFooter: true,
+                onClickRow: onClickRowForHoliday         
+                ">
+                <thead>
+                    <tr>
+                        <th field="HolidayDescription" width="220px">Holiday</th>
+                        <th data-options="field:'StartDateInString',width:160,align:'center', editor:{type:'datebox'}" >Start Time</th>
+                        <th data-options="field:'EndDateInString',width:160,align:'center', editor:{type:'datebox'}" >End Time</th>
+                    </tr>
+                </thead>
+            </table>
+            ​
+        </div>
+        <table align="center" border="0" cellspacing="2" cellpadding="2" style="font-size: 11px;">
+            <tr>
+                <td>
+                    Description @Html.TextBoxFor(model => model.Description, new { id = "txtDescription", style = "width:300px; margin-left: 15px;" })
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="width: 420px; text-align: right">
+                    </td>
+                    <td style="width: 60px; text-align: center">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                            plain="true" onclick="Save()">Save</a>
+                    </td>
+                    <td style="width: 60px">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true"
+                            onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    //debugger;
+    var _oAttendanceCalendar = null;
+    var _oAttendanceCalendarSession;
+    var _oAttendanceCalendarSessionHoliday;
+    var _oAttendanceCalendarHolidayList = [];
+    var _sBaseAddress = "";
+    var obj;
+    $(document).ready(function() {
+        //debugger;
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        obj = window.dialogArguments;
+        document.getElementById('lblHeaderName').innerHTML = obj.Name;
+        _oAttendanceCalendarSession = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        //_oAttendanceCalendarHolidayList = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.AttendanceCalendarSessionHolidayList));        
+        document.getElementById('txtCalendarName').value = obj.CalendarName;
+        //debugger;
+        if (obj.Name == "Edit Attendance Calendar Session") {
+            document.getElementById('txtCalendarName').disabled = true;
+            $('#txtStartDate').datebox('setValue', _oAttendanceCalendarSession.StartDateInString);
+            //document.getElementById('txtStartDate').disabled = true;
+            $('#txtEndDate').datebox('setValue', _oAttendanceCalendarSession.EndDateInString);
+            //document.getElementById('txtEndDate').disabled = true;
+            RefreshList(_oAttendanceCalendarSession.AttendanceCalendarSessionHolidays);     
+        }
+        //$('#txtSession').numberbox({min:0});
+        //RefreshList(_oAttendanceCalendar.Holidays);
+        if (obj.Name == "Preview AttendanceCalendar") {
+            //debugger;
+            RefreshList(_oAttendanceCalendarSession.AttendanceCalendarSessionHolidays);
+            document.getElementById('btnSave').style.display = 'none';
+            document.getElementById('btnPickHoliday').style.display = 'none';
+            document.getElementById('btnRemove').style.display = 'none';
+            document.getElementById('txtCalendarName').disabled = true;
+            document.getElementById('txtSession').disabled = true;
+            document.getElementById('txtDescription').disabled = true;
+            $('#txtStartDate').datebox('setValue', _oAttendanceCalendarSession.StartDateInString);
+            $('#txtEndDate').datebox('setValue', _oAttendanceCalendarSession.EndDateInString);
+            //document.getElementById('cboShiftID').style.display = 'none';//disabled = true;
+            //document.getElementById('cboNextShiftID').style.display = 'none';//disabled = true;
+            document.getElementById('btnRemove').disabled = true;
+        }
+    });
+
+    function RefreshList(oAttendanceCalendarSessionHolidays)
+    {    
+        //debugger;
+        data = oAttendanceCalendarSessionHolidays;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblAttendanceCalendarSessionHoliday').datagrid('loadData', data);
+    }
+
+   function PickHoliday() {
+        //debugger;
+        var oParameter = new Object();
+        oParameter.Name = "Pick Holiday";
+        var tsv = ((new Date()).getTime()) / 1000;
+        var url = _sBaseAddress + "/Holiday/PickHoliday?id=0&ts=" + tsv;
+        var oHolidays = window.showModalDialog(url, oParameter, 'dialogHeight:410px;dialogWidth:470px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+        //debugger;
+        var oAttendanceCalendarSessionHolidays=[];
+        var oAttendanceCalendarSessionHoliday=null;
+        for(var i=0; i<oHolidays.length; i++)
+        {
+            oAttendanceCalendarSessionHoliday={
+            
+                                                    ACSHID : 0,
+                                                    ACSID : 0,
+                                                    HolidayID : oHolidays[i].HolidayID,
+                                                    HolidayDescription : oHolidays[i].Description,
+                                                    StartDateInString : icsdateformat(new Date()),
+                                                    EndDateInString : icsdateformat(new Date()),
+                                                    IsActive : true            
+                                              }
+            oAttendanceCalendarSessionHolidays.push(oAttendanceCalendarSessionHoliday);
+        }        
+        RefreshList(oAttendanceCalendarSessionHolidays);
+    }
+
+    var editIndexForHoliday = undefined;  
+    function endEditingForHoliday(){  
+            if (editIndexForHoliday == undefined){return true}  
+            if ($('#tblAttendanceCalendarSessionHoliday').datagrid('validateRow', editIndexForHoliday)){ 
+                $('#tblAttendanceCalendarSessionHoliday').datagrid('endEdit', editIndexForHoliday);                   
+                editIndexForHoliday = undefined;  
+                return true;  
+            } else {  
+                return false;  
+        }  
+    }  
+
+    function onClickRowForHoliday(index){  
+    //debugger;
+            if (editIndexForHoliday != index){  
+                if (endEditingForHoliday()){
+                    $('#tblAttendanceCalendarSessionHoliday').datagrid('selectRow', index).datagrid('beginEdit', index);  
+                    editIndexForHoliday = index;  
+                } else {  
+                    $('#tblAttendanceCalendarSessionHoliday').datagrid('selectRow', editIndexForHoliday);  
+                }  
+            }  
+    }  
+
+   function icsdateformat(date) {
+        ////debugger;
+        var mthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var y = date.getFullYear();
+        var m = date.getMonth();
+        var d = date.getDate();
+        //return m+'/'+d+'/'+y;
+        var result = d + ' ' + mthNames[m] + ' ' + y;
+        return result;
+    }
+
+    function ValidateInput() {
+        ////debugger;
+        if (document.getElementById("txtSession").value == null || document.getElementById("txtSession").value == "") {
+            alert("Please enter a Session!");
+            $('#txtSession').focus();
+            return false;
+        }
+        //debugger;
+        var StartDate= $('#txtStartDate').datebox('getValue');
+        var dStartDate = new Date(StartDate);
+        if (StartDate == null || StartDate == "") {
+            alert("Please enter a Start Date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+        var EndDate= $('#txtEndDate').datebox('getValue');
+        if (EndDate == null || EndDate == "") {
+            alert("Please enter an End Date!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+//        var dRequestDateTime = $('#txtRequestDateTime').datebox('getValue');
+//        var dValidTime= $('#txtValidTime').datebox('getValue');
+//        var maxValidateDate = new Date();
+//        maxValidateDate.setDate(dRequestDate.getDate()+3);
+
+//        if(dValidDate<dRequestDate)
+//        {
+//            alert("Valid date must be greater than request date!");
+//            $('#txtValidTime').focus();
+//            return false;
+//        }
+//        if(dValidDate>maxValidateDate)
+//        {
+//            alert("Valid date will be maximum 2 working day from request date!");
+//            $('#txtValidTime').focus();
+//            return false;
+//        }
+        //debugger;
+        var dEndDate = new Date(EndDate);
+        var oAttendanceCalendarSessionHolidays=$('#tblAttendanceCalendarSessionHoliday').datagrid('getRows');
+        for(var i=0; i<oAttendanceCalendarSessionHolidays.length; i++)
+        {
+            oAttendanceCalendarSessionHolidays[i].StartDate=oAttendanceCalendarSessionHolidays[i].StartDateInString;
+            oAttendanceCalendarSessionHolidays[i].EndDate=oAttendanceCalendarSessionHolidays[i].EndDateInString;
+        }
+        for(var i=0;i<oAttendanceCalendarSessionHolidays.length;i++) {
+            var dHolidayStartDate = new Date(oAttendanceCalendarSessionHolidays[i].StartDateInString);
+            var dHolidayEndDate = new Date(oAttendanceCalendarSessionHolidays[i].EndDateInString);
+            if(((dHolidayStartDate < dStartDate) || (dHolidayStartDate > dEndDate)) || ((dHolidayEndDate < dStartDate) || (dHolidayEndDate > dEndDate)) ) {
+                alert("Holiday should be within session time range!");
+                return false;
+            }
+        }
+        if (document.getElementById("txtDescription").value == null || document.getElementById("txtDescription").value == "") {
+            alert("Please enter a Description");
+            $('#txtDescription').focus();
+            return false;
+        }
+        var data = $('#tblAttendanceCalendarSessionHoliday').datagrid('getRows');
+        if(data.length==0) {
+            alert("Please take some holidays");
+        }
+        return true;
+    }
+
+// values from user interface is taken to object properties here
+    function RefreshObject() {
+        //debugger;
+
+        var oAttendanceCalendarSessionHolidays=$('#tblAttendanceCalendarSessionHoliday').datagrid('getRows');
+        for(var i=0; i<oAttendanceCalendarSessionHolidays.length; i++)
+        {
+            oAttendanceCalendarSessionHolidays[i].StartDate=oAttendanceCalendarSessionHolidays[i].StartDateInString;
+            oAttendanceCalendarSessionHolidays[i].EndDate=oAttendanceCalendarSessionHolidays[i].EndDateInString;
+        }
+        var oAttendanceCalendarSession = {
+            ACSID: _oAttendanceCalendarSession.ACSID,
+            AttendanceCalendarID: obj.ACID,
+            Session: document.getElementById('txtSession').value,
+            StartDate: $('#txtStartDate').datebox('getValue'),
+            EndDate: $('#txtEndDate').datebox('getValue'),
+            Description: document.getElementById("txtDescription").value,
+            IsActive: _oAttendanceCalendarSession.IsActive,
+            AttendanceCalendarSessionHolidays: oAttendanceCalendarSessionHolidays
+        };
+        return oAttendanceCalendarSession;
+    }
+
+    function Save() {
+        //debugger;
+        if (!ValidateInput()) return;
+        endEditingForHoliday();
+        var oAttendanceCalendarSession = RefreshObject();
+
+        if (oAttendanceCalendarSession.ACSID>0) {
+           $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/AttendanceCalendar/AttendanceCalendarSession_Update",
+            traditional: true,
+            data: JSON.stringify(oAttendanceCalendarSession),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                //debugger;
+                var oAttendanceCalendarSession = jQuery.parseJSON(data);
+                if (oAttendanceCalendarSession.ACSID > 0) {
+                    alert("Data Saved sucessfully");
+                    window.returnValue = oAttendanceCalendarSession;
+                    window.close();
+                }else {
+                    alert(oAttendanceCalendarSession.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+           }); 
+        }
+        if (oAttendanceCalendarSession.ACSID == 0) {
+            $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/AttendanceCalendar/AttendanceCalendarSession_Insert",
+            traditional: true,
+            data: JSON.stringify(oAttendanceCalendarSession),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                //debugger;
+                var oAttendanceCalendarSession = jQuery.parseJSON(data);
+                if (oAttendanceCalendarSession.ACSID > 0) {
+                    alert("Data Saved sucessfully");
+                    window.returnValue = oAttendanceCalendarSession;
+                    window.close();
+                } else {
+                    alert(oAttendanceCalendarSession.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+            });
+        }
+    }
+
+    function Remove() {
+        debugger;
+        var oACSH = $('#tblAttendanceCalendarSessionHoliday').datagrid('getSelected');
+        if (oACSH == null) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+        var SelectedRowIndex = $('#tblAttendanceCalendarSessionHoliday').datagrid('getRowIndex', oACSH);
+        $('#tblAttendanceCalendarSessionHoliday').datagrid('deleteRow',SelectedRowIndex);
+        
+        if (oACSH.ACSHID>0) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/AttendanceCalendar/AttendanceCalendarSessionHolidayDelete",
+                data: { id: oACSH.ACSHID },
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "") {
+                        alert("Delete sucessfully");
+                        $('#tblRosterPlan').datagrid('deleteRow', selectedRowIndex);
+
+                    } else {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }
+
+    function Close() {
+        window.close();
+    }
+    $(document).keydown(function (e)
+    {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 27)
+        {
+            window.close();
+        }
+    });
+</script>

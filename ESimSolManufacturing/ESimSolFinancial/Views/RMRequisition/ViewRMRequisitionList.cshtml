@@ -1,0 +1,269 @@
+﻿<html>
+@{
+    ViewBag.Title = "RawMaterial Requisition List";
+}
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.RMRequisition>
+
+<script src="~/Views/RMRequisition/AdvanceSearch.js"></script>
+<div class="menuMainCollectionTable" ng-app="RMRequisitionApp">
+    <div ng-controller="RMRequisitionController" title="RawMaterial Requisition">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <button type="button" ng-show="btnAdvSearch" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+            <button type="button" ng-show="btnAdd" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEdit" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnDelete" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnApprove" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Approve()"><span class="glyphicon glyphicon-ok" aria-hidden="true">Approve</span></button>
+            <button type="button" ng-show="btnRevise" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="RMRevise()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Revise</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection style=" width: 100%; height: 485px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+</style>
+
+ <script type="text/javascript">
+    var oRMRequisitionList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    debugger;
+    var CInvoiceapp= angular.module('RMRequisitionApp', ['ui.grid','ui.grid.selection','RMAdvanceSearch.service','ms.service']); 
+    CInvoiceapp.controller('RMRequisitionController',  function ($scope,$http,$log,uiGridConstants,userSession,RMAdvanceSearchservice) {
+        oRMRequisitionList= (userSession.getData('RMRequisitionList').length>0)? userSession.getData('RMRequisitionList'):oRMRequisitionList;
+        debugger;
+        $scope.gridOptions = {
+            enableRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: true,
+            enableRowSelection: true,
+            columnDefs: [
+                { field: 'RefNo', name:'Requisition No', width:'15%' },
+                { field: 'RequisitionDateSt', name:'Process Date', width:'12%' },
+                { field: 'PreparedByName', name:'Prepared By', width: '20%', enableSorting: false },
+                { field: 'ApprovedByName', name: 'Approve By', width: '25%', enableSorting: false },
+                { field: 'Remarks', name: 'Remarks', width: '20%' }
+            ],
+            data: oRMRequisitionList,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+            }
+        };
+       
+        //$scope.BUID = sessionStorage.getItem("BUID");
+        $scope.CompareOperators = oCompareOperators;
+        $scope.AdvanceSearch =  function ()
+        {
+            debugger;
+            var modalObj={
+                modalcontroller:'ModalAdvanceSearchCtrl',
+                appcontroller:'RMRequisitionController',
+                CompareOperators:$scope.CompareOperators
+            }
+            var modalInstance=RMAdvanceSearchservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.Add  = function ()
+        {
+            debugger;
+            sessionStorage.setItem("RMRequisitionList", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("RMRequisitionHeader", "Add Commercial Invoice");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/RMRequisition/ViewRMRequisition?id=0";
+        }
+        $scope.Edit =  function ()
+        {
+            debugger;
+            var oRMRequisition = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRMRequisition==null || oRMRequisition.RMRequisitionID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(parseInt(oRMRequisition.ApprovedBy)!=0)
+            {
+                alert("Sorry, select Requisition Already Approved.");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index)
+            {
+                if (value.RMRequisitionID == oRMRequisition.RMRequisitionID)
+                {
+                    sessionStorage.setItem("RMRequisitionList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("RMRequisitionHeader", "Edit RM Requisition");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RMRequisition/ViewRMRequisition?id="+oRMRequisition.RMRequisitionID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var oRMRequisition = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRMRequisition==null || oRMRequisition.RMRequisitionID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.RMRequisitionID == oRMRequisition.RMRequisitionID)
+                {
+                    sessionStorage.setItem("RMRequisitionList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("RMRequisitionHeader", "View RM Requisition");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RMRequisition/ViewRMRequisition?id="+oRMRequisition.RMRequisitionID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.Approve =  function ()
+        {
+            debugger;
+            var oRMRequisition = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRMRequisition==null || oRMRequisition.RMRequisitionID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(parseInt(oRMRequisition.ApprovedBy)!=0)
+            {
+                alert("Sorry, select Requisition Already Approved.");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index)
+            {
+                if (value.RMRequisitionID == oRMRequisition.RMRequisitionID)
+                {
+                    sessionStorage.setItem("RMRequisitionList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("RMRequisitionHeader", "Approve RM Requisition");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RMRequisition/ViewRMRequisition?id="+oRMRequisition.RMRequisitionID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        //Revise
+        $scope.RMRevise =  function ()
+        {
+            debugger;
+            var oRMRequisition = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRMRequisition==null || oRMRequisition.RMRequisitionID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(parseInt(oRMRequisition.ApprovedBy)==0)
+            {
+                alert("Sorry, select Requisition Approved Item from List.");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.RMRequisitionID == oRMRequisition.RMRequisitionID)
+                {
+                    sessionStorage.setItem("RMRequisitionList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("RMRequisitionHeader", "Revise RM Requisition");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/RMRequisition/ViewRMRequisitionRevise?id="+oRMRequisition.RMRequisitionID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.PrintPreview = function ()
+        {
+            debugger;
+            var oRMRequisitions = $scope.gridApi.selection.getSelectedRows();
+            if(oRMRequisitions.length<=0 )
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var oRMRequisition = {Remarks:ICS_PropertyConcatation(oRMRequisitions,'RMRequisitionID')};
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/SetProductionSheetListData', JSON.stringify(oRMRequisition)).then(
+                            function (response)
+                            {
+                                var sFeedBackMessage = jQuery.parseJSON(response.data);
+                                if (sFeedBackMessage==="Successful")
+                                {   
+                                    window.open(_sBaseAddress+ "/RMRequisition/ProductionSheetRequiredRawMaterial?nBUID="+sessionStorage.getItem('BUID'));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+        $scope.Delete= function ()
+        {
+            debugger;
+            var oRMRequisition = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRMRequisition==null || oRMRequisition.RMRequisitionID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(parseInt(oRMRequisition.ApprovedBy)!=0)
+            {
+                alert("Sorry, select Requisition Already Approved.");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/Delete', JSON.stringify(oRMRequisition)).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted') {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.RMRequisitionID == oRMRequisition.RMRequisitionID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+
+        //button hide
+        $scope.btnAdd = $scope.btnAdvSearch= $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnApprove = $scope.Revise = $scope.btnPriview = true;
+
+        //button show
+        if(PermissionChecker('AdvSearch','RMRequisition',oAuthorizationRolesMapping)){$scope.btnAdvSearch = true; }
+        if(PermissionChecker('Add','RMRequisition',oAuthorizationRolesMapping)){$scope.btnAdd = true; }
+        if(PermissionChecker('Edit','RMRequisition',oAuthorizationRolesMapping)){$scope.btnEdit = true; $scope.btnRevise = true;}
+        if(PermissionChecker('View','RMRequisition',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Delete','RMRequisition',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Approved','RMRequisition',oAuthorizationRolesMapping)){$scope.btnApprove = true;}
+        if(PermissionChecker('Preview','RMRequisition',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+
+    });
+
+
+
+
+
+</script>

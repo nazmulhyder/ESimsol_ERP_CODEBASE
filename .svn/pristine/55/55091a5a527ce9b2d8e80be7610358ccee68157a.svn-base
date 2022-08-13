@@ -1,0 +1,201 @@
+﻿@{
+    ViewBag.Title = "Yarn Update Reports";
+}
+@model ESimSol.BusinessObjects.RawmaterialStatus
+           <div style="margin-left: 0px; height: 100%; width:100%">
+<table id="tblSaleOrders" title="Yarn Update Report" class="easyui-datagrid" fit ="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false"
+    autorowheight="false" toolbar="#toolbar">
+    <thead>
+        <tr>
+            <th data-options="field:'Selected',checkbox:true">
+            </th>
+            <th field="SaleOrderNo" width="150">
+                Recap No
+            </th>
+            <th field="StyleNo" width="150">
+                Style No
+            </th>
+            <th field="BuyerName" width="180">
+                Buery
+            </th>
+            <th field="MerchandiserName" width="180">
+                Merchandiser
+            </th>
+            <th field="DeliveryDateInString" width="130">
+                DeliveryDate
+            </th>
+        </tr>
+    </thead>
+</table>
+​
+<div id="toolbar" style="height: 60px;">
+
+                Buyer :<select id="cboBuyer" style="width: 150px; font-size: 12" />
+            
+                Recap No:
+            <input id="txtSaleOrder" type="text" style="width: 143px;" />
+             Production Factory :
+            <select id="cboProductionFactory" style="width: 150px; font-size: 12" />
+             <a id="btnRefresh" onclick="Refresh()" href="javascript:void(0)" class="easyui-linkbutton"
+                    iconcls="icon-reload" plain="true" style="width: 80px; font-size: 12" />Refresh</a>
+            
+                Yarn Supplier :
+            <select id="cboSupplier" style="width: 150px; font-size: 12" />
+            Date :
+            <input id="txtStartDate" type="text" style="width: 150px;" class="easyui-datebox"
+                    required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            
+                To
+            
+                <input id="txtEndDate" type="text" style="width: 150px;" class="easyui-datebox" required="required"
+                    data-options="formatter:icsdateformat,parser:icsdateparser" />
+            
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print"
+                    plain="true" onclick="Print()" style="width: 80px; font-size: 12" />Print </a>
+            
+</div>
+<script type="text/javascript">
+    var _oRawmaterialStatus=[];
+    var _sBaseAddress ="";
+    var _sMenuIdentify ="";    
+    $(document).ready(function () {
+          debugger;
+          
+          _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+          _oRawmaterialStatus =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+          var oBuyers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BuyerList));
+          var oSuppliers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.SupplierList));
+          var oProductionFacotys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.ProductionFactoryList));
+          $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+          $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+          
+          LoadBuyers(oBuyers);
+          LoadFactorys(oProductionFacotys);
+    });
+
+ function Refresh()
+  {
+        
+        if(document.getElementById("cboBuyer").value=="---Select Buyer---" || $("#cboBuyer").val()==0) { alert("Please select Buyer "); $('#cboBuyer').focus(); return false; }
+
+        var scboBuyer =document.getElementById("cboBuyer");
+       var nBuyerID = scboBuyer.options[scboBuyer.selectedIndex].value;
+        $.ajax
+             ({
+                type: "GET",
+                dataType: "json",            
+                url : _sBaseAddress+  "/YarnUpdateReport/GetSaleOrder",
+                data: { BuyerID:nBuyerID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oSaleOrders = jQuery.parseJSON(data);
+                    if (oSaleOrders.length>0) 
+                    {                  
+                        RefreshList(oSaleOrders);
+                       
+                    }
+                    else
+                    {
+                        alert("Data Could not found !");
+                      
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+
+
+
+  }
+
+
+  function Print()
+  {
+  debugger;
+        var oSaleOrders = $('#tblSaleOrders').datagrid('getChecked');
+        if(oSaleOrders.length<=0)
+        {
+            alert("Plese select at least one Order Recap");
+            return;
+        }
+        var sSaleOrderIDs="";
+       for(var i =0;i<oSaleOrders.length;i++)
+        {
+                     sSaleOrderIDs=sSaleOrderIDs+oSaleOrders[i].SaleOrderID+",";
+        }
+       sSaleOrderIDs= sSaleOrderIDs.substring(0, sSaleOrderIDs.length - 1);
+      window.open(_sBaseAddress + '/ProductionManagement/ViewPrintProdcutionProgressReport?SaleOrderIDs='+sSaleOrderIDs, "_blank");        
+
+
+  }
+
+   
+
+   function LoadBuyers(oBuyers)
+   {
+      $('#cboBuyer').empty();
+        var listItems =  "<option value ="+0+">---Select Buyer---</option>";  ;  
+        var i =0;       
+        if(oBuyers.length>0)
+        {
+            for (i = 0; i < oBuyers.length; i++) {
+                listItems += "<option value='" + oBuyers[i].ContractorID+"'>" + oBuyers[i].Name+"</option>";
+            }
+        }
+        $("#cboBuyer").html(listItems);
+   }
+
+
+    function LoadSuppliers(oSuppliers)
+   {
+      $('#cboSupplier').empty();
+        var listItems =  "<option value ="+0+">---Select Supplier---</option>";  ;  
+        var i =0;
+        if(oSuppliers.length>0)
+        {
+            for (i = 0; i < oSuppliers.length; i++) {
+                listItems += "<option value='" + oSuppliers[i].ContractorID+"'>" + oSuppliers[i].Name+"</option>";
+            }
+        }
+        $("#cboSupplier").html(listItems);
+   }
+
+
+  function LoadFactorys(oProductionFacotys)
+  {
+      $('#cboProductionFactory').empty();
+        var listItems =  "<option value ="+0+">---Select Factory---</option>";  ;  
+        var i =0;       
+        if(oProductionFacotys.length>0)
+        {
+            for (i = 0; i < oProductionFacotys.length; i++) {
+                listItems += "<option value='" + oProductionFacotys[i].ContractorID+"'>" + oProductionFacotys[i].Name+"</option>";
+            }
+        }
+        $("#cboProductionFactory").html(listItems);
+   }
+   
+ function  icsdateformat(date)
+    {
+        debugger;
+        var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var y = date.getFullYear();
+	    var m = date.getMonth();
+	    var d = date.getDate();
+	    //return m+'/'+d+'/'+y;
+        var result= d +' '+ mthNames[m]+' '+ y;
+        return result
+    }
+
+
+function RefreshList(oSaleOrders)
+{    
+          data=oSaleOrders;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblSaleOrders').datagrid('loadData',data);
+}  
+</script>

@@ -1,0 +1,202 @@
+﻿
+<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.CostCenterBreakdown
+
+    <div style="font-family:Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color:#CFB53B; text-align:center; width:973px; color:White">
+                    <label id="lblHeaderName" style="font-size:15px; font-weight:bold; color:blue; text-decoration:Underline">Sub Ledger Break Down Details</label>
+                </td>
+            </tr>
+        </table>
+        <div style="width:100%;">
+            <table id="tblCostCenterBreakdown" title="Sub Ledger Break down" class="easyui-datagrid" style="width:978px; height:450px;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="VoucherDateInString" width="90" align="left"> Voucher Date</th>
+                        <th field="VoucherIDWithNo" width="150" formatter="FormatStyle" align="left">Voucher No</th>
+                        <th field="AccountHeadName" width="355" align="left">Particulars</th>
+                        <th field="DebitAmountInString" width="100" align="right">Debit Amount</th>
+                        <th field="CreditAmountInString" width="120" align="right">Credit Amount</th>
+                        <th field="ClosingValueString" width="120" align="right">Closing Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar" style="height:25px;">
+                <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                To
+                <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Search</a>
+                <label id="lblCCName" style="font-size:12px;margin-top: 5px;font-weight:bold; color:blue;float:right;"></label>
+</div>
+            <table border="0" cellpadding="0" cellspacing="0" style="font-size:12px; font-weight:bold;">
+                <tr>
+                    <td style="width:545px;text-align:right;">Total:</td>
+                    <td style="width:150px; text-align:right;"><label id="lbltotalDebitAmount">0</label></td>
+                    <td style="width:140px; text-align:right;"><label id="lbltotalCreditAmount">0</label></td>
+                    <td style="width:145px; text-align:right;"></td>
+                </tr>
+            </table>
+            <fieldset style="width:960px;">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:780px; text-align:right"></td>
+                        <td style="width:120px">
+                            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+                        </td>
+                        <td style="width:60px">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oCostCenterBreakdown=null;
+    var _sBaseAddress="";
+    var _oCostCenterBreakdowns = [];
+    var _obj = null;
+    $(document).ready(function () {
+        _obj = window.dialogArguments;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCostCenterBreakdown=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oCostCenterBreakdowns=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.CostCenterBreakdowns));
+
+       
+        RefreshList(_oCostCenterBreakdowns);
+        SetBasicInfo(_obj.CostingInfo);
+        RefreshSummery();
+        $('#txtStartDate').datebox('setValue', _obj.StartDate);
+        $('#txtEndDate').datebox('setValue', _obj.EndDate);
+    });
+
+    $("#btnPrintXL").click(function(){
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParams = 0 + "~" + dStartDate + "~" + dEndDate + "~0~" + parseInt(_obj.AccountHeadID) + "~" + parseInt(_obj.CurrencyID) + "~" + _obj.ApprovedBy + "~" + parseInt(_obj.CCID);
+        window.open(_sBaseAddress+'/FinancialStatement/PrintCostCenterDetailsXL?sParams=' + sParams, "_blank");
+        window.close();
+    });
+
+    $("#btnSearch").click(function(){
+         
+        var oCostCenterBreakdown = {
+            BusinessUnitID:0,
+            AccountHeadID : parseInt(_obj.AccountHeadID),
+            StartDate : $('#txtStartDate').datebox('getValue'),
+            EndDate : $('#txtEndDate').datebox('getValue'),
+            CCID : parseInt(_obj.CCID),
+            CurrencyID : parseInt(_obj.CurrencyID),
+            IsApproved : _obj.ApprovedBy
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FinancialStatement/GetsVoucherByDate",
+            traditional: true,
+            data:  JSON.stringify(oCostCenterBreakdown),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oCostCenterBreakdown = jQuery.parseJSON(data);
+                if(oCostCenterBreakdown.CostCenterBreakdowns != null)
+                {
+                    RefreshList(oCostCenterBreakdown.CostCenterBreakdowns);
+                    RefreshSummery();
+                }
+                else {
+                    alert(oCostCenterBreakdown.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    function RefreshSummery()
+    {
+        var nTotalDebitAmount=0;
+        var nTotalCreditAmount=0;
+        var oCCs  = $("#tblCostCenterBreakdown").datagrid('getRows');
+        if(oCCs==null) oCCs=[];
+        for(var i=0; i<oCCs.length; i++)
+        {
+            nTotalDebitAmount = parseFloat(nTotalDebitAmount) + parseFloat(oCCs[i].DebitAmount);
+            nTotalCreditAmount = parseFloat(nTotalCreditAmount) + parseFloat(oCCs[i].CreditAmount);
+        }
+        nTotalDebitAmount = parseFloat(nTotalDebitAmount.toFixed(2));
+        nTotalCreditAmount = parseFloat(nTotalCreditAmount.toFixed(2));
+        document.getElementById('lbltotalDebitAmount').innerHTML = formatPrice(nTotalDebitAmount, null);
+        document.getElementById('lbltotalCreditAmount').innerHTML = formatPrice(nTotalCreditAmount, null);
+    }
+
+    function FormatStyle(value){
+        var values=value.split("~");
+        var sVoucherNo = values[0];
+        var nVoucherID = values[1];
+        var s = '<label id="lblOpening~'+nVoucherID+'" style="color:Blue;cursor:pointer"  onclick="Detail('+nVoucherID+')">'+sVoucherNo+'</label>';
+        return s;
+    }
+
+    function SetBasicInfo(scostingInfo)
+    {
+        var sInfo = scostingInfo.split('~');
+        var sDateValue;
+        if(sInfo[0]==5)//5 : between
+        {
+            sDateValue =  icsdateformat(new Date(sInfo[1])) +' To '+icsdateformat(new Date(sInfo[2]));
+        }else{
+            sDateValue = sInfo[1];
+        }
+        var sApproveUnApproveMessage = "";
+        if(sInfo[5]=='true')
+        {
+            sApproveUnApproveMessage = " [Approved Only]";
+        }else{
+            sApproveUnApproveMessage = " [Approved & Un Approved]";
+        }
+        document.getElementById('lblHeaderName').innerHTML = " Date : "+ sDateValue+" & Account Head : " + _obj.AccountHeadName;
+        document.getElementById('lblCCName').innerHTML = " Sub Ledger Name : "+_obj.CCName+sApproveUnApproveMessage ;
+    }
+
+    function Detail(nVoucherID)
+    {
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Voucher";
+        //oParameter.Voucher=  oGeneralJournal;
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/Voucher/ViewSingleVoucherDetails?id="+parseInt(nVoucherID)+"&ts="+tsv;
+        var oVoucher = window.showModalDialog(url, oParameter, 'dialogHeight:565px;dialogWidth:1000px;dialogLeft:230;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+    }
+    function RefreshList(oCostCenterBreakdowns)
+    {
+        var data=oCostCenterBreakdowns;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCostCenterBreakdown').datagrid('loadData',data);
+    }
+
+    function Close()
+    {
+        window.close();
+    }
+
+</script>

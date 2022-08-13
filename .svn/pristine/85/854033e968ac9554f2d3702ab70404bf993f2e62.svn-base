@@ -1,0 +1,329 @@
+﻿<html>
+
+
+@model IEnumerable<ESimSol.BusinessObjects.VoucherReport>
+@{
+    ViewBag.Title = "Voucher Statistics Report";
+}
+
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table border="0" cellspacing="2" cellpadding="2">
+        <tr>
+            <td style="background-color:White; text-align:center; width:880px; color:Black">
+                <label id="lblHeaderName" style="font-size:16px; font-weight:bold; text-decoration:Underline"> Statistics</label>
+            </td>
+
+        </tr>
+
+    </table>
+    <table style="width: 100%;">
+        <tr>
+            <td style="width: 130px; text-align: left; font-size: 12px"> </td>
+            <td style="width: 30px; text-align: left; font-size: 12px">  Date</td>
+            <td style="width: 329px; text-align: left; font-size: 12px">
+                <table border="0" style="font-size: 12px">
+                    <tr>
+                        <td style="width: 100px; font-size: 12px; text-align: left">
+                            <select id="cboDateSearch" style="width:100px;font-size:12px;" class="_select_changeA" />
+                        </td>
+                        <td style="width: 110px; font-size: 12px">
+                            <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                        <td style="width: 9px; font-size: 12px" id="tdSearchStartDate">
+                            To
+                        </td>
+                        <td style="width: 110px; font-size: 12px" id="tdSearchEndDate">
+                            <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox"
+                                    required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" style="text-align: left; font-size: 12px">
+                <label id="lblInfo"></label>
+                <a id="btnSrc" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Search</a>
+
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="Print()">Print</a>
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintExcel()">Export To XL</a>
+            </td>
+        </tr>
+    </table>
+    <table id="tblVoucherReport" title=" Report List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true"  singleselect="true" autorowheight="false">
+        <thead>
+            <tr>
+                <th field="VoucherTypeNameSLNo" width="250" align="left" formatter="FormatVoucherRegister">Types of Vouchers</th>
+                <th field="VoucherTypeCount" width="80" align="right">Voucher Count</th>
+                <th field="AccountTypeName" width="250" align="left">Types of Accounts</th>
+                <th field="AccountTypeCount" width="80" align="right">Accounts Count</th>
+            </tr>
+        </thead>
+    </table>
+
+</div>
+</html>
+
+
+<script type="text/javascript">
+
+
+var _sBaseAddress="";
+var _oVoucherReports=[];
+
+$(document).ready(function () {
+    debugger;
+    
+//    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    RefreshDateSearch();
+});
+    
+    function RefreshDateSearch()
+{
+debugger;
+       document.getElementById("tdSearchStartDate").style.display = 'none';
+       document.getElementById("tdSearchEndDate").style.display = 'none';
+     $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+     $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+           $('#cboDateSearch').empty();
+       var listDates= "<option value='"+0+"'>" +"None" + "</option>";
+           listDates+= "<option value='"+1+"'>" + "EqualTo" + "</option>";
+           listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+           listDates+= "<option value='"+6+"'>" + "NotBetween" + "</option>";
+       $("#cboDateSearch").html(listDates);
+
+  
+
+   }
+
+ $('._select_changeA').change(function () {
+        debugger;
+        var DateTypes = document.getElementById("cboDateSearch");
+    var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {            
+            document.getElementById("txtStartDate").style.display = 'none';
+            document.getElementById("txtEndDate").style.display = 'none';
+           document.getElementById("tdSearchStartDate").style.display = 'none';
+          document.getElementById("tdSearchEndDate").style.display = 'none';
+         
+        }
+        if (DateType == "None" ) 
+        {            
+            document.getElementById("txtStartDate").style.display = 'none';
+            document.getElementById("txtEndDate").style.display = 'none';
+               document.getElementById("tdSearchStartDate").style.display = 'none';
+              document.getElementById("tdSearchEndDate").style.display = 'none';
+
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  ) 
+        {
+               document.getElementById("tdSearchStartDate").style.display = '';
+              document.getElementById("tdSearchEndDate").style.display = '';
+        }
+});
+
+
+
+function Search()
+{
+    debugger;
+     debugger;
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var nDateTypeInt = Date.options[Date.selectedIndex].value;
+        var sDateopen = $('#txtStartDate').datebox('getValue');
+        var sDateclose = $('#txtEndDate').datebox('getValue');
+
+
+        var oVoucherReport={
+                            DateType: dDateType,
+                            DateTypeInt: nDateTypeInt,
+                            StartDate:sDateopen,
+                            EndDate:sDateclose
+                          };
+
+         if(oVoucherReport.DateType=="None" )
+        {
+            alert('Please select atleast one search criteria');
+            return;
+        }
+         $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Gets_ReportData", "VoucherReport")',
+            data: JSON.stringify({oVoucherReport:oVoucherReport}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+               debugger;
+                _oVoucherReports = jQuery.parseJSON(data);
+                if (_oVoucherReports != null) {                   
+                    if(_oVoucherReports.length>0)
+                    { 
+                      RefreshList(_oVoucherReports);
+                    
+                        
+                    }    
+                    else
+                    {
+                        alert("Data not found!!");
+//                       window.returnValue=_oVoucherReport;
+//                       window.close(); 
+                    }              
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+}
+
+   function RefreshList(oVoucherReports)
+    {
+        debugger;
+        data =oVoucherReports;  
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVoucherReport').datagrid('loadData', data);
+       
+    }
+
+ 
+
+
+
+
+    $(document).keydown(function (e) {
+        //debugger;
+        //alert('hello world');
+        var oVoucherReport = $('#tblVoucherReport').datagrid('getSelected');
+        var nIndex = $('#tblVoucherReport').datagrid('getRowIndex', oVoucherReport);
+        if (e.which == 38)//up arrow=38
+        {
+            if (nIndex <= 0) {
+                $('#tblVoucherReport').datagrid('selectRow', 0);
+            }
+            else {
+                $('#tblVoucherReport').datagrid('selectRow', nIndex - 1);
+            }
+            //  $('#tblVoucherReport').datagrid('selectRow', nIndex);
+            //    <span style="color: #FF0000;">grid.datagrid('selectRow', index - 1)
+        }
+        if (e.which == 40)//down arrow=40
+        {
+            var oVoucherReport = $('#tblVoucherReport').datagrid('getRows');
+            if (nIndex >= oVoucherReport.length - 1) {
+                $('#tblVoucherReport').datagrid('selectRow', oVoucherReport.length - 1);
+            }
+            else {
+                $('#tblVoucherReport').datagrid('selectRow', nIndex + 1);
+            }
+         //   $('#txtSearchByName').blur();
+        }
+        if (e.which == 13)//enter=13
+        {
+            //debugger;
+            var oVoucherReport = $('#tblVoucherReport').datagrid('getSelected');
+            if (oVoucherReport == null || parseInt(oVoucherReport.VoucherTypeID) <= 0) {
+                alert("Please select a Voucher Type!");
+                return;
+            }
+            ViewVoucherTyps_RegisterKeyPress(oVoucherReport)
+        }
+        if (e.which == 27)//escape=27
+        {
+            //debugger;        
+//            window.returnValue = null;
+//            window.close();
+        }
+    });
+
+    function FormatVoucherRegister(value) {
+        debugger;
+        // value of CurrentBalance, SL
+        var values = value.split("~");
+        var sVoucherTypeName = values[0];
+        var nIndex = parseInt(values[1]);
+        //var sCurrentBalance = addComma(nCurrentBalance.toFixed(2));
+        var s = '<label id="lblOpening~' + nIndex + '" style="color:Blue;cursor:pointer"  onclick="ViewVoucherRegister(' + nIndex + ')">' + sVoucherTypeName + '</label>';
+        return s;
+    }
+
+    function ViewVoucherRegister(nIndex) {
+        debugger;
+
+        $('#tblVoucherReport').datagrid('selectRow', (nIndex - 1));
+        var oVoucherReport = $('#tblVoucherReport').datagrid('getSelected');
+        if (oVoucherReport.VoucherTypeID != 0) {
+
+            var Date = document.getElementById("cboDateSearch");
+            var dDateType = Date.options[Date.selectedIndex].innerHTML;
+            var nDateTypeInt= Date.options[Date.selectedIndex].value;
+            var sDateopen = $('#txtStartDate').datebox('getValue');
+            var sDateclose = $('#txtEndDate').datebox('getValue');
+
+
+            var oParameter = new Object();
+            oVoucherReport.DateType = dDateType;
+            oVoucherReport.DateTypeInt = nDateTypeInt;
+            
+            oVoucherReport.StartDate = sDateopen;
+            oVoucherReport.EndDate=sDateclose;
+            oParameter.VoucherReport_VType = oVoucherReport;
+
+            var url = _sBaseAddress + "/VoucherReport/ViewVoucherRegister?nID=" + 0;
+            window.showModalDialog(url, oParameter, 'dialogHeight:600px;dialogWidth:650px;dialogLeft:450;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+        }
+     }
+
+     /// For entry Keb press (Enter kee)
+     function ViewVoucherTyps_RegisterKeyPress(oVoucherReport)
+     {
+        debugger;
+
+     
+        if (oVoucherReport.VoucherTypeID != 0) {
+
+            var Date = document.getElementById("cboDateSearch");
+            var dDateType = Date.options[Date.selectedIndex].innerHTML;
+            var nDateTypeInt = Date.options[Date.selectedIndex].value;
+            var sDateopen = $('#txtStartDate').datebox('getValue');
+            var sDateclose = $('#txtEndDate').datebox('getValue');
+
+
+            var oParameter = new Object();
+            oVoucherReport.DateType = dDateType;
+            oVoucherReport.DateTypeInt = nDateTypeInt;
+
+            oVoucherReport.StartDate = sDateopen;
+            oVoucherReport.EndDate = sDateclose;
+            oParameter.VoucherReport_VType = oVoucherReport;
+
+            var url = _sBaseAddress + "/VoucherReport/ViewVoucherRegister?nID=" + 0;
+            window.showModalDialog(url, oParameter, 'dialogHeight:600px;dialogWidth:650px;dialogLeft:450;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+        }
+    }
+    function Print() {
+        debugger;
+
+
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var nDateType = Date.options[Date.selectedIndex].value;
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var nVoucherType = 0;
+
+        if (dDateType == "None") {
+            alert('Please Select Atleast One Search Criteria!');
+            return;
+        }
+//        if (dDateType == "EqualTo") {
+//            sEndDate = sStartDate;
+
+//        }
+
+        var sTemp = "";
+        sTemp = nDateType + '~' + sStartDate + '~' + sEndDate + '~' + nVoucherType;
+        window.open(_sBaseAddress + '/VoucherReport/PrintVoucherType?sTemp=' + sTemp, "_blank")
+    }
+
+</script>

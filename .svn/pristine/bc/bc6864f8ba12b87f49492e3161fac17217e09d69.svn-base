@@ -1,0 +1,549 @@
+﻿@{
+    ViewBag.Title = "Payments";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.Payment>
+<html>
+    <head>
+        <title></title>
+        <script src="@Url.Content("~/Views/Payment/Payments.js")" type="text/javascript"></script>
+    </head>
+    <body>
+        <div class="menuMainCollectionTable"> 
+            <table id="tblPayments" title="Payment List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarPayment">
+                <thead> 
+                    <tr>
+                        <th field="PaymentNo" width="10%">Payment No</th>
+                        <th field="MoneyReceipt" width="10%" align="left">MR No</th>
+                        <th field="PaymentDateSt" width="10%" align="center">MR Date</th>
+                        <th field="BuyerName" width="15%">Buyer</th>
+                        <th field="PaymentMethodSt" width="15%">Payment Method</th>
+                        <th field="AccountNo" width="10%">Account No</th>
+                        <th field="DocNo" width="10%">Cheque No</th>
+                        <th field="AmountSt" width="15%" align="right">Amount</th>
+                        <th field="Note" width="20%">Note</th>
+                        <th field="ApproveByName" width="20%">Approve By</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarPayment">
+                <table>
+                    <tr>
+                        <td>
+                            <input id="txtPaymentNo" type="text" placeholder="Payment No" style="width:80px;"/>
+                            <input id="txtMoneyReceipt" type="text" placeholder="Money Receipt No" style="width:102px;" />
+                            <input id="txtBuyer" type="text" placeholder="Buyer" style="width:140px;" />
+                            <input id="txtPINo" type="text" placeholder="Type Bill No & Press Enter" style="width:144px;" />
+                            <input id="txtDocNo" type="text" placeholder="Cheque No" style="width:80px;" />
+                            <select id="cboPaymentMethod"></select>
+                            <input id="chkDate" type="checkbox"/>
+                            <input id="dFromDate" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                            <input id="dToDate" type="text" style="width: 100px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                            <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Approve</a>
+                            @*<a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>*@
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oPayments = [];
+    var _oPaymentMethods=[];
+    var _oTempObj={
+        BuyerIDs : "",
+        ExportPIIDs : ""
+    };
+    
+    $(document).ready(function() {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oPayments = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oPaymentMethods = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PaymentMethods));
+        $(".easyui-datebox").datebox({ disabled: true });
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+        DynamicRefreshList(_oPayments, "tblPayments");
+        LoadAllComboboxes();
+
+        SelectItemFromSession("Payment", "PaymentID", _oPayments, "tblPayments");
+    });
+
+    $("#btnApprove").click(function(){
+        var oPayment = $("#tblPayments").datagrid("getSelected");
+        if(oPayment == null || oPayment.PaymentID <= 0)
+        {
+            alert("Please select an item from list.");
+            return false;
+        }
+
+        if(oPayment.ApproveBy > 0)
+        {
+            alert("Already Approved.");
+            return false;
+        }
+
+        if (!confirm("Confirm to Approve?")) return false;
+        var nRowIndex = $("#tblPayments").datagrid("getRowIndex", oPayment);
+
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPayment,
+            ObjectId: oPayment.PaymentID,
+            ControllerName: "Payment",
+            ActionName: "Approve",
+            TableId: "",
+            IsWinClose: false,
+            Message : ""
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if(response.obj.PaymentID > 0)
+                {
+                    alert("Approved Successful.");
+                    $("#tblPayments").datagrid("updateRow", { index: nRowIndex, row: response.obj });
+                }
+            }
+        });
+
+    });
+
+    $("#btnSave").click(function(){
+        
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPayment,
+            ObjectId: oPayment.PaymentID,
+            ControllerName: "Payment",
+            ActionName: "Save",
+            TableId: "",
+            IsWinClose: false,
+            Message : ""
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if(response.obj.PaymentID > 0)
+                {
+                    var bConfirm = confirm("Save Successful. Do you want to create another payment?");
+                    TotalAmountCal();
+                    _oPayment = null;
+                    if(bConfirm)
+                    {
+                        ResetAllField();
+                    }
+                    else{
+                        window.location.href = _sBaseAddress + "/Payment/View_Payments?menuid=" + _nMenuid;
+                    }
+                }
+            }
+        });
+    });
+
+    $("#btnDelete").click(function(){
+        var oPayment = $("#tblPayments").datagrid("getSelected");
+        if(oPayment == null || oPayment.PaymentID <= 0){
+            alert("Please select an item from list.");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return false;
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oPayment,
+            ControllerName: "Payment",
+            ActionName: "Delete",
+            TableId: "tblPayments",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#txtPINo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            debugger;
+            var oExportPI={};
+            if($.trim(_oTempObj.BuyerIDs) != "")
+            {
+                oExportPI = {
+                    Note : _oTempObj.BuyerIDs,
+                    PINo : $.trim($("#txtPINo").val())
+                };
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oExportPI,
+                    ControllerName: "ExportPI",
+                    ActionName: "GetsBuyersExportPIs",
+                    IsWinClose: false
+                };
+                LoadExportPIs(obj);
+            }
+            else
+            {
+                oExportPI = {
+                    Note : "",
+                    PINo : $.trim($("#txtPINo").val())
+                };
+            }
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oExportPI,
+                ControllerName: "ExportPI",
+                ActionName: "GetsBuyersExportPIs",
+                IsWinClose: false
+            };
+            LoadExportPIs(obj);
+        }
+        else if(e.keyCode === 8){
+            $(this).removeClass("fontColorOfPickItem");
+            $("#txtPINo").val("");
+            _oTempObj.ExportPIIDs="";
+            LoadFullList();
+        }
+    });
+
+    $("#txtBuyer").keydown(function(e)
+    {
+        if(e.keyCode === 13)
+        {
+            var oContractor = {
+                Params : 2 + "~" + $.trim($(this).val()) //Buyer
+            };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+
+            $.icsDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ContractorTypeInString", title: "Type", width: 150, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBuyers',
+                            winclass: 'clsBuyer',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblBuyers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Buyer List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Sorry, No Buyer Found.");
+                }
+            });
+        }
+        else if(e.keyCode === 8){
+            $(this).val("");
+            $(this).removeClass("fontColorOfPickItem");
+            _oTempObj.BuyerIDs = "";
+            LoadFullList();
+        }
+    });
+
+    function LoadFullList()
+    {
+        var oPayment={
+            PaymentNo : "",
+            MoneyReceipt : "",
+            DocNo : "",
+            PaymentMethodInInt : 0,
+            Params : false + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + _oTempObj.BuyerIDs + "~" + _oTempObj.ExportPIIDs
+        };
+        SearchPayments(oPayment);
+    }
+
+    $("#chkDate").change(function(){
+        if(this.checked) {
+            $("#dFromDate,#dToDate").datebox({ disabled: false });
+        }else{
+            $("#dFromDate,#dToDate").datebox({ disabled: true });
+        }
+        $("#dFromDate,#dToDate").datebox("setValue", icsdateformat(new Date()));
+    });
+
+    $("#txtPaymentNo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            if($.trim($("#txtPaymentNo").val()) == ""){
+                alert("Give Payment No and press enter.");
+                return false;
+            }
+            var oPayment={
+                PaymentNo : $.trim($("#txtPaymentNo").val()),
+                Params : false + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + "" + "~" + ""
+            };
+            SearchPayments(oPayment);
+        }
+        else if(e.keyCode === 8)
+        {
+            LoadFullList();
+        }
+    });
+
+    $("#txtMoneyReceipt").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            if($.trim($("#txtMoneyReceipt").val()) == ""){
+                alert("Give Money Receipt No and press enter.");
+                return false;
+            }
+            var oPayment={
+                MoneyReceipt : $.trim($("#txtMoneyReceipt").val()),
+                Params : false + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + "" + "~" + ""
+            };
+            SearchPayments(oPayment);
+        }
+        else if(e.keyCode === 8)
+        {
+            LoadFullList();
+        }
+    });
+
+    $("#cboPaymentMethod").change(function(){
+        var nVal = $(this).val();
+        var oPayment={
+            PaymentMethodInInt : parseInt($(this).val()),
+            Params : false + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + "" + "~" + ""
+        };
+        SearchPayments(oPayment);
+    });
+
+    $("#txtDocNo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            if($.trim($("#txtDocNo").val()) == ""){
+                alert("Give Cheque No and press enter.");
+                return false;
+            }
+            var oPayment={
+                DocNo : $.trim($("#txtDocNo").val()),
+                Params : false + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + "" + "~" + ""
+            };
+            SearchPayments(oPayment);
+        }
+        else if(e.keyCode === 8)
+        {
+            LoadFullList();
+        }
+    });
+
+    $("#btnSearch").click(function(){
+        var oPayment={
+            PaymentNo : $.trim($("#txtPaymentNo").val()),
+            MoneyReceipt : $.trim($("#txtMoneyReceipt").val()),
+            DocNo : $.trim($("#txtDocNo").val()),
+            PaymentMethodInInt : parseInt($("#cboPaymentMethod").val()),
+            Params : $("#chkDate").is(":checked") + "~" +  $('#dFromDate').datebox('getValue') + "~" +  $('#dToDate').datebox('getValue') + "~" + _oTempObj.BuyerIDs + "~" + _oTempObj.ExportPIIDs
+        };
+        SearchPayments(oPayment);
+    });
+
+    $("#btnAdd").click(function () {
+        var oPayment={
+            PaymentID : 0
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            TableId: "",
+            OpenedPageTitle: "Add Payment",
+            Object: oPayment,
+            ObjectId: oPayment.PaymentID,
+            PrimaryKeyName: "PaymentID",
+            ControllerName: "Payment",
+            ActionName: "View_Payment",
+            BtnID : $(this).attr("id")
+        };
+        $.icsOpenPickerInNewPage(obj);
+    });
+
+    $("#btnEdit,#btnView").click(function () {
+        var oPayment = $("#tblPayments").datagrid("getSelected");
+        if(oPayment == null || oPayment.PaymentID <= 0){
+            alert("Please select an item from list.");
+            return false;
+        }
+
+        if($(this).attr("id") == "btnEdit")
+        {
+            if(oPayment.ApproveBy > 0)
+            {
+                alert("Sorry, Already Approved.");
+                return false;
+            }
+        }
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            TableId: "",
+            OpenedPageTitle: "Edit Payment",
+            Object: oPayment,
+            ObjectId: oPayment.PaymentID,
+            PrimaryKeyName: "PaymentID",
+            ControllerName: "Payment",
+            ActionName: "View_Payment",
+            BtnID : $(this).attr("id")
+        };
+        $.icsOpenPickerInNewPage(obj);
+    });
+
+    function LoadAllComboboxes(){
+        _oPaymentMethods.shift();
+        var _oPayMeths=[];
+        for(var i=0;i<_oPaymentMethods.length;i++){
+            if(_oPaymentMethods[i].id == 1 || _oPaymentMethods[i].id == 2){
+                _oPayMeths.push(_oPaymentMethods[i]);
+            }
+        }
+
+        $("#cboPaymentMethod").icsLoadCombo({
+            List: _oPayMeths,
+            OptionValue: "id",
+            DisplayText: "Value",
+            InitialValue : "Custom"
+        });
+        $('#cboPaymentMethod').prepend( new Option("Select All",0) );
+        $("#cboPaymentMethod").val(0);
+    }
+   
+    function SearchPayments(oPayment){
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oPayment,
+            ControllerName: "Payment",
+            ActionName: "GetsBySearchingCriteria",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs != null) {
+                if(response.objs.length>0)
+                {
+                    DynamicRefreshList(response.objs, "tblPayments");
+                }else{
+                    alert("No List Found.");
+                    DynamicRefreshList([], "tblPayments");
+                }
+            }
+            else{
+                alert("No List Found.");
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        if (oPickerobj.winid == 'winBuyers') {
+            var sBuyerFieldVal = "";
+            if (oreturnobjs != null && oreturnobjs.length > 0) {
+                $("#txtBuyer").addClass("fontColorOfPickItem");
+                sBuyerFieldVal = oreturnobjs.length + " Buyer"+(oreturnobjs.length > 1 ? "'s " : " ")+"Selected";
+                var sBuyerIDs="";
+                for(var i=0;i<oreturnobjs.length;i++){
+                    sBuyerIDs = oreturnobjs[i].ContractorID + "," + sBuyerIDs;
+                }
+                sBuyerIDs = sBuyerIDs.substring(0, sBuyerIDs.length - 1);
+                _oTempObj.BuyerIDs = sBuyerIDs;
+                $('#txtPINo').focus();
+                $("#txtBuyer").val(sBuyerFieldVal);
+            }else{
+                alert("Please select minimum one buyer.");
+                return false;
+            }
+        }
+        else if (oPickerobj.winid == 'winExportPIs') {
+            if (oreturnobjs != null && oreturnobjs.length > 0)
+            {
+                var sPIFieldVal = "";
+                $("#txtPINo").addClass("fontColorOfPickItem");
+                sPIFieldVal = oreturnobjs.length + " Export PI"+(oreturnobjs.length > 1 ? "'s " : " ")+"Selected";
+                var sPIIDs="";
+                for(var i=0;i<oreturnobjs.length;i++){
+                    sPIIDs = oreturnobjs[i].ExportPI + "," + sPIIDs;
+                }
+                sPIIDs = sPIIDs.substring(0, sPIIDs.length - 1);
+                _oTempObj.ExportPIIDs = sPIIDs;
+                $('#txtDocNo').focus();
+                $("#txtPINo").val(sPIFieldVal);
+            }
+            else{
+                alert("Please select minimum one Export PI.");
+                return false;
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function LoadExportPIs(obj){
+        $.icsDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ExportPIID > 0) {
+                    var tblColums = []; var oColumn = { field: "PINo", title: "PI No", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "IssueDateInString", title: "PI Date", width: 120, align: "center" }; tblColums.push(oColumn);
+                    oColumn = { field: "AmountSt", title: "Amount", width: 100, align: "right" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winExportPIs',
+                        winclass: 'clsExportPI',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblExportPIs',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'PINo',
+                        windowTittle: 'Export PI List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else
+            {
+                alert("Sorry, No Export PI Found.");
+            }
+        });
+    }
+
+</script>

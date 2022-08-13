@@ -1,0 +1,244 @@
+﻿@{
+    ViewBag.Title = "Style to Style Lot Transfer List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.S2SLotTransfer>
+
+<div class="menuMainCollectionTable" ng-app="S2SLotTransferApp" style="height:520px">
+        <div ng-controller="S2SLotTransferController">
+            <div title="S2SLotTransfer List" class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" ng-model="txtSearchByIssueStyle" ng-keydown="SearchByIssueStyle($event)" placeholder="Search by Issue Style No" style="width:170px" />
+                        <input type="text" ng-model="txtSearchByReceiveStyle" ng-keydown="SearchByReceiveStyle($event)" placeholder="Search by Receive Style No" style="width:170px" />
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="View()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Commit()"> <span class="glyphicon glyphicon-ok-circle" aria-hidden="true"></span> Commit</button>
+                        @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Print()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span></button>*@
+                    </div>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns class="grid-angular" style="width:100%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:520px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oS2SLotTransfers =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oS2SLotTransferTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.S2SLotTransferTypes));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    debugger;
+    var CCapp= angular.module('S2SLotTransferApp', ['ui.grid','ui.grid.selection', 'ui.grid.resizeColumns','ms.service']);
+    CCapp.controller('S2SLotTransferController',function ($scope,$http,$log,uiGridConstants,userSession)
+    {
+        oS2SLotTransfers= (userSession.getData('S2SLotTransfers').length>0)? userSession.getData('S2SLotTransfers'):oS2SLotTransfers;
+        debugger;
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            columnDefs: [
+              { field: 'IssueStyleNo', name:'Issue Style', width:'10%' },
+              { field: 'IssueLotNo', name:'Issue Lot', width:'10%' },
+              { field: 'ReceiveStyleNo', name:'Receive Style', width:'10%' },
+              { field: 'ReceiveLotNo', name:'Receive Lot', width:'15%' },
+              { field: 'StoreName', name:'Store', width:'20%' },
+              { field: 'ProductCode', name:'Product Code', width:'15%', enableSorting: false},
+              { field: 'ProductName', name:'Product Name', cellClass: 'text-right', width:'15%' },
+              { field: 'TransferQty', name:'Transfer Qty', width:'15%', cellClass: 'text-right' }
+            ],
+            data: oS2SLotTransfers,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                userSession.clear();
+            }
+        };
+      
+        $scope.GetS2SLotTransfers = function(bIsIssueStyle)
+        {
+            debugger;
+            var oS2SLotTransfer = {
+                BUID:sessionStorage.getItem('BUID'),
+                IssueStyleNo:bIsIssueStyle==true?$scope.txtSearchByIssueStyle:'',
+                ReceiveStyleNo:bIsIssueStyle==false?$scope.txtSearchByReceiveStyle:''
+            };
+            $.icsProgressBar(true);
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/S2SLotTransfer/Gets',$.param(oS2SLotTransfer), config).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    $.icsProgressBar(false);
+                                    var results=jQuery.parseJSON(response.data);
+                                    if(results.length>0)
+                                    {
+                                        if(results[0].ErrorMessage==null || results[0].ErrorMessage=="")
+                                        {
+                                            $scope.gridOptions= {data: results};
+                                        }else 
+                                        {
+                                            alert(results[0].ErrorMessag);
+                                        }
+                                    }else{
+                                        alert("Data Not Found.");
+                                        $scope.gridOptions= {data: []};
+                                    }
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+        }
+        $scope.SearchByIssueStyle = function(e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                if($scope.txtSearchByIssueStyle==""||$scope.txtSearchByIssueStyle==null)
+                {
+                    alert("Please Type Issue Style No & Press Enter.");
+                    return;
+                }
+                $scope.GetS2SLotTransfers(true);//Is Issue Style        
+            }
+        }
+        $scope.SearchByReceiveStyle = function(e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                if($scope.txtSearchByReceiveStyle==""||$scope.txtSearchByReceiveStyle==null)
+                {
+                    alert("Please Type Receive Style No & Press Enter.");
+                    return;
+                }
+                $scope.GetS2SLotTransfers(false);//Recive Style
+            }
+        }
+
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("S2SLotTransfers", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("S2SLotTransferHeader", "Add S2SLotTransfer");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/S2SLotTransfer/ViewS2SLotTransfer?id=0";
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+
+            var oS2SLotTransfer= $scope.gridApi.selection.getSelectedRows()[0];
+            if(oS2SLotTransfer==null || oS2SLotTransfer.S2SLotTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oS2SLotTransfer.ReceiveLotID>0)
+            {
+                alert("Please select Only UnApproved item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oS2SLotTransfer);
+            sessionStorage.setItem("S2SLotTransfers", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("S2SLotTransferHeader", "Edit S2SLotTransfer");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/S2SLotTransfer/ViewS2SLotTransfer?id="+oS2SLotTransfer.S2SLotTransferID
+        }
+        $scope.View= function ()
+        {
+
+            var oS2SLotTransfer=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oS2SLotTransfer==null || oS2SLotTransfer.S2SLotTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oS2SLotTransfer);
+            sessionStorage.setItem("S2SLotTransfers", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("S2SLotTransferHeader", "View S2SLotTransfer");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/S2SLotTransfer/ViewS2SLotTransfer?id="+oS2SLotTransfer.S2SLotTransferID;
+        }
+        $scope.Commit =function()
+        {
+            var oS2SLotTransfer=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oS2SLotTransfer==null || oS2SLotTransfer.S2SLotTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oS2SLotTransfer.ReceiveLotID>0)
+            {
+                alert("Please select Only UnApproved item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oS2SLotTransfer);
+            sessionStorage.setItem("S2SLotTransfers", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("S2SLotTransferHeader", "Commit S2SLotTransfer");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/S2SLotTransfer/ViewS2SLotTransfer?id="+oS2SLotTransfer.S2SLotTransferID;
+        }
+
+        $scope.Delete = function()
+        {
+
+            var oS2SLotTransfer= $scope.gridApi.selection.getSelectedRows()[0];
+            if(oS2SLotTransfer==null || oS2SLotTransfer.S2SLotTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oS2SLotTransfer);
+            if (oS2SLotTransfer.S2SLotTransferID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/S2SLotTransfer/Delete",
+                    data: { id: oS2SLotTransfer.S2SLotTransferID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+        $scope.Print = function () {
+            debugger;
+            window.open(sessionStorage.getItem('BaseAddress') +'/S2SLotTransfer/PrintBookingStatus?sParam=');
+
+        };
+    });
+
+
+</script>

@@ -1,0 +1,765 @@
+﻿@model ESimSol.BusinessObjects.CashFlowDmSetup
+@{
+    ViewBag.Title = "Statement of Cash Flow";
+}
+
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%; height:40px; padding:5px; overflow:hidden">
+            <div style="margin-bottom:5px">
+                <select id="cboBUs" style="width:210px;"></select>
+                <input id="txtStartDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <input id="txtEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+               
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Cash Flow Statement</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table  id="tblCashFlowStatement" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td colspan="4" style="width:98%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>                        
+                    </tr>
+                    <tr>                        
+                        <td style="width:2%"></td>
+                        <td colspan="4" style="width:98%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Statement of Cash Flows</label>
+                        </td>                        
+                    </tr>
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td colspan="4" style="width:98%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;"></label>
+                        </td>                        
+                    </tr>                   
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td style="width:3%"></td>
+                        <td style="width:47%;"></td>
+                        <td style="width:20%; text-align:center; font-weight:bold"></td>
+                        <td style="width:26%; text-align:right; border:1px solid black">
+                            <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold"></label>
+                        </td>
+                        <td style="width:2%"></td>
+                    </tr>    
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td style="width:3%"></td>
+                        <td  style="width:47%"></td>
+                        <td style="width:20%; text-align:center; font-weight:bold"></td>
+                        <td style="width:26%; text-align:right;"></td>
+                        <td style="width:2%"></td>
+                    </tr>                
+                  
+                </table>
+            </div>
+        </div>        
+    </div>
+</div>
+
+<style>
+    /*#progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }*/
+    .segmentclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;
+        font-weight:bold;
+        font-style:italic;
+    }
+    .subgroupclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;           
+    }
+    .segmentsummeryclass {        
+        color: black;
+        font-size : 13px;
+        font-family : Tahoma;  
+        font-weight:bold;         
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblCashFlowStatement tr:hover td,
+    #tblCashFlowStatement tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oCashFlowDmSetup=null;
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _oCreditChartOfAccount=null;
+    $(document).ready(function () {
+        debugger;
+        _oCashFlowDmSetup =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({List: oBUs,OptionValue:"BusinessUnitID",DisplayText: "Name",InitialValue : "--Select Business Unit--"});
+        
+      
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+        ////refresh control
+        $('#txtStartDate').datebox('setValue', _oCashFlowDmSetup.StartDateSt);
+        $('#txtEndDate').datebox('setValue', _oCashFlowDmSetup.EndDateSt);
+        $('#cboBUs').val(_oCashFlowDmSetup.BUID);
+       
+        RefreshControl(_oCashFlowDmSetup);
+        RefreshTable(_oCashFlowDmSetup);
+    });
+
+   
+    $("#btnRefresh").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        if(nBUID<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+        if($('#txtStartDate').datebox('getValue')>$('#txtEndDate').datebox('getValue'))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+        var obj={
+            BUID:parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            StartDate:$('#txtStartDate').datebox('getValue'),
+            EndDate:$('#txtEndDate').datebox('getValue'),
+            IsDetailsView:false
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/CashFlowDmSetup/SetISSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/CashFlowDmSetup/ViewCashFlowDmStatement?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshControl(oCashFlowDmSetup)
+    {
+        $('#lblCompanyName').text(oCashFlowDmSetup.Company.Name);
+        //$('#lblStatementDate').text('For the Year Ended '+ oCashFlowDmSetup.EndDateFullSt);
+        $('#lblStatementDateWithCurrency').text(oCashFlowDmSetup.SessionDate+' '+oCashFlowDmSetup.Company.CurrencyName);
+        var nMaxRowIndex = document.getElementById('tblCashFlowStatement').rows.length-1;
+        for(var i=nMaxRowIndex; i>4; i--)
+        {
+            document.getElementById("tblCashFlowStatement").deleteRow(i);
+        }
+
+    }
+
+    function GetSpecificList(nCashRowHeadType)
+    {
+        var oReturnList = [];
+        var oCashFlowDmSetups = _oCashFlowDmSetup.CashFlowDmSetups;
+        for(var i=0;i<oCashFlowDmSetups.length;i++)
+        {
+            if(parseInt(oCashFlowDmSetups[i].CashFlowHeadTypeInt)==parseInt(nCashRowHeadType))
+            {
+                oReturnList.push(oCashFlowDmSetups[i]);
+            }
+        }
+
+        return oReturnList.length>1?oReturnList:oReturnList[0];
+    }
+
+    function RefreshTable(_oCashFlowDmSetup)
+    {        
+ 
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 6;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '20';
+
+        //start Operation Activities
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(2); //Operating_Opening_Caption = 2,  
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "70%";
+        cellTransactionGroup.colSpan= 3;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '';  
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+           
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        var oCashFlowDmStatements = GetSpecificList(3); //Operating_Activities = 3,  
+        for(var i=0;i<oCashFlowDmStatements.length;i++)
+        {
+            var table = document.getElementById('tblCashFlowStatement');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank = row.insertCell(0);
+            cellBlank.width= "5%";
+            cellBlank.colSpan= 2;
+            cellBlank.innerHTML = '';
+
+            var cellTransactionGroup = row.insertCell(1);
+            cellTransactionGroup.width= "67%";
+            cellTransactionGroup.colSpan= 2;
+            cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; ">'+oCashFlowDmStatements[i].DisplayCaption+'</label>';
+            cellTransactionGroup.style.textAlign = 'left';
+
+            var cellAmount = row.insertCell(2);
+            cellAmount.width= "26%";
+            //cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBrekDown('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';
+           
+            cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBreakDownNew('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';
+            
+            cellAmount.style.textAlign = 'right';
+            if(i==0){cellAmount.style.borderTop = "1px solid black";}
+            if((i+1)==oCashFlowDmStatements.length){cellAmount.style.borderBottom = "1px solid black";}
+            cellAmount.style.borderLeft = "1px solid black";
+            cellAmount.style.borderRight = "1px solid black";
+           
+            var cellBlank2 = row.insertCell(3);
+            cellBlank2.width= "2%";
+            cellBlank2.innerHTML = '';
+
+        }
+
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(4); //Operating_Closing_Caption = 4,   
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderTop = "1px solid black";
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //finish Operation Activities
+        //Blank space start
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 6;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '20';
+        //Blank space End
+
+
+
+        //start Investing Activities
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(5);// Investing_Opening_Caption = 5,  
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "70%";
+        cellTransactionGroup.colSpan= 3;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '';  
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+           
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        var oCashFlowDmStatements = GetSpecificList(6); //Investing_Activities = 6,  
+        for(var i=0;i<oCashFlowDmStatements.length;i++)
+        {
+            var table = document.getElementById('tblCashFlowStatement');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank = row.insertCell(0);
+            cellBlank.width= "5%";
+            cellBlank.colSpan= 2;
+            cellBlank.innerHTML = '';
+
+            var cellTransactionGroup = row.insertCell(1);
+            cellTransactionGroup.width= "67%";
+            cellTransactionGroup.colSpan= 2;
+            cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; ">'+oCashFlowDmStatements[i].DisplayCaption+'</label>';
+            cellTransactionGroup.style.textAlign = 'left';
+
+            var cellAmount = row.insertCell(2);
+            cellAmount.width= "26%";
+            //cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBrekDown('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';            
+            cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBreakDownNew('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';            
+            
+            cellAmount.style.textAlign = 'right';
+            if(i==0){cellAmount.style.borderTop = "1px solid black";}
+            if((i+1)==oCashFlowDmStatements.length){cellAmount.style.borderBottom = "1px solid black";}
+            cellAmount.style.borderLeft = "1px solid black";
+            cellAmount.style.borderRight = "1px solid black";
+           
+            var cellBlank2 = row.insertCell(3);
+            cellBlank2.width= "2%";
+            cellBlank2.innerHTML = '';
+
+        }
+
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(7); //Investing_Closing_Caption = 7,  
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderTop = "1px solid black";
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //finish Investing Activities
+
+        //Blank space start
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 6;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '20';
+        //Blank space End
+
+
+
+
+        //start Financing Activities
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(8); //Financing_Opening_Caption = 8,  
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "70%";
+        cellTransactionGroup.colSpan= 3;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '';  
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+           
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        var oCashFlowDmStatements = GetSpecificList(9); //Financing_Activities = 9, 
+        for(var i=0;i<oCashFlowDmStatements.length;i++)
+        {
+            var table = document.getElementById('tblCashFlowStatement');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank = row.insertCell(0);
+            cellBlank.width= "5%";
+            cellBlank.colSpan= 2;
+            cellBlank.innerHTML = '';
+
+            var cellTransactionGroup = row.insertCell(1);
+            cellTransactionGroup.width= "67%";
+            cellTransactionGroup.colSpan= 2;
+            cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; ">'+oCashFlowDmStatements[i].DisplayCaption+'</label>';
+            cellTransactionGroup.style.textAlign = 'left';
+
+            var cellAmount = row.insertCell(2);
+            cellAmount.width= "26%";
+            //cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBrekDown('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';            
+            cellAmount.innerHTML = '<label id="lblAmount'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="CashFlowBreakDownNew('+ parseInt(oCashFlowDmStatements[i].CashFlowHeadID) +');" style="font-size:13px;color:#0000FF;cursor:pointer">'+oCashFlowDmStatements[i].AmountSt+'</label>';            
+            cellAmount.style.textAlign = 'right';
+            if(i==0){cellAmount.style.borderTop = "1px solid black";}
+            if((i+1)==oCashFlowDmStatements.length){cellAmount.style.borderBottom = "1px solid black";}
+            cellAmount.style.borderLeft = "1px solid black";
+            cellAmount.style.borderRight = "1px solid black";
+           
+            var cellBlank2 = row.insertCell(3);
+            cellBlank2.width= "2%";
+            cellBlank2.innerHTML = '';
+
+        }
+
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(10); //Financing_Closing_Caption = 10,    
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderTop = "1px solid black";
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //finish Financing Activities
+       
+
+        //Net_Cash_Flow_Caption = 11,  
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(11); //Net_Cash_Flow_Caption = 11,     
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderTop = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+
+        //End Net cash flow caption
+
+        //Blank space start
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 6;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '20';
+        //Blank space End
+
+
+        //Begaining_Cash_Caption = 12,   
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(12); //Begaining_Cash_Caption = 12,     
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //End Begaining_Cash_Caption 
+
+     
+
+
+        //Closing_Cash_Caption = 13
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var oCashFlowDmStatement = GetSpecificList(13); //Closing_Cash_Caption = 13  
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "5%";
+        cellBlank.colSpan= 2;
+        cellBlank.innerHTML = '';
+
+        var cellTransactionGroup = row.insertCell(1);
+        cellTransactionGroup.width= "67%";
+        cellTransactionGroup.colSpan= 2;
+        cellTransactionGroup.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.DisplayCaption+'</label>';
+        cellTransactionGroup.style.textAlign = 'left';
+
+        var cellAmount = row.insertCell(2);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" style="font-size:13px; font-weight:bold;">'+oCashFlowDmStatement.AmountSt+'</label>';
+        cellAmount.style.borderTop = "1px solid black";
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+
+        var cellBlank2 = row.insertCell(3);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //End Closing_Cash_Caption
+
+        //Blank space start
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+                
+        var cellBlank = row.insertCell(0);
+        cellBlank.width= "72%";
+        cellBlank.colSpan= 4;
+        cellBlank.innerHTML = '';
+
+       
+        var cellAmount = row.insertCell(1);
+        cellAmount.width= "26%";
+        cellAmount.innerHTML = ' ';
+        cellAmount.style.borderBottom = "1px solid black";
+        cellAmount.style.textAlign = 'right';
+        cellAmount.height = '1';
+
+        var cellBlank2 = row.insertCell(2);
+        cellBlank2.width= "2%";
+        cellBlank2.innerHTML = '';
+        //Blank space End
+
+        //Blank space start
+        var table = document.getElementById('tblCashFlowStatement');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 6;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '10';
+        //Blank space End
+    }
+
+
+    $("#btnPrint").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        if(nBUID<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if($('#txtStartDate').datebox('getValue')>$('#txtEndDate').datebox('getValue'))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+'~false';
+        window.open(sessionStorage.getItem("BaseAddress")+'/CashFlowDmSetup/PrintCashFlowStatement?Params=' + sParam, "_blank");
+    });
+
+   
+    $("#btnPrintXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        if(nBUID<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if($('#txtStartDate').datebox('getValue')>$('#txtEndDate').datebox('getValue'))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= nBUID+"~"+dStartDate+"~"+dEndDate+'~false';
+        window.open(sessionStorage.getItem("BaseAddress")+'/CashFlowDmSetup/ExportCashFlowStatementToExcel?Params=' + sParam, "_blank");
+    });
+
+    function CashFlowBrekDown(nCashFlowHeadID)
+    {
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        if(nBUID<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if(parseInt(nCashFlowHeadID)<=0)
+        {
+            alert("Please Select Cash Flow Head!");
+            return ;
+        }
+
+        if($('#txtStartDate').datebox('getValue')>$('#txtEndDate').datebox('getValue'))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var sParam= parseInt(nBUID)+"~"+dStartDate+"~"+dEndDate+"~"+parseInt(nCashFlowHeadID);
+        window.open(sessionStorage.getItem("BaseAddress")+'/CashFlowDmSetup/PrintCashFlowBreakdown?Params=' + sParam, "_blank");
+
+    }
+
+
+    function CashFlowBreakDownNew(nCashFlowHeadID)
+    {
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        if(nBUID<=0)
+        {
+            alert("Please Select Business Unit!");
+            return ;
+        }
+
+        if(parseInt(nCashFlowHeadID)<=0)
+        {
+            alert("Please Select Cash Flow Head!");
+            return ;
+        }
+
+        if($('#txtStartDate').datebox('getValue')>$('#txtEndDate').datebox('getValue'))
+        {
+            alert("Start Date Should be Greater End Date");
+            return ;
+        }
+        var oCashFlowBreakdown = {
+            BUID : parseInt($('#cboBUs').val()),
+            StartDate : $('#txtStartDate').datebox('getValue'),
+            EndDate : $('#txtEndDate').datebox('getValue'),
+            CashFlowHeadID : parseInt(nCashFlowHeadID)
+        };
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/CashFlowDmSetup/SetISSessionData",
+            traditional: true,
+            data:  JSON.stringify(oCashFlowBreakdown),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv = ((new Date()).getTime()) / 1000;
+                    var sUrl = sessionStorage.getItem('BaseAddress')+ "/CashFlowDmSetup/ViewCashFlowBreakdowns?tv="+tsv;
+                    window.open( sUrl, "_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+</script>

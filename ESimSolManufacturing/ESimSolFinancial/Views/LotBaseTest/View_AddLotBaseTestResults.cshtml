@@ -1,0 +1,271 @@
+﻿@{
+    ViewBag.Title = "Add Lot Base Result";
+} 
+@model ESimSol.BusinessObjects.LotBaseTestResult
+
+<div  ng-app="LBTRApp" ng-controller="LBTRCntrl" class="regionLBTR">
+   
+    <div class="panel-success" >
+        <div class="panel-heading">Lot Information</div>
+        <div class="panel-body">
+            <div class="row col-md-12"style="padding-top:5px;padding-bottom:3px;">
+               <div class="col-md-2"><label class="control-label text-right">  Lot No</label></div>
+               <div class="col-md-4"><input ng-model="Lot.LotNo" name="LotNo"  class="form-control" required disabled/></div>
+                <div class="col-md-2"><label class="control-label text-right"> Yarn Type</label></div>
+                <div class="col-md-4"><input ng-model="Lot.ProductName" name="LotNo" class="form-control" required disabled/></div>
+            </div>
+       </div>
+    </div>
+    <div class="panel-success" style="padding-top:5px">
+        <div class="panel-heading">Lot Base Test Result Entry</div>
+        <div class="panel-body">
+            <div class="ui-grid-top-panel">
+                <button type="button" class="btn btn-sm btn-warning" aria-label="Left Align" ng-click="refreshLotBaseTest()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"> Refresh</span></button>
+                <button type="button" class="btn btn-sm btn-warning" aria-label="Left Align" ng-click="removeLotBaseTest()"> <span class="glyphicon glyphicon-minus" aria-hidden="true"> Remove</span></button>
+            </div>
+             <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+        </div>
+    </div>
+
+    <fieldset>
+        <legend>Action</legend>
+        <div class="row col-md-12 text-right">
+             <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="save()" ng-hide="hide_Save"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">Save</span> </button>
+            <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+        </div>
+    </fieldset>
+
+
+
+</div>
+
+
+<style type="text/css">
+    .grid {
+       
+        height: 350px;
+        padding-right: 10px;
+        padding-left: 5px;
+        padding-bottom :5px;
+    }
+
+    .regionLBTR .control-label {
+        padding-top: 3px;
+    }
+
+    .regionLBTR .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .regionLBTR .col-md-12 {
+        width: 100%;
+        padding-right: 5px;
+        padding-left: 5px;
+        margin-bottom: 5px;
+    }
+
+    .regionLBTR .btn-sm {
+        padding: 3px 10px;
+    }
+
+    .regionLBTR .input-group-addon {
+        padding: 4px 8px;
+    }
+</style>
+
+<script type="text/javascript">
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oLotBaseTestResult =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oLotBaseTests =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LotBaseTest));
+    var oLotBaseTestResults =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LotBaseTestResults)); 
+    var oLot =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ParentLot));
+
+    var LBTRApp = angular.module('LBTRApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.edit','ms.service']);
+    LBTRApp.controller('LBTRCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        $scope.Lot = {
+            LotNo :oLot.LotNo,
+            ProductName : oLot.ProductName + " [ " + oLot.ProductCode +" ] "
+        }
+        $scope.LotBaseTestResults =oLotBaseTestResults;
+        $scope.LotBaseTests =oLotBaseTests;
+        if($scope.LotBaseTestResults.length <=0 ||$scope.LotBaseTestResults==null )
+        {
+            var listItem =[];
+            angular.forEach($scope.LotBaseTests,function(value,index){
+                listItem.push({
+                    Name : value.Name,
+                    Qty: 0,
+                    Note :"",
+                    LotID :oLot.LotID,
+                    LotBaseTestID : value.LotBaseTestID,
+                    LotBaseTestResultID:0
+                });
+            
+            });
+            $scope.LotBaseTestResults =listItem;
+        }
+        $scope.gridOptions ={
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            enableColumnResizing: true,
+            enableHorizontalScrollbar :0,
+            enableVerticalScrollbar :0,
+            columnDefs: [
+                // {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'Name', name: 'Name', width:'20%', enableCellEdit: false },
+                { field: 'Qty', name: ' ', width:'8%',cellClass:'text-right'},
+                 { field: 'Note', name: 'Results', width:'35%' }
+            ],
+            data:$scope.LotBaseTestResults,
+            onRegisterApi:function(gridApi) {
+             
+                $scope.gridApi = gridApi;
+               
+            }
+        };
+   $scope.save = function () {
+            debugger;
+            var datas = $scope.gridOptions.data;
+            if(datas == null || datas.length <=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found!.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var LotBaseTestResults =[];
+            angular.forEach(datas,function(value,index){
+                if(!(value.Qty <=0 && value.Note == "")){
+                    LotBaseTestResults.push({
+                        Name : value.Name,
+                        Qty: value.Qty,
+                        Note :value.Note,
+                        LotID :value.LotID,
+                        LotBaseTestID : value.LotBaseTestID,
+                        LotBaseTestResultID:value.LotBaseTestResultID
+                    });
+                }
+             });
+            var objs = { LotBaseTestResults :LotBaseTestResults  }
+            $http.post(_sBaseAddress + '/LotBaseTest/SaveLotBaseTestResult',JSON.stringify(objs)).then(
+                       function (response) {
+                           var result = jQuery.parseJSON(response.data);
+                           if (result.LotBaseTestResultID > 0)
+                           {
+                               debugger;
+                               msModal.Message({headerTitle : '', bodyText:'Save Successfully', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                                   if(result){
+                               
+                                       var gridData =JSON.parse( sessionStorage.getItem('CreateLotTestBaseResult'));
+                                       var nIndex = sessionStorage.getItem('SelectedRowIndex');
+                                       userSession.setData('CreateLotTestBaseResult',gridData[nIndex]);
+                                       userSession.previousPage();
+                                   }
+
+                               });
+                           }
+
+                           else {
+                               msModal.Message({ headerTitle: '', bodyText: result.ErrorMessage, sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                           }
+                       },
+                       function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+                   );
+   };
+
+   $scope.refreshLotBaseTest = function(){
+
+       $http.post(_sBaseAddress + '/LotBaseTest/GetsActiveLotBaseTest').then(
+                        function (response) {
+                           
+                            var results = jQuery.parseJSON(response.data);
+                            if (results.length > 0) {
+                                var listItem =[];
+                                angular.forEach(results,function(value,index){
+                                    listItem.push({
+                                        Name : value.Name,
+                                        Qty: 0,
+                                        Note :"",
+                                        LotID :oLot.LotID,
+                                        LotBaseTestID : value.LotBaseTestID,
+                                        LotBaseTestResultID:0
+                                    });
+            
+                                });
+                                var gridDatas = $scope.gridOptions.data;
+                                debugger;
+                               
+                                angular.forEach(listItem ,function(value,index){
+                                    var chk = false;
+                                    angular.forEach(gridDatas ,function(val,index){
+                                        if(value.LotBaseTestID ==val.LotBaseTestID  )
+                                        {
+                                            chk = true;
+                                        }
+                                
+                                    })
+                                    if(!chk){
+                                         $scope.gridOptions.data.push(value);
+                                    }
+                                
+                                });
+                            } else {
+                                msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                                return;
+                            }
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                    );
+   }
+ 
+   $scope.close = function () {
+       userSession.previousPage();
+   };
+   $scope.removeLotBaseTest =function ()
+   {
+       var data =$scope.gridApi.selection.getSelectedRows().first();;
+       if(data==null || data.length<=0)
+       {
+           msModal.Message({headerTitle : '', bodyText:'Select At least One item !', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+           return false;
+       }
+      
+       if(data.LotBaseTestResultID >0)
+       {
+         
+           $http.post(_sBaseAddress+'/LotBaseTest/DeleteLotBaseTestResult',JSON.stringify(data)).then(
+                         function (response) {
+                             debugger;
+                             if(jQuery.parseJSON(response.data)=='Deleted'){
+                                 $scope.gridOptions.data.splice($scope.gridOptions.data.indexOf(data),1);
+                                 msModal.Message({headerTitle : '', bodyText:'Delete Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                             }
+                             else{
+                                 msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                             }
+                         },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                     );
+       }
+       else {
+           
+           angular.forEach($scope.gridOptions.data, function (value, index)
+           {
+               if (value.LotBaseTestResultID == data.LotBaseTestResultID)
+               {
+                   $scope.gridOptions.data.splice(index, 1);
+               }
+                       
+           }, $scope.gridOptions.data);
+           
+            
+       }
+   };
+
+
+
+ });
+
+
+</script>

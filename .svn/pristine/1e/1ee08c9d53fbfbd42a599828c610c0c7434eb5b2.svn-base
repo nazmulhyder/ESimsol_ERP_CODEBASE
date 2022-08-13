@@ -1,0 +1,489 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeCard>
+@{
+    ViewBag.Title = "View_EmployeeCards";
+}
+
+<div style="margin-left:0px;  width:100%; height:100%">
+    <table id="tblEmployeeCards" title="Employee Salary  List"  class="easyui-datagrid" style=" width:100%; height:100%" fitColumns="false" rownumbers="true" pagination="false" singleSelect="false" autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr>
+            <th data-options="field:'ck',checkbox:true"></th>
+               <th field="Code" width="60">
+                    Code
+                </th>
+                <th field="Name" width="160">
+                    Name
+                </th>
+                <th field="DepartmentName" width="150">
+                    Department
+                </th>
+                <th field="DesignationName" width="100">
+                    Designation
+                </th>
+                <th field="WorkingStatusInString" width="120">
+                    Working Status
+                </th>
+                <th field="Activity" width="100">
+                    Activity
+                </th>
+                <th field="EmployeeCardStatusInString" width="100">
+                    Card Status
+                </th>
+                
+            </tr>  
+        </thead> 
+    </table>
+    <div id="toolbar">
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+        <input type="text" id="txtSearchbyCode" placeholder="Search by Code" style="width: 105px"  />
+        <input type="text" id="txtSearchByName" placeholder="Search by name" style="width: 120px" />
+        <a id="btnAdvSearch" href="javascript:void(0)" class="easyui-linkbutton"  iconCls="icon-search" plain="true" onclick="AdvancedSearch()">Adv.Src</a> 
+        @Html.DropDownList("cboEmployeeCardStatus", new SelectList(Enum.GetValues(typeof(ESimSol.BusinessObjects.EnumEmployeeCardStatus))), new { id = "cboEmployeeCardStatus", style = "width: 150px;font-size:12px;text-align:left" })
+        <select id="cboCardShape" style="width:90px;">
+            <option value="1">Protrait</option>
+            <option value="2">Landscape</option>
+        </select>
+        <a id="btnAction" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true">Action</a> 
+       <a id="btnHistory" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true">History</a> 
+    </div>  
+</div>
+
+<script type="text/javascript">
+var _oEmployeeCards =[];
+var _sBaseAddress="";
+var _oEmployees = [];
+
+$(document).ready(function () {
+ 
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    _oEmployeeCards =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    
+  RefreshList(_oEmployeeCards);
+});
+
+
+//function formatImage(EmployeeID)
+//{
+
+//    for(var i = 0;_oEmployeeWithImages.length;i++)
+//    {
+//    
+//            if(parseInt(_oEmployeeWithImages[i].EmployeeID)==parseInt(EmployeeID))
+//            {
+//             var s ='<table> <tr> <td style = "width:80px;height:60px;"><img src='+_oEmployeeWithImages[i].EmployeePhotoItext +' />'+
+//             '</td></tr></table>';
+//             
+////             var s = '<div id="div~'+value+'">'+
+////                    '<input type="button" value=" " id="btnTask~'+id+'" style="background-image:url(../../Content/task_images/Task_list.png);width:27px; height:27px; cursor:pointer title='+value+' "/>&nbsp &nbsp'+
+////                    '</div>';
+//                return s;   
+//            }
+//        
+//    }
+//}
+
+//function  detailFormatter(rowIndex, rowData)
+//{
+
+//    return '<table><tr>' +
+//    '<td rowspan=1 style="border:0"><img src="images/' + rowData.EmployeeID + '.png" style="height:30px;"></td>' +
+//    '</tr></table>';
+//}
+
+
+$('#txtSearchbyCode').keypress(function (e) {
+
+    var nCode = (e.keyCode ? e.keyCode : e.which);
+    if (nCode!=13)return;
+    var c = String.fromCharCode(e.which);
+    var txtSearchbyCode = document.getElementById('txtSearchbyCode').value;
+    //txtSearchbyCode = txtSearchbyCode + c;
+    
+    var bFlag=false;
+    var sTempCode="";
+    var rows = $('#tblEmployeeCards').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempCode=rows[i]['Code'].substring(0, txtSearchbyCode.length);
+        if(txtSearchbyCode.toUpperCase()==sTempCode.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblEmployeeCards').datagrid('selectRow', i);
+    }
+    else 
+    {
+        GetEmployeeByNameCode(txtSearchbyCode,true);
+    }
+});
+
+$('#txtSearchByName').keypress(function (e) 
+{
+
+    var nCode = (e.keyCode ? e.keyCode : e.which);
+    if (nCode!=13)return;
+    var c = String.fromCharCode(e.which);
+    var txtSearchByName = document.getElementById('txtSearchByName').value;
+    //txtSearchByName = txtSearchByName + c;
+    if(txtSearchByName.length<3)
+    {
+        alert('Please enter atleast 3 word.!!');
+        return;
+    }
+
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblEmployeeCards').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['Name'].substring(0, txtSearchByName.length);
+        if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblEmployeeCards').datagrid('selectRow', i);
+    }
+    else 
+    {
+        GetEmployeeByNameCode(txtSearchByName,false);
+    }
+});
+
+
+function GetEmployeeByNameCode(sNameCode,bIsCode)
+{
+    var nts = ((new Date()).getTime()) / 1000;        
+    $.ajax
+    ({
+        type: "GET",
+        dataType: "json",
+        url : _sBaseAddress+  "/Employee/GetByEmployeeNameCode",
+        data: {sNameCode:sNameCode,bIsCode:bIsCode,nts:nts},
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oEmployees = jQuery.parseJSON(data);
+            if(oEmployees.length>0)
+            {
+                var bAppend=false;
+                var oTEmps=$('#tblEmployeeCards').datagrid('getRows');   
+                    
+                if(oTEmps.length>0)
+                {
+                    for (var i = 0; i < oEmployees.length; i++) 
+                    {
+                        var IsAppend=true;
+                        for (var j = 0; j < oTEmps.length; j++) 
+                        {
+                            if(oEmployees[i].EmployeeID==oTEmps[j].EmployeeID)
+                            {
+                                IsAppend=false;
+                                break;
+                            }
+                        }
+                        if(IsAppend)
+                        {
+                            bAppend=true;
+                            $('#tblEmployeeCards').datagrid('appendRow', oEmployees[i]);
+                        }
+                    }
+                }
+                else
+                {
+                    DynamicRefreshList(oEmployees, "tblEmployeeCards");
+                }    
+            }
+            else
+            {
+                alert('Data not found.!!!');
+            }
+
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+}
+
+function Refresh()
+{    
+    var oEmployees = $('#tblEmployeeCards').datagrid('getRows'); 
+    data=oEmployees;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblEmployeeCards').datagrid('loadData',data);           
+}   
+  
+function RefreshList(oEmployees)
+{    
+
+    data=oEmployees;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblEmployeeCards').datagrid('loadData',data);  
+          
+}
+
+function AdvancedSearch() {
+
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=true;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    var nLeft=(window.screen.width/2)-(1000/2);
+    var nHeight=(window.screen.height/2)-(530/2);
+    var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:500px;dialogWidth:1000px;dialogLeft:150;dialogRight:100;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no'); 
+    
+    if (oEmployees.length>0)
+    {
+        
+        var sEmployeeID="";
+        for(var i=0;i<oEmployees.length;i++)
+        {
+            if(oEmployees[i].EmployeeID>0)
+            {
+                sEmployeeID=sEmployeeID+oEmployees[i].EmployeeID+",";
+            }
+        
+        }
+       
+        var sNewEmployeeIDs="";
+        sNewEmployeeIDs=sEmployeeID.substring(0,sEmployeeID.length-1);
+        GetEmployeeWithImage(sNewEmployeeIDs);
+
+    }
+}
+
+function GetEmployeeWithImage(sNewEmployeeIDs)
+{
+
+    if (sNewEmployeeIDs !="") 
+    {
+        var tsv = ((new Date()).getTime()) / 1000;
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",                
+            url : _sBaseAddress+  "/Employee/GetEmployeeWithImage",
+            traditional: true,
+            data: {sIDs :sNewEmployeeIDs,  ts:tsv},
+            contentType: "application/json; charset=utf-8",
+            
+            success: function (data)
+            {
+               
+                _oEmployees = jQuery.parseJSON(data);
+                
+                if (_oEmployees.length>0) 
+                {
+                    RefreshList(_oEmployees);
+                   
+                }
+               
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+    }
+
+
+}
+
+$('#btnAction').click(function (e) 
+{
+    debugger;
+    var oEmployees= $('#tblEmployeeCards').datagrid('getChecked');
+    if(oEmployees.length<=0)
+    {
+        alert("Please Select At Least One Item !");
+        return;
+    }
+
+    if(oEmployees.length>50)
+    {
+        alert("You can print maximum 50 employee card at a time!");
+        return;
+    }
+
+    var EmployeeCardStatusInt=document.getElementById("cboEmployeeCardStatus").selectedIndex;
+    if(EmployeeCardStatusInt<=0)
+    {
+        alert("Please Select A Card status !");
+        return;
+    }
+    var sEmployeeID="";
+    for(var i=0; i<oEmployees.length;i++)
+    {
+        if(oEmployees[i].WorkingStatus !=1 && oEmployees[i].WorkingStatus !=2)
+        {
+            alert("Some Employee Is Not In Workplace/OSD ! Please Select The Employee Who Is In Workplace/OSD !");
+            return;
+        }
+
+        if(oEmployees[i].IsActive ==false)
+        {
+            alert("Some Employee Is InActive ! Please Select Only The Active Employee !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==0 && EmployeeCardStatusInt !=1)
+        {
+            alert("You Are Only Allowed To Print, Because This/These Employee Has/Have No Previous Card Status !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==1 && EmployeeCardStatusInt !=2)
+        {
+            alert("You Are Only Allowed To Deliver The Card . Because This Card Has Printed ! ");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==2 && EmployeeCardStatusInt !=3 && EmployeeCardStatusInt !=4 && EmployeeCardStatusInt !=5)
+        {
+            alert("This Card Has Delivered. Only Return/Lost/Damage Is Possible !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==3 && EmployeeCardStatusInt !=1 && EmployeeCardStatusInt !=2)
+        {
+            alert("This Card Has Returned. Only Print/Deliver Is Possible !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==4 && EmployeeCardStatusInt !=1 )
+        {
+            alert("This Card Has Lost. Only Print Is Possible !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeCardStatus==5 && EmployeeCardStatusInt !=1 )
+        {
+            alert("This Card Has Damaged. Only Print Is Possible !");
+            return;
+        }
+
+        if(oEmployees[i].EmployeeID>0)
+        {
+            sEmployeeID=sEmployeeID+oEmployees[i].EmployeeID+",";
+        }
+
+    }
+    var sNewEmployeeID="";
+    sNewEmployeeID=sEmployeeID.substring(0,sEmployeeID.length-1);
+    //if (!confirm("Confirm to change card status?")) return;
+    
+    debugger;
+    var tsv = ((new Date()).getTime()) / 1000;
+    if (oEmployees.length>0) 
+    {
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",                
+            url : _sBaseAddress+  "/Employee/EmployeeCardIssue",
+            traditional: true,
+            data: JSON.stringify({sEmployeeIDs : sNewEmployeeID, EmployeeCardStatusInt : EmployeeCardStatusInt,  ts:tsv}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oEmployeeCard = jQuery.parseJSON(data);
+               
+                if (oEmployeeCard.ErrorMessage !="") 
+                {
+                    alert(oEmployeeCard.ErrorMessage);
+                    return;
+                }
+                else
+                {
+                
+                    var SelectedRowIndex=0;
+                    for(var i=0; i<oEmployees.length;i++)
+                    {
+                        SelectedRowIndex = $('#tblEmployeeCards').datagrid('getRowIndex', oEmployees[i]);
+                        $('#tblEmployeeCards').datagrid('updateRow', { index: SelectedRowIndex, row: oEmployeeCard.Employees[i] });
+                    }
+                }
+
+                if(EmployeeCardStatusInt==1)
+                {
+                    PrintEmployeeCard();
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+    }
+});
+
+
+function PrintEmployeeCard() {
+
+    var oEmployees = $('#tblEmployeeCards').datagrid('getChecked');
+    var sEmployeeID = "";
+    for (var i = 0; i < oEmployees.length; i++) {
+        if (oEmployees[i].EmployeeID > 0) {
+            sEmployeeID = sEmployeeID + oEmployees[i].EmployeeID + ",";
+        }
+
+    }
+    var sNewEmployeeID = "";
+    sNewEmployeeID = sEmployeeID.substring(0, sEmployeeID.length - 1);
+
+    var oParameter = new Object();
+    oParameter.Name = "Print Employee Card";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var sUrl = "";
+    if($("#cboCardShape").val()==1)
+    {
+        sUrl= _sBaseAddress+ "/Employee/PrintEmployeeCard_Potrait?sIDs="+sNewEmployeeID+"&ts="+tsv;
+    }
+    else
+    {
+        sUrl= _sBaseAddress+ "/Employee/PrintEmployeeCard_Landscape?sIDs="+sNewEmployeeID+"&ts="+tsv;
+    }
+    //window.open(_sBaseAddress+ "/Employee/PrintEmployeeCard?sIDs="+sNewEmployeeID+"&ts="+tsv, "_blank");
+    //window.open(_sBaseAddress + "/Employee/PrintEmployeeCard?sIDs=" + sNewEmployeeID + "&ts=" + tsv, "_blank");
+    window.open(sUrl, "_blank");
+}
+
+$('#btnHistory').click(function (e) 
+{
+debugger
+    var oEmployee= $('#tblEmployeeCards').datagrid('getChecked');
+   
+    if (oEmployee.length <= 0)
+    {
+        alert("Please select an item from the list!");
+        return ;
+    }
+
+    if (oEmployee.length > 1)
+    {
+        alert("Please select only one item from the list!");
+        return ;
+    }
+
+    var oParameter = new Object();
+    oParameter.oEmployee=oEmployee;
+    
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/Employee/View_EmployeeCardHistorys?nEmployeeID="+oEmployee[0].EmployeeID+"&ts=" + tsv;
+
+    var nLeft=(window.screen.width/2)-(555/2);
+    var nHeight=(window.screen.height/2)-(300/2);
+    var oEPS =  window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:555px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:555px;dialogLeft:400;dialogRight:20;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');    
+});
+
+</script>

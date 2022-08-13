@@ -1,0 +1,386 @@
+﻿@{
+    ViewBag.Title = "Export UP";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ExportUP>
+
+    <div ng-app="ExportUPModule">
+        <div ng-controller="ExportUPController" class="ms-custom-control">
+            <div class="row ui-grid-top-panel">
+                <div class="form-inline">
+                    <input type="text" ng-model="UPNo" ng-change="filter()" ng-keyup="searchUPNoByKeyUp($event)" class="form-control" style="width:200px" placeholder="Search Export UP" />
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Advance Search</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="edit()" ng-hide="hide"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="delete()" ng-hide="hide"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>                    
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="approve()" ng-hide="hide"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-hide="hide" ng-click="print()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Print</span></button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-hide="hide" ng-click="exportExcel()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Excel</span></button>*@
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-hide="hide" ng-click="addTips()"> <span class="fa fa-file-excel-o" aria-hidden="true"> Add Tips</span></button>*@
+                </div>
+            </div>
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+
+        <script type="text/ng-template" id="ExportUP.html">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modal-title">Export UP</h4>
+            </div>
+            <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+               
+                    <div class="row">
+                        <div class="col-md-12 ">
+                            <div class="col-md-2 text-right"><label class="control-label">UP No:</label></div>
+                            <div class="col-md-3 text-left">
+                                <input type="text" ng-model="ExportUP.UPNo" class="number-int form-control" required ng-disabled="disabled" />
+                            </div>
+                            <div class="col-md-2 text-right"><label class="control-label">Issue Date:</label></div>
+                            <div class="col-md-3 text-left">
+                                <div class="input-group date date-container">
+                                    <input type="text" class="form-control" ng-model="ExportUP.ExportUPDateStr" ng-disabled="disabled"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-right"><label class="control-label">Prepare By:</label></div>
+                            <div class="col-md-3 text-left">
+                                <input ng-model="ExportUP.PrepareByName" class="form-control" disabled />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                      
+                    </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="save()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+            </div>
+        </script>
+    </div>
+
+    <style type="text/css">
+        .grid {
+            height: 530px;
+            width: 100%;
+        }
+
+    </style>
+
+    <script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oExportUPs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    sessionStorage.setItem("BUID",nBUID);
+
+    var  ExportUPModule = angular.module('ExportUPModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    ExportUPModule.controller('ExportUPController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession, advanceSearch) {
+
+        oExportUPs= (userSession.getData('ExportUPs').length>0)? userSession.getData('ExportUPs'):oExportUPs;
+
+        $scope.gridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'UPNoWithYear', name: 'UP No', width:'12%' },
+                { field: 'ExportUPDateStr', name: 'Export UP Date', width: '12%' },
+                { field: 'UPStatusStr',  name: 'Status', width:'15%', cellClass: 'text-left'},
+                { field: 'PrepareDateStr', name: 'Prepare Date', width: '12%', cellClass: 'text-left' },
+                { field: 'ApproveDateStr', name: 'Approve Date', width: '12%', cellClass: 'text-left'},
+                { field: 'ApproveByName', name: 'Approve By', width: '12%', cellClass: 'text-left'},
+                { field: 'DeliveryDateStr', name: 'Delivery Date', width: '12%',cellClass: 'text-left' }
+            ],
+            data:oExportUPs,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+
+                $scope.gridApi.grid.registerRowsProcessor( $scope.singleFilter, 200 );
+                $scope.gridApi.core.refresh();
+                $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                    $scope.RowSelect(row.entity );
+                });
+
+                if(oExportUPs.length>0 && userSession.getRowIndex()>=0){
+                    $scope.gridApi.grid.modifyRows(oExportUPs);
+                    $scope.gridApi.selection.selectRow(oExportUPs[userSession.getRowIndex()]);
+                    $scope.RowSelect(oExportUPs[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.index=-1;
+        $scope.UPNo='';
+
+        $scope.RowSelect =  function (oExportUP){
+            $scope.hide=(oExportUP.ApproveByID!=0)?true:false;
+        }
+
+        $scope.filter=function(){
+            $scope.gridApi.grid.refresh();
+        }
+
+        $scope.singleFilter=function(renderableRows){
+            var matcherUPNo = new RegExp(angular.uppercase($scope.UPNo));
+            renderableRows.forEach( function( row ) {
+                var match = false;
+                if (angular.uppercase(row.entity['UPNoWithYear']).match(matcherUPNo)){
+                    match = true;
+                }
+                if ( !match ){
+                    row.visible = false;
+                }
+            });
+            return renderableRows;
+        };
+
+        $scope.searchUPNoByKeyUp=function(keyEvent){
+            debugger;
+            if(keyEvent.which==13 && $scope.UPNo!=''){
+                $scope.search();
+            }
+        }
+
+        $scope.search=function(){
+            var obj = {
+                UPNo: $scope.UPNo,
+            };
+
+            $http.post(_sBaseAddress + '/ExportUP/Gets', JSON.stringify(obj)).then(
+                        function (response) {
+                            var results = jQuery.parseJSON(response.data);
+                            debugger;
+                            if (results.length > 0) {
+                                $scope.gridOptions.data = results;
+                                $scope.gridApi.grid.modifyRows(results);
+                            }
+                            else {
+                                msModal.Message({ headerTitle: '', bodyText: 'No Data Found.', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                                return;
+                            }
+
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                    );
+        };
+
+        $scope.AdvanceSearch=function()
+        {
+            //var oColumns = [];
+            //var oColumn = { field: 'ModelNo', name: 'ModelNo',width: '30%'  };oColumns.push(oColumn);
+            //oColumn = { field: 'CategoryName', name: 'CategoryName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+
+            //var paramObj_Model={
+            //    obj:{ModelNo: '@@VehicleModelID'},
+            //    objName:'ModelNo',
+            //    url:_sBaseAddress+'/VehicleModel/GetVehicleModels',
+            //    title:'Model List',
+            //    multiSelect:true,
+            //    columns:oColumns
+            //}
+
+            var oElementList = [
+                                { DisplayName: "LC No",      BOField: "LCNo",          InputType: 'text' },
+                                { DisplayName: "UD No",      BOField: "UDNo",          InputType: 'text'},
+                                //{ DisplayName: "UD No",      BOField: "UDNo",     InputType: 'select', OptionList:oSalesStatusList},
+                                { DisplayName: "UP Date",    BOField: "ExportUPDate",  InputType: 'date' },
+                                //{ DisplayName: "Model No",          BOField: "VehicleModelID",  InputType: 'picker', PickerObject:paramObj_Model }
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/ExportUP/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ExportUPHeader", "Add ExportUP");
+            sessionStorage.setItem("ExportUPs", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ExportUP/ViewExportUP?nId=0";
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.ExportUPID<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data.ApproveByID!=0){
+                msModal.Message({headerTitle : '', bodyText:'Unable to edit. Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.index=$scope.gridOptions.data.indexOf(data);
+
+            sessionStorage.setItem("Operation", "Edit");
+            sessionStorage.setItem("SelectedRowIndex", $scope.index);
+            sessionStorage.setItem("ExportUPHeader", "Edit ExportUP");
+            sessionStorage.setItem("ExportUPs", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ExportUP/ViewExportUP?nId="+data.ExportUPID;
+
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.ExportUPID<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.index=$scope.gridOptions.data.indexOf(data);
+
+            sessionStorage.setItem("Operation", "View");
+            sessionStorage.setItem("SelectedRowIndex", $scope.index);
+            sessionStorage.setItem("ExportUPHeader", "View ExportUP");
+            sessionStorage.setItem("ExportUPs", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ExportUP/ViewExportUP?nId="+data.ExportUPID;
+
+
+
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete. Select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data.first().ApproveByID!=0){
+                msModal.Message({headerTitle : '', bodyText:'Unable to delete. Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            $http.post(_sBaseAddress+'/ExportUP/Delete',JSON.stringify(data.first())).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    $scope.gridOptions.data.splice($scope.gridOptions.data.indexOf(data.first()),1);
+                                    msModal.Message({headerTitle : '', bodyText:'Delete Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                                else{
+                                    msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.approve = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data.first().ApproveByID!=0){
+                msModal.Message({headerTitle : '', bodyText:'Already Approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to approve!.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+
+                    $http.post(_sBaseAddress+'/ExportUP/Approve', JSON.stringify(data.first())).then(
+                                   function (response) {
+                                       var result=jQuery.parseJSON(response.data);
+                                       if(result.ExportUPID>0)
+                                       {
+                                           $scope.gridOptions.data[$scope.gridOptions.data.indexOf(data.first())]=result;
+                                           $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                           $scope.gridApi.selection.selectRow(result);
+                                           msModal.Message({headerTitle : '', bodyText:"Approve Successfully.", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                       }
+                                       else{
+                                           msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                       }
+                                   },
+                                   function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                             );
+                }
+            });
+        };
+
+        $scope.exportExcel = function(){
+
+            var data = $scope.gridOptions.data;
+            if(!data.any()){
+                msModal.Message({headerTitle : '', bodyText:'No data found.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var objs= [{ key:'ExportUPIDs', data:data.select('ExportUPID').separator() },{ key:'BUID', data:sessionStorage.getItem('BUID')}];
+            OpenWindowWithPost(_sBaseAddress+'/ExportUP/ExportInExcel', objs);
+        }
+
+        $scope.print = function()
+        {
+            var data = $scope.gridOptions.data;
+            if(!data.any()){
+                msModal.Message({headerTitle : '', bodyText:'No data found.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var objs= [{ key:'ExportUPIDs', data:data.select('ExportUPID').separator() },{ key:'BUID', data:sessionStorage.getItem('BUID')}];
+            OpenWindowWithPost(_sBaseAddress+'/ExportUP/PrintUPSummary', objs);
+        }
+        $scope.addTips = function () {
+
+            var data=$scope.gridApi.selection.getSelectedRows().first();
+            if(data==null || data.ExportUPID<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data.ApproveByID!=0){
+                msModal.Message({headerTitle : '', bodyText:'Unable to edit. Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.index=$scope.gridOptions.data.indexOf(data);
+
+            sessionStorage.setItem("Operation", "Edit");
+            sessionStorage.setItem("SelectedRowIndex", $scope.index);
+            sessionStorage.setItem("ExportUPHeader", "Add Tips");
+            sessionStorage.setItem("ExportUPs", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ExportUP/View_AddTipsnSpeedsForUP?nId="+data.ExportUPID+"&ts="+tsv;
+        };
+
+    });
+
+
+    </script>
+
+
+
+

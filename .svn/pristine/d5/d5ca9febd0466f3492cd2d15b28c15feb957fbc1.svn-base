@@ -1,0 +1,3015 @@
+USE [ESimSol_ERP]
+GO
+
+--GO
+--ALTER TABLE OrderSheetDetail ADD PolyMUnitID int
+--EXEC sp_RENAME 'OrderSheetDetail.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE OrderSheetDetailLog ADD PolyMUnitID int
+--EXEC sp_RENAME 'OrderSheetDetailLog.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ExportPIDetail ADD PolyMUnitID int
+--EXEC sp_RENAME 'ExportPIDetail.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ExportPIDetailLog ADD PolyMUnitID int
+--EXEC sp_RENAME 'ExportPIDetailLog.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ExportSCDetail ADD PolyMUnitID int
+--EXEC sp_RENAME 'ExportSCDetail.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ExportSCDetailLog ADD PolyMUnitID int
+--EXEC sp_RENAME 'ExportSCDetailLog.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ProductionOrderDetail ADD PolyMUnitID int
+--EXEC sp_RENAME 'ProductionOrderDetail.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE ProductionOrderDetailLog ADD PolyMUnitID int
+--EXEC sp_RENAME 'ProductionOrderDetailLog.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+--ALTER TABLE PTUUnit2 ADD PolyMUnitID int
+--EXEC sp_RENAME 'PTUUnit2.Measurement', 'Measurement_Pre', 'COLUMN'
+--GO
+/****** Object:  StoredProcedure [dbo].[SP_Accept_ExportSCRevise]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_Accept_ExportSCRevise]
+(
+	 @ExportSCID	as int
+	,@ExportPIID	as int
+	,@SCDate	as datetime
+	,@RateUnit	as int
+	,@DBUserID as int
+	--%n, %n, %D,  %n, %n
+)
+AS
+BEGIN TRAN
+
+DECLARE
+@ExportSCLogID	as int,
+@ExportSCDetailID as int,
+@ExportSCDetailLogID as int,
+
+@DBServerDateTime as datetime,
+@PV_Message varchar(512),
+@TotalQty Decimal(30,17) ,
+@Amount_PI Decimal(30,17),
+@AdjAmount Decimal(30,17),
+@TotalAdjQty Decimal(30,17),
+@ActualAmount Decimal(30,17),
+@ExportSCAmount Decimal(30,17),
+@SampleInvoiceAdjAmount Decimal(30,17),
+
+@PV_LCOpenDate AS datetime,
+@PV_AppDeliveryDate AS datetime
+SET @DBServerDateTime=Getdate()
+
+
+IF  EXISTS(SELECT * FROM ExportSC WHERE IsRevisePI=1 and ExportSCID =@ExportSCID)
+BEGIN
+	ROLLBACK
+		RAISERROR (N'Yet not Approve!!~',16,1);
+	RETURN
+END	
+		
+
+set @ExportPIID=(Select ISNULL(ExportPIID,0) from [ExportSC] WHERE  ExportSCID =@ExportSCID)
+
+set @ExportSCLogID=(Select ISNULL(MAX(ExportSCLogID),0)+1 from [ExportSCLog])
+INSERT INTO [dbo].[ExportSCLog]       ([ExportSCLogID] ,[ExportSCID]  ,[ExportPIID]  ,[SCDate]  , RateUnit, [TotalQty]  ,[TotalAmount] ,[AdjAmount]  ,[AdjQty]   ,[Amount_PI]  ,[VersionNo]   ,[Note]   ,[ApprovedBy] ,[ApprovedDate]  ,[Production_ControlBy],[Delivery_ControlBy]  ,[AppLCOpenDate] ,[AppDeliveryDate]  ,[PaymentTerms] ,[IsRevisePI]  ,[LastUpdateBy] ,[LastUpdateDateTime]  ,[DBUserID]  ,[DBServerDateTime])
+
+								 Select    @ExportSCLogID ,@ExportSCID  ,[ExportPIID]  ,[SCDate], RateUnit,	[TotalQty]  ,[TotalAmount] ,[AdjAmount]  ,[AdjQty]   ,[Amount_PI]  ,[VersionNo]   ,[Note]   ,[ApprovedBy] ,[ApprovedDate]  ,[Production_ControlBy],[Delivery_ControlBy]  ,[AppLCOpenDate] ,[AppDeliveryDate]  ,[PaymentTerms] ,[IsRevisePI]  ,[LastUpdateBy] ,[LastUpdateDateTime]  ,[DBUserID]  ,[DBServerDateTime] from ExportSC where ExportSCID=@ExportSCID
+
+
+	--Insert ExportSCDetailLog
+	DECLARE Cur_AB1 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+	SELECT ExportSCDetailID    FROM [dbo].[ExportSCDetail] where ExportSCID=@ExportSCID
+	OPEN Cur_AB1
+	FETCH NEXT FROM Cur_AB1 INTO  @ExportSCDetailID
+	WHILE(@@Fetch_Status <> -1)
+	BEGIN
+
+	SET @ExportSCDetailLogID=(SELECT ISNULL(MAX(ExportSCDetailLogID),0)+1 FROM ExportSCDetailLog)
+	INSERT INTO [dbo].[ExportSCDetailLog]      ([ExportSCDetailLogID]    ,[ExportSCLogID] ,[ProductID]    ,[Qty]    ,[MUnitID]     ,[UnitPrice]   ,	Amount,	[StyleNo]  ,[ColorInfo]    ,[BuyerRef]     ,[ExportPIDetailID] ,ColorID,	ModelReferenceID,		OrderSheetDetailID,		PolyMUnitID,		ProductDescription,		ColorQty,	[LastUpdateBy]  ,[LastUpdateDateTime] ,[DBUserID]      ,[DBServerDateTime])
+	                                          SELECT @ExportSCDetailLogID,@ExportSCLogID  ,[ProductID]     ,[Qty],	 [MUnitID]      ,[UnitPrice]  ,	Amount,	[StyleNo]  ,[ColorInfo] ,  [BuyerRef]   ,[ExportPIDetailID],	ColorID,	ModelReferenceID,		OrderSheetDetailID,		PolyMUnitID,		ProductDescription,		ColorQty,	[LastUpdateBy],[LastUpdateDateTime]   ,[DBUserID]  ,[DBServerDateTime]  FROM [dbo].[ExportSCDetail] where ExportSCDetailID=@ExportSCDetailID
+								  	
+	FETCH NEXT FROM Cur_AB1 INTO	@ExportSCDetailID
+	END
+	CLOSE Cur_AB1
+	DEALLOCATE Cur_AB1
+
+
+
+	------------Update ESC--
+
+	Set @TotalQty =Isnull((Select SUM(Qty-AdjQty) from ExportPIDetail where [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+	Set @AdjAmount =Isnull((Select SUM(AdjValue) from ExportPIDetail where [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+	Set @Amount_PI =Isnull((Select SUM(Amount) from ExportPIDetail where [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+
+	set @PV_LCOpenDate =(Select ExportPI.LCOpenDate from ExportPI where [ExportPI].ExportPIID=@ExportPIID )
+	set @PV_AppDeliveryDate =(Select ExportPI.DeliveryDate from ExportPI where [ExportPI].ExportPIID=@ExportPIID )
+	set @TotalAdjQty=Isnull((Select SUM(AdjQty) from ExportPIDetail where [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+
+	
+	update [ExportSC] set SCDate=@SCDate, VersionNo=Isnull(VersionNo,0)+1, ApprovedBy=0,IsRevisePI=1 , [TotalQty]=@TotalQty ,[TotalAmount]=(Isnull(@Amount_PI,0)-Isnull( @AdjAmount,0))   ,[AdjAmount] = @AdjAmount,  [Amount_PI]= @Amount_PI  ,[AppLCOpenDate]=@PV_LCOpenDate   ,[AppDeliveryDate]=@PV_AppDeliveryDate, RateUnit = @RateUnit, [LastUpdateBy]=@DBUserID ,[LastUpdateDateTime]=@DBServerDateTime  where ExportSCID=@ExportSCID
+
+SELECT * FROM View_ExportSC WHERE ExportSCID=@ExportSCID
+COMMIT TRAN
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_AcceptOrderSheetRevise]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_AcceptOrderSheetRevise]
+(
+	@OrderSheetID int,
+    @PONo varchar(512),
+	@OrderSheetStatus smallint,
+    @OrderDate datetime,
+	@BUID int,
+	@OrderSheetType smallint,
+    @ContractorID int,
+    @ContactPersonnelID int,
+    @Priority smallint,
+    @Note varchar(512),
+    @MKTEmpID int,
+	@PartyPONo  varchar(512),
+	@PaymentType smallint,
+	@DeliveryTo int,
+	@DeliveryContactPerson int,
+	@CurrencyID int,
+	@BuyerID int,
+	@ExpectedDeliveryDate date,
+	@RateUnit int,
+	@ProductNature smallint,
+	@DBUserID as int,
+	@IsNewVersion as bit
+	--%n, %s, %n, %d, %n, %n, %n, %n, %n, %s, %n, %s, %n, %n, %n, %n, %n, %d, %n, %n, %n, %b
+)
+AS
+BEGIN TRAN
+
+DECLARE
+--For OrderSheet
+@ORS_OrderSheetLogID	as int,
+@ORS_OrderSheetID int
+,@ORS_PONo varchar(512)
+,@ORS_ReviseNo int
+,@ORS_OrderSheetStatus smallint
+,@ORS_OrderDate datetime
+,@ORS_BUID int
+,@ORS_OrderSheetType smallint
+,@ORS_ContractorID int
+,@ORS_ContactPersonnelID int
+,@ORS_Priority smallint
+,@ORS_Note varchar(512)
+,@ORS_MKTEmpID int
+,@ORS_PartyPONo  varchar(512)
+,@ORS_PaymentType smallint
+,@ORS_DeliveryTo int
+,@ORS_DeliveryContactPerson int
+,@ORS_CurrencyID int
+,@ORS_BuyerID int
+,@ORS_ExpectedDeliveryDate date
+,@ORS_RateUnit int
+,@ORS_ProductNature smallint
+,@ORS_DBUserID int
+,@ORS_DBServerDateTime as datetime,	
+@ORS_LastUpdateBy as int,	
+@ORS_LastUpdateDateTime as datetime
+--For OrderSheet Detail
+,@ORSD_OrderSheetDetailLogID	as int,
+@ORSD_OrderSheetLogID	as int
+,@ORSD_ProductID int
+,@ORSD_ColorID int
+,@ORSD_ProductDescription varchar(512)
+,@ORSD_StyleDescription varchar(512)
+,@ORSD_PolyMUnitID int
+,@ORSD_Qty decimal(30,17)
+,@ORSD_UnitPrice decimal(30,17)
+,@ORSD_DeliveryDate datetime
+,@ORSD_Note varchar(512)
+,@ORSD_ModelReferenceID int
+,@ORSD_UnitID int
+,@ORSD_BuyerRef varchar(512)
+,@ORSD_ColorQty int
+,@ORSD_RecipeID int
+,@ORSD_DBUserID as int,	
+@ORSD_DBServerDateTime as datetime,	
+@ORSD_LastUpdateBy as int,	
+@ORSD_LastUpdateDateTime as datetime
+
+
+--Extra
+,@DBServerDateTime	as datetime
+SET @DBServerDateTime=GETDATE()
+
+
+IF NOT EXISTS(SELECT * FROM OrderSheet WHERE OrderSheetID =@OrderSheetID)
+BEGIN
+	ROLLBACK
+		RAISERROR (N'OrderSheet Not Exist!!~',16,1);
+	RETURN
+END	
+		
+IF NOT EXISTS(SELECT * FROM OrderSheet WHERE OrderSheetID =@OrderSheetID AND OrderSheetStatus =5) --EnumPIStatus 5: Request for Revise
+BEGIN
+	ROLLBACK
+		RAISERROR (N'Without Request OrderSheet Can\''t Accept Revise !!~',16,1);	
+	RETURN
+END
+
+
+	SELECT @ORS_OrderSheetID=TT.OrderSheetID,	@ORS_PONo= PONo, @ORS_ReviseNo=ReviseNo, @ORS_OrderSheetStatus= OrderSheetStatus, @ORS_OrderDate =[OrderDate] , @ORS_BuyerID= BuyerID, @ORS_ExpectedDeliveryDate = ExpectedDeliveryDate,	@ORS_BUID=	BUID,	@ORS_ContractorID= [ContractorID] , @ORS_ContactPersonnelID =[ContactPersonnelID] ,  @ORS_Priority =[Priority] ,  @ORS_Note= [Note]   ,@ORS_OrderSheetType = [OrderSheetType],	@ORS_RateUnit= RateUnit,	@ORS_MKTEmpID= [MKTEmpID],	@ORS_PartyPONo =  PartyPONo,	@ORS_PaymentType= PaymentType,	@ORS_DeliveryTo= DeliveryTo,		@ORS_DeliveryContactPerson =  DeliveryContactPerson,	@ORS_CurrencyID= CurrencyID,		@ORS_ProductNature= ProductNature, @ORS_DBUserID=TT.DBUserID,	@ORS_DBServerDateTime=TT.DBServerDateTime,	@ORS_LastUpdateBy=TT.LastUpdateBy,	@ORS_LastUpdateDateTime=TT.LastUpdateDateTime FROM OrderSheet AS TT WHERE TT.OrderSheetID=@OrderSheetID
+	SET @ORS_OrderSheetLogID=(SELECT ISNULL(MAX(OrderSheetLogID),0)+1 FROM OrderSheetLog)
+	SET @ORS_OrderSheetID=@OrderSheetID
+	INSERT INTO OrderSheetLog (OrderSheetLogID,		OrderSheetID,			PONo,		ReviseNo,		OrderSheetStatus,		[OrderDate] ,		BuyerID,		ExpectedDeliveryDate,			BUID,		[ContractorID] ,		[ContactPersonnelID] ,			[Priority] ,		[Note]   ,		[OrderSheetType],		RateUnit,			[MKTEmpID],			PartyPONo,			PaymentType,			DeliveryTo,				DeliveryContactPerson,			CurrencyID,				ProductNature, 			[LastUpdateBy],			[LastUpdateDateTime],		[DBUserID]    ,		[DBServerDateTime])     
+					VALUES	(@ORS_OrderSheetLogID, @ORS_OrderSheetID,		@ORS_PONo,	@ORS_ReviseNo,  @ORS_OrderSheetStatus,	@ORS_OrderDate ,	@ORS_BuyerID,	@ORS_ExpectedDeliveryDate,		@ORS_BUID,	@ORS_ContractorID ,		@ORS_ContactPersonnelID ,		@ORS_Priority ,		@ORS_Note   ,	@ORS_OrderSheetType,	@ORS_RateUnit,		@ORS_MKTEmpID,		@ORS_PartyPONo,		@ORS_PaymentType,		@ORS_DeliveryTo,		@ORS_DeliveryContactPerson,		@ORS_CurrencyID,		@ORS_ProductNature, 	@ORS_LastUpdateBy,		@ORS_LastUpdateDateTime,	@ORS_DBUserID    ,	@ORS_DBServerDateTime)
+
+	--Insert OrderSheetDetailLog
+	DECLARE Cur_AB1 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+						SELECT		[ProductID]    ,	[ColorID],		ProductDescription,			[StyleDescription],		PolyMUnitID,			[Qty]  ,	[UnitPrice],		RecipeID,		ModelReferenceID,			[DeliveryDate] ,		[Note]   ,		UnitID,				BuyerRef,			ColorQty,			[LastUpdateBy]   ,		[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime] FROM OrderSheetDetail WHERE OrderSheetID=@OrderSheetID ORDER BY OrderSheetDetailID
+	OPEN Cur_AB1
+	FETCH NEXT FROM Cur_AB1 INTO  	@ORSD_ProductID    ,@ORSD_ColorID, @ORSD_ProductDescription,	@ORSD_StyleDescription,	@ORSD_PolyMUnitID,		@ORSD_Qty  ,@ORSD_UnitPrice,	@ORSD_RecipeID,	@ORSD_ModelReferenceID,   @ORSD_DeliveryDate ,		@ORSD_Note   ,	@ORSD_UnitID,		@ORSD_BuyerRef,		@ORSD_ColorQty,		@ORSD_LastUpdateBy,		@ORSD_LastUpdateDateTime, @ORSD_DBUserID,	@ORSD_DBServerDateTime	
+	WHILE(@@Fetch_Status <> -1)
+	BEGIN
+
+		SET @ORSD_OrderSheetDetailLogID=(SELECT ISNULL(MAX(OrderSheetDetailLogID),0)+1 FROM OrderSheetDetailLog)
+		SET @ORSD_OrderSheetLogID=@ORS_OrderSheetLogID
+
+	INSERT INTO [dbo].[OrderSheetDetailLog]   ([OrderSheetDetailLogID]      ,[OrderSheetLogID]        ,[ProductID]    ,	[ColorID],		ProductDescription,			[StyleDescription],		PolyMUnitID,			[Qty]  ,	[UnitPrice],		RecipeID,			ModelReferenceID,			[DeliveryDate] ,		[Note]   ,		UnitID,				BuyerRef,			ColorQty,	[LastUpdateBy]   ,		[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime])
+    
+	                                  Values( @ORSD_OrderSheetDetailLogID    ,@ORSD_OrderSheetLogID    ,@ORSD_ProductID    ,@ORSD_ColorID, @ORSD_ProductDescription,	@ORSD_StyleDescription,	@ORSD_PolyMUnitID,		@ORSD_Qty  ,@ORSD_UnitPrice,@ORSD_RecipeID,		@ORSD_ModelReferenceID,   @ORSD_DeliveryDate ,		@ORSD_Note   ,	@ORSD_UnitID,		@ORSD_BuyerRef,	@ORSD_ColorQty,	@ORSD_LastUpdateBy,		@ORSD_LastUpdateDateTime, @ORSD_DBUserID,	@ORSD_DBServerDateTime	)
+							
+
+								  	
+	FETCH NEXT FROM Cur_AB1 INTO			@ORSD_ProductID    ,@ORSD_ColorID, @ORSD_ProductDescription,	@ORSD_StyleDescription,	@ORSD_PolyMUnitID,		@ORSD_Qty  ,@ORSD_UnitPrice,	@ORSD_RecipeID,	@ORSD_ModelReferenceID,   @ORSD_DeliveryDate ,		@ORSD_Note   ,	@ORSD_UnitID,		@ORSD_BuyerRef,		@ORSD_ColorQty,		@ORSD_LastUpdateBy,		@ORSD_LastUpdateDateTime, @ORSD_DBUserID,	@ORSD_DBServerDateTime	
+	END
+	CLOSE Cur_AB1
+	DEALLOCATE Cur_AB1
+
+DECLARE
+@PV_OrderSheetHistoryID as int,			
+@PV_OrderSheetID as int,					
+@PV_PreviousStatus as smallint,		
+@PV_CurrentStatus as smallint,	
+@PV_PreviousPONo as varchar(512),
+@PV_TempLength as int,
+@PV_Length as int,
+@PV_PINoWithOutYear as varchar(512),
+@PV_YearPart as varchar(512),
+@PV_NewPONo as varchar(512),
+@PV_Note as varchar(512)		
+
+
+--For PO No
+
+
+SET @PV_OrderSheetHistoryID=(SELECT ISNULL(MAX(OrderSheetHistoryID),0)+1 FROM OrderSheetHistory)
+SET @PV_OrderSheetID=@OrderSheetID
+SET @PV_PreviousStatus=(SELECT OrderSheetStatus FROM OrderSheet WHERE OrderSheetID=@OrderSheetID)
+--SET @PV_CurrentStatus=(SELECT PIH.PreviousStatus FROM OrderSheetHistory AS PIH WHERE PIH.OrderSheetHistoryID=(SELECT MAX(PIH2.OrderSheetHistoryID) FROM OrderSheetHistory AS PIH2 WHERE PIH2.OrderSheetID=@OrderSheetID))
+SET @PV_CurrentStatus = 1 ---status: REquest for Approval (Req: Faruk vai)
+SET @PV_Note='Accept Order Sheet Revise by : '+(SELECT UserName FROM Users WHERE UserID=@DBUserID)
+
+
+INSERT INTO OrderSheetHistory	(OrderSheetHistoryID,			OrderSheetID,		PreviousStatus,		CurrentStatus,		Note,		OperateBy,		DBUserID,	DBServerDateTime)
+    				VALUES	(@PV_OrderSheetHistoryID,			@PV_OrderSheetID,	@PV_PreviousStatus,	@PV_CurrentStatus,	@PV_Note,	@DBUserID,		@DBUserID,	@DBServerDateTime)
+
+
+IF(@IsNewVersion=1)
+BEGIN
+	SET @ORS_ReviseNo = ISNULL((SELECT HH.ReviseNo FROM OrderSheet AS HH WHERE HH.OrderSheetID=@OrderSheetID),0)+1
+END
+													
+UPDATE OrderSheet	SET  ReviseNo = @ORS_ReviseNo, 	OrderSheetStatus=@PV_CurrentStatus,  [ContractorID] = @ContractorID,	[BUID] = @BUID,BuyerID = @BuyerID,ExpectedDeliveryDate = @ExpectedDeliveryDate,[ContactPersonnelID] = @ContactPersonnelID,[Priority] = @Priority,[Note] = @Note,[MKTEmpID] = @MKTEmpID,PartyPONo = @PartyPONo,PaymentType = @PaymentType,DeliveryTo = @DeliveryTo,RateUnit = @RateUnit,DeliveryContactPerson = @DeliveryContactPerson,CurrencyID = @CurrencyID, [LastUpdateBy] = @DBUserID   ,[LastUpdateDateTime] = @DBServerDateTime WHERE OrderSheetID=@OrderSheetID
+
+
+SELECT * FROM View_OrderSheet WHERE OrderSheetID=@OrderSheetID
+COMMIT TRAN
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_AcceptProductionOrderRevise]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_AcceptProductionOrderRevise]
+(
+	@ProductionOrderID int,
+    @PONo varchar(512),
+	@ExportSCID int,
+	@ProductionOrderStatus smallint,
+    @OrderDate datetime,
+	@BUID int,
+    @ContractorID int,
+    @ContactPersonnelID int,
+    @Note varchar(512),
+	@DeliveryTo int,
+	@DeliveryContactPerson int,
+	@BuyerID int,
+	@ExpectedDeliveryDate date,
+	@MKTEmpID int,
+	@ProductNature as smallint,
+	@DBUserID as int,
+	@IsNewVersion as bit
+	--%n, %s, %n, %n, %d, %n, %n, %n, %s, %n, %n, %n, %d, %n, %n, %n, %b
+)
+AS
+BEGIN TRAN
+
+DECLARE
+--For ProductionOrder
+@PO_ProductionOrderLogID	as int,
+@PO_ProductionOrderID int
+,@PO_PONo varchar(512)
+,@PO_ReviseNo int
+,@PO_ExportSCID int
+,@PO_ProductionOrderStatus smallint
+,@PO_OrderDate datetime
+,@PO_BUID int
+,@PO_ContractorID int
+,@PO_ContactPersonnelID int
+,@PO_Note varchar(512)
+,@PO_DeliveryTo int
+,@PO_DeliveryContactPerson int
+,@PO_BuyerID int
+,@PO_ExpectedDeliveryDate date
+,@PO_MKTEmpID int
+,@PO_ProductNature as smallint
+,@PO_DBUserID int
+,@PO_DBServerDateTime as datetime,	
+@PO_LastUpdateBy as int,	
+@PO_LastUpdateDateTime as datetime
+--For ProductionOrder Detail
+,@POD_ProductionOrderDetailLogID	as int,
+@POD_ProductionOrderLogID	as int
+,@POD_ExportSCDetailID int
+,@POD_ProductID int
+,@POD_ColorID int
+,@POD_ProductDescription varchar(512)
+,@POD_StyleDescription varchar(512)
+,@POD_PolyMUnitID int
+,@POD_Qty decimal(30,17)
+,@POD_Note varchar(512)
+,@POD_ModelReferenceID int
+,@POD_UnitID int
+,@POD_BuyerRef varchar(512)
+,@POD_Model varchar(512)
+,@POD_PantonNo varchar(512)
+,@POD_ColorQty int
+,@POD_DBUserID as int,	
+@POD_DBServerDateTime as datetime,	
+@POD_LastUpdateBy as int,	
+@POD_LastUpdateDateTime as datetime,
+
+--PI Sizer Break down
+@POS_POSizerBreakDownID AS int,
+@POS_POSizerBreakDownLogID AS int,
+@POS_ProductID AS int,
+@POS_ColorID AS int,
+@POS_SizeID AS	int,
+@POS_Quantity as decimal(30,17),
+@POS_Model  as varchar(512),
+@POS_StyleNo  as varchar(512),
+@POS_PantonNo  as varchar(512),
+@POS_Remarks  as varchar(512),
+@POS_DBUserID as int,
+@POS_DBServerDateTime as DateTime
+
+
+--Extra
+,@DBServerDateTime	as datetime
+SET @DBServerDateTime=GETDATE()
+
+
+IF NOT EXISTS(SELECT * FROM ProductionOrder WHERE ProductionOrderID =@ProductionOrderID)
+BEGIN
+	ROLLBACK
+		RAISERROR (N'ProductionOrder Not Exist!!~',16,1);
+	RETURN
+END	
+		
+IF NOT EXISTS(SELECT * FROM ProductionOrder WHERE ProductionOrderID =@ProductionOrderID AND ProductionOrderStatus =8) --EnumPIStatus 5: Request for Revise
+BEGIN
+	ROLLBACK
+		RAISERROR (N'Without Request ProductionOrder Can\''t Accept Revise !!~',16,1);	
+	RETURN
+END
+
+
+	SELECT @PO_ProductionOrderID=TT.ProductionOrderID,	@PO_PONo= PONo, @PO_ReviseNo = ReviseNo, 	@PO_ExportSCID = ExportSCID,	@PO_ProductionOrderStatus=ProductionOrderStatus,	@PO_ExportSCID= ExportSCID,	 @PO_OrderDate=[OrderDate],  @PO_BuyerID=BuyerID,  @PO_ExpectedDeliveryDate=	ExpectedDeliveryDate,	@PO_BUID=BUID, @PO_ContractorID=	[ContractorID],	@PO_ContactPersonnelID=	[ContactPersonnelID],  @PO_Note= [Note],		@PO_DeliveryTo= DeliveryTo,		@PO_DeliveryContactPerson= DeliveryContactPerson, @PO_MKTEmpID=MKTEmpID,		@PO_ProductNature= ProductNature, @PO_DBUserID=TT.DBUserID,	@PO_DBServerDateTime=TT.DBServerDateTime,	@PO_LastUpdateBy=TT.LastUpdateBy,	@PO_LastUpdateDateTime=TT.LastUpdateDateTime FROM ProductionOrder AS TT WHERE TT.ProductionOrderID=@ProductionOrderID
+	SET @PO_ProductionOrderLogID=(SELECT ISNULL(MAX(ProductionOrderLogID),0)+1 FROM ProductionOrderLog)
+	SET @PO_ProductionOrderID=@ProductionOrderID
+	INSERT INTO ProductionOrderLog (ProductionOrderLogID,		ProductionOrderID,			PONo,		ReviseNo,		ProductionOrderStatus,		ExportSCID,	[OrderDate] ,		BuyerID,		ExpectedDeliveryDate,			BUID,		[ContractorID] ,		[ContactPersonnelID] ,			[DeliveryTo] ,	 DeliveryContactPerson,		[Note]   ,		[MKTEmpID],					ProductNature, 			[LastUpdateBy],			[LastUpdateDateTime],		[DBUserID]    ,		[DBServerDateTime])     
+							VALUES	(@PO_ProductionOrderLogID, @PO_ProductionOrderID,		@PO_PONo,	@PO_ReviseNo,	@PO_ProductionOrderStatus,	@PO_ExportSCID,	@PO_OrderDate ,	@PO_BuyerID,	@PO_ExpectedDeliveryDate,		@PO_BUID,	@PO_ContractorID ,		@PO_ContactPersonnelID ,			@PO_DeliveryTo,	 @PO_DeliveryContactPerson,	@PO_Note   ,	@PO_MKTEmpID,				@PO_ProductNature, 	@PO_LastUpdateBy,		@PO_LastUpdateDateTime,	@PO_DBUserID    ,			@PO_DBServerDateTime)
+
+	--Insert ProductionOrderDetailLog
+	DECLARE Cur_AB1 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+							SELECT	ExportSCDetailID,	[ProductID]    ,	[ColorID],		ProductDescription,			[StyleDescription],		PolyMUnitID,			[Qty]  ,	ModelReferenceID,				[Note]   ,		UnitID,				BuyerRef,		ColorQty,		Model,	PantonNo, [LastUpdateBy]   ,		[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime] FROM ProductionOrderDetail WHERE ProductionOrderID=@ProductionOrderID ORDER BY ProductionOrderDetailID
+	OPEN Cur_AB1
+	FETCH NEXT FROM Cur_AB1 INTO  @POD_ExportSCDetailID, 	@POD_ProductID    ,@POD_ColorID, @POD_ProductDescription,	@POD_StyleDescription,	@POD_PolyMUnitID,		@POD_Qty  ,		@POD_ModelReferenceID,   		@POD_Note   ,	@POD_UnitID,	@POD_BuyerRef,	@POD_ColorQty,	@POD_Model, @POD_PantonNo, @POD_LastUpdateBy,		@POD_LastUpdateDateTime, @POD_DBUserID,	@POD_DBServerDateTime	
+	WHILE(@@Fetch_Status <> -1)
+	BEGIN
+
+		SET @POD_ProductionOrderDetailLogID=(SELECT ISNULL(MAX(ProductionOrderDetailLogID),0)+1 FROM ProductionOrderDetailLog)
+		SET @POD_ProductionOrderLogID=@PO_ProductionOrderLogID
+
+	INSERT INTO [dbo].[ProductionOrderDetailLog]   ([ProductionOrderDetailLogID]      ,[ProductionOrderLogID]   , ExportSCDetailID,			[ProductID]    ,	[ColorID],		ProductDescription,			[StyleDescription],		PolyMUnitID,			[Qty]  ,		ModelReferenceID,				[Note]   ,		UnitID,				BuyerRef,	ColorQty,		Model,	PantonNo,	[LastUpdateBy]   ,		[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime])
+    
+										 Values( @POD_ProductionOrderDetailLogID    ,@POD_ProductionOrderLogID  , @POD_ExportSCDetailID,	@POD_ProductID    ,@POD_ColorID, @POD_ProductDescription,	@POD_StyleDescription,	@POD_PolyMUnitID,		@POD_Qty  ,		@POD_ModelReferenceID,   		@POD_Note   ,	@POD_UnitID,		@POD_BuyerRef,	@POD_ColorQty,	@POD_Model,@POD_PantonNo,		@POD_LastUpdateBy,		@POD_LastUpdateDateTime, @POD_DBUserID,	@POD_DBServerDateTime	)
+							
+
+								  	
+	FETCH NEXT FROM Cur_AB1 INTO	@POD_ExportSCDetailID, 	@POD_ProductID    ,@POD_ColorID, @POD_ProductDescription,	@POD_StyleDescription,	@POD_PolyMUnitID,		@POD_Qty  ,		@POD_ModelReferenceID,   		@POD_Note   ,	@POD_UnitID,	@POD_BuyerRef,	@POD_ColorQty,	@POD_Model, @POD_PantonNo, @POD_LastUpdateBy,		@POD_LastUpdateDateTime, @POD_DBUserID,	@POD_DBServerDateTime	
+	END
+	CLOSE Cur_AB1
+	DEALLOCATE Cur_AB1
+
+	--PO Sizer Break Down
+	DECLARE Cur_AB1 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+		SELECT 			ProductID,		ColorID,		SizeID,			Quantity, Model, StyleNo, PantonNo, Remarks,	DBUserID,		DBServerDateTime FROM POSizerBreakDown WHERE ProductionOrderID=@ProductionOrderID ORDER BY POSizerBreakDownID
+		OPEN Cur_AB1
+		FETCH NEXT FROM Cur_AB1 INTO 			@POS_ProductID,		@POS_ColorID,		@POS_SizeID,			@POS_Quantity, @POS_Model, @POS_StyleNo, @POS_PantonNo, @POS_Remarks,	@POS_DBUserID, @POS_DBServerDateTime
+		WHILE(@@Fetch_Status <> -1)
+		BEGIN
+			SET @POS_POSizerBreakDownLogID=(SELECT ISNULL(MAX(POSizerBreakDownLogID),0)+1 FROM POSizerBreakDownLog)
+			
+			INSERT INTO POSizerBreakDownLog (POSizerBreakDownLogID,		ProductionOrderLogID,		ProductID,		ColorID,		SizeID,			Quantity,		Model,		StyleNo,		PantonNo,		Remarks,			DBUserID,		DBServerDateTime)
+								  VALUES   (@POS_POSizerBreakDownLogID,	@PO_ProductionOrderLogID,	@POS_ProductID, @POS_ColorID,	@POS_SizeID,	@POS_Quantity,	@POS_Model,	@POS_StyleNo,	@POS_PantonNo,	@POS_Remarks,		@POS_DBUserID,	@POS_DBServerDateTime)	 	  					    				  
+			FETCH NEXT FROM Cur_AB1 INTO  @POS_ProductID,		@POS_ColorID,		@POS_SizeID,			@POS_Quantity, @POS_Model, @POS_StyleNo, @POS_PantonNo, @POS_Remarks,	@POS_DBUserID, @POS_DBServerDateTime
+		END
+		CLOSE Cur_AB1
+		DEALLOCATE Cur_AB1
+
+
+DECLARE
+@PV_ProductionOrderHistoryID as int,			
+@PV_ProductionOrderID as int,					
+@PV_PreviousStatus as smallint,		
+@PV_CurrentStatus as smallint,	
+@PV_ReviseCount as int,	
+@PV_PreviousPONo as varchar(512),
+@PV_TempLength as int,
+@PV_Length as int,
+@PV_PINoWithOutYear as varchar(512),
+@PV_YearPart as varchar(512),
+@PV_NewPONo as varchar(512),
+@PV_Note as varchar(512)		
+
+
+--For PO No
+
+
+SET @PV_ProductionOrderHistoryID=(SELECT ISNULL(MAX(ProductionOrderHistoryID),0)+1 FROM ProductionOrderHistory)
+SET @PV_ProductionOrderID=@ProductionOrderID
+SET @PV_PreviousStatus=(SELECT ProductionOrderStatus FROM ProductionOrder WHERE ProductionOrderID=@ProductionOrderID)
+--SET @PV_CurrentStatus=(SELECT PIH.PreviousStatus FROM ProductionOrderHistory AS PIH WHERE PIH.ProductionOrderHistoryID=(SELECT MAX(PIH2.ProductionOrderHistoryID) FROM ProductionOrderHistory AS PIH2 WHERE PIH2.ProductionOrderID=@ProductionOrderID))
+SET @PV_CurrentStatus = 1 ---status: REquest for Approval (Req: Faruk vai)
+SET @PV_Note='Accept Production Order Revise by : '+(SELECT UserName FROM Users WHERE UserID=@DBUserID)
+
+
+INSERT INTO ProductionOrderHistory	(ProductionOrderHistoryID,			ProductionOrderID,		PreviousStatus,		CurrentStatus,		Note,		OperateBy,		DBUserID,	DBServerDateTime)
+    					VALUES	(@PV_ProductionOrderHistoryID,			@PV_ProductionOrderID,	@PV_PreviousStatus,	@PV_CurrentStatus,	@PV_Note,	@DBUserID,		@DBUserID,	@DBServerDateTime)
+
+IF(@IsNewVersion=1)
+BEGIN
+	SET @PO_ReviseNo = ISNULL((SELECT HH.ReviseNo FROM ProductionOrder AS HH WHERE HH.ProductionOrderID=@ProductionOrderID),0)+1
+END
+														---status: REquest for Approval (Req: Faruk vai)
+UPDATE ProductionOrder	SET  ReviseNo = @PO_ReviseNo, 	ProductionOrderStatus=@PV_CurrentStatus,	ExportSCID =@ExportSCID,	[ContractorID] = @ContractorID,	[BUID] = @BUID,BuyerID = @BuyerID,   [OrderDate]=@OrderDate,  ExpectedDeliveryDate = @ExpectedDeliveryDate,[ContactPersonnelID] = @ContactPersonnelID,[Note] = @Note,[MKTEmpID] = @MKTEmpID,DeliveryTo = @DeliveryTo,DeliveryContactPerson = @DeliveryContactPerson, ApproveBy = 0, ApproveDate = null, [LastUpdateBy] = @DBUserID   ,[LastUpdateDateTime] = @DBServerDateTime WHERE ProductionOrderID=@ProductionOrderID
+
+SELECT * FROM View_ProductionOrder WHERE ProductionOrderID=@ProductionOrderID
+COMMIT TRAN
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_ExportPIStatusUpdate]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_ExportPIStatusUpdate]
+(		
+	@ExportPIID as INt,		
+	@ActionType as smallINt,
+	@DBUserID as INt	
+	--%n, %n, %n
+)		
+AS
+BEGIN TRAN		
+DECLARE 
+@ExportPIHIStoryID as INt,
+@PIStatus as INt,
+@NOTe as Varchar(512),
+@ExchangeCurrencyID as INt,
+@CRate as decimal(30,17),
+@PV_DBServerDateTime AS datetime,
+@PV_CurrentState as INt,
+@PV_PriviousState as INt,
+
+@ExportSCID as INt,
+@TotalQty Decimal(30,17) ,
+@Amount_PI Decimal(30,17),
+@AdjAmount Decimal(30,17),
+@RateUnit decimal(30,17),
+
+@AdjQty Decimal(30,17),
+@Amount Decimal(30,17),
+@PV_LCOpenDate AS datetime,
+@PV_AppDeliveryDate AS datetime,
+@ExportPIDetailID as INt,
+@ExportSCDetailID as INt,
+@ExportSCDetailID_Do as INt,
+@ProductionType as smallINt,
+--- for Adjustment Distribution
+@RateAdjConID as int,
+@QtyAdjConID as int,
+@DicChargeAdjConID as int,
+@Adj_Rate Decimal(30,17),
+@Adj_DOCCharge Decimal(30,17),
+-----
+@BUType as INt
+,@SampleInvoiceID int
+,@SampleInvoiceDetailID int
+,@TempRateUnit int
+,@ProductID int
+,@Qty decimal(30,17)
+,@UnitPrice decimal(30,17)
+,@Description varchar(500)
+
+SET @PV_DBServerDateTime=Getdate()
+	
+
+IF NOT EXISTS(SELECT * FROM ExportPI WHERE ExportPIID=@ExportPIID)
+BEGIN
+	ROLLBACK
+		RAISERROR (N'INvalid ExportPI!!',16,1);	
+	RETURN
+END
+SET @PIStatus=(SELECT TT.PIStatus FROM ExportPI AS TT WHERE ExportPIID=@ExportPIID)
+
+--EnumPIStatus{ INitialized = 0, RequestForApproved = 1, Approved = 2, PIISsue = 3, BINdWithLC = 4, RequestForRevISe = 5, Cancel = 6 } 
+--EnumExportPIAction{ None = 0, RequestForApproval = 1, UndoRequest = 2, Approve = 3, UndoApprove = 4, PIISsue = 5, BINdWithLC = 6, RequestForRevISe = 7, Cancel = 8 }
+
+SET @ExportPIHIStoryID=(SELECT ISNULL(MAX(ExportPIHIStoryID),0)+1 FROM ExportPIHIStory)	
+IF (@ActionType=1 )
+BEGIN
+	IF NOT EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus in (0,6)) -- Cancel PI can send request for approve
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your SELECTed ExportPI Status Need INitialized !!~',16,1);	
+		RETURN
+	END
+
+	 -- IF EXISTS (SELECT * FROM ExportBillDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail WHERE ExportPIID IN (@ExportPIID)))
+		--BEGIN
+		--ROLLBACK
+		--		RAISERROR (N' Any Change NOT possible reference may loss FROM Export Bill ! Please First DELETE Export Bill!!~',16,1);	
+		--RETURN
+		--End
+
+	IF(ISNULL((SELECT TT.Amount FROM ExportPI AS TT WHERE TT.ExportPIID=@ExportPIID),0) <=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Please Enter PI Value!!~',16,1);	
+		RETURN
+	END
+
+	SET @NOTe ='Request For Approval'
+	SET @PV_CurrentState=1
+	SET @PV_PriviousState =0
+	UPDATE ExportPI SET PIStatus =1 WHERE ExportPIID = @ExportPIID
+END
+
+IF (@ActionType=2)
+BEGIN
+	IF NOT EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus=1)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Without Request Can NOT Undo !!~',16,1);	
+		RETURN
+	END
+	SET @NOTe ='Undo Request'
+	SET @PV_CurrentState=0
+	SET @PV_PriviousState =1
+	UPDATE ExportPI SET PIStatus =0 WHERE ExportPIID = @ExportPIID
+END
+IF (@ActionType=3) --- Approve
+BEGIN
+
+
+	IF NOT EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus=1)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Without Request Can NOT Approve !!~',16,1);	
+		RETURN
+	END
+
+	 --   IF EXISTS (SELECT * FROM ExportBillDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail WHERE ExportPIID IN (@ExportPIID)))
+		--BEGIN
+		--ROLLBACK
+		--		RAISERROR (N' Any Change NOT possible reference may loss FROM Export Bill ! Please First DELETE Export Bill!!~',16,1);	
+		--RETURN
+		--End
+
+	SET @PV_CurrentState=2
+	SET @PV_PriviousState =1
+	UPDATE ExportPI SET PIStatus =2, ApprovedBy =@DBUserID  WHERE ExportPIID = @ExportPIID
+
+	-- if Pi Payment Type is Non LC than insert a payment Invoice. Type =11, cash,TT or other payment receive aganist is  
+	if  exists (Select * from [ExportPI] where ExportPIID=@ExportPIID and PaymentType=2)
+	BEGIN
+		SET @ExchangeCurrencyID = (SELECT BaseCurrencyID FROM Company WHERE CompanyID = 1)
+		SET @CRate = 1
+		IF(@CRate<=0)
+		BEGIN 
+			ROLLBACK
+				RAISERROR (N'PI Conversion Rate Should be Greater than Zero. please update it via update info operation !~',16,1);	
+			RETURN
+		END
+		if not exists (Select * from [SampleInvoice] where ExportPIID=@ExportPIID and InvoiceType=11)
+		BEGIN
+			SET @SampleInvoiceID=(SELECT ISNULL(MAX(SampleInvoiceID),0)+1 FROM SampleInvoice)
+			INSERT INTO [dbo].[SampleInvoice]       ([SampleInvoiceID]   ,[SampleInvoiceNo]  ,																													[Amount]  ,[CurrencyID], ExchangeCurrencyID,	[SampleInvoiceDate]  ,[ContractorID]  ,[ContractorPersopnnalID]   ,			[PaymentType]  ,[MRNo]   ,[CurrentStatus]  ,[Remark]   ,[CRate]   ,[InvoiceType],[OrderType]   ,[MKTEmpID],		RateUnit,	[LastUpdateBy]  ,[LastUpdateDateTime],[DBUserID],		[DBServerDate],	ExportPIID,		BUID,	ApproveBy,		ApproveDate)
+									Select          @SampleInvoiceID, 	 Case When (Isnull(ExportPI.ReviseNo,0)>0) Then ExportPI.PINo+ 'R-'+Convert(varchar(8),ExportPI.ReviseNo) Else ExportPI.PINo End as PINo,Amount,	CurrencyID,	@ExchangeCurrencyID,	IssueDate,				ContractorID,	ExportPI.ContractorContactPerson,		1,				'',		2,					Note,	@CRate,			11 ,		3,			MKTEmpID ,		RateUnit,	@DBUserID,			GetDate(),			@DBUserID,			GetDATE(),	ExportPIID,		BUID ,	ApprovedBy,		GetDATE() from ExportPI where exportPIID=@ExportPIID
+		END
+		ELSE
+		BEGIN
+			SET @SampleInvoiceID=(Select SampleInvoiceID from [SampleInvoice] where ExportPIID=@ExportPIID and InvoiceType=11)
+			 Update [SampleInvoice] set 
+			 SampleInvoiceNo=EPI.PINo
+			,[Amount] = EPI.Amount
+			,[CurrencyID] = EPI.CurrencyID  
+			,ExchangeCurrencyID = @ExchangeCurrencyID
+			,RateUnit = EPI.RateUnit
+			,[SampleInvoiceDate] = EPI.IssueDate	   ,[ContractorID] = EPI.ContractorID   ,[ContractorPersopnnalID] = EPI.ContractorContactPerson
+			,[Remark] = EPI.Note  ,[CRate] = @CRate ,[MKTEmpID] =EPI.MKTEmpID,[LastUpdateBy] = @DBUserID    ,[LastUpdateDateTime] = GetDate()
+			from [SampleInvoice] as SI,ExportPI as EPI where SI.ExportPIID=EPI.ExportPIID and SI.SampleInvoiceID=@SampleInvoiceID
+		END
+
+		
+		--entry in Detail Detail strt
+		DECLARE Cur_AB1 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+		SELECT	ExportPIDetailID, ProductID, Qty, UnitPrice,BuyerReference FROM ExportPIDetail WHERE ExportPIID=@ExportPIID ORDER BY ExportPIID
+		OPEN Cur_AB1
+		FETCH NEXT FROM Cur_AB1 INTO  @ExportPIDetailID,@ProductID,@Qty,@UnitPrice,@Description
+		WHILE(@@Fetch_Status <> -1)
+		BEGIN
+	
+			if not exists (Select * from SampleInvoiceDetail where ExportPIDetailID=@ExportPIDetailID and SampleInvoiceID=@SampleInvoiceID)
+			BEGIN
+			SET @SampleInvoiceDetailID=(SELECT ISNULL(MAX(SampleInvoiceDetailID),0)+1 FROM SampleInvoiceDetail)
+			INSERT INTO [dbo].[SampleInvoiceDetail]      ([SampleInvoiceDetailID]  ,[SampleInvoiceID]     ,[ProductID]  ,[Qty] ,[Amount]    ,																							[UnitPrice] ,[Description] ,ExportPIDetailID  ,[DBUserID]  ,[DBServerDateTime] )
+												  VALUES ( @SampleInvoiceDetailID  ,@SampleInvoiceID      ,@ProductID   ,@Qty  ,@Qty*ISNULL(@UnitPrice,0)/(SELECT ISNULL(RateUnit,1) FROM ExportPI WHERE ExportPIID = @ExportPIID)   ,	@UnitPrice   ,@Description,@ExportPIDetailID    ,@DBUserID   ,GetDate() )
+		   END
+		   ELSE
+		   BEGIN
+			 SET @SampleInvoiceDetailID=(SELECT SampleInvoiceDetailID FROM SampleInvoiceDetail where ExportPIDetailID=@ExportPIDetailID and SampleInvoiceID=@SampleInvoiceID)
+			 update SampleInvoiceDetail set SampleInvoiceDetail.ProductID=@ProductID ,Qty=@Qty,UnitPrice=@UnitPrice, Amount = @Qty*ISNULL(@UnitPrice,0)/(SELECT ISNULL(RateUnit,1) FROM ExportPI WHERE ExportPIID = @ExportPIID)  , [Description]=@Description where SampleInvoiceDetailID=@SampleInvoiceDetailID
+		   END
+			
+								  	
+		FETCH NEXT FROM Cur_AB1 INTO	@ExportPIDetailID,@ProductID,@Qty,@UnitPrice,@Description
+		END
+		CLOSE Cur_AB1
+		DEALLOCATE Cur_AB1
+		Delete from  SampleInvoiceDetail where ProductID=-1 and  SampleInvoiceID=@SampleInvoiceID
+
+	END
+	ELSE
+	BEGIN
+	    SET @SampleInvoiceID=(Select SampleInvoiceID from [SampleInvoice] where ExportPIID=@ExportPIID and InvoiceType=11) 		
+		DELETE FROM SampleInvoiceHistory WHERE  [SampleInvoiceID]=@SampleInvoiceID
+		DELETE FROM [SampleInvoiceDetail] WHERE [SampleInvoiceID]=@SampleInvoiceID
+		DELETE FROM [SampleInvoice] WHERE [SampleInvoiceID]=@SampleInvoiceID
+
+	END
+	----
+
+END
+			 
+IF (@ActionType=4 )
+BEGIN
+	IF NOT EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus=2)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Without Approved a ExportPI can NOT Undo Approve!!~',16,1);	
+		RETURN
+	END
+	
+	 --   IF EXISTS (SELECT * FROM ExportBillDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail WHERE ExportPIID IN (@ExportPIID)))
+		--BEGIN
+		--ROLLBACK
+		--		RAISERROR (N' Any Change NOT possible reference may loss FROM Export Bill ! Please First DELETE Export Bill!!~',16,1);	
+		--RETURN
+		--End
+
+
+
+	IF EXISTS(SELECT TOP(1)* FROM ExportSC WHERE ExportPIID=@ExportPIID AND ISNULL(ApprovedBy,0)!=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Undo approve NOT possible, Sales Contract already approved with thIS PI!!~',16,1);	
+		RETURN
+	END
+
+	SET @NOTe ='Undo Approve'
+	SET @PV_CurrentState=1
+	SET @PV_PriviousState =2
+	UPDATE ExportPI SET PIStatus =0, ApprovedBy =0  WHERE ExportPIID = @ExportPIID
+END
+		
+
+--EnumPIStatus{ INitialized = 0, RequestForApproved = 1, Approved = 2, PIISsue = 3, BINdWithLC = 4, RequestForRevISe = 5, Cancel = 6 } 
+--EnumExportPIAction{ None = 0, RequestForApproval = 1, UndoRequest = 2, Approve = 3, UndoApprove = 4, PIISsue = 5, BINdWithLC = 6, RequestForRevISe = 7, Cancel = 8 }
+IF (@ActionType=5 )
+BEGIN
+	IF NOT EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus=2)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Without Approved a ExportPI can NOT  ISsuePI!!~',16,1);	
+		RETURN
+	END
+
+	--IF EXISTS (SELECT * FROM ExportBillDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail WHERE ExportPIID IN (@ExportPIID)))
+	--BEGIN
+	--	ROLLBACK
+	--			RAISERROR (N' Any Change NOT possible reference may loss FROM Export Bill ! Please First DELETE Export Bill!!~',16,1);	
+	--	RETURN
+	--End
+	
+
+	SET @NOTe ='PI ISsue'
+	SET @PV_CurrentState=3
+	SET @PV_PriviousState =2
+	UPDATE ExportPI SET PIStatus =3 WHERE ExportPIID = @ExportPIID
+
+	
+	---------- INsert Export Sc For DyeINg -------------
+	SET @BUType=ISNULL((SELECT BusINessUnit.BusINessUnitType FROM BusINessUnit WHERE BusINessunitID =(SELECT ExportPI.BUID FROM ExportPI WHERE ExportPI.ExportPIID = @ExportPIID)),0)
+	SET @RateUnit = ISNULL((SELECT ExportPI.RateUnit FROM ExportPI WHERE ExportPI.ExportPIID = @ExportPIID),1)
+	IF(@BUType=1)
+	BEGIN 
+		SET @ProductionType = 1 --Fresh Dryed yarn
+	END
+	ELSE
+	BEGIN
+		SET @ProductionType = 0 --None
+	END
+		SET @TotalQty =ISNULL((SELECT SUM(Qty-ISNULL(AdjQty,0)) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+		SET @AdjAmount =ISNULL((SELECT SUM(AdjValue) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+		SET @Amount_PI =ISNULL((SELECT SUM(ISNULL(Amount,0)) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+		SET @AdjQty=ISNULL((SELECT SUM(ISNULL(AdjQty,0)) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+		SET @PV_LCOpenDate =(SELECT ExportPI.LCOpenDate FROM ExportPI WHERE [ExportPI].ExportPIID=@ExportPIID )
+		SET @PV_AppDeliveryDate =(SELECT ExportPI.DeliveryDate FROM ExportPI WHERE [ExportPI].ExportPIID=@ExportPIID )
+
+		set @Adj_Rate =ISNULL((SELECT SUM((ISNULL(Qty,0)-ISNULL(AdjQty,0))* isnull(AdjRate,0)) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+        set @Adj_DOCCharge =ISNULL((SELECT SUM((ISNULL(Qty,0)-ISNULL(AdjQty,0))* isnull(DocCharge,0)) FROM ExportPIDetail WHERE [ExportPIDetail].ExportPIID=@ExportPIID ),0)
+
+		SET @PV_DBServerDateTime=Getdate()
+		---- For Adjustment Distribution--
+		Set @RateAdjConID=0;
+		set @QtyAdjConID =0;
+		set @DicChargeAdjConID =0;
+
+		if(@AdjQty>0)
+		BEGIN
+		set @QtyAdjConID=(Select ContractorID from ExportPI where ExportPI.ExportPIID=@ExportPIID)
+		END
+		if(@Adj_Rate>0)
+		BEGIN
+		 set @RateAdjConID=(Select ContractorID from ExportPI where ExportPI.ExportPIID=@ExportPIID)
+		END
+		if(@Adj_DOCCharge>0)
+		BEGIN
+		 set @DicChargeAdjConID=(Select ContractorID from ExportPI where ExportPI.ExportPIID=@ExportPIID)
+		END
+		---- end Adjustment Distribution--
+
+		IF NOT EXISTS (SELECT Top(1)* FROM [ExportSC] WHERE [ExportSC].ExportPIID=@ExportPIID )
+		BEGIN
+		SET @ExportSCID=(SELECT ISNULL(MAX(ExportSCID),0)+1 FROM [ExportSC])
+
+				INSERT INTO [dbo].[ExportSC]   ([ExportSCID],	[ExportPIID]    ,[SCDate]     ,			RateUnit,	[TotalQty]       ,[TotalAmount]                        ,AdjQty ,[AdjAmount]   ,[Amount_PI]  ,[VersionNo]  ,[NOTe]       ,[AppLCOpenDate]  ,[AppDeliveryDate]   ,[PaymentTerms] ,ApprovedBy ,[ISRevISePI],[LastUPDATEBy]  ,[LastUPDATEDateTime] ,[DBUserID]  ,[DBServerDateTime],QtyAdjConID,RateAdjConID,DicChargeAdjConID,Production_ControlBy,Delivery_ControlBy )
+										VALUES (@ExportSCID ,	@ExportPIID    ,@PV_DBServerDateTime ,	@RateUnit,	@TotalQty ,		ISNULL(@Amount_PI,0)-ISNULL( @AdjAmount,0) ,@AdjQty  , @AdjAmount,   @Amount_PI  ,0            ,''           ,@PV_LCOpenDate   ,@PV_AppDeliveryDate ,''             ,0 ,1            ,@DBUserID ,@PV_DBServerDateTime ,@DBUserID    ,@PV_DBServerDateTime ,@QtyAdjConID,@RateAdjConID,@DicChargeAdjConID,0,0 )
+		END
+		ELSE
+		BEGIN
+			SET @ExportSCID=(SELECT ExportSCID FROM [ExportSC]  WHERE [ExportSC].ExportPIID=@ExportPIID)
+			UPDATE [ExportSC] SET AdjAmount=@AdjAmount, RateUnit = @RateUnit, [TotalAmount]=ISNULL(@Amount_PI,0)-ISNULL( @AdjAmount,0), [TotalQty]=@TotalQty, AdjQty=Isnull(@AdjQty,0),  [Amount_PI]= @Amount_PI  ,[AppLCOpenDate]=@PV_LCOpenDate   ,[AppDeliveryDate]=@PV_AppDeliveryDate ,[LastUPDATEBy]=@DBUserID ,[LastUPDATEDateTime]=@PV_DBServerDateTime,[ISRevISePI]=1,ApprovedBy=0,ApprovedDate=NULL WHERE ExportSCID=@ExportSCID
+		END
+
+	--[TotalQty]=@TotalQty ,[TotalAmount]=(ISNULL(@Amount_PI,0)-ISNULL( @AdjAmount,0)), AdjQty=ISNULL(@AdjQty,0)  ,[AdjAmount] = @AdjAmount,
+	IF(@BUType=1)--dyeINg
+	BEGIN 
+		SET @ExportSCDetailID_Do=ISNULL((SELECT COUNT(*) FROM DyeINgOrderDetail WHERE ExportSCDetailID>0 AND ExportSCDetailID IN (SELECT ExportSCDetailID FROM ExportSCDetail WHERE ExportSCDetail.ExportSCID=@ExportSCID)),0)
+	END
+	ELSE
+	BEGIN
+		SET @ExportSCDetailID_Do=ISNULL((SELECT COUNT(*) FROM ProductionOrderDetail AS HH WHERE HH.ExportSCDetailID>0 AND HH.ExportSCDetailID IN (SELECT MM.ExportSCDetailID FROM ExportSCDetail AS MM WHERE MM.ExportSCID=@ExportSCID)),0)
+		IF(@ExportSCDetailID_Do<=0 or @ExportSCDetailID_Do IS NULL)
+		BEGIN 
+			--EnumRefType { ExportPI=1, OrderShit=2}
+			SET @ExportSCDetailID_Do=ISNULL((SELECT COUNT(*) FROM View_DeliveryOrderDetail AS HH WHERE HH.RefType=1 AND HH.RefDetailID>0 AND HH.RefDetailID IN (SELECT MM.ExportSCDetailID FROM ExportSCDetail AS MM WHERE MM.ExportSCID=@ExportSCID)),0)
+		END
+	END
+
+   IF(@ExportSCDetailID_Do<=0 or @ExportSCDetailID_Do IS NULL)
+   BEGIN--IF Do NOT entry 
+		DELETE  FROM [ExportSCDetail] WHERE [ExportSCDetail].ExportSCID IN (SELECT [ExportSC].ExportSCID FROM [ExportSC] WHERE [ExportSC].ExportPIID=@ExportPIID)
+
+		DECLARE Cur_CCC CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+		SELECT ExportPIDetailID FROM [ExportPIDetail]  WHERE [ExportPIDetail].ExportPIID=@ExportPIID
+		OPEN Cur_CCC
+		FETCH NEXT FROM Cur_CCC INTO  @ExportPIDetailID
+		WHILE(@@Fetch_Status <> -1)
+		BEGIN--2	
+			IF(@BUType=1)
+			BEGIN
+				SET @Amount = (SELECT ((ISNULL(TT.Qty,0)-ISNULL(TT.AdjQty,0)) *((TT.[UnitPrice]-ISNULL(TT.AdjRate,0)))) FROM [ExportPIDetail] as TT WHERE  ExportPIDetailID=@ExportPIDetailID)
+			END
+			ELSE
+			BEGIN
+				SET @Amount = (SELECT ISNULL(TT.Amount,0)  FROM [ExportPIDetail] as TT WHERE  ExportPIDetailID=@ExportPIDetailID)
+			END
+		    SET @ExportSCDetailID=(SELECT ISNULL(MAX(ExportSCDetailID),0)+1 FROM [ExportSCDetail])	
+		   INSERT INTO [dbo].[ExportSCDetail]([ExportSCDetailID],			ExportSCID,		ProductID,		[Qty],									[MUnitID],		[UnitPrice],													Amount,		StyleNo,		ColorINfo,		BuyerRef,			ExportPIDetailID,		ColorID,	ModelReferenceID,		OrderSheetDetailID,		PolyMUnitID,	ProductDescription,		ColorQty,		LastUPDATEBy,		LastUPDATEDateTime,		DBUserID,	DBServerDateTime,DyeingType ,ProductionType, PackingType) 
+									   SELECT @ExportSCDetailID,		@ExportSCID,	ProductID,		(ISNULL(TT.Qty,0)-ISNULL(TT.AdjQty,0)),	TT.MunitID,		TT.[UnitPrice]-ISNULL(TT.AdjRate,0),		@Amount,	TT.StyleNo,		TT.ColorINfo,	TT.BuyerReference,	TT.ExportPIDetailID,	TT.ColorID, TT.ModelReferenceID,	TT.OrderSheetDetailID,	TT.PolyMUnitID, TT.ProductDescription,	TT.ColorQty,	@DBUserID,			@PV_DBServerDateTime,	@DBUserID,	@PV_DBServerDateTime,DyeingType ,isnull(SaleType,0),	PackingType   FROM [ExportPIDetail] as TT WHERE  ExportPIDetailID=@ExportPIDetailID
+		FETCH NEXT FROM Cur_CCC INTO @ExportPIDetailID					  
+	END--2
+	CLOSE Cur_CCC
+	DEALLOCATE Cur_CCC
+   END
+END
+			 
+IF (@ActionType=7)
+BEGIN
+	IF NOT EXISTS(SELECT * FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus IN (2,3,4))
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'INitioalize/Request for Approval/Cancle PI NOT allow for RevISe  !!~',16,1);	
+		RETURN
+	END
+	--EnumVOrderRefType { None = 0, Manual = 1, ExportPI = 2 }
+	IF EXISTS(SELECT * FROM VOReference AS VOR WHERE VOR.OrderID IN (SELECT VO.VOrderID FROM VOrder AS VO WHERE VO.VOrderRefID=@ExportPIID AND VO.VOrderRefType=2))
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Revise Not Possible! Your Selected PI already Voucher Exists! Please Delete Voucher By Accounts Dept Before Revise ExportPI!!~',16,1);	
+		RETURN
+	END
+
+	SET @NOTe ='Request for RevISe'
+	SET @PV_CurrentState=5
+	SET @PV_PriviousState =@PIStatus
+	UPDATE ExportPI SET PIStatus =5 WHERE ExportPIID = @ExportPIID
+END
+			
+IF (@ActionType=8 )
+BEGIN
+		IF EXISTS(SELECT PIStatus FROM ExportPI WHERE ExportPIID=@ExportPIID AND PIStatus IN(5,6))
+		BEGIN
+			ROLLBACK
+				RAISERROR (N'IN thIS stage ExportPI can NOT Cancel !!~',16,1);	
+			RETURN
+		END
+
+		IF EXISTS (SELECT * FROM DyeingOrder WHERE ExportPIID>0 and ExportPIID =@ExportPIID  and DyeingOrder.[Status]<9 )
+		BEGIN
+		ROLLBACK
+				RAISERROR (N' Any Change NOT possible reference may loss FROM Production Order ! Please First DELETE Production Order!!~',16,1);	
+		RETURN
+		End
+
+	
+
+		IF EXISTS (SELECT * FROM ExportPI WHERE ExportPIID IN (SELECT ExportPILCMappINg.ExportPIID FROM ExportPILCMappINg WHERE ExportLCID in (Select ExportLCID from ExportLC where  Currentstatus<>7) and Activity=1 AND ExportPIID=@ExportPIID))
+		BEGIN
+		  update ExportPILCMappINg set Activity=0 where ExportPIID=@ExportPIID
+		ROLLBACK
+				RAISERROR (N' Cancel NOT possible reference may loss FROM Export L/C ! Please First DELETE Export L/C!!~',16,1);	
+		RETURN
+		End
+
+		IF EXISTS (SELECT * FROM ExportBillDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail WHERE ExportPIID IN (@ExportPIID)))
+		BEGIN
+		ROLLBACK
+				RAISERROR (N' Any Change NOT possible reference may loss FROM Export Bill ! Please First DELETE Export Bill!!~',16,1);	
+		RETURN
+		End
+
+	SET @NOTe ='Cancel'
+	SET @PV_CurrentState=6
+	SET @PV_PriviousState =@PIStatus
+	UPDATE ExportPI SET PIStatus =6 WHERE ExportPIID = @ExportPIID
+	Update DyeingOrder set [Status]=9  where isnull(ExportPIID,0)>0 and ExportPIID=@ExportPIID ---9 Dyeing Order Cancel
+    Update SampleInvoice set [CurrentStatus]=3  where isnull(ExportPIID,0)>0 and ExportPIID=@ExportPIID ---9 Sample Order Cancel
+
+END
+
+INSERT INTO ExportPIHIStory	(ExportPIHIStoryID,		ExportPIID,		PreviousStatus,		CurrentStatus,		NOTe,	OperateBy,	DBUserID,	DBServerDateTime)
+    			VALUES		(@ExportPIHIStoryID,	@ExportPIID,	@PV_PriviousState,	@PV_CurrentState,	@NOTe,	@DBUserID,	@DBUserID,	@PV_DBServerDateTime)
+    		
+SELECT * FROM View_ExportPI WHERE ExportPIID=@ExportPIID
+COMMIT TRAN
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_ItemTraking]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_ItemTraking] 
+(
+	@StartDate as date,
+	@EndDate as date,
+	@SQL as Varchar(MAX),
+	@ReportLayout as smallint
+)
+AS
+BEGIN TRAN
+--DECLARE
+--@StartDate as date,
+--@EndDate as date,
+--@SQL as Varchar(MAX)
+
+--SET @StartDate = '01 Jan 2018'
+--SET @EndDate = '30 Jan 2018'
+--SET @SQL = 'SELECT Lot.LotID FROM Lot WHERE Lot.LotID IN (SELECT DISTINCT IT.LotID FROM ITransaction AS IT WHERE CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) <= CONVERT(DATE,CONVERT(VARCHAR(12),''30 Jan 2018'',106))) AND Lot.BUID IN (1,2,3,4)'
+
+CREATE TABLE #TempTable(	ID int Identity(1,1) not null,
+                            StartDate Datetime,
+							EndDate  Datetime,
+							BUID int,
+							WorkingUnitID int,
+							LocationID int,
+							OperationUnitID int,
+							BUName Varchar(512),
+							LocName Varchar(512),
+							OPUName Varchar(512),
+							ProductID int,
+							ProductCode Varchar(512),
+							ProductName Varchar(512),
+							ColorID int,
+							ColorName Varchar(512),
+							LotID int,
+							ParentID int,
+							ParentType smallint,
+							MUnitID int,
+							LotNo Varchar(512),
+							UnitPrice decimal(30,17),
+							Currency Varchar(512),
+							Measurement Varchar(1025),
+							StyleNo Varchar(512),
+							MCDia varchar(120),
+							FinishDia varchar(120),
+							GSM varchar(120),
+							MUnit Varchar(512),
+							OpenInQty decimal(30,17),
+							OpenOutQty decimal(30,17),
+							OpeningQty decimal(30,17),
+							InQty decimal(30,17),
+							OutQty decimal(30,17),
+							ClosingQty decimal(30,17),
+						)
+INSERT INTO #TempTable(LotID)
+EXEC (@SQL)
+
+--INSERT INTO #TempTable(LotID)
+--				SELECT Lot.LotID FROM Lot WHERE Lot.LotID IN (SELECT DISTINCT IT.LotID FROM ITransaction AS IT WHERE CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) <= CONVERT(DATE,CONVERT(VARCHAR(12),@EndDate,106))) AND Lot.BUID IN (1,2,3,4)
+
+UPDATE #TempTable 
+SET LotNo =(SELECT Lot.LotNo FROM Lot WHERE Lot.LotID=HH.LotID),
+	ParentID = (SELECT Lot.ParentID FROM Lot WHERE Lot.LotID=HH.LotID),
+	ParentType = (SELECT Lot.ParentType FROM Lot WHERE Lot.LotID=HH.LotID),
+	StyleNo = (SELECT StyleNo  FROM TechnicalSheet WHERE TechnicalSheetID = (SELECT Lot.StyleID FROM Lot WHERE Lot.LotID=HH.LotID)),
+	MCDia = (SELECT Lot.MCDia FROM Lot WHERE Lot.LotID=HH.LotID),
+	FinishDia = (SELECT Lot.FinishDia FROM Lot WHERE Lot.LotID=HH.LotID),
+	GSM = (SELECT Lot.GSM FROM Lot WHERE Lot.LotID=HH.LotID),
+	UnitPrice =  (SELECT Lot.UnitPrice FROM Lot WHERE Lot.LotID=HH.LotID),
+	Currency = (SELECT Symbol FROM Currency WHERE CurrencyID =  (SELECT Lot.CurrencyID FROM Lot WHERE Lot.LotID=HH.LotID)),
+	ProductID =(SELECT Lot.ProductID FROM Lot WHERE Lot.LotID=HH.LotID),
+	ColorID = ISNULL((SELECT Lot.ColorID FROM Lot WHERE Lot.LotID=HH.LotID),0),
+	MUnitID =(SELECT Lot.MUnitID FROM Lot WHERE Lot.LotID=HH.LotID),		
+	BUID =(SELECT Lot.BUID FROM Lot WHERE Lot.LotID=HH.LotID),			
+	WorkingUnitID =(SELECT Lot.WorkingUnitID FROM Lot WHERE Lot.LotID=HH.LotID),
+	OpenInQty = ISNULL((SELECT SUM(IT.Qty) FROM ITransaction AS IT WHERE IT.LotID=HH.LotID AND IT.InOutType=101 AND CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) < CONVERT(DATE,CONVERT(VARCHAR(12),@StartDate,106))),0), --EnumInOutType{ None = 100, Receive = 101, Disburse = 102}
+	OpenOutQty = ISNULL((SELECT SUM(IT.Qty) FROM ITransaction AS IT WHERE IT.LotID=HH.LotID AND IT.InOutType=102 AND CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) < CONVERT(DATE,CONVERT(VARCHAR(12),@StartDate,106))),0) --EnumInOutType{ None = 100, Receive = 101, Disburse = 102}
+FROM #TempTable AS HH
+
+UPDATE #TempTable 
+SET OpeningQty = (HH.OpenInQty - HH.OpenOutQty),
+	InQty = ISNULL((SELECT SUM(IT.Qty) FROM ITransaction AS IT WHERE IT.LotID=HH.LotID AND IT.InOutType=101 AND CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) BETWEEN CONVERT(DATE,CONVERT(VARCHAR(12),@StartDate,106)) AND CONVERT(DATE,CONVERT(VARCHAR(12),@EndDate,106))),0), --EnumInOutType{ None = 100, Receive = 101, Disburse = 102}
+	OutQty = ISNULL((SELECT SUM(IT.Qty) FROM ITransaction AS IT WHERE IT.LotID=HH.LotID AND IT.InOutType=102 AND CONVERT(DATE,CONVERT(VARCHAR(12),IT.[DateTime],106)) BETWEEN CONVERT(DATE,CONVERT(VARCHAR(12),@StartDate,106)) AND CONVERT(DATE,CONVERT(VARCHAR(12),@EndDate,106))),0) --EnumInOutType{ None = 100, Receive = 101, Disburse = 102}
+FROM #TempTable AS HH
+
+UPDATE #TempTable 
+SET ClosingQty = (HH.OpeningQty + HH.InQty - HH.OutQty)	
+FROM #TempTable AS HH
+
+DELETE FROM #TempTable  WHERE OpeningQty = 0 AND InQty = 0 AND OutQty = 0 AND ClosingQty = 0
+
+UPDATE #TempTable 
+SET LocationID = (SELECT WU.LocationID FROM WorkingUnit AS WU WHERE WU.WorkingUnitID=HH.WorkingUnitID),
+	OperationUnitID = (SELECT WU.OperationUnitID FROM WorkingUnit AS WU WHERE WU.WorkingUnitID=HH.WorkingUnitID)	
+FROM #TempTable AS HH
+
+UPDATE #TempTable 
+SET ProductCode = (SELECT MM.ProductCode FROM Product AS MM WHERE MM.ProductID = HH.ProductID),
+	ProductName = (SELECT MM.ProductName FROM Product AS MM WHERE MM.ProductID = HH.ProductID),
+	Measurement = CASE WHEN HH.ParentType = 117 THEN  (SELECT Measurement FROM PolyMeasurement  WHERE PolyMeasurementID= (SELECT PolyMUnitID FROM PTUUnit2 WHERE PTUUnit2ID = (SELECT PTUUnit2ID FROM ProductionSheet WHERE ProductionSheetID = (SELECT ProductionSheetID FROM QC WHERE QCID = HH.ParentID)))) ELSE '' END,
+	ColorName = ISNULL((SELECT CC.ColorName FROM ColorCategory aS CC WHERE CC.ColorCategoryID = HH.ColorID),''),
+	BUName = (SELECT MM.ShortName FROM BusinessUnit AS MM WHERE MM.BusinessUnitID = HH.BUID),
+	LocName = (SELECT MM.Name FROM Location AS MM WHERE MM.LocationID = HH.LocationID),
+	OPUName = (SELECT MM.OperationUnitName FROM OperationUnit AS MM WHERE MM.OperationUnitID = HH.OperationUnitID),
+	MUnit = (SELECT MM.Symbol FROM MeasurementUnit AS MM WHERE MM.MeasurementUnitID = HH.MUnitID),
+	StartDate = @StartDate,
+	EndDate = @EndDate
+FROM #TempTable AS HH
+
+--@ReportLayout: Product Wise: 0, Product & Store Wise :1, Lot wise :3
+
+IF(@ReportLayout=0) --PRoduct wise
+BEGIN
+	SELECT HH.ProductID, HH.ProductCode, HH.ProductName, HH.MUnit, SUM(OpeningQty) AS OpeningQty,SUM(InQty) AS InQty,SUM(OutQty) AS OutQty,SUM(ClosingQty) AS ClosingQty  FROM #TempTable AS HH  GROUP BY HH.ProductID, HH.ProductName, HH.ProductCode, HH.MUnit   ORDER BY HH.ProductName ASC	
+END 
+ELSE IF(@ReportLayout=1) -- Store & Product wise
+BEGIN
+	SELECT HH.WorkingUnitID, HH.LocName, HH.OPUName,  HH.ProductID, HH.ProductCode, HH.ProductName,   HH.MUnit, SUM(OpeningQty) AS OpeningQty,SUM(InQty) AS InQty,SUM(OutQty) AS OutQty,SUM(ClosingQty) AS ClosingQty  FROM #TempTable AS HH  GROUP BY HH.WorkingUnitID,HH.ProductID,  HH.LocName, HH.OPUName, HH.ProductName, HH.ProductCode, HH.MUnit   ORDER BY  HH.LocName, HH.ProductName ASC	
+END
+ELSE IF(@ReportLayout=2) --  Product & Color wise
+BEGIN
+	SELECT HH.ColorID, HH.ColorName,  HH.ProductID, HH.ProductCode, HH.ProductName,   HH.MUnit, SUM(OpeningQty) AS OpeningQty,SUM(InQty) AS InQty,SUM(OutQty) AS OutQty,SUM(ClosingQty) AS ClosingQty  FROM #TempTable AS HH  GROUP BY HH.ProductID, HH.ColorID,  HH.ColorName, HH.ProductName, HH.ProductCode, HH.MUnit   ORDER BY  HH.ProductName, HH.ColorName ASC	
+END
+ELSE IF(@ReportLayout=3) --  Product & Measurement wise
+BEGIN
+	SELECT  HH.Measurement,  HH.ProductID, HH.ProductCode, HH.ProductName,   HH.MUnit, SUM(OpeningQty) AS OpeningQty,SUM(InQty) AS InQty,SUM(OutQty) AS OutQty,SUM(ClosingQty) AS ClosingQty  FROM #TempTable AS HH  GROUP BY HH.ProductID, HH.Measurement,  HH.ProductName, HH.ProductCode, HH.MUnit   ORDER BY  HH.ProductName, HH.Measurement ASC	
+END
+ELSE
+BEGIN  --Lot wise
+	SELECT * FROM #TempTable AS HH ORDER BY HH.ProductName, HH.LotNo ASC	
+END
+DROP TABLE #TempTable
+COMMIT TRAN
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_ExportPIDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[SP_IUD_ExportPIDetail]
+(
+	@ExportPIDetailID	as int,
+	@ExportPIID	as int,
+	@FabricID as int,
+	@ProductID	as int,
+	@Qty	as decimal(30, 17),
+	@MUnitID	as int,
+	@UnitPrice	as decimal(30, 17),
+	@Amount	as decimal(30, 17),
+	@StyleNo as varchar(500),
+	@BuyerReference as varchar(500),
+	@ColorInfo as varchar(500),
+	@AdjQty [decimal](30, 17) ,
+	@AdjRate [decimal](30, 17) ,
+	@DocCharge [decimal](30, 17) ,
+	@CRate [decimal](30, 17) ,
+	@ColorID int,
+	@ProductDescription varchar(512),
+	@ModelReferenceID int,
+	@PolyMUnitID int,
+	@OrderSheetDetailID int,
+	@ColorQty int,
+	@ExportQualityID int,
+	@FabricWeave int,
+	@FinishType int,
+	@ProcessType int,
+	@FabricDesignID int,
+	@FabricWidth varchar(800) ,
+	@Construction varchar(800),
+	@RecipeID as int,
+	@IsDeduct bit,
+	@Shrinkage	varchar(500) ,
+	@Weight	 varchar(500) ,
+	@DyeingType int,
+	@SaleType smallint,
+	@PackingType smallint,
+	@ShadeType smallint,
+	@DBOperation as smallint,
+	@DBUserID as int,
+	@sDetailIDs as varchar(MaX)
+	--%n, %n, %n, %n, %n, %n, %n, %n, %s,%s,%s,%n, %n, %n, %n, %n, %s, %n, %s, %n, %n,%n,  %n,%n,%s
+)		
+AS
+BEGIN TRAN
+DECLARE 
+
+@DBServerDateTime as datetime,
+@EBillQty as decimal(30, 15),
+@Qty_PO as decimal(30, 15),
+@PV_ExportBillDetailQty decimal(30, 17),
+@PV_ProductName as varchar(512),
+@PV_LCID as int,
+@TempVariable as varchar(800),
+@TempVariable1 as varchar(200),
+@TempVariableDec as decimal(30, 17),
+@AdjValue decimal(30, 17),
+
+
+@Message as Varchar(500)
+SET @DBServerDateTime=Getdate()
+set @AdjRate=Isnull(@AdjRate,0)
+set @AdjQty=Isnull(@AdjQty,0)
+set @DocCharge=Isnull(@DocCharge,0)
+
+set @AdjValue=(@AdjQty*(@UnitPrice-@AdjRate))+(@Qty*@AdjRate)
+
+----Validation--------
+IF(@DBOperation in (1,2))
+BEGIN	
+IF(@ProductID<=0 )
+BEGIN
+	ROLLBACK
+		RAISERROR (N'SELECT valid Product!!~!!',16,1);	
+	RETURN
+END	
+IF(@MUnitID<=0 )
+BEGIN
+	ROLLBACK
+		RAISERROR (N'SELECT valid Measurement Unit!!~',16,1);	
+	RETURN
+END	
+
+-----Adjustment Amount never exced PI Value
+IF(Isnull(@AdjValue,0)>Round((@Qty*@UnitPrice),2))
+BEGIN
+	ROLLBACK
+					SET @TempVariable = CONVERT(varchar(20),@AdjValue)
+					SET @PV_ProductName = (SELECT ProductName FROM Product WHERE ProductID = @ProductID)
+					SET @TempVariable1 = CONVERT(varchar(20),(@Qty*@UnitPrice))
+
+			RAISERROR (N' Adjustment amount is greater then PI Amount. Adjustment Ampunt: %s and PI Amount :%s  of Product: %s!!',16,1,@TempVariable,@TempVariable1,@PV_ProductName);	
+	RETURN
+END
+IF(Isnull(@AdjRate,4)>Round((@UnitPrice),4))
+BEGIN
+	ROLLBACK
+					SET @TempVariable = CONVERT(varchar(20),@AdjValue)
+					SET @PV_ProductName = (SELECT ProductName FROM Product WHERE ProductID = @ProductID)
+					SET @TempVariable1 = CONVERT(varchar(20),(@Qty*@UnitPrice))
+
+			RAISERROR (N' Adjustment Rate is greater then PI Rate. Adjustment Ampunt: %s and PI Amount :%s  of Product: %s!!',16,1,@TempVariable,@TempVariable1,@PV_ProductName);	
+	RETURN
+END
+IF(Isnull(@AdjQty,4)>Round((@Qty),4))
+BEGIN
+	ROLLBACK
+					SET @TempVariable = CONVERT(varchar(20),@AdjValue)
+					SET @PV_ProductName = (SELECT ProductName FROM Product WHERE ProductID = @ProductID)
+					SET @TempVariable1 = CONVERT(varchar(20),(@Qty*@UnitPrice))
+
+			RAISERROR (N' Adjustment Qty is greater then PI Qty. Adjustment Ampunt: %s and PI Amount :%s  of Product: %s!!',16,1,@TempVariable,@TempVariable1,@PV_ProductName);	
+	RETURN
+END
+      ---------This only For Weaving PI
+if(isnull(@FabricID,0)>0)
+BEGIN
+	if(isnull(@ExportQualityID,0)<=0)
+	BEGIN
+	set @ExportQualityID=1 --- Defoult First Item
+	END
+
+END
+END
+
+
+IF(@DBOperation=1)
+BEGIN		
+	--IF(@RecipeID<=0 )
+	--BEGIN
+	--	ROLLBACK
+	--		RAISERROR (N'SELECT Valid Recipe!!~',16,1);	
+	--	RETURN
+	--END		
+	SET @ExportPIDetailID=(SELECT ISNULL(MAX(ExportPIDetail.ExportPIDetailID),0)+1 FROM ExportPIDetail)		
+	INSERT INTO ExportPIDetail   (ExportPIDetailID,		ExportPIID,		FabricID,		ProductID,	Qty,	MUnitID,	UnitPrice,	Amount,		[Description],	StyleNo,	BuyerReference,		ColorInfo,  AdjQty  ,	AdjRate ,	DocCharge,		AdjValue,		CRate,	ColorID,	ProductDescription,		ModelReferenceID,	PolyMUnitID,	OrderSheetDetailID,		ColorQty,	ExportQualityID,	FabricWeave ,	FinishType ,	ProcessType ,	FabricDesignID  ,FabricWidth	,Construction,		RecipeID,		DBUserID,	DBServerDateTime,	LastUpdateBy,	LastUpdateDateTime,QtyCom,IsDeduct,Shrinkage,[Weight],DyeingType ,SaleType,	PackingType,ShadeType)
+						VALUES   (@ExportPIDetailID,	@ExportPIID,	@FabricID,		@ProductID,	@Qty,	@MUnitID,	@UnitPrice,	@Amount,	'',				@StyleNo,	@BuyerReference,	@ColorInfo,	 @AdjQty  , @AdjRate ,	@DocCharge,		@AdjValue,		@CRate,	@ColorID,	@ProductDescription,	@ModelReferenceID,	@PolyMUnitID,	@OrderSheetDetailID,	@ColorQty,	@ExportQualityID, 	@FabricWeave ,	@FinishType ,	@ProcessType ,	@FabricDesignID  ,@FabricWidth  ,@Construction ,	@RecipeID,	@DBUserID,	@DBServerDateTime,	@DBUserID,		@DBServerDateTime,0,@IsDeduct,@Shrinkage,@Weight ,	@DyeingType ,@SaleType,	@PackingType,@ShadeType)
+
+	UPDATE ExportPI 
+	SET Qty=(SELECT isnull(SUM(Qty),0) FROM ExportPIDetail WHERE ExportPIID=ExportPI.ExportPIID), 
+		Amount=round((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=0 and ExportPIID=ExportPI.ExportPIID),4)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	UPDATE ExportPI SET	Amount=Amount-round(isnull((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=1 and ExportPIID=ExportPI.ExportPIID),0),2)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	IF EXISTS(SELECT * FROM ExportSC WHERE ExportPIID = @ExportPIID)
+	BEGIN
+		UPdate ExportSC	SET Amount_PI = ISNULL((SELECT SUM(ISNULL(Amount,0)) FROM ExportPI where [ExportPI].ExportPIID=@ExportPIID ),0) WHERE ExportPIID = @ExportPIID
+	END
+
+	SELECT * FROM View_ExportPIDetail  WHERE ExportPIDetailID= @ExportPIDetailID
+END
+
+IF(@DBOperation=2)
+BEGIN
+	IF(@ExportPIDetailID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your SELECTed Product Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+	--IF(@RecipeID<=0 )
+	--BEGIN
+	--	ROLLBACK
+	--		RAISERROR (N'SELECT Valid Recipe!!~',16,1);	
+	--	RETURN
+	--END	
+	SET @PV_LCID = (SELECT LCID FROM ExportPI WHERE ExportPIID=@ExportPIID)
+	IF(isnull(@PV_LCID,0) > 0)
+	BEGIN
+		SET @PV_ExportBillDetailQty = ISNULL((SELECT SUM(Qty) FROM ExportBillDetail WHERE ExportPIDetailID = @ExportPIDetailID),0)
+		IF EXISTS(SELECT TOP(1)* FROM ExportBillDetail WHERE ExportPIDetailID = @ExportPIDetailID)
+		BEGIN
+			IF(@PV_ExportBillDetailQty > @Qty)
+			BEGIN
+				ROLLBACK
+					SET @TempVariable = CONVERT(varchar(500),@PV_ExportBillDetailQty)
+					SET @PV_ProductName = (SELECT ProductName FROM Product WHERE ProductID = @ProductID)
+					SET @TempVariableDec = @Qty
+					SET @TempVariable1 = CONVERT(varchar(500),@TempVariableDec)
+					RAISERROR (N'Already %s Quantity Export Bill Done of Product %s, But your given Quantity of this Product is %s !!~',16,1,@TempVariable,@PV_ProductName,@TempVariable1);	
+				RETURN
+			END
+			IF not exists(SELECT TOP(1)* FROM ExportBillDetail WHERE  ProductID = @ProductID and ExportPIDetailID = @ExportPIDetailID)
+			BEGIN
+				ROLLBACK
+					SET @TempVariable= (SELECT ProductCode+''+ProductName FROM Product WHERE ProductID in (SELECT TOP(1)ProductID FROM ExportBillDetail WHERE   ExportPIDetailID = @ExportPIDetailID))
+					SET @PV_ProductName = (SELECT ProductCode+''+ProductName FROM Product WHERE ProductID = @ProductID)
+					RAISERROR (N'Export Bill Product is %s, But your given  Product is %s !!~',16,1,@PV_ProductName,@TempVariable);	
+				RETURN
+			END
+		END
+	END
+
+	UPDATE ExportPIDetail   SET ExportPIID=@ExportPIID,		FabricID=@FabricID,		ProductID=@ProductID,	Qty=@Qty,	MUnitID=@MUnitID,	UnitPrice=@UnitPrice,	Amount=@Amount,		[Description]='', ColorQty = @ColorQty,	LastUpdateBy=@DBUserID, LastUpdateDateTime=@DBServerDateTime,StyleNo=@StyleNo,BuyerReference=@BuyerReference,ColorInfo=@ColorInfo ,AdjQty= @AdjQty ,AdjRate=@AdjRate ,DocCharge=@DocCharge,	AdjValue=@AdjValue,	CRate=@CRate ,ColorID =@ColorID, ProductDescription = @ProductDescription, ModelReferenceID = @ModelReferenceID, PolyMUnitID=@PolyMUnitID, OrderSheetDetailID = @OrderSheetDetailID,ExportQualityID=@ExportQualityID
+	,FabricWeave=@FabricWeave ,	FinishType=@FinishType ,	ProcessType=@ProcessType ,FabricDesignID=@FabricDesignID  ,FabricWidth=@FabricWidth  ,Construction=@Construction ,RecipeID=@RecipeID,IsDeduct=@IsDeduct,[Weight]=@Weight,Shrinkage=@Shrinkage, DyeingType=@DyeingType ,SaleType=@SaleType,PackingType=@PackingType,ShadeType=@ShadeType WHERE ExportPIDetailID= @ExportPIDetailID
+
+	UPDATE ExportPI 
+	SET Qty=(SELECT isnull(SUM(Qty),0) FROM ExportPIDetail WHERE ExportPIID=ExportPI.ExportPIID), 
+		Amount=round((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=0 and ExportPIID=ExportPI.ExportPIID),4)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	UPDATE ExportPI SET	Amount=Amount-round(isnull((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=1 and ExportPIID=ExportPI.ExportPIID),0),2)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	IF EXISTS(SELECT * FROM ExportSC WHERE ExportPIID = @ExportPIID)
+	BEGIN
+		UPdate ExportSC	SET Amount_PI = ISNULL((SELECT SUM(ISNULL(Amount,0)) FROM ExportPI where [ExportPI].ExportPIID=@ExportPIID ),0) WHERE ExportPIID = @ExportPIID
+	END
+	SELECT * FROM View_ExportPIDetail  WHERE ExportPIDetailID= @ExportPIDetailID
+END
+
+IF(@DBOperation=3)
+BEGIN
+	IF(@ExportPIID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your SELECTed EXport PI Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+	
+	--IF EXISTS( SELECT * from ProductionOrderDetail WHERE ExportPIDetailID IN (SELECT ExportPIDetailID FROM ExportPIDetail  WHERE ExportPIID=@ExportPIID AND  ExportPIDetailID  NOT IN (SELECT * FROM SplitInToDataSet(@sDetailIDs,','))))
+	--BEGIN
+	--	ROLLBACK
+	--		RAISERROR (N'Sorry, Can\''t Delete Order Sheet  Dtail, Because this item Is Exist in PI.!!',16,1);	
+	--	RETURN
+	--END	
+		
+	if exists (Select * From ExportBillDetail Where ExportPIDetailID IN(SELECT EPD.ExportPIDetailID FROM ExportPIDetail AS EPD WHERE EPD.ExportPIID = @ExportPIID AND EPD.ExportPIDetailID NOT IN (SELECT * From dbo.SplitInToDataSet(@sDetailIDs,','))))
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Deletion not possible, Export Bill already create. !!',16,1);	
+		RETURN
+	END	
+		
+	DELETE FROM ExportPIDetail  Where ExportPIID = @ExportPIID AND ExportPIDetailID NOT IN ( SELECT * From dbo.SplitInToDataSet(@sDetailIDs,','))
+
+	UPDATE ExportPI 
+	SET Qty=(SELECT isnull(SUM(Qty),0) FROM ExportPIDetail WHERE ExportPIID=ExportPI.ExportPIID), 
+		Amount=round((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=0 and ExportPIID=ExportPI.ExportPIID),4)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	UPDATE ExportPI SET	Amount=Amount-round(isnull((SELECT isnull(SUM(Amount),0) FROM ExportPIDetail WHERE isnull(IsDeduct,0)=1 and ExportPIID=ExportPI.ExportPIID),0),2)
+	FROM ExportPI  WHERE ExportPIID=@ExportPIID	
+
+	IF EXISTS(SELECT * FROM ExportSC WHERE ExportPIID = @ExportPIID)
+	BEGIN
+		UPdate ExportSC	SET Amount_PI = ISNULL((SELECT SUM(ISNULL(Amount,0)) FROM ExportPI where [ExportPI].ExportPIID=@ExportPIID ),0) WHERE ExportPIID = @ExportPIID
+	END
+END
+COMMIT TRAN
+
+
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_ExportSCDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_IUD_ExportSCDetail]
+(
+	@ExportSCDetailID	as int,
+	@ExportSCID  as int,
+	@ProductionType as int,
+	@ProductID as int,   
+	@Qty Decimal(30,17), 
+	@OverQty Decimal(30,17), 
+	@MUnitID as int,
+	@UnitPrice Decimal(30,17), 
+	@Amount Decimal(30,17), 
+	@StyleNo varchar(512),
+	@ColorInfo varchar(512),
+	@BuyerRef varchar(512),
+	@ColorID   as int,
+	@ModelReferenceID   as int,		
+	@OrderSheetDetailID   as int,
+	@PolyMUnitID int,
+	@ProductDescription varchar(512),
+	@ColorQty as decimal(30,17),
+	@DyeingType as int,
+	@BagCount as int,
+	@IsBuyerYarn bit,
+	@IsBuyerDyes bit,
+	@IsBuyerChemical bit,
+	@ExportPIDetailID as int,
+	@DBOperation as smallint,
+	@DBUserID as int,
+	@ExportSCDetailIDs	varchar(512)
+	--%n, %n, %n,%n, %n, %n,%n, %n,%n, %s,%s,%s,  %n, %n, %n,%s,%s, %n, %n, %n,%s
+)		
+AS
+BEGIN TRAN
+DECLARE 
+@DBServerDateTime as datetime,
+@POQty as decimal(30, 17),
+@DOQty as decimal(30, 17),
+@OrderType int,
+@BUID as int,
+@Message as Varchar(500)
+SET @DBServerDateTime=Getdate()
+
+SET @BUID = (SELECT BUID FROM View_ExportSC WHERE ExportSCID = @ExportSCID )
+
+IF(@DBOperation in (1,2))
+BEGIN
+	
+	SET @POQty=isnull((Select SUM(Qty) from DyeingOrderDetail where DyeingOrderDetail.[Status]!=7 and  Isnull(DyeingOrderDetail.ExportSCDetailID,0)>0 and DyeingOrderDetail.ExportSCDetailID= @ExportSCDetailID and DyeingOrderDetail.DyeingOrderID in (Select DyeingOrder.DyeingOrderID from DyeingOrder where DyeingOrderType<>5 and [status]<9 )  ),0)
+	SET @OrderType=(Select  Top(1)DyeingOrder.DyeingOrderType from DyeingOrder where DyeingOrderType<>5 and [status]<9 and DyeingOrderID in (Select DyeingOrderDetail.DyeingOrderID from DyeingOrderDetail where   Isnull(DyeingOrderDetail.ExportSCDetailID,0)>0 and DyeingOrderDetail.ExportSCDetailID=@ExportSCDetailID ))
+	SET @DOQty=(Select SUM(Qty) FROM DUDeliveryOrderDetail as DOD  WHERE DOD.DUDeliveryOrderID in (Select DO.DUDeliveryOrderID  from DUDeliveryOrder as DO where DOStatus<9 and OrderType in (3,4) and DO.OrderID=@ExportSCID  ) and  DOD.ExportSCDetailID>0 and  DOD.ExportSCDetailID =@ExportSCDetailID)
+
+	IF(@ProductID<=0 )
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'SELECT valid Product!!~!!',16,1);	
+		RETURN
+	END	
+	IF(@MUnitID<=0 )
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'SELECT valid Measurement Unit!!~',16,1);	
+		RETURN
+	END	
+	IF  EXISTS(SELECT * FROM ExportSC WHERE IsRevisePI=0 and ExportSCID =@ExportSCID)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Already Approve. If you want to Change this Order. first confirm verson No!!~',16,1);
+		RETURN
+	END	
+
+	if(@BUID=1)--dyeing
+	BEGIN
+		--- Prod Order Qty never exced PI Qty
+		IF(Isnull(@Qty+0.3,0)<Isnull(@POQty,0))
+		BEGIN
+
+		 SET @Message=(Select Top(1)ProductName FROM Product where ProductID=@ProductID)
+		 SET @Message=@Message+', Production Qty:'+Convert(varchar(50),(CONVERT(float,round(@POQty,2))))
+			ROLLBACK
+					RAISERROR (N' Production Order already Issue. For Product: %s!!~!',16,1,@Message);	
+			RETURN
+		END	
+		-- Delivery Order Qty never exced PI Qty
+		IF(Isnull(@Qty+0.3,0)<Isnull(@DOQty,0))
+		BEGIN
+
+		 SET @Message=(Select Top(1)ProductName FROM Product where ProductID=@ProductID)
+		  SET @Message=@Message+',  DO Qty:'+Convert(varchar(50),(CONVERT(float,round(@DOQty,2))))
+		    SET @Message=@Message+',  Order Qty:'+Convert(varchar(50),(CONVERT(float,round(@Qty,2))))
+		  -- SET @Message=@Message+',  ppp Order Qty:'+Convert(varchar(50),@Qty,2)
+			ROLLBACK
+					RAISERROR (N' Delivery Order already Issue. For Product: %s!!~!',16,1,@Message);	
+			RETURN
+		END	
+		IF(Isnull(@OrderType,0)>0)
+		BEGIN
+			if(@ProductionType=1 or @ProductionType=0 )
+			BEGIN
+			 if( @OrderType!=3)
+				BEGIN
+				SET @Message=(Select Top(1)ProductName FROM Product where ProductID=@ProductID)
+				SET @Message=@Message+', Production Order Qty:'+Convert(varchar(50),(CONVERT(float,round(@POQty,2))))
+				ROLLBACK
+						RAISERROR (N'You cnn''t change Production Type. For Product: %s!!~!',16,1,@Message);	
+				RETURN
+				END
+			END
+			if(@ProductionType>1 )
+			BEGIN
+			 if( @OrderType=3)
+				BEGIN
+				SET @Message=(Select Top(1)ProductName FROM Product where ProductID=@ProductID)
+				SET @Message=@Message+', Production Order Qty:'+Convert(varchar(50),(CONVERT(float,round(@POQty,2))))
+				ROLLBACK
+						RAISERROR (N'You cnn''t change Production Type,. For Product: %s!!~!',16,1,@Message);	
+				RETURN
+				END
+			END
+		END
+		END
+	END
+
+
+IF(@DBOperation=1)
+BEGIN			
+	 SET @ExportSCDetailID=(Select Isnull(MAX(ExportSCDetailID),0)+1 from [ExportSCDetail])
+     INSERT INTO [dbo].[ExportSCDetail]	([ExportSCDetailID]   ,[ExportSCID] ,ProductionType ,[ProductID]   ,[Qty] ,	OverQty,	[MUnitID]    ,[UnitPrice] , Amount,	[StyleNo]   ,[ColorInfo]   ,[BuyerRef] ,[ExportPIDetailID]     ,ColorID, ModelReferenceID,		OrderSheetDetailID,				PolyMUnitID,	ProductDescription,			ColorQty,	[LastUpdateBy] ,[LastUpdateDateTime]   ,[DBUserID]  ,[DBServerDateTime] ,DyeingType,BagCount ,IsBuyerYarn ,IsBuyerDyes,IsBuyerChemical)     
+								Values	(@ExportSCDetailID,     @ExportSCID , @ProductionType,@ProductID   , @Qty   ,@OverQty,	 @MUnitID    ,@UnitPrice, @Amount,	@StyleNo     ,@ColorInfo   ,@BuyerRef,@ExportPIDetailID,	@ColorID, @ModelReferenceID,		@OrderSheetDetailID,		@PolyMUnitID,	@ProductDescription,		@ColorQty,	 @DBUserID,		@DBServerDateTime ,			@DBUserID, @DBServerDateTime ,@DyeingType ,@BagCount ,@IsBuyerYarn ,@IsBuyerDyes,@IsBuyerChemical )
+			
+		
+	UPDATE ExportSC 
+	SET TotalQty=(SELECT isnull(SUM([ExportSCDetail].Qty),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID), 
+		TotalAmount=(SELECT isnull(SUM([ExportSCDetail].Amount),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID)
+	FROM ExportSC WHERE ExportSCID  =@ExportSCID
+
+
+	SELECT * FROM [View_ExportSCDetail]  WHERE ExportSCDetailID= @ExportSCDetailID
+END
+
+IF(@DBOperation=2)
+BEGIN
+IF(@ExportSCDetailID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your SELECTed Product Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+	
+	if(@BUID!=1)--Plastic or Integrated
+	BEGIN
+		IF((SELECT top 1 ISNULL(ProdPipeLineQty,0) FROM PTUUnit2 WHERE ExportSCDetailID = @ExportSCDetailID)>(@Qty+ISNULL(@OverQty,0)))
+		BEGIN
+			SET @Message ='Already '+CONVERT(Varchar(512), CONVERT(decimal(30,17),(SELECT top 1 ISNULL(ProdPipeLineQty,0) FROM PTUUnit2 WHERE ExportSCDetailID = @ExportSCDetailID)))+' in Production Pipeline  For Product ['+(SELECT ProductCode+'] '+ProductName FROM Product WHERE ProductID = @ProductID)
+			ROLLBACK
+				RAISERROR (N'%s!',16,1, @Message);	
+			RETURN
+		END
+		IF((SELECT SUM(ISNULL(VCD.Qty,0)) FROM View_DeliveryChallanDetail AS VCD WHERE VCD.RefDetailID =  @ExportSCDetailID AND VCD.RefType = 1 AND VCD.DeliveryChallanID IN (SELECT DC.DeliveryChallanID FROM View_DeliveryChallan as DC WHERE ISNULL(DC.ApproveBy,0)!=0 AND DC.ExportSCID = @ExportSCID AND DC.RefType = 1)) > (@Qty+ISNULL(@OverQty,0)))
+		BEGIN
+				SET @Message ='Already  Delivery Challan Approve for : '+CONVERT(Varchar(512), CONVERT(decimal(30,2),(SELECT SUM(ISNULL(VCD.Qty,0)) FROM View_DeliveryChallanDetail AS VCD WHERE VCD.RefDetailID =  @ExportSCDetailID AND VCD.RefType = 1 AND VCD.DeliveryChallanID IN (SELECT DC.DeliveryChallanID FROM View_DeliveryChallan as DC WHERE ISNULL(DC.ApproveBy,0)!=0 AND DC.ExportSCID = @ExportSCID AND DC.RefType = 1)  )))+' For Product ['+(SELECT ProductCode+'] '+ProductName FROM Product WHERE ProductID = @ProductID)+''
+				ROLLBACK
+					RAISERROR (N'%s!',16,1,@Message);
+				RETURN
+		END
+	END
+	UPDATE ExportSCDetail   SET [ExportSCID]=@ExportSCID,ProductionType=@ProductionType,	ProductID=@ProductID,	Qty=@Qty, OverQty =@OverQty,	MUnitID=@MUnitID,	UnitPrice=@UnitPrice,  Amount = @Amount, StyleNo=@StyleNo,[ColorInfo]=@ColorInfo, BuyerRef=@BuyerRef, ColorID =@ColorID, ModelReferenceID = @ModelReferenceID,		OrderSheetDetailID  = @OrderSheetDetailID,		PolyMUnitID = @PolyMUnitID,	ProductDescription = @ProductDescription,		ColorQty = @ColorQty,	LastUpdateBy=@DBUserID, LastUpdateDateTime=@DBServerDateTime ,DyeingType=@DyeingType ,BagCount=@BagCount ,IsBuyerYarn=@IsBuyerYarn ,IsBuyerDyes=@IsBuyerDyes,IsBuyerChemical=@IsBuyerChemical, ExportPIDetailID=@ExportPIDetailID WHERE ExportSCDetailID= @ExportSCDetailID
+	UPDATE ExportSC 
+	SET TotalQty=(SELECT isnull(SUM([ExportSCDetail].Qty),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID), 
+		TotalAmount=(SELECT isnull(SUM([ExportSCDetail].Amount),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID)
+	FROM ExportSC WHERE ExportSCID  =@ExportSCID
+
+
+	SELECT * FROM [View_ExportSCDetail]  WHERE ExportSCDetailID= @ExportSCDetailID
+END
+
+IF(@DBOperation=3)
+BEGIN
+	
+if(@BUID=1)--dyeing
+BEGIN
+	if exists (Select Top(1)* FROM DyeingOrderDetail  WHERE DyeingOrderDetail.DyeingOrderID in (Select DyeingOrder.DyeingOrderID from DyeingOrder where [status]<9) and  ExportSCDetailID>0 and  ExportSCDetailID in (Select ExportSCDetail.ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID  =@ExportSCID) and ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')))
+	BEGIN
+	   SET @Message=(Select Top(1)ESCD.ProductName FROM View_ExportSCDetail as ESCD  WHERE ExportSCID  =@ExportSCID AND ESCD.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')))
+		ROLLBACK
+			RAISERROR (N'Change not possible, Production Order already Issue. Product: %s!!~!',16,1,@Message);	
+		RETURN
+
+	END	
+
+	if exists (Select Top(1)* FROM DUDeliveryOrderDetail as DOD  WHERE DOD.DUDeliveryOrderID in (Select DO.DUDeliveryOrderID  from DUDeliveryOrder as DO where DOStatus<9 and OrderType in (3,4) and DO.OrderID=@ExportSCID  ) and  DOD.ExportSCDetailID>0 and  DOD.ExportSCDetailID in (Select ExportSCDetail.ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID  =@ExportSCID) and ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')))
+	BEGIN
+	   SET @Message=(Select Top(1)ESCD.ProductName FROM View_ExportSCDetail as ESCD  WHERE ExportSCID  =@ExportSCID AND ESCD.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')))
+		ROLLBACK
+			RAISERROR (N'Change not possible, Delivery  Order already Issue. Product: %s!!~!',16,1,@Message);	
+		RETURN
+
+	END	
+END
+ELSE
+BEGIN --plastic or poly
+	IF EXISTS(SELECT * FROM DeliveryOrderDetail WHERE RefDetailID IN (SELECT ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID  =@ExportSCID AND ExportSCDetail.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,','))))
+	BEGIN
+	
+	 SET @Message= (SELECT STUFF((SElECT ','+ ESCD.ProductName FROM View_ExportSCDetail as ESCD  WHERE ESCD.ExportSCID  =@ExportSCID AND ESCD.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')) FOR XML PATH('')),1,1,''))
+		ROLLBACK
+			RAISERROR (N'Delete not possible, Delivery Order already Exist for . Product: %s. Please remove this Product form Delivery Order. !~!',16,1,@Message);	
+		RETURN
+	END
+
+	IF EXISTS(SELECT * FROM ProductionOrderDetail WHERE ExportSCDetailID IN (SELECT ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID  =@ExportSCID AND ExportSCDetail.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,','))))
+	BEGIN
+	 SET @Message=(SELECT STUFF((SElECT ','+ ESCD.ProductName FROM View_ExportSCDetail as ESCD  WHERE ExportSCID  =@ExportSCID AND ESCD.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,',')) FOR XML PATH('')),1,1,''))
+		ROLLBACK
+			RAISERROR (N'Delete not possible, Production Order already Exist for . Product: %s. Please remove this Product form Production Order. !~!',16,1,@Message);	
+		RETURN
+	END
+END
+
+	DELETE FROM ExportSCDetail  WHERE ExportSCID  =@ExportSCID AND ExportSCDetail.ExportSCDetailID NOT IN (SELECT * FROM SplitInToDataSET(@ExportSCDetailIDs,','))
+	
+	UPDATE ExportSC 
+	SET TotalQty=(SELECT isnull(SUM([ExportSCDetail].Qty),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID), 
+		TotalAmount=(SELECT isnull(SUM([ExportSCDetail].Amount),0) FROM [ExportSCDetail] WHERE [ExportSCID]=ExportSC.ExportSCID)
+	FROM ExportSC WHERE ExportSCID  =@ExportSCID
+	
+END
+COMMIT TRAN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_OrderSheetDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[SP_IUD_OrderSheetDetail]
+(
+		    @OrderSheetDetailID int
+           ,@OrderSheetID int
+           ,@ProductID int
+		   ,@ColorID int
+           ,@ProductDescription varchar(512)
+		   ,@StyleDescription varchar(512)
+		   ,@PolyMUnitID int
+ 		   ,@Qty decimal(30,17)
+           ,@UnitPrice decimal(30,17)
+		   ,@DeliveryDate datetime
+           ,@Note varchar(512)
+		   ,@ModelReferenceID int
+		   ,@UnitID int
+		   ,@BuyerRef varchar(512)
+		   ,@ColorQty int
+		   ,@RecipeID as int
+	       ,@DBUserID as int
+	       ,@DBOperation as smallint
+		   ,@DetailIDs as varchar(MAX)
+		   ---%n,%n,%n,%n,%s,%s,%s,%n,%n,%d,%s,%n,%n,%s,%n,%n, %n,%n,%s
+
+		--   EXEC [SP_IUD_OrderSheetDetail]0,1,8749,1,2,'sterty','jkhkjh',1500,3.2,'07 May 2016',NULL,3,10,'hkhkh',-9,1,''
+)		
+AS
+BEGIN TRAN 	
+DECLARE	
+@DBServerDateTime as datetime,
+
+@Message varchar(512)
+
+set @DBServerDateTime=getDate()
+	
+
+IF(@DBOperation=1)
+BEGIN			
+	
+	
+--IF(@RecipeID<=0 )
+--BEGIN
+--	ROLLBACK
+--		RAISERROR (N'SELECT Valid Recipe!!~',16,1);	
+--	RETURN
+--END	
+
+	Set @OrderSheetDetailID=(Select Isnull(MAX(OrderSheetDetailID),0)+1 from [OrderSheetDetail])
+		
+INSERT INTO [dbo].[OrderSheetDetail]     ([OrderSheetDetailID],	[OrderSheetID]    ,[ProductID]    ,[ColorID], ProductDescription,	[StyleDescription],	PolyMUnitID,	[Qty]  ,[UnitPrice],	ModelReferenceID,   [DeliveryDate] ,	[Note]   ,	UnitID,	 BuyerRef,	ColorQty,	RecipeID,	[LastUpdateBy]   ,[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime])
+                                 VALUES ( @OrderSheetDetailID,	@OrderSheetID     ,@ProductID ,    @ColorID , @ProductDescription,	@StyleDescription,		@PolyMUnitID,	 @Qty   ,@UnitPrice,	@ModelReferenceID,	@DeliveryDate  ,@Note    ,	@UnitID, @BuyerRef,	@ColorQty,	@RecipeID,	@DBUserID			,@DBServerDateTime		,@DBUserID     , @DBServerDateTime)
+              SELECT * FROM View_OrderSheetDetail WHERE OrderSheetDetailID=@OrderSheetDetailID
+
+END
+
+IF(@DBOperation=2)
+BEGIN
+	IF(@OrderSheetDetailID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected Order Sheet Detail Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+
+	
+--IF(@RecipeID<=0 )
+--BEGIN
+--	ROLLBACK
+--		RAISERROR (N'SELECT Valid Recipe!!~',16,1);	
+--	RETURN
+--END	
+
+	IF (ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ExportPIDetail WHERE OrderSheetDetailID =  @OrderSheetDetailID),0)>@Qty)
+	BEGIN
+		If((SELECT ISNULL(PIStatus,0) FROM ExportPI WHERE ExportPIID = (SELECT top 1 EPD.ExportPIID FROM ExportPIDetail AS EPD  WHERE EPD.OrderSheetDetailID =  @OrderSheetDetailID))!=5)--If it is not Request revise there is no problem
+		BeGIN
+			SET @Message = N'Quantity Should be Greater than or equal PI Detail Qty for ['+(SELECT ProductName FROM Product WHERE ProductID = @ProductID)+']!'
+			ROLLBACK
+				RAISERROR (@Message,16,1);	
+			RETURN
+		END
+	END	
+
+		
+   UPDATE [dbo].[OrderSheetDetail]
+   SET [OrderSheetID] = @OrderSheetID
+	  ,ProductID=@ProductID
+      ,[ColorID] = @ColorID
+	  ,ProductDescription = @ProductDescription
+	  ,StyleDescription = @StyleDescription
+	  ,PolyMUnitID = @PolyMUnitID
+      ,[Qty] = @Qty
+      ,[UnitPrice] = @UnitPrice
+      ,[Note] = @Note
+	  ,ModelReferenceID = @ModelReferenceID
+	  ,[DeliveryDate]=@DeliveryDate
+	  ,[UnitID] = @UnitID
+	  ,BuyerRef = @BuyerRef
+	  ,ColorQty = @ColorQty
+	  ,RecipeID =@RecipeID
+      ,[LastUpdateBy] = @DBUserID
+      ,[LastUpdateDateTime] = @DBServerDateTime
+	   WHERE OrderSheetDetailID=@OrderSheetDetailID
+
+	SELECT * FROM View_OrderSheetDetail WHERE OrderSheetDetailID=@OrderSheetDetailID
+
+END
+
+IF(@DBOperation=3)
+BEGIN
+IF(@OrderSheetID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected Order Sheet Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+
+	IF EXISTS( SELECT * from ExportPIDetail WHERE OrderSheetDetailID IN (SELECT OrderSheetDetailID FROM OrderSheetDetail  WHERE OrderSheetID=@OrderSheetID AND  OrderSheetDetailID  NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))))
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Sorry, Can\''t Delete Order Sheet  Dtail, Because this item Is Exist in PI.!!',16,1);	
+		RETURN
+	END	
+
+
+	DELETE FROM OrderSheetDetail  WHERE OrderSheetID=@OrderSheetID AND OrderSheetDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))
+	    
+END
+
+
+COMMIT TRAN
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_ProductionOrderDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_IUD_ProductionOrderDetail]
+(
+		    @ProductionOrderDetailID int
+           ,@ProductionOrderID int
+		   ,@ExportSCDetailID int
+           ,@ProductID int
+		   ,@ColorID int
+           ,@ProductDescription varchar(512)
+		   ,@StyleDescription varchar(512)
+		   ,@PolyMUnitID int
+ 		   ,@Qty decimal(30,17)
+           ,@Note varchar(512)
+		   ,@ModelReferenceID int
+		   ,@UnitID int
+		   ,@BuyerRef varchar(512)
+		   ,@ColorQty int
+		   ,@Model varchar(512)
+		   ,@PantonNo varchar(512)
+	       ,@DBUserID as int
+	       ,@DBOperation as smallint
+		  
+		   ,@DetailIDs as varchar(MAX)
+		   ---%n,%n,%n,%n,%n,%s,%s,%n,%n,%d,%s,%n,%n,%s,%n,%s,%s,%n, %n,%s
+
+		--   EXEC [SP_IUD_ProductionOrderDetail]0,1,8749,1,2,'sterty','jkhkjh',1500,3.2,'07 May 2016',NULL,3,10,'hkhkh',-9,1,''
+)		
+AS
+BEGIN TRAN 	
+DECLARE	
+@DBServerDateTime as datetime,
+
+@Message varchar(512)
+
+set @DBServerDateTime=getDate()
+		
+
+IF(@DBOperation=1)
+BEGIN			
+	
+	Set @ProductionOrderDetailID=(Select Isnull(MAX(ProductionOrderDetailID),0)+1 from [ProductionOrderDetail])
+		
+INSERT INTO [dbo].[ProductionOrderDetail]     ([ProductionOrderDetailID],	[ProductionOrderID], ExportSCDetailID,	[ProductID] ,	[ColorID], ProductDescription,	[StyleDescription],		PolyMUnitID,	[Qty]  ,	ModelReferenceID,   [Note]   ,	UnitID,	 BuyerRef, ColorQty,	Model, PantonNo,	[LastUpdateBy]   ,[LastUpdateDateTime]	,[DBUserID]     ,[DBServerDateTime] )
+									  VALUES ( @ProductionOrderDetailID,	@ProductionOrderID  ,@ExportSCDetailID,	@ProductID ,    @ColorID , @ProductDescription,	@StyleDescription,		@PolyMUnitID,	 @Qty  , 	@ModelReferenceID,	@Note    ,	@UnitID, @BuyerRef,@ColorQty,	@Model, @PantonNo,	@DBUserID			,@DBServerDateTime	,@DBUserID     , @DBServerDateTime)
+		
+				
+
+
+
+              SELECT * FROM View_ProductionOrderDetail WHERE ProductionOrderDetailID=@ProductionOrderDetailID
+
+END
+
+IF(@DBOperation=2)
+BEGIN
+	IF(@ProductionOrderDetailID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected Order Sheet Detail Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+	
+	IF((SELECT top 1 ISNULL(ProdPipeLineQty,0) FROM PTUUnit2 WHERE ExportSCDetailID = @ExportSCDetailID)>@Qty)
+	BEGIN
+		SET @Message ='Already '+CONVERT(Varchar(512), CONVERT(decimal(30,17),(SELECT top 1 ISNULL(ProdPipeLineQty,0) FROM PTUUnit2 WHERE ExportSCDetailID = @ExportSCDetailID)))+' in Production Pipeline  For Product ['+(SELECT ProductCode+'] '+ProductName FROM Product WHERE ProductID = @ProductID)
+	END
+	
+		
+   UPDATE [dbo].[ProductionOrderDetail]
+   SET [ProductionOrderID] = @ProductionOrderID
+	  ,ExportSCDetailID = @ExportSCDetailID
+	  ,ProductID=@ProductID
+      ,[ColorID] = @ColorID
+	  ,ProductDescription = @ProductDescription
+	  ,StyleDescription = @StyleDescription
+	  ,PolyMUnitID = @PolyMUnitID
+      ,[Qty] = @Qty
+      ,[Note] = @Note
+	  ,ModelReferenceID = @ModelReferenceID
+	  ,[UnitID] = @UnitID
+	  ,BuyerRef = @BuyerRef
+	  ,ColorQty = @ColorQty
+	  ,Model = @Model
+	  ,PantonNo = @PantonNo
+      ,[LastUpdateBy] = @DBUserID
+      ,[LastUpdateDateTime] = @DBServerDateTime
+	 
+	   WHERE ProductionOrderDetailID=@ProductionOrderDetailID
+
+	SELECT * FROM View_ProductionOrderDetail WHERE ProductionOrderDetailID=@ProductionOrderDetailID
+
+END
+
+IF(@DBOperation=3)
+BEGIN
+IF(@ProductionOrderID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected PI Is Invalid Please Refresh and try again!!',16,1);	
+		RETURN
+	END	
+
+	IF EXISTS(SELECT * FROM  ProductionSheet WHERE PTUUnit2ID IN (SELECT PTUUnit2ID FROM  PTUUnit2 Where ExportSCDetailID IN (SELECT ExportSCDetailID FROM ProductionOrderDetail WHERE ProductionOrderID=@ProductionOrderID AND ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))) ))
+	BEGIN
+		set @Message=(Select Top(1)POD.ProductName FROM View_ProductionOrderDetail as POD  WHERE POD.ProductionOrderID=@ProductionOrderID AND POD.ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,',')))
+		ROLLBACK
+			RAISERROR (N'Delete not possible, Already Production Sheet Create for Product: %s.!~!',16,1,@Message);	
+		RETURN
+	END	
+
+	--EnumPTUUnit2Ref:  Production_Order_Detail = 1,
+	IF EXISTS(SELECT * FROM  PTUUnit2Log WHERE PTUUnit2RefType!=1 AND  PTUUnit2ID IN (SELECT PTUUnit2ID FROM  PTUUnit2 Where ExportSCDetailID IN (SELECT ExportSCDetailID FROM ProductionOrderDetail WHERE ProductionOrderID=@ProductionOrderID AND ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))) ))
+	BEGIN
+		set @Message=(Select Top(1)POD.ProductName FROM View_ProductionOrderDetail as POD  WHERE POD.ProductionOrderID=@ProductionOrderID AND POD.ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,',')))
+		ROLLBACK
+			RAISERROR (N'Delete not possible, Because of Reference May lose from PTU for Product: %s.!~!',16,1,@Message);	
+		RETURN
+	END	
+	--DELETE PTUUnit2 Log 
+	DELETE FROM PTUUnit2Log WHERE PTUUnit2RefType = 1 AND PTUUnit2ID IN (SELECT PTUUnit2ID FROM  PTUUnit2 Where ExportSCDetailID IN (SELECT ExportSCDetailID FROM ProductionOrderDetail WHERE ProductionOrderID=@ProductionOrderID AND ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))))
+	--DELETE PTUUnit2
+	DELETE FROM PTUUnit2 WHERE ExportSCDetailID IN (SELECT ExportSCDetailID FROM ProductionOrderDetail WHERE ProductionOrderID=@ProductionOrderID AND ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,',')))
+
+
+	DELETE FROM ProductionOrderDetail  WHERE ProductionOrderID=@ProductionOrderID AND ProductionOrderDetailID NOT IN (SELECT * FROM SplitInToDataSet(@DetailIDs,','))
+	    
+END
+
+
+COMMIT TRAN
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_JobTracking]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_JobTracking]
+(
+	@sSQL as nvarchar(MaX),
+	@ViewFormat as smallint, --0:ColorView;1:PIView;2:Product View
+	@bIsYetToDO as bit,
+	@bIsYetToChallan as bit,
+	@bIsYetToChallanWithDOEntry as bit,
+	@bIsPTUTransfer as bit
+)
+AS 
+BEGIN TRAN
+--DECLARE
+--@sSQL as nvarchar(MaX),
+--@ViewFormat as smallint, --0:ColorView;1:PIView;2:Product View
+--@bIsYetToDO as bit,
+--@bIsYetToChallan as bit,
+--@bIsYetToChallanWithDOEntry as bit,
+--@bIsPTUTransfer as bit
+----EXEC [SP_JobTracking]'SELECT ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID IN(SELECT ExportSCID FROM View_ExportSC WHERE BUID = 2   AND ProductNature = 1 ) AND ExportSCID IN(SELECT ExportSCID FROM View_ExportSC WHERE IssueDate BETWEEN ''01 Oct 2018'' AND ''31 Oct 2018'')',0,False,False,False ,False
+--SET @sSQL = 'SELECT ExportSCDetailID FROM ExportSCDetail  WHERE ExportSCID IN(SELECT ExportSCID FROM View_ExportSC WHERE BUID = 2   AND ProductNature = 1 ) AND ExportSCID IN(SELECT ExportSCID FROM View_ExportSC WHERE IssueDate BETWEEN ''01 Oct 2018'' AND ''31 Oct 2018'')'
+--SET @ViewFormat = 0
+--SET @bIsYetToDO  = 'False'
+--SET @bIsYetToChallan = 'False'
+--SET @bIsYetToChallanWithDOEntry = 'False'
+--SET @bIsPTUTransfer = 'False'
+
+
+CREATE TABLE #TemapTable(
+						id int identity(1,1),
+						ExportSCDetailID int,
+						ExportSCID int,
+						ExportPIDetailID int,
+						ExportPIID int,
+						BUID int,
+						ProductNature int,
+						ProductID int,
+						ColorID int,
+						PINo  varchar(512),
+						PIDate Date,
+						ExportLCFileNo  varchar(512),
+						ExportLCNo  varchar(512),
+						BuyerName  varchar(512),--Mother buyer
+						ContractorName  varchar(512),--Buyer
+						ProductCode   varchar(512),
+						ProductName  varchar(512),
+						ColorName varchar(512),
+						SizeName varchar(512),
+						StyleRef varchar(512),
+						MUName varchar(512),
+						Remarks varchar(512),
+						PIQty decimal(30,17),
+						POQty decimal(30,17),
+						YetToPO decimal(30,17),
+						DOQty decimal(30,17),
+						YetToDO decimal(30,17),
+						ChallanQty decimal(30,17),
+						YetToChallanQty decimal(30,17),
+						PSQty decimal(30,17),--Production Sheet qty
+						PipeLineQty decimal(30,17),
+						ReturnQty decimal(30,17),
+						PTUTransferQty decimal(30,17),
+						PTUTransferUnitName varchar(512),
+						StockQty decimal(30,17),
+						StockUnitName varchar(512),
+						HangerWeight decimal(30,17),
+						WastagePercentWithWeight decimal(30,17),
+						TotalWeight decimal(30,17)
+						
+				)
+
+
+INSERT INTO #TemapTable(ExportSCDetailID)
+--SELECT * FROM dbo.SplitInToDataSet(@sSQL,',')
+EXECUTE sp_executesql @sSQL
+
+UPDATE #TemapTable
+SET ExportSCID = (SELECT HH.ExportSCID FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID),
+	ExportPIDetailID = (SELECT HH.ExportPIDetailID FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID)
+FROM #TemapTable AS TT
+
+UPDATE #TemapTable
+SET ExportPIID = (SELECT ExportPIID FROM ExportSC WHERE ExportSCID = TT.ExportSCID)	
+FROM #TemapTable AS TT
+
+--UPDATE for pidetail
+UPDATE #TemapTable
+SET PIQty = (SELECT HH.Qty FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID),
+	DOQty = ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM DeliveryOrderDetail WHERE RefDetailID = TT.ExportSCDetailID AND DeliveryOrderID IN (SELECT DeliveryOrderID FROM DeliveryOrder WHERE DOStatus>=4 AND DOStatus<9)),0),--staus should between md approve  to challan deliverd
+	ChallanQty = ISNULL((SELECT SUM(ISNULL(VDC.Qty,0)) FROM DeliveryChallanDetail AS VDC WHERE VDC.DODetailID IN (SELECT DeliveryOrderDetailID FROM DeliveryOrderDetail WHERE RefDetailID = TT.ExportSCDetailID)),0),
+																													---PTU Disburse/Send
+	PTUTransferQty = ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE ISNULL(PTUUnit2DistributionRefType,0) = 8 AND PTUUnit2DistributionID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID IN (SELECT PTUUnit2ID FROM PTUUnit2 WHERE ExportSCDetailID = TT.ExportSCDetailID))),0),
+	PTUTransferUnitName = (SELECT Symbol FROM MeasurementUnit  WHERE MeasurementUnitID = (SELECT MunitID FROM Lot WHERE LotID = (SELECT top 1 LotID FROM PTUUnit2Distribution WHERE PTUUnit2ID IN (SELECT PTUUnit2ID FROM PTUUnit2 WHERE ExportSCDetailID = TT.ExportSCDetailID))))
+FROM #TemapTable AS TT
+
+--UPDATE storck qty and yet to qty
+UPDATE #TemapTable			--find ready stock just follow PTU Unit2 
+SET YetToDO = (TT.PIQty-TT.DOQty),
+	YetToChallanQty = (TT.PIQty-TT.ChallanQty)
+FROM #TemapTable AS TT
+
+IF(@bIsYetToDO=1)--yet to Do
+BEGIN
+	DELETE FROM #TemapTable WHERE ISNULL(YetToDO,0)<=0
+END
+IF(@bIsYetToChallan=1)--yet to Challan
+BEGIN
+	DELETE FROM #TemapTable WHERE ISNULL(YetToChallanQty,0)<=0
+END
+IF(@bIsYetToChallanWithDOEntry=1)--yet to Chalan with endtry
+BEGIN
+	DELETE FROM #TemapTable WHERE ISNULL(DOQty,0)<=0 AND ISNULL(ChallanQty,0)>=0
+END
+IF(@bIsPTUTransfer=1)--PTU Transfer
+BEGIN
+	DELETE FROM #TemapTable WHERE ISNULL(PTUTransferQty,0)<=0
+END
+
+
+
+
+--UPDATE for pidetail
+UPDATE #TemapTable
+SET ProductID = ISNULL((SELECT HH.ProductID FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID),0),
+	ColorID = ISNULL((SELECT HH.ColorID FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID),0),
+	MUName =  (SELECT Symbol FROM MeasurementUnit WHERE MeasurementUnitID = ISNULL((SELECT HH.MUnitID FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID),0)),
+	StyleRef = (SELECT HH.StyleNo FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID = TT.ExportSCDetailID)
+FROM #TemapTable AS TT
+
+--UPDATE for PI 
+UPDATE #TemapTable
+SET BUID = (SELECT HH.BUID FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID),
+	ProductNature = (SELECT HH.ProductNature FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID),
+	PIDate = (SELECT HH.IssueDate FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID),
+	PINo = (SELECT HH.PINo FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID),
+	ProductCode = (SELECT ProductCode FROM Product WHERE ProductID = TT.ProductID),
+	ProductName = (SELECT ProductName FROM Product WHERE ProductID = TT.ProductID),
+	SizeName =  (SELECT AddTwo FROM Product WHERE ProductID = TT.ProductID),--this filed is size name use in Export PI Detail
+	ColorName = (SELECT ColorName FROM ColorCategory  WHERE ColorCategoryID = TT.ColorID),
+	BuyerName =  (SELECT Name FROM Contractor WHERE ContractorID = (SELECT HH.BuyerID FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID)),
+	ContractorName = (SELECT Name FROM Contractor WHERE ContractorID = (SELECT HH.ContractorID FROM View_ExportSC AS HH WHERE ExportSCID = TT.ExportSCID)),
+	ExportLCFileNo = (SELECT FileNO FROM ExportLC WHERE ExportLCID = ( SELECT top 1 ExportLCID FROM ExportPILCMapping WHERE ExportPIID = TT.ExportPIID)),
+	ExportLCNo = (SELECT ExportLCNo FROM ExportLC WHERE ExportLCID = ( SELECT top 1 ExportLCID FROM ExportPILCMapping WHERE ExportPIID = TT.ExportPIID)),	
+	POQty = ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ProductionOrderDetail WHERE ExportSCDetailID = TT.ExportSCDetailID),0),		
+	PSQty = (SELECT SUM(ISNULL(Quantity,0)) FROM ProductionSheet WHERE PTUUnit2ID IN (SELECT PTUUnit2ID FROM PTUUnit2 WHERE ExportSCDetailID = TT.ExportSCDetailID)),
+	PipeLineQty =  (SELECT SUM(ISNULL(ProdPipeLineQty,0)) FROM PTUUnit2 WHERE ExportSCDetailID = TT.ExportSCDetailID),
+	ReturnQty = (SELECT  SUM(ISNULL(Qty,0)) FROM ReturnChallanDetail WHERE DeliveryChallanDetailID IN (SELECT DeliveryChallanDetailID FROM DeliveryChallanDetail as VDCD WHERE VDCD.DODetailID IN (SELECT DeliveryOrderDetailID FROM DeliveryOrderDetail WHERE  RefDetailID = TT.ExportSCDetailID))),	
+	HangerWeight = ISNULL((SELECT FinishGoodsWeight FROM Product WHERE ProductID = TT.ProductID),0),
+	WastagePercentWithWeight = (ISNULL((SELECT FinishGoodsWeight FROM Product WHERE ProductID = TT.ProductID),0))+(ISNULL((SELECT FinishGoodsWeight FROM Product WHERE ProductID = TT.ProductID),0)*2)/100
+FROM #TemapTable AS TT
+
+--UPDATE storck qty and yet to qty
+UPDATE #TemapTable			--find ready stock just follow PTU Unit2 
+SET StockQty =	(SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2Distribution WHERE PTUUnit2ID IN ((SELECT ISNULL(PTUUnit2ID,0) FROM PTUUnit2 AS VPTU WHERE VPTU.ExportSCDetailID = TT.ExportSCDetailID))),
+	StockUnitName  = (SELECT Symbol FROM MeasurementUnit WHERE  MeasurementUnitID = (SELECT  top 1 MUnitID FROM Lot WHERE ProductID = TT.ProductID AND BUID = TT.BUID )),
+	YetToPO = (TT.PIQty - TT.POQty),
+	TotalWeight = (TT.YetToChallanQty * TT.WastagePercentWithWeight),
+	Remarks = (CASE WHEN (SELECT PIStatus FROM EXportPI WHERE ExportPIID =TT.ExportPIID)=6 THEN 'CANCEL'  WHEN TT.PIQty=TT.ChallanQty THEN 'Delivery Complete' ELSE (SELECT Note FROM ExportPI WHERE ExportPIID = TT.ExportPIID)  END )
+FROM #TemapTable AS TT
+
+UPDATE #TemapTable
+SET ExportLCNo = ISNULL((SELECT V.VoucherNo FROM Voucher AS V WHERE V.VoucherID = (SELECT TOP 1 VM.VoucherID FROM VoucherMapping AS VM WHERE VM.TableName='Payment' AND VM.PKColumnName='PaymentID' AND VM.VoucherSetup IN (15,16) AND VM.PKValue= (SELECT TOP 1 PmtDtl.PaymentID FROM PaymentDetail AS PmtDtl WHERE PmtDtl.ReferenceType=11 AND PmtDtl.ReferenceID = (SELECT TOP 1 SplInv.SampleInvoiceID FROM SampleInvoice AS SplInv WHERE SplInv.ExportPIID=HH.ExportPIID)))),'')
+FROM #TemapTable AS HH WHERE HH.ExportPIID NOT IN (SELECT MM.ExportPIID FROM ExportPILCMapping AS MM)
+
+--only for poly
+UPDATE #TemapTable
+SET SizeName = (SELECT Measurement FROM PolyMeasurement WHERE PolyMeasurementID = (SELECT PolyMUnitID FROM ExportSCDetail WHERE ExportSCDetailID =TT.ExportSCDetailID))
+FROM #TemapTable AS TT WHERE TT.ProductNature = 2
+
+UPDATE #TemapTable
+SET YetToPO = 0
+FROM #TemapTable AS TT WHERE TT.YetToPO< 0
+
+UPDATE #TemapTable
+SET YetToDO = 0
+FROM #TemapTable AS TT WHERE TT.YetToDO< 0
+
+UPDATE #TemapTable
+SET YetToChallanQty = 0
+FROM #TemapTable AS TT WHERE TT.YetToChallanQty< 0
+
+--Delete Master PI & Open PI 
+DELETE FROM  #TemapTable WHERE  ExportPIID IN(SELECT MM.ExportPIID FROM ExportPI AS MM WHERE MM.PIType IN (0,2) AND  MM.ExportPIID IN(SELECT HH.ExportPIID FROM #TemapTable AS HH))
+
+ 
+IF(@ViewFormat=0)--Color view
+BEGIN
+	SELECT * FROM #TemapTable  Order by  ExportPIDetailID, ColorID
+END
+ELSE 
+IF(@ViewFormat=1)--PI View
+BEGIN
+	SELECT ExportPIID, 	ProductID,		PINo, PIDate, ExportLCFileNo, ExportLCNo, ContractorName, BuyerName,	ProductCode,	ProductName,	MUName, 	StockUnitName,	PTUTransferUnitName, SizeName, HangerWeight,WastagePercentWithWeight,	Remarks, SUM(ISNULL(TotalWeight,0)) AS TotalWeight,     SUM(ISNULL(PIQty,0)) as PIQty,	 SUM(ISNULL(POQty,0)) as POQty, SUM(ISNULL(DOQty,0)) as DOQty, SUM(ISNULL(ChallanQty,0)) as ChallanQty, SUM(ISNULL(YetToPO,0)) as YetToPO,SUM(ISNULL(YetToDO,0)) as YetToDO, SUM(ISNULL(YetToChallanQty,0)) as YetToChallanQty,  SUM(ISNULL(StockQty,0)) as StockQty, SUM(ISNULL(PSQty,0)) AS PSQty, SUM(ISNULL(PipeLineQty,0)) AS PipeLineQty,  SUM(ISNULL(ReturnQty,0)) AS ReturnQty, SUM(ISNULL(PTUTransferQty,0)) AS PTUTransferQty FROM #TemapTable GROUP BY ExportPIID, ProductID,	PINo, PIDate,	ProductCode,	ProductName,	MUName,StockUnitName,PTUTransferUnitName,		SizeName,	 HangerWeight,WastagePercentWithWeight, Remarks, ExportLCFileNo, ExportLCNo, ContractorName, BuyerName Order by ExportPIID, ProductID
+END
+ELSE
+IF(@ViewFormat=2)--product View
+BEGIN
+	SELECT 	ProductID,		ProductCode,	ProductName,	MUName,	StockUnitName, PTUTransferUnitName,	 SizeName, HangerWeight,WastagePercentWithWeight,  SUM(ISNULL(TotalWeight,0)) AS TotalWeight,     SUM(ISNULL(PIQty,0)) as PIQty,	 SUM(ISNULL(POQty,0)) as POQty, SUM(ISNULL(DOQty,0)) as DOQty, SUM(ISNULL(ChallanQty,0)) as ChallanQty, SUM(ISNULL(YetToPO,0)) as YetToPO,SUM(ISNULL(YetToDO,0)) as YetToDO, SUM(ISNULL(YetToChallanQty,0)) as YetToChallanQty, SUM(ISNULL(StockQty,0)) as StockQty, SUM(ISNULL(PSQty,0)) AS PSQty, SUM(ISNULL(PipeLineQty,0)) AS PipeLineQty,  SUM(ISNULL(ReturnQty,0)) AS ReturnQty	, SUM(ISNULL(PTUTransferQty,0)) AS PTUTransferQty	FROM #TemapTable GROUP BY ProductID,	ProductCode,	ProductName,	MUName,	StockUnitName, PTUTransferUnitName,	SizeName,  HangerWeight,WastagePercentWithWeight Order by  ProductID
+END
+
+DROP TABLE #TemapTable
+COMMIT TRAN
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_SendToProduction]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_SendToProduction]
+(
+	@ProdutionOrderID int,
+	@DBUserID int
+	--%n,%n
+)
+AS
+BEGIN TRAN
+--DECLARE
+--@ProdutionOrderID int,
+--@DBUserID int
+
+--SET @ProdutionOrderID = 4284
+--SET @DBUserID = -9
+
+DECLARE
+@PTUUnit2ID int,
+@PTUType as smallint,
+@BUID as int,
+@ExportSCID int,
+@ExportSCDetailID int,
+@ProductID int,
+@ColorID int,
+@ExportSCQty decimal(30,17),
+@ProdOrderQty decimal(30,17),
+@PTUUnit2RefType as smallint,
+@PTUUnit2RefID as int,
+@ModelReferenceID as int,
+@UnitID as int, 
+@PolyMUnitID as int,
+@PV_DBServerDateTime as DateTime,
+@PV_PTUUnit2LogID as int,
+@TotalProdOrderQty as decimal(30,17)
+SET @PV_DBServerDateTime = GETDATE()
+	
+SET @ExportSCID = (SELECT ExportSCID FROM ProductionOrder WHERE ProductionOrderID = @ProdutionOrderID)
+SET @BUID = (SELECT HH.BUID FROM View_ExportSC AS HH WHERE HH.ExportSCID=@ExportSCID)
+SET @PTUType = 1 --EnumPTUType { None = 0, Regular = 1, Subcontract = 2 }
+
+DECLARE Cur_CC3 CURSOR LOCAL FORWARD_ONLY KEYSET FOR
+SELECT  ProductionOrderDetailID,ExportSCDetailID, ProductID, ColorID, Qty, ModelReferenceID, UnitID, PolyMUnitID FROM ProductionOrderDetail WHERE ProductionOrderID = @ProdutionOrderID
+OPEN Cur_CC3
+	FETCH NEXT FROM Cur_CC3 INTO  @PTUUnit2RefID,@ExportSCDetailID,  @ProductID, @ColorID, @ProdOrderQty, @ModelReferenceID, @UnitID, @PolyMUnitID
+		WHILE(@@Fetch_Status <> -1)
+		BEGIN--2
+			IF EXISTS(SELECT * FROM PTUUnit2 AS HH WHERE HH.PTUType=@PTUType AND HH.BUID= @BUID AND HH.ExportSCID = @ExportSCID AND HH.ProductID = @ProductID  AND HH.ExportSCDetailID = @ExportSCDetailID)
+			BEGIN
+				SET @PTUUnit2ID=(SELECT TOP 1 HH.PTUUnit2ID FROM PTUUnit2 AS HH WHERE HH.PTUType=@PTUType AND HH.BUID= @BUID AND HH.ExportSCID = @ExportSCID AND HH.ProductID = @ProductID AND HH.ExportSCDetailID = @ExportSCDetailID )   
+				SET @ExportSCQty = (SELECT Qty FROM ExportSCDetail WHERE ExportSCID = @ExportSCID AND ProductID = @ProductID AND ExportSCDetailID = @ExportSCDetailID)
+				IF EXISTS (SELECT * FROM PTUUnit2Log AS HH WHERE HH.PTUUnit2ID = @PTUUnit2ID AND HH.PTUUnit2RefType = 1 AND HH.PTUUnit2RefID = @PTUUnit2RefID)
+				BEGIN
+					UPDATE PTUUnit2Log SET Qty = @ProdOrderQty WHERE PTUUnit2ID = @PTUUnit2ID AND PTUUnit2RefType = 1 AND PTUUnit2RefID = @PTUUnit2RefID --Updte Ptuunit2 Log
+				END
+				ELSE
+				BEGIN
+									---Entry in Log Table
+					SET @PV_PTUUnit2LogID = (SELECT ISNULL(MAX(PTUUnit2LogID),0)+1 FROM PTUUnit2Log) 
+																				--Refernce type 1:ProductionOrderDetail  
+					INSERT INTO PTUUnit2Log (PTUUnit2LogID,		PTUUnit2ID,		PTUUnit2RefType,	PTUUnit2RefID,	Qty,			DBUserID,	DBServerDateTime)
+									  VALUES(@PV_PTUUnit2LogID,	@PTUUnit2ID,	1,					@PTUUnit2RefID, @ProdOrderQty,	@DBUserID,	@PV_DBServerDateTime)
+				END
+				SET @TotalProdOrderQty = ISNULL((SELECT SUM(ISNULL(HH.Qty,0)) FROM PTUUnit2Log AS HH WHERE HH.PTUUnit2RefType=1 AND HH.PTUUnit2RefID IN (SELECT MM.ProductionOrderDetailID FROM ProductionOrderDetail AS MM WHERE MM.ExportSCDetailID=@ExportSCDetailID)),0)
+				IF(ROUND(@TotalProdOrderQty,2) < ROUND(@ProdOrderQty,2))
+				BEGIN					
+					ROLLBACK
+						RAISERROR (N'Invalid Production Qty!!~',16,1);	
+					RETURN
+				END
+				UPDATE PTUUnit2  SET ProdOrderQty =  @TotalProdOrderQty, ExportSCQty = @ExportSCQty WHERE PTUUnit2ID = @PTUUnit2ID --UPDATE Ptuunit2
+			END
+			ELSE
+			BEGIN
+				--Entry in PTUUnit2 table
+				SET @PTUUnit2ID=(SELECT ISNULL(MAX(PTUUnit2ID),0)+1 FROM PTUUnit2)   
+				SET @ExportSCQty = (SELECT Qty FROM ExportSCDetail WHERE ExportSCID = @ExportSCID AND ProductID = @ProductID AND ExportSCDetailID = @ExportSCDetailID)
+				INSERT INTO PTUUnit2	(PTUUnit2ID,	PTUType,	BUID,	ExportSCID,		ExportSCDetailID,  ProductID,		ColorID,	ExportSCQty,	ProdOrderQty,	ModelReferenceID,	UnitID,		PolyMUnitID,	DBUserID,	DBServerDateTime)
+							VALUES		(@PTUUnit2ID,	@PTUType,	@BUID,	@ExportSCID,	@ExportSCDetailID, @ProductID,		@ColorID,	@ExportSCQty,	@ProdOrderQty,	@ModelReferenceID,	@UnitID,	@PolyMUnitID,	@DBUserID,	@PV_DBServerDateTime)
+
+							---Entry in Log Table
+				SET @PV_PTUUnit2LogID = (SELECT ISNULL(MAX(PTUUnit2LogID),0)+1 FROM PTUUnit2Log) 
+																			--Refernce type 1:ProductionOrderDetail  
+				INSERT INTO PTUUnit2Log (PTUUnit2LogID,		PTUUnit2ID,		PTUUnit2RefType,	PTUUnit2RefID,	Qty,			DBUserID,	DBServerDateTime)
+								  VALUES(@PV_PTUUnit2LogID,	@PTUUnit2ID,	1,					@PTUUnit2RefID, @ProdOrderQty,	@DBUserID,	@PV_DBServerDateTime)
+	    
+			END						
+		FETCH NEXT FROM Cur_CC3 INTO @PTUUnit2RefID, @ExportSCDetailID, @ProductID, @ColorID, @ProdOrderQty, @ModelReferenceID, @UnitID, @PolyMUnitID
+		END--2
+CLOSE Cur_CC3
+DEALLOCATE Cur_CC3
+COMMIT TRAN
+
+
+
+
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_Subcontract_SendToProduction]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_Subcontract_SendToProduction]
+(
+	@SubcontractID int,
+	@DBUserID int
+	--%n, %n
+)
+As 
+BEGIN TRAN
+DECLARE
+@PTUUnit2ID int,
+@PTUType as smallint,
+@BUID as int,
+@ExportSCID int,
+@ExportSCDetailID int,
+@ProductID int,
+@ColorID int,
+@ExportSCQty decimal(30,17),
+@ProdOrderQty decimal(30,17),
+@PTUUnit2RefType as smallint,
+@PTUUnit2RefID as int,
+@ModelReferenceID as int,
+@UnitID as int, 
+@PolyMUnitID as int,
+@PV_DBServerDateTime as DateTime,
+@PV_PTUUnit2LogID as int
+SET @PV_DBServerDateTime = GETDATE()
+
+
+IF NOT EXISTS(SELECT * FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+BEGIN
+	ROLLBACK
+		RAISERROR(N'Invalid Subcontract!~',16,1)
+	RETURN
+END
+
+IF(ISNULL((SELECT HH.ContractStatus FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID),0) != 2)
+BEGIN
+	ROLLBACK
+		RAISERROR(N'Please select Approved Subcontact!~',16,1)
+	RETURN
+END
+
+
+
+SET @PTUType = 2 --EnumPTUType { None = 0, Regular = 1, Subcontract = 2 }
+SET @BUID = (SELECT HH.ContractBUID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ExportSCID = (SELECT HH.ExportSCID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ExportSCDetailID = (SELECT HH.ExportSCDetailID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ProductID = (SELECT HH.ProductID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ColorID = (SELECT HH.ColorID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ExportSCQty = (SELECT HH.Qty FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID=@ExportSCDetailID)
+SET @ProdOrderQty = (SELECT HH.Qty FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @ModelReferenceID = (SELECT HH.MoldRefID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @UnitID = (SELECT HH.UintID FROM Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID)
+SET @PolyMUnitID = 0
+SET @PV_DBServerDateTime = GETDATE()
+
+--SET @PTUUnit2ID
+
+
+IF EXISTS(SELECT * FROM PTUUnit2 AS HH WHERE HH.PTUType=@PTUType AND HH.BUID= @BUID AND HH.ExportSCID = @ExportSCID AND HH.ProductID = @ProductID  AND HH.ExportSCDetailID = @ExportSCDetailID)
+BEGIN
+	SET @PTUUnit2ID=(SELECT TOP 1 HH.PTUUnit2ID FROM PTUUnit2 AS HH WHERE HH.PTUType=@PTUType AND HH.BUID= @BUID AND HH.ExportSCID = @ExportSCID AND HH.ProductID = @ProductID AND HH.ExportSCDetailID = @ExportSCDetailID )   
+	UPdate PTUUnit2  SET ProdOrderQty = (ProdOrderQty+ @ProdOrderQty) WHERE PTUUnit2ID = @PTUUnit2ID
+END
+ELSE
+BEGIN
+	--Entry in PTUUnit2 table
+	SET @PTUUnit2ID=(SELECT ISNULL(MAX(PTUUnit2ID),0)+1 FROM PTUUnit2)   
+	SET @ExportSCQty = (SELECT Qty FROM ExportSCDetail WHERE ExportSCID = @ExportSCID AND ProductID = @ProductID AND ExportSCDetailID = @ExportSCDetailID)
+	INSERT INTO PTUUnit2	(PTUUnit2ID,	PTUType,	BUID,	ExportSCID,	ExportSCDetailID,  ProductID,		ColorID,	ExportSCQty,	ProdOrderQty,	ModelReferenceID,	UnitID,		PolyMUnitID,	DBUserID,	DBServerDateTime)
+				Values		(@PTUUnit2ID,	@PTUType,	@BUID,	@ExportSCID,	@ExportSCDetailID, @ProductID,	@ColorID,	@ExportSCQty,	@ProdOrderQty,	@ModelReferenceID,	@UnitID,	@PolyMUnitID,	@DBUserID,	@PV_DBServerDateTime)
+	    
+END
+
+---Entry in Log Table
+SET @PV_PTUUnit2LogID = (SELECT ISNULL(MAX(PTUUnit2LogID),0)+1 FROM PTUUnit2Log) 
+SET @PTUUnit2RefType = 13 --Refernce type 13 : Subcontract
+SET @PTUUnit2RefID = @SubcontractID
+INSERT INTO PTUUnit2Log (PTUUnit2LogID,		PTUUnit2ID,		PTUUnit2RefType,	PTUUnit2RefID,	Qty,			DBUserID,	DBServerDateTime)
+				  VAlues(@PV_PTUUnit2LogID,	@PTUUnit2ID,	@PTUUnit2RefType,	@PTUUnit2RefID, @ProdOrderQty,	@DBUserID,	@PV_DBServerDateTime)
+
+--EnumSubContractStatus { Initialized = 0, RequestForApproved = 1, Approved = 2, InProduction = 3, ProductionDone = 4, Cancel = 5 }
+UPDATE Subcontract SET ContractStatus = 3 WHERE SubcontractID=@SubcontractID
+SELECT * FROM View_Subcontract AS HH WHERE HH.SubcontractID=@SubcontractID
+
+COMMIT TRAN
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_OrderSheetDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER VIEW [dbo].[View_OrderSheetDetail]
+AS
+SELECT		[OrderSheetDetail].*
+			,Product.ProductCode
+			,Product.ProductName
+			,Product.IsApplySizer
+			,CapitalResource.Name AS ModelReferenceName
+			,(SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = OrderSheetDetail.ColorID) As ColorName
+			,Product.AddTwo As SizeName
+			,MeasurementUnit.UnitName
+			,MeasurementUnit.Symbol AS UnitSymbol,
+			(SELECT HH.RateUnit FROM OrderSheet AS HH WHERE HH.OrderSheetID=OrderSheetDetail.OrderSheetID) AS RateUnit,
+			(OrderSheetDetail.Qty / (SELECT ISNULL(RateUnit,1) FROM OrderSheet WHERE OrderSheetID = OrderSheetDetail.OrderSheetID) * OrderSheetDetail.UnitPrice) As Amount,
+			(OrderSheetDetail.Qty - ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ExportPIDetail WHERE OrderSheetDetailID = OrderSheetDetail.OrderSheetDetailID),0))AS YetToPIQty,
+			PolyMeasurement.Measurement,
+			0 AS OrderSheetDetailLogID,
+			0 AS OrderSheetLogID,
+			ISNULL((Select RecipeName from Recipe AS RC Where RC.RecipeID=OrderSheetDetail.RecipeID),'') as RecipeName
+
+
+
+FROM		[OrderSheetDetail] 
+ LEFT   JOIN  View_Product AS Product ON  [OrderSheetDetail].ProductID =  Product.ProductID 
+ LEFT	JOIN  CapitalResource ON  [OrderSheetDetail].ModelReferenceID = CapitalResource.CRID 
+ LEFT	JOIN  MeasurementUnit ON [OrderSheetDetail].UnitID =  MeasurementUnit.MeasurementUnitID
+ LEFT	JOIN  PolyMeasurement ON [OrderSheetDetail].PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_DeliveryOrderDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+ALTER VIEW [dbo].[View_DeliveryOrderDetail]
+AS
+SELECT
+		    DODetail.DeliveryOrderDetailID,
+            DODetail.DeliveryOrderID,
+            DODetail.ProductID,
+            DODetail.RefDetailID,
+            DODetail.Qty,
+            DODetail.Note,
+			DO.RefType,
+			DO.DONo,
+			DO.RefNo,
+			DO.ApprovedByName,
+			DO.DeliveryDate,
+			VProduct.ProductName,
+			VProduct.ProductCode,
+			VProduct.AddTwo AS SizeName,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT EPD.MUnitID FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID) 
+					WHEN (DO.RefType=2) THEN  (SELECT OSD.UnitID FROM OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    END AS MUnitID,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT MU.Symbol FROM MeasurementUnit AS MU WHERE MU.MeasurementUnitID = (SELECT EPD.MUnitID FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID)) 
+					WHEN (DO.RefType=2) THEN  (SELECT OSD.UnitSymbol FROM View_OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    END AS MUnit,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT ISNULL(EPD.Qty,0) FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID)+ISNULL((SELECT SUM(ISNULL(TT.Qty,0)) FROM  ReturnChallanDetail AS TT WHERE  TT.DeliveryChallanDetailID IN (SELECT DCD.DeliveryChallanDetailID FROM DeliveryChallanDetail AS DCD WHERE DCD.DODetailID IN (SELECT DOD.DeliveryOrderDetailID FROM DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID=DODetail.RefDetailID)) AND TT.ReturnChallanID IN (SELECT ReturnChallanID FROM ReturnChallan WHERE ISNULL(ApprovedBy,0)!=0)),0) - (SELECT ISNULL(SUM(DOD.Qty),0) FROM DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID=DODetail.RefDetailID AND DOD.DeliveryOrderDetailID != DODetail.DeliveryOrderDetailID)
+					WHEN (DO.RefType=2) THEN (SELECT ISNULL(OSD.Qty,0) FROM OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) - (SELECT ISNULL(SUM(Qty),0)  FROM DeliveryOrderDetail DOD WHERE DOD.RefDetailID=DODetail.RefDetailID And DOD.DeliveryOrderDetailID!=DODetail.DeliveryOrderDetailID)
+			END AS YetToDeliveryOrderQty,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT EPD.ColorID FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID) 
+					WHEN (DO.RefType=2) THEN  (SELECT OSD.ColorID FROM OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    END AS ColorID,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = (SELECT EPD.ColorID FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID) )
+					WHEN (DO.RefType=2) THEN (SELECT OSD.ColorName FROM View_OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    END AS ColorName,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT EPD.StyleNo FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID) 
+					WHEN (DO.RefType=2) THEN (SELECT OSD.StyleDescription FROM OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    END AS StyleNo,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT Measurement FROM PolyMeasurement WHERE PolyMeasurementID = (SELECT  EPD.PolyMUnitID FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = DODetail.RefDetailID) )
+					WHEN (DO.RefType=2) THEN (SELECT Measurement FROM PolyMeasurement WHERE PolyMeasurementID = (SELECT OSD.PolyMUnitID FROM OrderSheetDetail AS OSD WHERE OSD.OrderSheetDetailID = DODetail.RefDetailID)) 
+		    END AS Measurement,
+			CASE	WHEN (DO.RefType=1) THEN (SELECT top 1 PTUUNit2ID FROM PTUUnit2Log WHERE PTUUnit2RefID =  DODetail.DeliveryOrderDetailID AND PTUUnit2RefType = 3 )--for ref type 3: delivery Order 
+					WHEN (DO.RefType=1) THEN  0  
+			END AS PTUUnit2ID,
+			--(SELECT ExportPIDetailID FROM ExportSCDetail WHERE ExportSCDetailID = DODetail.RefDetailID )AS ExportPIDetailID,
+			--(SELECT Qty FROM ExportPIDetail WHERE ExportPIDetailID = (SELECT ExportPIDetailID FROM ExportSCDetail WHERE ExportSCDetailID = DODetail.RefDetailID)) - ISNULL(DODetail.Qty,0) AS YetToDeliveryOrderQty,
+
+			ISNULL(DODetail.Qty,0) - ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM DeliveryChallanDetail DCD WHERE DCD.DODetailID=DODetail.DeliveryOrderDetailID),0) as YetToDeliveryChallanQty,			
+			0 As DeliveryOrderDetailLogID,
+			0 AS DeliveryOrderLogID
+
+ FROM [dbo].[DeliveryOrderDetail]  as DODetail
+ LEFT OUTER JOIN View_DeliveryOrder DO  ON  DO.DeliveryOrderID =DODetail.DeliveryOrderID 			
+ LEFT OUTER JOIN View_Product AS VProduct   ON  VProduct.ProductID =DODetail.ProductID  
+
+ 
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_DeliveryOrderDetailLog]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+ALTER VIEW [dbo].[View_DeliveryOrderDetailLog]
+AS
+SELECT
+		    DODetail.DeliveryOrderDetailLogID,
+            DODetail.DeliveryOrderLogID,
+            DODetail.ProductID,
+            DODetail.RefDetailID,
+            DODetail.Qty,
+            DODetail.Note,
+			DO.RefType,
+			DO.DONo,
+			DO.RefNo,
+			DO.ApprovedByName,
+			DO.DeliveryDate,
+			Case When (DO.RefType=1) then
+			(Select Qty from ExportSCDetail EPD Where EPD.ExportSCDetailID = DODetail.RefDetailID) 
+			- (Select ISNULL(SUM(Qty),0) from DeliveryOrderDetailLog DOD Where DOD.RefDetailID=DODetail.RefDetailID And DOD.DeliveryOrderDetailLogID != DODetail.DeliveryOrderDetailLogID)
+			else 
+			(Select Qty from OrderSheetDetail OSD Where OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+			- (Select ISNULL(SUM(Qty),0)  from DeliveryOrderDetailLog DOD Where DOD.RefDetailID=DODetail.RefDetailID And DOD.DeliveryOrderDetailLogID!=DODetail.DeliveryOrderDetailLogID)
+		    end as YetToDeliveryOrderQty,
+
+			ISNULL(DODetail.Qty,0) - ISNULL((Select SUM(ISNULL(Qty,0)) from DeliveryChallanDetail DCD Where DCD.DODetailID=DODetail.DeliveryOrderDetailLogID),0) as YetToDeliveryChallanQty,
+			Case When (DO.RefType=1) then
+			(Select ColorID from ExportSCDetail EPD Where EPD.ExportSCDetailID = DODetail.RefDetailID) 
+			else 
+			(Select ColorID from OrderSheetDetail OSD Where OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    end as ColorID,
+			Case When (DO.RefType=1) then
+			(SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = (Select EPD.ColorID from ExportSCDetail AS EPD Where EPD.ExportSCDetailID = DODetail.RefDetailID) )
+			else 
+			(Select OSD.ColorName from View_OrderSheetDetail AS OSD Where OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    end as ColorName,
+			Case When (DO.RefType=1) then
+			(Select EPD.StyleNo from ExportSCDetail AS EPD Where EPD.ExportSCDetailID = DODetail.RefDetailID) 
+			else 
+			(Select OSD.StyleDescription from OrderSheetDetail AS OSD Where OSD.OrderSheetDetailID = DODetail.RefDetailID) 
+		    end as StyleNo,
+
+			Case When (DO.RefType=1) then
+			(SELECT top 1 PTUUNit2ID FROM PTUUnit2Log WHERE PTUUnit2RefID =  DODetail.DeliveryOrderDetailLogID AND PTUUnit2RefType = 3 )--for ref type 3: delivery Order 
+			else 
+			0 end as PTUUnit2ID,
+			0 AS DeliveryOrderID,
+			0 AS DeliveryOrderDetailID,
+			VProduct.ProductName,
+			VProduct.ProductCode,
+			VProduct.AddTwo AS SizeName,
+			VProduct.MeasurementUnitID MUnitID,
+			VProduct.MUnit
+			
+ FROM [dbo].[DeliveryOrderDetailLog]  as DODetail
+ left outer JOIN View_DeliveryOrderLog DO  ON  DO.DeliveryOrderLogID =DODetail.DeliveryOrderLogID 			
+ left outer JOIN View_Product VProduct   ON  VProduct.ProductID =DODetail.ProductID  
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ExportSCDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+
+ALTER VIEW [dbo].[View_ExportSCDetail]
+AS
+SELECT		ExportSCDetail.*,
+			(ExportSCDetail.Qty + ExportSCDetail.OverQty) AS TotalQty,
+			Product.ProductCode AS ProductCode, 
+            Product.ProductName AS ProductName, 
+            Product.ProductCode AS ProductCount,
+			Product.IsApplySizer,
+			Product.AddTwo AS SizeName,
+		    MeasurementUnit.Symbol AS MUName,
+			ColorCategory.ColorName,
+			CapitalResource.Name AS ModelReferenceName,
+			OrderSheetDetail.OrderSheetID,
+			PolyMeasurement.Measurement,
+			(SELECT RecipeID FROM ExportPIDetail WHERE ExportPIDetailID = ExportSCDetail.ExportPIDetailID) AS RecipeID,
+			(SELECT BUID FROM ExportPI WHERE ExportPIID = (SELECT ExportPIID FROM ExportPIDetail WHERE ExportPIDetailID = ExportSCDetail.ExportPIDetailID)) AS BUID,
+			(SELECT HH.RateUnit FROM ExportSC AS HH WHERE HH.ExportSCID=ExportSCDetail.ExportSCID) AS RateUnit,
+			(ISNULL(ExportSCDetail.Qty,0)+ISNULL(ExportSCDetail.OverQty,0)) - ISNULL((SELECT SUM(ISNULL(POD.Qty,0)) FROM ProductionOrderDetail AS POD WHERE POD.ExportSCDetailID = ExportSCDetail.ExportSCDetailID),0) AS YetToProductionOrderQty,
+			(Select SUM(Qty) from DyeingOrderDetail as DOD where DOD.[Status] <>7 and DOD.DyeingOrderID in (Select DyeingOrder.DyeingOrderID from DyeingOrder where  DyeingOrder.DyeingOrderType<>5 and DyeingOrder.[Status]<9) and DOD.ExportSCDetailID=ExportSCDetail.ExportSCDetailID ) as POQty
+			,(Select SUM(Qty) from DUDeliveryOrderDetail as DOD where  Isnull(DOD.ExportSCDetailID,0)>0 and DOD.ExportSCDetailID=ExportSCDetail.ExportSCDetailID and DOD.DUDeliveryOrderID in (Select DUDeliveryOrderID from DUDeliveryOrder where OrderType in (3,4))) as DOQty
+			, (ISNULL(ExportSCDetail.Qty,0)+ISNULL(ExportSCDetail.OverQty,0))+ISNULL((SELECT SUM(ISNULL(TT.Qty,0)) FROM  ReturnChallanDetail AS TT WHERE  TT.DeliveryChallanDetailID IN (SELECT DCD.DeliveryChallanDetailID FROM DeliveryChallanDetail AS DCD WHERE DCD.DODetailID IN (SELECT DOD.DeliveryOrderDetailID FROM View_DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID =ExportSCDetail.ExportSCDetailID AND DOD.RefType = 1)) AND TT.ReturnChallanID IN (SELECT ReturnChallanID FROM ReturnChallan WHERE ISNULL(ApprovedBy,0)!=0)),0) - ISNULL((SELECT SUM(ISNULL(DOD.Qty,0)) FROM View_DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID = ExportSCDetail.ExportSCDetailID And DOD.RefType=1 ),0) AS YetToDeliveryOrderQty
+			--Currency.Symbol AS Currency,
+						    		
+FROM		ExportSCDetail
+LEFT  JOIN	View_Product AS Product ON ExportSCDetail.ProductID = Product.ProductID
+LEFT  JOIN	MeasurementUnit ON ExportSCDetail.MUnitID = MeasurementUnit.MeasurementUnitID
+LEFT JOIN   ColorCategory ON ColorCategory.ColorCategoryID  =  ExportSCDetail.ColorID
+LEFT JOIN   CapitalResource ON CapitalResource.CRID  =  ExportSCDetail.ModelReferenceID
+LEFT JOIN	OrderSheetDetail ON OrderSheetDetail.OrderSheetDetailID = ExportSCDetail.OrderSheetDetailID
+LEFT JOIN  PolyMeasurement ON ExportSCDetail.PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ExportSCDetail_DO]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER VIEW [dbo].[View_ExportSCDetail_DO]
+AS
+SELECT		ExportSCDetail.*,
+			(ExportSCDetail.Qty + ExportSCDetail.OverQty) AS TotalQty,
+			Product.ProductCode AS ProductCode, 
+            Product.ProductName AS ProductName, 
+            Product.ProductCode AS ProductCount,
+			Product.AddTwo AS SizeName,
+		    MeasurementUnit.Symbol AS MUName,
+			ColorCategory.ColorName,
+			CapitalResource.Name AS ModelReferenceName,
+			OrderSheetDetail.OrderSheetID,
+			PolyMeasurement.Measurement,
+			ExportSCDetail.Qty - ISNULL((SELECT SUM(ISNULL(POD.Qty,0)) FROM ProductionOrderDetail AS POD WHERE POD.ExportSCDetailID = ExportSCDetail.ExportSCDetailID),0) AS YetToProductionOrderQty
+		    ,(Select SUM(Qty) from DyeingOrderDetail as DOD where DOD.[Status] <>7 and DOD.DyeingOrderID in (Select DyeingOrder.DyeingOrderID from DyeingOrder where DyeingOrderType<>5 and DyeingOrder.[Status]<9) and DOD.ExportSCDetailID=ExportSCDetail.ExportSCDetailID ) as POQty
+			,(Select SUM(Qty) from DUDeliveryOrderDetail as DOD where  Isnull(DOD.ExportSCDetailID,0)>0 and DOD.ExportSCDetailID=ExportSCDetail.ExportSCDetailID and DOD.DUDeliveryOrderID in (Select DUDeliveryOrderID from DUDeliveryOrder where OrderType in (3,4) )) as DOQty
+			, ExportSCDetail.Qty - ISNULL((SELECT SUM(ISNULL(DOD.Qty,0)) FROM View_DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID = ExportSCDetail.ExportSCDetailID And DOD.RefType=1 ),0) AS YetToDeliveryOrderQty
+			,0 as DCQty
+			--Currency.Symbol AS Currency,
+FROM		ExportSCDetail
+LEFT  JOIN	Product ON ExportSCDetail.ProductID = Product.ProductID
+LEFT  JOIN	MeasurementUnit ON ExportSCDetail.MUnitID = MeasurementUnit.MeasurementUnitID
+LEFT JOIN   ColorCategory ON ColorCategory.ColorCategoryID  =  ExportSCDetail.ColorID
+LEFT JOIN   CapitalResource ON CapitalResource.CRID  =  ExportSCDetail.ModelReferenceID
+LEFT JOIN	OrderSheetDetail ON OrderSheetDetail.OrderSheetDetailID = ExportSCDetail.OrderSheetDetailID
+LEFT JOIN  PolyMeasurement ON ExportSCDetail.PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ExportPIDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+ALTER VIEW [dbo].[View_ExportPIDetail]
+AS
+SELECT		ExportPIDetail.*,
+			0 as ExportPIDetailLogID,
+			0 as ExportPILogID,
+			Product.ProductCode AS ProductCode, 
+            Product.ProductName AS ProductName, 
+			Product.ProductCategoryID AS ProductCategoryID, 
+			Product.ProductCategoryName AS ProductCategoryName, 
+            Product.ProductCode AS ProductCount,
+		    Product.AddOne AS HSCode,
+			Product.IsApplySizer
+			,Case When (Isnull([ExportPI].ReviseNo,0)>0) Then [ExportPI].PINo+ 'R-'+Convert(varchar(8),[ExportPI].ReviseNo)
+		    Else [ExportPI].PINo End as PINo,
+			ExportPI.IssueDate,
+				ExportPI.RateUnit,
+
+            --[ExportPI].PINo,
+		    MeasurementUnit.Symbol AS MUName,
+			Currency.Symbol AS Currency,
+			ColorCategory.ColorName,
+			Product.AddTwo AS SizeName,
+			CapitalResource.Name AS ModelReferenceName,
+			OrderSheetDetail.OrderSheetID,
+			(SELECT TOP(1)EP.AmendmentNo FROM View_ExportPI AS EP WHERE EP.ExportPIID = ExportPIDetail.ExportPIID) AS VersionNo,
+			--ExportPIDetail.Qty - ISNULL((SELECT SUM(ISNULL(POD.Qty,0)) FROM ProductionOrderDetail AS POD WHERE POD.ExportPIDetailID = ExportPIDetail.ExportPIDetailID),0) AS YetToProductionOrderQty,
+			--ExportPIDetail.Qty - ISNULL((SELECT SUM(ISNULL(DOD.Qty,0)) FROM View_DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID = (SELECT ExportScDetailID FROM ExportScDetail WHERE  ExportPIDetailID = ExportPIDetail.ExportPIDetailID)And DOD.RefType=1),0) AS YetToDeliveryOrderQty,
+			--ISNULL((SELECT SUM(ISNULL(DOD.Qty,0)) FROM View_DeliveryOrderDetail AS DOD WHERE DOD.RefDetailID = (SELECT ExportScDetailID FROM ExportScDetail WHERE  ExportPIDetailID = ExportPIDetail.ExportPIDetailID)And DOD.RefType=1),0) AS DOQty,
+			(Select Top(1)NoCode from FabricPOSetup where Activity=1 )+''+Fabric.FabricNo AS FabricNo,
+			--Fabric.FabricWidth AS FabricWidth,
+			--Fabric.ConstructionPI  AS Construction,
+			--Fabric.FinishType,
+			--Fabric.ProcessType,
+			--Fabric.FabricWeave,
+			--ExportPIDetail.Qty - ISNULL((SELECT SUM(ISNULL(DCD.Qty,0)) FROM View_DeliveryChallanDetail AS DCD WHERE DCD.RefDetailID = ISNULL((SELECT top 1 ExportSCDetailID FROM ExportSCDetail  WHERE ExportPIDetailID = ExportPIDetail.ExportPIDetailID),0) And DCD.RefType=1),0) as YetToChallanQty,
+			--ISNULL((SELECT SUM(ISNULL(DCD.Qty,0)) FROM View_DeliveryChallanDetail AS DCD WHERE DCD.RefDetailID = ISNULL((SELECT top 1 ExportSCDetailID FROM ExportSCDetail  WHERE ExportPIDetailID = ExportPIDetail.ExportPIDetailID),0) And DCD.RefType=1),0) AS ChallanQty,
+			(SELECT P.ProductName FROM Product AS P WHERE P.ProductID=Fabric.ProductID) AS FabricProductName --Composition
+			,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetail.ProcessType),'') as ProcessTypeName
+		    ,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetail.FabricWeave),'') as FabricWeaveName
+		    ,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetail.FinishType),'') as FinishTypeName	
+			,ISNULL((Select RecipeName from Recipe AS RC Where RC.RecipeID=ExportPIDetail.RecipeID),'') as RecipeName
+			,ExportQuality.Name as ExportQuality
+			,PolyMeasurement.Measurement
+			,(Select FSC.SCNoFull  from View_FabricSalesContract as FSC where FSC.FabricSalesContractID in (select FabricSalesContractID from FabricSalesContractDetail where  FabricSalesContractDetailID =ExportPIDetail.OrderSheetDetailID) ) as FSCNo
+			,(SELECT top 1 ValueOfProperty FROM View_ProductPropertyInformation WHERE ProductID = ExportPIDetail.ProductID AND BUID =ExportPI.BUID AND PropertyType = 4 ) AS ReferenceCaption
+
+						    		
+FROM		ExportPIDetail
+Inner JOIN	ExportPI ON ExportPIDetail.ExportPIID = [ExportPI].ExportPIID
+LEFT  JOIN	View_Product AS Product ON ExportPIDetail.ProductID = Product.ProductID
+LEFT  JOIN	MeasurementUnit ON ExportPIDetail.MUnitID = MeasurementUnit.MeasurementUnitID
+LEFT  JOIN	Currency ON Currency.CurrencyID = [ExportPI].CurrencyID
+LEFT JOIN   ColorCategory ON ColorCategory.ColorCategoryID  =  ExportPIDetail.ColorID
+LEFT JOIN   CapitalResource ON CapitalResource.CRID  =  ExportPIDetail.ModelReferenceID
+LEFT JOIN	OrderSheetDetail ON OrderSheetDetail.OrderSheetDetailID = ExportPIDetail.OrderSheetDetailID
+
+LEFT  JOIN	Fabric ON ExportPIDetail.FabricID = Fabric.FabricID
+LEFT JOIN   ExportQuality ON ExportQuality.ExportQualityID  =  ExportPIDetail.ExportQualityID
+LEFT	JOIN  PolyMeasurement ON ExportPIDetail.PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ExportPIDetailLog]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+ALTER VIEW [dbo].[View_ExportPIDetailLog]
+AS
+SELECT		ExportPIDetailLog.*,
+			0 as ExportPIDetailID,
+			0 as ExportPIID,
+			Product.ProductCode AS ProductCode, 
+            Product.ProductName AS ProductName, 
+            Product.ProductCode AS ProductCount,
+			Product.AddOne AS HSCode,
+			(SELECT IsApplySizer FROM ProductSetup WHERE ProductCategoryID = Product.ProductCategoryID) AS IsApplySizer,
+            [ExportPILog].PINo,
+			[ExportPILog].IssueDate,
+		    MeasurementUnit.Symbol AS MUName,
+			Currency.Symbol AS Currency,
+			ColorCategory.ColorName,
+			Product.AddTwo AS SizeName,
+			CapitalResource.Name AS ModelReferenceName,
+			OrderSheetDetail.OrderSheetID,
+			(SELECT TOP(1)VersionNo FROM View_ExportPILog WHERE ExportPILogID = ExportPIDetailLog.ExportPILogID) AS VersionNo,
+			0  As YetToProductionOrderQty,
+			PolyMeasurement.Measurement,
+				Fabric.FabricNo AS FabricNo,
+			--Fabric.FabricWidth AS FabricWidth,
+			----Fabric.ConstructionPI  AS Construction,
+			--Fabric.FinishType,
+			--Fabric.ProcessType,
+			--Fabric.FabricWeave,
+			(SELECT P.ProductName FROM Product AS P WHERE P.ProductID=Fabric.ProductID) AS FabricProductName --Composition
+			,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetailLog.ProcessType),'') as ProcessTypeName
+		    ,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetailLog.FabricWeave),'') as FabricWeaveName
+		    ,ISNULL((Select Name from FabricProcess Where FabricProcessID=ExportPIDetailLog.FinishType),'') as FinishTypeName
+			,ISNULL((Select RecipeName from Recipe AS RC Where RC.RecipeID=ExportPIDetailLog.RecipeID),'') as RecipeName
+			,ExportQuality.Name as ExportQuality	
+			,(SELECT top 1 ValueOfProperty FROM View_ProductPropertyInformation WHERE ProductID = ExportPIDetailLog.ProductID AND BUID =ExportPILog.BUID AND PropertyType = 4 ) AS ReferenceCaption
+										
+FROM		ExportPIDetailLog
+Inner JOIN	ExportPILog ON ExportPIDetailLog.ExportPILogID = ExportPILog.ExportPILogID
+LEFT  JOIN	Product ON ExportPIDetailLog.ProductID = Product.ProductID
+LEFT  JOIN	MeasurementUnit ON ExportPIDetailLog.MUnitID = MeasurementUnit.MeasurementUnitID
+LEFT  JOIN	Currency ON Currency.CurrencyID = ExportPILog.CurrencyID
+LEFT JOIN   ColorCategory ON ColorCategory.ColorCategoryID  =  ExportPIDetailLog.ColorID
+LEFT JOIN   CapitalResource ON CapitalResource.CRID  =  ExportPIDetailLog.ModelReferenceID
+LEFT JOIN	OrderSheetDetail ON OrderSheetDetail.OrderSheetDetailID = ExportPIDetailLog.OrderSheetDetailID
+LEFT  JOIN	Fabric ON ExportPIDetailLog.FabricID = Fabric.FabricID
+LEFT JOIN   ExportQuality ON ExportQuality.ExportQualityID  =  ExportPIDetailLog.ExportQualityID
+LEFT	JOIN  PolyMeasurement ON [ExportPIDetailLog].PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_OrderSheetDetailLog]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+
+
+ALTER VIEW [dbo].[View_OrderSheetDetailLog]
+AS
+SELECT		[OrderSheetDetailLog].*
+			,Product.ProductCode
+			,Product.ProductName
+			,Product.IsApplySizer
+			,CapitalResource.Name AS ModelReferenceName
+			,(SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = OrderSheetDetailLog.ColorID) As ColorName
+			,Product.AddTwo As SizeName
+			,MeasurementUnit.UnitName
+			,MeasurementUnit.Symbol AS UnitSymbol,
+			(OrderSheetDetailLog.Qty / (SELECT ISNULL(RateUnit,1) FROM OrderSheetLog WHERE OrderSheetLogID = OrderSheetDetailLog.OrderSheetLogID) * OrderSheetDetailLog.UnitPrice) As Amount,
+			(OrderSheetDetailLog.Qty - ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ExportPIDetail WHERE OrderSheetDetailLogID = OrderSheetDetailLog.OrderSheetDetailLogID),0))AS YetToPIQty,
+			PolyMeasurement.Measurement,
+			0 AS OrderSheetDetailID,
+			0 AS OrderSheetID,
+			ISNULL((Select RecipeName from Recipe AS RC Where RC.RecipeID=OrderSheetDetailLog.RecipeID),'') as RecipeName
+
+
+
+
+FROM		[OrderSheetDetailLog] 
+ LEFT   JOIN  View_Product AS Product ON  [OrderSheetDetailLog].ProductID =  Product.ProductID 
+ LEFT	JOIN  CapitalResource ON  [OrderSheetDetailLog].ModelReferenceID = CapitalResource.CRID 
+ LEFT	JOIN  MeasurementUnit ON [OrderSheetDetailLog].UnitID =  MeasurementUnit.MeasurementUnitID
+ LEFT	JOIN  PolyMeasurement ON [OrderSheetDetailLog].PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+ 
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ProductionOrderDetail]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER VIEW [dbo].[View_ProductionOrderDetail]
+AS
+SELECT		[ProductionOrderDetail].*
+			,Product.ProductCode
+			,Product.ProductName
+			,Product.IsApplySizer
+			,CapitalResource.Name AS ModelReferenceName
+			,(SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = ProductionOrderDetail.ColorID) As ColorName
+			,Product.AddTwo AS SizeName
+			,Product.AddThree AS SizeInCM
+			,Product.FinishGoodsWeight
+			,Product.NaliWeight
+			,Product.WeigthFor
+			,Product.FinishGoodsUnit
+			,Product.FGUSymbol
+			,MeasurementUnit.UnitName
+			,MeasurementUnit.Symbol AS UnitSymbol,
+			(ProductionOrderDetail.Qty - ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ExportSCDetail WHERE ExportSCDetailID = ProductionOrderDetail.ExportSCDetailID),0))AS YetToProductionOrderQty,
+			ISNULL((ProductionOrderDetail.Qty - ISNULL((SELECT SUM(ISNULL(Quantity,0)) FROM ProductionSheet WHERE ProductionOrderDetailID = ProductionOrderDetail.ProductionOrderDetailID ),0)),0) AS YetToProductionSheeteQty,
+		    (SELECT PINo FROM View_ExportSC WHERE ExportPIID =ProductionOrder.ExportSCID )AS ExportPINo,
+			ProductionOrder.PONo,
+			ProductionOrder.ContractorID,
+			ProductionOrder.ApproveBy,
+			ProductionOrder.OrderDate,
+			ProductionOrder.ProductNature,
+			PolyMeasurement.Measurement,
+			(SELECT UserName FROM Users WHERE UserID = ProductionOrder.ApproveBy) As ApprovedByName,
+			(SELECT Name FROM Contractor WHERE ContractorID =ProductionOrder.ContractorID )AS ContractorName,
+			ProductionOrder.BUID,
+			0 AS ProductionOrderDetailLogID, 
+			0 AS ProductionOrderLogID
+
+
+FROM		[ProductionOrderDetail] 
+ LEFT   JOIN  View_Product AS Product ON  [ProductionOrderDetail].ProductID =  Product.ProductID 
+ LEFT	JOIN  CapitalResource ON  [ProductionOrderDetail].ModelReferenceID = CapitalResource.CRID 
+ LEFT	JOIN  MeasurementUnit ON [ProductionOrderDetail].UnitID =  MeasurementUnit.MeasurementUnitID
+ LEFT JOIN ProductionOrder ON ProductionOrderDetail.ProductionOrderID = ProductionOrder.ProductionOrderID
+ LEFT	JOIN  PolyMeasurement ON [ProductionOrderDetail].PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_ProductionOrderDetailLog]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER VIEW [dbo].[View_ProductionOrderDetailLog]
+AS
+SELECT		[ProductionOrderDetailLog].*
+			,Product.ProductCode
+			,Product.ProductName
+			,Product.IsApplySizer
+			,CapitalResource.Name AS ModelReferenceName			
+			,(SELECT ColorName FROM ColorCategory WHERE ColorCategoryID = ProductionOrderDetailLog.ColorID) As ColorName
+			,Product.AddTwo AS SizeName
+			,Product.AddThree AS SizeInCM
+			,Product.FinishGoodsWeight
+			,Product.NaliWeight
+			,Product.WeigthFor
+			,Product.FinishGoodsUnit
+			,Product.FGUSymbol
+			,MeasurementUnit.UnitName
+			,MeasurementUnit.Symbol AS UnitSymbol,
+			PolyMeasurement.Measurement,
+			(ProductionOrderDetailLog.Qty - ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM ExportPIDetail WHERE ExportPIDetailID = ProductionOrderDetailLog.ExportSCDetailID),0))AS YetToProductionOrderLogQty,			
+			'' AS ExportPINo,
+			ProductionOrderLog.PONo,
+			ProductionOrderLog.ProductNature,
+			ProductionOrderLog.ContractorID,
+			'' AS ContractorName,
+			ProductionOrderLog.ApproveBy,
+			0 AS BUID,
+			0 AS YetToProductionSheeteQty,
+			0 as YetToProductionOrderQty,
+			0 as ProductionOrderDetailID,
+			0 as ProductionOrderID
+
+
+
+FROM		[ProductionOrderDetailLog] 
+ LEFT   JOIN  View_Product AS Product ON  [ProductionOrderDetailLog].ProductID =  Product.ProductID 
+ LEFT	JOIN  CapitalResource ON  [ProductionOrderDetailLog].ModelReferenceID = CapitalResource.CRID 
+ LEFT	JOIN  MeasurementUnit ON [ProductionOrderDetailLog].UnitID =  MeasurementUnit.MeasurementUnitID
+ LEFT JOIN ProductionOrderLog ON ProductionOrderDetailLog.ProductionOrderLogID = ProductionOrderLog.ProductionOrderLogID
+ LEFT	JOIN  PolyMeasurement ON [ProductionOrderDetailLog].PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_PTUUnit2]    Script Date: 7/3/2019 9:19:59 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+ALTER VIEW [dbo].[View_PTUUnit2]
+AS
+SELECT  PTUUnit2.PTUUnit2ID,
+		PTUUnit2.PTUType,
+		PTUUnit2.BUID, 
+		PTUUnit2.ExportSCID, 
+		PTUUnit2.ExportSCDetailID,
+		PTUUnit2.ProductID, 
+		PTUUnit2.ColorID,  
+		PTUUnit2.ModelReferenceID,
+		PTUUnit2.ExportSCQty,  --PIQTy
+		PTUUnit2.ProdOrderQty,  
+		PTUUnit2.SubcontractQty,
+		(SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE PTUUnit2DistributionRefType = 14 AND  PTUUnit2DistributionRefID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID)) AS SubContractReceiveQty,
+		(SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2Distribution WHERE PTUUnit2ID IN (SELECT SUBPTU.PTUUnit2ID FROM PTUUnit2 AS SUBPTU WHERE SUBPTU.ExportSCDetailID IN (SELECT Subcontract.ExportSCDetailID FROM Subcontract WHERE PTU2ID = PTUUnit2.PTUUnit2ID) AND SUBPTU.BUID!=PTUUnit2.BUID )) AS SubContractReadStockQty,
+		PTUUnit2.GraceQty, 
+        PTUUnit2.ProdPipeLineQty,  
+		PTUUnit2.ActualFinishQty,  
+		PTUUnit2.RejectQty,  
+		PTUUnit2.DOQty,  
+		PTUUnit2.ChallanQty,  
+		PTUUnit2.ReturnQty,  
+		PTUUnit2.UnitID, 
+		--(SELECT EPD.Measurement FROM ExportSCDetail AS EPD WHERE EPD.ExportSCDetailID = PTUUnit2.ExportSCDetailID) AS Measurement,
+		MeasurementUnit.UnitName,
+		MeasurementUnit.Symbol As UnitSymbol,
+		ExportSC.PINo AS ExportPINo,  
+		ExportSC.BuyerID, 
+		ExportSC.ContractorID,
+		ExportSC.ContractorName,
+		ExportSC.ProductNature,	
+		ExportSC.RateUnit,
+		ExportSC.CurrencyID,
+		ExportSC.ConversionRate,		
+		ExportSC.IssueDate AS PIDate,		
+		CapitalResource.Name AS ModelReferenceName, 
+		ExportSC.BuyerName,
+        Product.ProductCode,  
+		Product.ProductName,  
+		Product.FinishGoodsWeight,
+		Product.NaliWeight,
+		Product.FinishGoodsUnit,
+		Product.WeigthFor as WeightFor,
+		Product.FGUSymbol,
+		ColorCategory.ColorName,
+		Product.AddTwo AS SizeName,
+		PolyMeasurement.Measurement,
+		CASE WHEN PTUUnit2.UnitID!= Product.MeasurementUnitID THEN  ISNULL((SELECT top 1 ConvertedUnitValue FROM UnitConversion WHERE ProductID = PTUUnit2.ProductID AND MeasurementUnitID = PTUUnit2.UnitID AND ConvertedUnitID = Product.MeasurementUnitID),0) ELSE 1 END AS ConvertionValue,
+		(SELECT HH.StyleNo FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID=PTUUnit2.ExportSCDetailID) AS StyleNo,
+		(SELECT HH.Name FROM BusinessUnit AS HH WHERE HH.BusinessUnitID=PTUUnit2.BUID) AS BUName,
+		(SELECT HH.UnitPrice FROM ExportSCDetail AS HH WHERE HH.ExportSCDetailID=PTUUnit2.ExportSCDetailID) AS UnitPrice,
+		(SELECT SUM(ISNULL(HH.Qty,0)) FROM PTUUnit2Distribution AS HH WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID) As ReadyStockQty,																				--EnumPTUUnit2Ref: 13: Subcontract_Disburse, 14:Subcontract_Receive
+		(ISNULL(PTUUnit2.ProdOrderQty,0)+ISNULL(PTUUnit2.ReturnQty,0)+ISNULL(PTUUnit2.GraceQty,0)+ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE PTUUnit2DistributionRefType IN(14) AND  PTUUnit2DistributionRefID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID)),0)) - (ISNULL(PTUUnit2.ProdPipeLineQty,0)+ISNULL(PTUUnit2.ChallanQty,0)+ ISNULL(PTUUnit2.SubcontractQty,0)+ ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE PTUUnit2DistributionRefType IN(13) AND  PTUUnit2DistributionRefID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID)),0)+ ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID),0)) As ProductionCapacity,
+		--Receive PTU
+		(ISNULL(PTUUnit2.ProdOrderQty,0)+ISNULL(PTUUnit2.ReturnQty,0)+ISNULL(PTUUnit2.GraceQty,0)+ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE PTUUnit2DistributionRefType IN(14) AND  PTUUnit2DistributionRefID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID)),0)) - (ISNULL(PTUUnit2.ProdPipeLineQty,0)+ISNULL(PTUUnit2.ChallanQty,0)+ ISNULL(PTUUnit2.SubcontractQty,0)+ ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2DistributionLog WHERE PTUUnit2DistributionRefType IN(13) AND  PTUUnit2DistributionRefID IN (SELECT PTUUnit2DistributionID FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID)),0)+ ISNULL((SELECT SUM(ISNULL(Qty,0)) FROM PTUUnit2Distribution WHERE PTUUnit2ID = PTUUnit2.PTUUnit2ID),0)) As YetToProductionSheeteQty,
+		--ISNULL((PTUUnit2.ProdOrderQty+ ISNULL((SELECT SUM(ISNULL(TT.Qty,0)) FROM View_PTUUnit2DistributionLog AS TT WHERE  TT.PTUUnit2ID = PTUUnit2.PTUUnit2ID AND TT.PTUUnit2DistributionRefType IN(8,12)),0) - ISNULL((SELECT SUM(ISNULL(VPS.Quantity,0)) FROM ProductionSheet AS VPS WHERE VPS.PTUUnit2ID = PTUUnit2.PTUUnit2ID AND VPS.BUID = PTUUnit2.BUID ),0)),0) AS YetToProductionSheeteQty,
+		(ISNULL(PTUUnit2.ExportSCQty,0) + ISNULL(PTUUnit2.ReturnQty,0)) - ISNULL(PTUUnit2.DOQty,0) AS YetToDOQty,
+		ISNULL(PTUUnit2.DOQty,0)  - ISNULL(PTUUnit2.ChallanQty,0) AS YetToChallanQty,
+		ISNULL((SELECT SUM(ISNULL(LT.Balance,0)) FROM Lot as LT WHERE LT.BUID = ExportSC.BUID AND LT.ProductID = PTUUnit2.ProductID AND LT.ColorID = PTUUnit2.ColorID AND  LT.WorkingUnitID IN(SELECT HH.WorkingUnitID FROM WorkingUnit AS HH WHERE HH.BUID = ExportSC.BUID AND HH.UnitType = 4)),0)As AvialableStockQty--UnitType:4 means avilable stock
+
+FROM		PTUUnit2 
+INNER JOIN	View_ExportSC AS ExportSC ON  PTUUnit2.ExportSCID =  ExportSC.ExportSCID 
+INNER JOIN	View_Product  AS Product ON  PTUUnit2.ProductID =  Product.ProductID 
+LEFT JOIN	ColorCategory ON  PTUUnit2.ColorID =  ColorCategory.ColorCategoryID 
+LEFT JOIN	CapitalResource ON PTUUnit2.ModelReferenceID =  CapitalResource.CRID
+LEFT JOIN	MeasurementUnit ON PTUUnit2.UnitID =  MeasurementUnit.MeasurementUnitID
+LEFT	JOIN  PolyMeasurement ON PTUUnit2.PolyMUnitID=  PolyMeasurement.PolyMeasurementID
+
+
+
+GO

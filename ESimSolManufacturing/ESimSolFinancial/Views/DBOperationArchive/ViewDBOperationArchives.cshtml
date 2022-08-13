@@ -1,0 +1,206 @@
+﻿@{
+	ViewBag.Title = "Database Operation Archive";
+}
+@model IEnumerable<ESimSol.BusinessObjects.DBOperationArchive>
+
+	<div class="menuMainCollectionTable" style="height:100%;width:1015px">
+		<table id="tblDBOperationArchives" title="Database Operation Archive" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+			<thead>
+				<tr>					
+                    <th field="ModuleNameSt" width="100" align="left">Module Name</th>			
+                    <th field="DBOperationTypeSt" width="80" align="left">Operation Type</th>
+					<th field="RefText" width="200" align="left">Reference Text</th>
+                    <th field="UserName" width="100" align="left">Operate By</th>
+                    <th field="DBServerDateTimeSt" width="120" align="center">Operate Date Time</th>
+                    <th field="BUName" width="100" align="left">BU Name</th>
+				</tr>
+			</thead>
+		</table>
+        <div id="toolbar">
+            <select style="width:130px" id="cboBusinessUnit"></select>&nbsp;
+            <select style="width:130px" id="cboDBOperation"></select>&nbsp;
+
+            <input type="text" placeholder="Search by Module Name" style="width:150px" id="txtModuleName" />&nbsp;
+            <input type="text" placeholder="Search by Reference Text" style="width:150px" id="txtRefText" />&nbsp;
+
+            <input type="checkbox" id="dateCheck" data-options="field:'Selected',checkbox:true"></>&nbsp;            
+            <input type="text" placeholder="Start Date" style="width:100px" id="txtStartDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />&nbsp;
+            To &nbsp;
+            <input type="text" placeholder="End Date" style="width:100px" id="txtEndDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            
+            <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+            <a id="btnPDF" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">PDF</a>
+        </div>
+	</div>
+
+	<script type="text/javascript">
+        $(document).ready(function () {           
+            var oDBOperationArchives =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BusinessUnits));
+            var oDBOperationTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.DBOperationTypes));
+
+            $("#cboBusinessUnit").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortName", InitialValue: "- - Business Unit - -" });
+            $("#cboDBOperation").icsLoadCombo({ List: oDBOperationTypes, OptionValue: "id", DisplayText: "Value", InitialValue: "-- Operation Type --" });
+            
+            $("#txtStartDate,#txtEndDate").datebox({ disabled: true });
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtModuleName').data('id', 0);
+
+            RefreshList(oDBOperationArchives);
+        });
+
+        $("#dateCheck").click(function () {
+            if ($('input[id="dateCheck"]:checked').length > 0)
+            {
+                $("#txtStartDate,#txtEndDate").datebox({ disabled: false });
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+            else
+            {
+                $("#txtStartDate,#txtEndDate").datebox({ disabled: true });
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+        });
+
+		function RefreshList(oDBOperationArchives) {
+            DynamicRefreshList(oDBOperationArchives, 'tblDBOperationArchives');
+            var nSelectedRowIndex = parseInt(sessionStorage.getItem("selectedRowIndex"));
+            if (nSelectedRowIndex != -1) {
+                $('#tblDBOperationArchives').datagrid('selectRow', nSelectedRowIndex);
+            }
+        }
+
+        $('#txtModuleName').autocomplete({
+            serviceUrl: sessionStorage.getItem('BaseAddress') + '/DBOperationArchive/GetsModuleAutocomplete',
+            paramName: "ModuleName",
+            delimiter: ",",
+            minChars: 2,
+            transformResult: function (response) {
+                debugger;
+                return {
+                    suggestions: $.map($.parseJSON(response), function (item) {
+                        return { value: item.Value, data: item.id };
+                    })
+                };
+            },
+            onSelect: function (suggestion) {
+                $('#txtModuleName').data('id', suggestion.data);
+                $("#txtModuleName").addClass("fontColorOfPickItem");
+            },
+            onSearchStart: function (query) {
+                $('#txtModuleName').data('id', 0);
+                $("#txtModuleName").removeClass("fontColorOfPickItem");
+            }
+        });        
+
+
+        function ValidateInput()
+        {
+            var bIsDateSearch = $('#dateCheck').is(':checked');
+            var sStartDate = $('#txtStartDate').datebox('getValue');
+            var sEndDate = $('#txtEndDate').datebox('getValue');
+            if (bIsDateSearch == true)
+            {
+                if (sStartDate == null || sStartDate == "")
+                {
+                    alert("Please Select Start Date!");
+                    return false;
+                }
+
+                if (sEndDate == null || sEndDate == "")
+                {
+                    alert("Please Select End Date!");
+                    return false;
+                }
+
+                var dStartDate = new Date(sStartDate);
+                var dEndDate = new Date(sEndDate);
+                if (dEndDate < dStartDate)
+                {
+                    alert("End Date Must Be Grater Then Start Date!");
+                    return false;
+                }
+            }
+
+            var nBUID =  parseInt($('#cboBusinessUnit').val());
+            var nDBOperationType = parseInt($('#cboDBOperation').val());
+            var nModuleName =  parseInt($('#txtModuleName').data('id'));
+            var sRefText =  $.trim($('#txtRefText').val());
+
+            if (nBUID == 0 && nDBOperationType == 0 && nModuleName == 0 && sRefText == "" && bIsDateSearch == false)
+            {
+                alert("Please select at least one Searching Criteria!");
+                return false;
+            }
+            return true;
+        }
+
+        $("#btnSearch").click(function () {
+            if (!ValidateInput()) { return; }
+
+            var oDBOperationArchive = {
+                BUID : parseInt($('#cboBusinessUnit').val()),
+                DBOperationType : parseInt($('#cboDBOperation').val()),
+                ModuleName : parseInt($('#txtModuleName').data('id')),
+                RefText : $.trim($('#txtRefText').val()),
+                IsDateSearch : $('#dateCheck').is(':checked'),
+                StartDate : $('#txtStartDate').datebox('getValue'),
+                EndDate : $('#txtEndDate').datebox('getValue')
+            }
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: sessionStorage.getItem('BaseAddress') + "/DBOperationArchive/Search",
+                data: JSON.stringify(oDBOperationArchive),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    var oDBOperationArchives = jQuery.parseJSON(data);
+                    if (oDBOperationArchives != null) {
+                        if (oDBOperationArchives.length > 0) {
+                            DynamicRefreshList(oDBOperationArchives, 'tblDBOperationArchives');
+                        }
+                        else {
+                            alert("Data Not Found!");
+                        }
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        });
+
+        $("#btnPDF").click(function () {
+            debugger;
+            var oDBOperationArchives = $('#tblDBOperationArchives').datagrid('getRows');
+            var oDBOperationArchive = {
+                ErrorMessage: ICS_PropertyConcatation(oDBOperationArchives, 'DBOperationArchiveID')
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: sessionStorage.getItem('BaseAddress') + "/DBOperationArchive/SetSessionData",
+                traditional: true,
+                data: JSON.stringify(oDBOperationArchive),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    var sFeedBackMessage = jQuery.parseJSON(data);
+                    if (sFeedBackMessage === "Successful") {
+                        var tsv = ((new Date()).getTime()) / 1000;
+                        window.open(sessionStorage.getItem('BaseAddress') + '/DBOperationArchive/PrintList?ts=' + tsv, "_blank");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        });
+	</script>

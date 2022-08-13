@@ -1,0 +1,492 @@
+﻿@{
+    ViewBag.Title = "Fabric Batch Receive";
+}
+<html>
+<body>
+@model IEnumerable<ESimSol.BusinessObjects.FabricBatchQC>
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Fabric Receive In Delivery" style="font-family:Tahoma;text-align:center; width:100%;height:100%;">
+            <div  style="height:17%">
+                <fieldset>
+                    <legend>Fabric Batch Info </legend>
+                    <table border="0" cellpadding="1" cellspacing="1">
+                        <tr>
+                            <td style="width:190px; text-align:right;">Batch No:</td>
+                            <td style="width:400px;text-align:left;">
+                            <select style="width:195px;margin-right:5px;" id="cboFabricBatch" class="ChageBatchIssue" />
+                                <input type="text" style="width:200px;text-align:left;" placeholder="Enter Dispo No" id="txtEFONo" />
+                            
+                             </td>
+                            <td style="width:20px"></td>
+                            <td style="width:190px; text-align:right;">Order No :</td>
+                            <td style="width:350px;text-align:left;">
+                                <table border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width:140px;"><input type="text" style="width:140px; text-align:left;" id="txtOrderNo" disabled /></td>
+                                        <td style="width:70px; text-align:right;">Status:</td>
+                                        <td style="width:140px;text-align:left;"><input type="text" style="width:140px;" id="txtStatus" disabled /></td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:190px; text-align:right;">Construction :</td>
+                            <td style="width:400px;text-align:left;">
+                                <input type="text" style="width:400px;" id="txtConstruction" disabled />
+                            </td>
+                            <td style="width:20px"></td>
+                            <td style="width:190px; text-align:right;">Buyer :</td>
+                            <td style="width:350px;text-align:left;">
+                                <input type="text" style="width:350px;" id="txtBuyer" disabled />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:190px; text-align:right;">Fabric Type :</td>
+                            <td style="width:400px;text-align:left;">
+                                <input type="text" style="width:400px;" id="txtFabricType" disabled />
+                            </td>
+                            <td style="width:20px"></td>
+                            <td style="width:190px; text-align:right;">Process Type :</td>
+                            <td style="width:350px;text-align:left;">
+                                <input type="text" style="width:350px;" id="txtProcessTypeName" disabled />
+                            </td>
+                        </tr>
+                        
+                    </table>
+                </fieldset>
+            </div>
+            <div  style="height:75%;width:100%">
+                <table id="tblFabricBatchQCDetail" title="Roll Details" class="easyui-datagrid" style="height:100%;width:100%" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarQCDetail"
+                       data-options="rowStyler: function(index,row){if (row.ReceiveBy >0){return 'background-color:#6293BB;color:#fff;font-weight:bold;';}}">
+                    <thead>
+                        <tr>
+                            <th data-options="field:'Selected',checkbox:true"></th>
+                            <th field="LotNo" width="150">Roll No</th>
+                            <th field="QCGrade" width="70">Grade</th>
+                            <th field="Qty" width="120" align="right">Length(Y)</th>
+                            <th field="QtyInMeter" width="120" align="right">Length(M)</th>
+                            @*<th field="LockInString" width="100">Delivered</th>*@
+                            <th field="DeliveryDateSt" width="100">Delivery Date</th>
+                            <th field="StoreRcvDateInString" width="100">Received Date</th>
+                            <th field="Remark" width="80">Remark</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbarQCDetail">
+                    Store: <select id="cboStore" style="width:250px;"></select>
+                    Received Date:<input id="dtReceiveDate" type="text" style="width: 120px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <a id="btnReceive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Receive()">Receive</a>
+                    <a id="btnRemove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Remove()">Remove</a>
+                </div>
+                <div class="col-md-12 summary">
+                    <div class="col-md-4 text-right"><label>Total</label></div>
+                    <div class="col-md-3 text-right"><label id="lblTotalQtyInYrd"></label></div>
+                    <div class="col-md-2 text-right"><label id="lblTotalQtyInMtr"></label></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    .summary .col-md-4 {
+        width: 30%;
+    }
+
+    .summary .col-md-3 {
+        width: 25%;
+    }
+    .summary .col-md-2 {
+        width: 20%;
+    }
+</style>
+
+<script type="text/javascript">
+    var _oFabricBatchQC=null;
+    var _oFabricBatchQCs = [];
+    var _sBaseAddress="";
+    var _objName = "";
+    var _oEmployees = [];
+    var _oStores = [];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricBatchQCs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Stores));
+        debugger;
+        $("#cboFabricBatch").icsLoadCombo({List: _oFabricBatchQCs,OptionValue: "FBQCID",DisplayText: "BatchNoWithFEONo"});
+        $("#cboStore").icsLoadCombo({List: _oStores,OptionValue: "WorkingUnitID",DisplayText: "WorkingUnitName"});
+        $("#btnRemove").hide();
+        $("#dtReceiveDate").datebox("setValue", icsdateformat(new Date()));
+    });
+
+    $(".ChageBatchIssue").change(function(){
+        debugger;
+        if ($("#cboFabricBatch").val()==0) 
+        {
+            var oEmptyList = [];
+            DynamicRefreshListForMultipleSelection([],"tblFabricBatchQCDetail");
+            $("#txtOrderNo").val('');
+            $("#txtStatus").val('');
+            $("#txtConstruction").val('');
+            $("#txtFabricType").val('');
+            $("#txtBuyer").val('');
+            $("#txtProcessTypeName").val('');
+            _oFabricBatchQC="";
+        }else{
+            for (var i=0;i<_oFabricBatchQCs.length;i++)
+            {
+                if(parseInt(_oFabricBatchQCs[i].FBQCID) == parseInt($("#cboFabricBatch").val()) )
+                {
+                    _oFabricBatchQC = _oFabricBatchQCs[i];
+                    $("#txtOrderNo,#txtEFONo").val(_oFabricBatchQC.OrderNo);
+                    $("#txtStatus").val(_oFabricBatchQC.StatusSt);
+                    $("#txtConstruction").val(_oFabricBatchQC.Construction);
+                    $("#txtProcessTypeName").val(_oFabricBatchQC.ProcessTypeName);
+                    $("#txtFabricType").val(_oFabricBatchQC.FabricType);
+                    $("#txtBuyer").val(_oFabricBatchQC.BuyerName);
+                    GetQCInformation(_oFabricBatchQC.FBQCID);
+                    return false;
+                }
+            }
+        }
+    });
+    function GetQCInformation(nFBQCID)
+    {
+        debugger;
+        if (parseInt(nFBQCID) > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/FabricBatch/GetFabricBatchQCDetails",
+                data: { id:nFBQCID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    _oFabricBatchQCDetails = jQuery.parseJSON(data);
+                    if (parseInt(_oFabricBatchQCDetails.length)>0)
+                    {
+                        if(_oFabricBatchQCDetails.length>0)
+                        {
+                            $.map(_oFabricBatchQCDetails,function(obj){
+                                obj.Qty = parseFloat(obj.Qty.toFixed(2));
+                            });
+                        }
+                        DynamicRefreshListForMultipleSelection(_oFabricBatchQCDetails,"tblFabricBatchQCDetail");
+                    }else
+                    {
+                        DynamicRefreshListForMultipleSelection([],"tblFabricBatchQCDetail");
+                    }
+                    SummaryDetail();
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+    function Receive()
+    {
+        var oFabricBatchQCDetail={
+            WorkingUnitID : 0,
+            FabricBatchQCDetails:[],
+            FBQCID:_oFabricBatchQC.FBQCID
+        }
+
+        if(parseInt($('#cboStore').val())<=0)
+        {
+            alert("Select Store.");
+            return false;
+        }
+        var oFabricBatchQCDetails = $("#tblFabricBatchQCDetail").datagrid("getChecked");
+        if(oFabricBatchQCDetails.length == 0)
+        {
+            alert("Select item(s) from list.!");
+            return false;
+        }
+        
+        var nLength = oFabricBatchQCDetails.length;
+        var sFBQCDetailIDs="";
+        var sRejectedListIDs="";
+
+        debugger;
+        var nCountReject = 0;
+        var bIsAllRejectItem = false;
+        var bHasNonRejectedItem = false;
+        $.map(oFabricBatchQCDetails, function (c){
+            //if(c.Grade == 5)
+            //{
+            //    nCountReject++;
+            //}
+            //if(c.ReceiveBy == 0 && c.Grade == 5) {
+            //    nCountReject++;
+            //    sRejectedListIDs = c.FBQCDetailID + "," + sRejectedListIDs;
+            //    bIsAllRejectItem = true;
+            //}
+            //if(c.ReceiveBy == 0 && c.Grade != 5) {
+            //    sFBQCDetailIDs = c.FBQCDetailID + "," + sFBQCDetailIDs;
+            //    bHasNonRejectedItem = true;
+            //}
+            if(c.ReceiveBy == 0 ){
+                 sFBQCDetailIDs = c.FBQCDetailID + "," + sFBQCDetailIDs;
+            }
+        });
+
+        //var nRejectedListItemCount = sRejectedListIDs.split(',').length - 1;
+
+        //if(bIsAllRejectItem && !bHasNonRejectedItem)
+        //{
+        //    if (!confirm("Confirm to receive (Your selected all item's grade are 'Reject')?")) return false;
+        //    sFBQCDetailIDs = sRejectedListIDs;
+        //    bIsAllRejectItem = true;
+        //}
+
+        if($.trim(sFBQCDetailIDs) == "")
+        {
+            alert("Your selected item(s) already received.");
+            return false;
+        }
+        else
+        {
+            sFBQCDetailIDs = sFBQCDetailIDs.substring(0,sFBQCDetailIDs.length-1);
+        }
+
+        if (!confirm("Confirm to receive?")) return false;
+
+        //if(nCountReject > 0 && bHasNonRejectedItem)
+        //{
+        //    var bConfirmation = confirm(nCountReject  + " rejected item" + (nCountReject > 1 ? "s" : "") + " found. Continue without reject items ?");
+        //    if(!bConfirmation)
+        //    {
+        //        return false;
+        //    }
+        //}cboFabricBatch
+        //else
+        //{
+        //    if(!bIsAllRejectItem)
+        //    {
+        //        if (!confirm("Confirm to receive?")) return false;
+        //    }
+        //}
+
+        oFabricBatchQCDetail.WorkingUnitID = parseInt($("#cboStore").val());
+        //oFabricBatchQCDetail.FabricBatchQCDetails = oCheckedList;
+        oFabricBatchQCDetail.FBQCDetailIDs = sFBQCDetailIDs;
+        oFabricBatchQCDetail.StoreRcvDate =$("#dtReceiveDate").datebox("getValue");
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricBatch/ReceiveFabric",
+            traditional: true,
+            data:  JSON.stringify(oFabricBatchQCDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                
+                var oFBQCDetail = jQuery.parseJSON(data);
+                if($.trim(oFBQCDetail.ErrorMessage) == "")
+                {
+                    alert("Successfully Received");
+                    if(oFBQCDetail.FabricBatchQCDetails.length>0)
+                    {
+                        $.map(oFBQCDetail.FabricBatchQCDetails,function(obj){
+                            obj.Qty = parseFloat(obj.Qty.toFixed(2));
+                        });
+                    }
+                    DynamicRefreshListForMultipleSelection(oFBQCDetail.FabricBatchQCDetails,"tblFabricBatchQCDetail");
+                    $('#txtStatus').val(oFBQCDetail.FabricBatchQC.StatusSt);
+                    SummaryDetail();
+                }
+                else {
+                    alert(oFBQCDetail.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    } 
+    function SummaryDetail(){
+        var oRows=$('#tblFabricBatchQCDetail').datagrid('getRows');
+        var nQtyInYrd=0, nQtyInMtr=0 ; 
+        if(oRows.length>0)
+        {
+            for(var i=0; i<oRows.length;i++){
+                nQtyInYrd+= parseFloat(oRows[i].Qty);
+                nQtyInMtr+=parseFloat(oRows[i].QtyInMeter);
+            }
+            $('#lblTotalQtyInYrd').html(formatPrice(nQtyInYrd));
+            $('#lblTotalQtyInMtr').html(formatPrice(nQtyInMtr));
+
+        }
+        else{
+            $('#lblTotalQtyInYrd').text("");
+            $('#lblTotalQtyInMtr').text("");
+        }
+
+    }
+
+    $("#txtEFONo").keydown(function(e){
+        if (e.keyCode === 13) {
+            var oFabricBatchQC = {
+                FEONo : $.trim($(this).val())
+            };
+           
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oFabricBatchQC,
+                ControllerName: "FabricBatch",
+                ActionName: "GetReceiveFabricByFEO",
+                IsWinClose: false
+            };
+            $.icsMaxDataGets(obj, function (response) {
+           
+                if (response.status && response.objs.length > 0) {
+                    debugger;
+                    if (response.objs[0].FEOID > 0) {
+                        var tblColums = [];
+                        var oColumn = { field: "BatchNo", title: "Batch No", width: "20%", align: "left"}; tblColums.push(oColumn);
+                        oColumn = { field: "OrderNo", title: "FEO No", width: "20%", align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "FabricMachineName", title: "Loom", width: "55%", align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winFEO',
+                            winclass: 'clsFEO',
+                            winwidth: 500,
+                            winheight: 460,
+                            tableid: 'tblFEOs',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: false,
+                            searchingbyfieldName: 'OrderNo',
+                            windowTittle: 'FEO List',
+                            placeholder : "Search By FEO No"
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                     
+                    }
+                    else {
+                       
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else{
+                    
+                    alert("No list found.");
+                }
+                
+            });
+        }
+        else if(e.keyCode === 8)
+        {
+            $("#txtEFONo").removeClass("fontColorOfPickItem");
+         
+        }
+    });
+    function IntializePickerbutton(oPickerObj) {
+        $("#" + oPickerObj.winid).find("#btnOk").click(function () {
+            IntializePickerbuttonPick(oPickerObj);
+        });
+        $(document).find('.' + oPickerObj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                IntializePickerbuttonPick(oPickerObj);
+            }
+        });
+    }
+
+    function IntializePickerbuttonPick(oPickerObj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerObj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerObj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerObj.tableid).datagrid('getSelected');
+        }
+
+
+        if (oPickerObj.winid == 'winFEO') {
+            if (oreturnObj != null && oreturnObj.FBQCID > 0) {
+                $("#" + oPickerObj.winid).icsWindow("close");
+                debugger
+                for (var i=0;i<_oFabricBatchQCs.length;i++)
+                {
+                    if(parseInt(_oFabricBatchQCs[i].FBQCID) == oreturnObj.FBQCID )
+                    {
+                        $("#cboFabricBatch").val(oreturnObj.FBQCID);
+                        _oFabricBatchQC = _oFabricBatchQCs[i];
+                        $("#txtOrderNo,#txtEFONo").val(_oFabricBatchQC.OrderNo);
+                        $("#txtStatus").val(_oFabricBatchQC.StatusSt);
+                        $("#txtConstruction").val(_oFabricBatchQC.Construction);
+                        $("#txtProcessTypeName").val(_oFabricBatchQC.ProcessTypeName);
+                        $("#txtFabricType").val(_oFabricBatchQC.FabricType);
+                        $("#txtBuyer").val(_oFabricBatchQC.BuyerName);
+                        GetQCInformation(_oFabricBatchQC.FBQCID);
+                        return false;
+                    }
+                }
+            } else {
+                alert("Select an item from list.");
+                return false;
+            }
+           
+        }
+       
+        $("#" + oPickerObj.winid).icsWindow("close");
+        $("#" + oPickerObj.winid).remove();
+    }
+   
+    $('#tblFabricBatchQCDetail').datagrid({ onSelect: function (rowIndex, rowData) { tblSelectionChangeventFBQCD(rowIndex, rowData); } });
+
+    function tblSelectionChangeventFBQCD(rowIndex, rowData) {
+       
+        if (rowData.ReceiveBy==0 && rowData.Qty==0) {
+             $("#btnRemove").show();
+        }
+        else{
+            $("#btnRemove").hide();
+        }
+   
+    }
+    function Remove()
+    {
+        if (!confirm("Confirm to Remove?")) return;
+        var oFBQCD = $('#tblFabricBatchQCDetail').datagrid('getSelected');
+        if (oFBQCD == null)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+
+        var SelectedRowIndex = $('#tblFabricBatchQCDetail').datagrid('getRowIndex', oFBQCD);
+
+        if (oFBQCD.FBQCDetailID > 0) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: _sBaseAddress + "/FabricBatch/DeleteQCDetail",
+                data: { id: oFBQCD.FBQCDetailID },
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+                    debugger;
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted") {
+                        alert("Delete sucessfully");
+                        $('#tblFabricBatchQCDetail').datagrid('deleteRow', SelectedRowIndex);
+                        $("#btnRemove").hide();
+                    } else {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        else
+        {
+            $('#tblFabricBatchQCDetail').datagrid('deleteRow', SelectedRowIndex);
+        }
+    }
+</script>

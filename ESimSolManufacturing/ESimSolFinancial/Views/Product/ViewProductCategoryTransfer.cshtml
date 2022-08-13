@@ -1,0 +1,242 @@
+﻿@{
+    ViewBag.Title = "Category Transfer";
+}
+@model ESimSol.BusinessObjects.Product
+
+<div style="padding-top:5px; height:99%" ng-app="ProductAPP" ng-controller="ProductCtrl" class="form-horizontal regionProduct menuMainCollectionTable">
+    
+    <div style="height:88%">  
+        <fieldset style="height:100%">
+            <legend>Category Transfer: </legend>
+            <div style="padding:15% 0 0 10%">
+                <div class="row col-md-12">
+                    <div class="col-md-3 text-right"><label class="control-label">Source Category:</label></div>
+                    <div class="col-md-8 text-left">
+                        <div class="form-inline">
+                            <input type="text" ng-keydown="ProductCategory($event,1)" ng-model="SourceCategory.ProductCategoryName" class="form-control" style="width:85%" />
+                            <span>  <input type="button" value="Pick" ng-click="PickProductCategory(1)" style="text-align:center;" style="width:15%" /></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row col-md-12">
+                    <div class="col-md-3 text-right"><label class="control-label">Destination Category:</label></div>
+                    <div class="col-md-8 text-left">
+                        <div class="form-inline">
+                            <input type="text" ng-keydown="ProductCategory($event,2)" ng-model="DestinationCategory.ProductCategoryName" class="form-control" style="width:85%" />
+                            <span> <input type="button" value="Pick" ng-click="PickProductCategory(2)" style="text-align:center;" style="width:15%" /></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+   
+    <div style="height:10%">
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" class="btn btn-primary" aria-label="Left Align" ng-show="hide_Transfer" ng-click="Transfer()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Transfer </span> </button>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+
+    .grid{
+        width:100%; 
+        height:320px;
+    }
+    .regionProduct .form-horizontal .control-label{
+        padding-top:3px;
+    }
+    .regionProduct .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .regionProduct .col-md-12{
+        width:100%;
+        padding-right:5px;
+        padding-left:5px;
+        margin-bottom:5px;
+    }
+    .regionProduct .col-md-2{
+        width:13%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+    .regionProduct .col-md-3{
+        width:20%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProduct .col-md-4{
+        width:28%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProduct .col-md-5{
+        width:40%;
+        padding-right:5px;
+        padding-left:0px;
+    }
+
+     .regionProduct .col-md-10{
+        width:86%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProduct .col-md-8{
+        width:78%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+    .regionProduct .btn-sm{
+         padding:3px 10px;
+     }
+     .regionProduct .input-group-addon{
+         padding: 4px 8px;
+     }
+</style>
+
+<script type="text/javascript">
+    debugger;
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var _BUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    var ProductModule = angular.module('ProductAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ms.service']);
+    ProductModule.controller('ProductCtrl', function ($scope, $http, $uibModal, $log, msModal) {
+        debugger;
+        
+        $scope.hide_Transfer=true;
+        $scope.SourceCategory=new Object();
+        $scope.DestinationCategory=new Object();
+        $scope.BUID=_BUID;
+
+        $scope.PickProductCategory= function (nType)
+        {
+            debugger;
+            var txtPorduct="";
+            if(nType==1)
+                txtPorduct=($scope.SourceCategory.ProductCategoryName == undefined ? "" : $scope.SourceCategory.ProductCategoryName)
+            else if(nType==2)
+                txtPorduct=($scope.DestinationCategory.ProductCategoryName == undefined ? "" : $scope.DestinationCategory.ProductCategoryName)
+
+            var oProductCategory = {
+                ProductCategoryName : txtPorduct,
+                IsLastLayer : true,
+                BusinessUnitID : $scope.BUID
+            };
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/ProductCategory/GetByName',$.param(oProductCategory), config).then(
+                        function (response)
+                        {
+                            var oDetailColumns = [];
+                            var oColumn = { field: 'ProductCategoryName', name:'Category', width:'90%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Porduct Category',
+                                searchingbyfieldName:'ProductCategoryName',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                if(result.ProductCategoryID>0)
+                                {
+                                    if(nType==1)
+                                        $scope.SourceCategory=result;
+                                    if(nType==2)
+                                        $scope.DestinationCategory=result;
+                                }
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        };
+        $scope.ProductCategory = function (e, nType){
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var txtPorduct ="";
+
+                if(nType==1)
+                    txtPorduct=($scope.SourceCategory.ProductCategoryName == undefined ? "" : $scope.SourceCategory.ProductCategoryName)
+                else if(nType==2)
+                    txtPorduct=($scope.DestinationCategory.ProductCategoryName == undefined ? "" : $scope.DestinationCategory.ProductCategoryName)
+                
+                if(txtPorduct=="" || txtPorduct==null)
+                {
+                    alert("Type Category Name and Press Enter");
+                    return;
+                }
+
+                $scope.PickProductCategory(nType);
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtPorductNo='';
+            }
+        };
+
+        $scope.Validation = function()
+        {
+            debugger;
+
+            if($scope.SourceCategory.ProductCategoryID<=0)
+            {
+                alert("Please Select Source And Try Again.");
+                return false;
+            }
+            if($scope.DestinationCategory.ProductCategoryID<=0)
+            {
+                alert("Please Select Destination Category And Try Again.");
+                return false;
+            }
+
+            return true;
+        }
+        $scope.Transfer = function () 
+        {
+            debugger;
+            if(!$scope.Validation())
+                return;
+            $scope.Product =new Object();
+            $scope.Product.ParentCategoryID=$scope.SourceCategory.ProductCategoryID; //Source ProductID
+            $scope.Product.ProductCategoryID=$scope.DestinationCategory.ProductCategoryID; //Destination ProductCategoryID
+            console.log($scope.Product);
+            return;
+            $http.post(_sBaseAddress+'/Product/CategoryTransfer',JSON.stringify($scope.Product)).then(
+                function (response) {
+                    var result=jQuery.parseJSON(response.data);
+                    if(result.ProductID>0)
+                    {
+                        debugger;
+                        alert("Product Category Is Successfully Transferred.")
+                    }
+                    else
+                    {
+                        alert(result.ErrorMessage);
+                    }
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        );
+        };
+
+    });
+</script>
+
+

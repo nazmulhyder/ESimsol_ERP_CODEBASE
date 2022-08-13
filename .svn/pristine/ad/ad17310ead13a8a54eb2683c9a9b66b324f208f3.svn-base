@@ -1,0 +1,837 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeSalary>
+    @{
+        ViewBag.Title = "Employee Salary(ZN)";
+    }
+    <div style="margin-left:0px; height:500px">
+        <table id="tblEmployeeSalary" title="Employee Salary  List" class="easyui-datagrid" style="width:1016px;height:500px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" selectoncheck="false" checkonselect="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th data-options="field:'Selected',checkbox:true"></th>
+                    <th field="EmployeeNameCode" width="250" align="left">Employee Name</th>
+                    <th field="GrossAmount" width="100" align="right" formatter="formatPrice">Gross Salary</th>
+                    <th field="DeriveNetAmount" width="100" align="right" formatter="formatPrice">Net Salary</th>
+                    <th field="SalaryDateInString" width="175" align="left">Process Date</th>
+                    <th field="SalaryForInString" width="175" align="left">Salary For</th>
+                </tr>
+            </thead>
+        </table>
+        ​<table>
+            <tr>
+                <td>
+                    <input id="chkRange" type="checkbox" />Range
+                    <label id="lblRange1">
+                        <input id="txtFrom" type="text" style="width:40px" />&nbsp; To &nbsp;
+                    </label>
+                    <label id="lblRange2">
+                        <input id="txtTo" type="text" style="width:40px" />
+                    </label>
+                    &nbsp; &nbsp;
+                    <label id="lblcount"></label>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Next()">Next</a>
+                </td>
+
+            </tr>
+        </table>
+        <div id="toolbar" style="height:75px;">
+            <input id="dtStartDate" type="text" style="width: 100px;" class="easyui-datebox"
+            data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="dtEndDate" type="text" style="width: 100px;" class="easyui-datebox"
+            data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input id="txtEmployeeCode" style="width:140px;" type="text" placeholder="Type Code & Enter" />
+            <input id="btnEmployee" type="button" value="P" />
+            <input id="btnCEmployee" type="button" value="C" style="margin-right:2px;" />
+            <input id="txtDepartment" type="text" style="width:120px;" placeholder="Pick Department" />
+            <input id="btnDepartment" type="button" value="P" onclick="DepartmentPicker()" />
+            <input id="btnCDepartment" type="button" value="C" style="margin-right:2px;" />
+            <input id="txtDesignation" type="text" style="width:120px;" placeholder="Pick Designation" />
+            <input id="btnDesignation" type="button" value="P" onclick="DesignationPicker()" />
+            <input id="btnCDesignation" type="button" value="C" style="margin-right:2px;" />
+            <br />
+            <input id="txtSalaryScheme" type="text" style="width:200px" placeholder="Type salary scheme name & enter" />
+            <input id="btnSalaryScheme" type="button" value="P" />
+            <input id="btnCSalaryScheme" type="button" value="C" style="margin-right:2px;" />
+            <a id="btnSearchByDepartmentAndDateRange" href="javascript:void(0)" class="easyui-linkbutton" plain="true" iconcls="icon-search" onclick="SearchByDepartmentAndDateRangeWithPasignation()"></a>
+            &nbsp; <input id="chkFromthelist" type="checkbox" />Print from the list
+            <a id="btnRemoveFromGrid" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove from the list</a>
+            <br />
+            <a id="btnPaySlip_First" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">First Pay Slip(Bang)</a>
+            <a id="btnPaySlip_Final" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Final Pay Slip(Bang)</a>
+            <a id="btnSalarySheet_First" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">First Salary Sheet</a>
+            <a id="btnSalarySheet_OT" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Salary Sheet(OT)</a>
+            <a id="btnSalarySheet_Final" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Final Salary Sheet</a>
+            <a id="btnSalarySummery_Ac" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Salary Summery</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var _oEmployeeSalarys=null;
+        var _sBaseAddress="";
+        var _oEmployees=[];
+        var _sDepartmentIds = "";
+        var _sDepartmentNames = "" ;
+        var _nLoadRecords = 0;
+        var _nRowLength = 0;
+        var _bNext = false;
+        var _nLastEmployeeSalaryID = 0;
+        var _oEmployeeSalarys = [];
+        var _oEmployee = null;
+        var _sSalarySchemeIDs = "";
+        var _sDesignationIDs = "";
+        var _sDesignationNames = "";
+
+        $(document).ready(function ()
+        {
+            _oEmployeeSalarys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            $('#txtLoadRecords').numberbox({min:0, precision:0 });
+            $('#txtFrom').numberbox({min:0, precision:0 });
+            $('#txtTo').numberbox({min:0, precision:0 });
+            $('#txtFrom').numberbox('setValue',1);
+            $('#txtTo').numberbox('setValue',50);
+            document.getElementById("lblRange1").style.display = 'none';
+            $('#dtStartDate').datebox('setValue',icsdateformat(new Date()));
+            $('#dtEndDate').datebox('setValue',icsdateformat(new Date()));
+        });
+
+        function formatPrice(val)
+        {
+            if(val==null)
+            {
+                val=0.00;
+            }
+            val=parseFloat(val);
+            var test = val.toFixed(2);
+            var tests = addComma(test);
+            return tests;
+        }
+
+        function addComma(nStr)
+        {
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1))
+            {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+        $('#chkRange').click(function()
+        {
+            if(document.getElementById("chkRange").checked == true)
+            {
+                document.getElementById("lblRange1").style.display = '';
+            }
+            else
+            {
+                document.getElementById("lblRange1").style.display = 'none';
+            }
+        });
+
+        var bEnterSearch = false;
+        $('#txtEmployeeCode').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sEmpCode=document.getElementById("txtEmployeeCode").value;
+            if (code == 13)//Enter key-13
+            {
+                if(sEmpCode=="")
+                {
+                    alert("Please Enter Code !");
+                    return;
+                }
+                var nts=(new Date()).getTime()/1000;
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0"+"&nts="+nts;
+                _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                if(_oEmployee!=null)
+                {
+                    //_nEmployeeID = _oEmployee.EmployeeID;
+                    $("#txtEmployeeCode")[0].value=_oEmployee.Name+"["+_oEmployee.Code+"]";
+                    if(_oEmployee.EmployeeID>0)
+                    {
+                        _oEmployees = [];
+                        _oEmployees.push(_oEmployee);
+                        bEnterSearch = true;
+                        SearchSalary();
+                    }
+                }
+            }
+        });
+
+        function RefreshList(oEmployeeSalarys)
+        {
+            data = oEmployeeSalarys ;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblEmployeeSalary').datagrid('loadData', data);
+        }
+
+        $('#btnCEmployee').click(function (e)
+        {
+            $("#txtEmployeeCode")[0].value = "";
+            _oEmployees = [];
+        });
+
+        $('#btnEmployee').click(function (e)
+        {
+            var oParameter = new Object();
+            oParameter.Name = "Employee Advance Search";
+            oParameter.MultipleItemReturn=true;
+            var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+            _oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:1000px;dialogLeft:50;dialogRight:50;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no');
+            if(_oEmployees!=[] && _oEmployees.length>0)
+            {
+                SearchSalary();
+            }
+        });
+
+        function SearchSalary()
+        {
+            var dtDateFrom= $('#dtStartDate').datebox('getValue');
+            var dtDateTo= $('#dtEndDate').datebox('getValue');
+            if(new Date(dtDateFrom)>new Date(dtDateTo))
+            {
+                alert("Invalid date range !");
+                return;
+            }
+            var sIDs="";
+            for(var i=0; i<_oEmployees.length; i++)
+            {
+                sIDs+=_oEmployees[i].EmployeeID+",";
+            }
+            sIDs=sIDs.substring(0,sIDs.length-1);
+            var tsv = ((new Date()).getTime()) / 1000;
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeSalary/SearchSalary",
+                data: JSON.stringify({ sIDs: sIDs,dtDateFrom:dtDateFrom,dtDateTo:dtDateTo,ts: tsv}),
+                //data: { sIDs: sIDs,dtDateFrom:dtDateFrom,dtDateTo:dtDateTo,ts: tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    var oEmployeeSalarys =[];
+                    oEmployeeSalarys = jQuery.parseJSON(data);
+                    if(oEmployeeSalarys.length>0 && oEmployeeSalarys[0].ErrorMessage=="")
+                    {
+                        if(bEnterSearch == true)
+                        {
+                            $('#tblEmployeeSalary').datagrid('appendRow', oEmployeeSalarys[0]);
+                        }
+                        else
+                        {
+                            RefreshList(oEmployeeSalarys);
+                        }
+                        bEnterSearch= false;
+                    }
+                    else
+                    {
+                        alert(oEmployeeSalarys[0].ErrorMessage);
+                        oEmployeeSalarys =[];
+                        RefreshList(oEmployeeSalarys);
+                    }
+                }
+            });
+        }
+
+        function SearchByDepartmentAndDateRangeWithPasignation()//department and date wise search
+        {
+            if(_sDepartmentIds=="")
+            {
+                alert("Please enter department !");
+                return;
+            }
+            if(!_bNext)
+            {
+                _nRowLength = 0;
+                _nLastEmployeeSalaryID = 0;
+            }
+            var dtDateFrom= $('#dtStartDate').datebox('getValue');
+            var dtDateTo= $('#dtEndDate').datebox('getValue');
+
+            if(new Date(dtDateFrom)>new Date(dtDateTo))
+            {
+                alert("Invalid date range !");
+                return;
+            }
+            //_nLoadRecords = document.getElementById("txtLoadRecords").value;
+            _nLoadRecords = document.getElementById("txtTo").value;
+            if(document.getElementById("chkRange").checked == true)
+            {
+                var RangeFrom = 0;
+                var RangeTo = 0;
+                RangeFrom = parseFloat(document.getElementById("txtFrom").value);
+                RangeTo = parseFloat(document.getElementById("txtTo").value);
+
+                if(RangeFrom > RangeTo)
+                {
+                    alert("Invalid Range !");
+                    return;
+                }
+                _nRowLength = 0;
+                _nLoadRecords = 0;
+
+                _nRowLength = RangeFrom-1;
+                _nLoadRecords = RangeTo - RangeFrom +1;
+            }
+
+            var tsv = ((new Date()).getTime()) / 1000;
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeSalary_ZN/SearchSalaryByDepartmentAndDateRange",
+                data: JSON.stringify({ sDepartmentIds: _sDepartmentIds,sDesignationIDs:_sDesignationIDs,sSalarySchemeIDs:_sSalarySchemeIDs,dtDateFrom:dtDateFrom,dtDateTo:dtDateTo,nLoadRecords : _nLoadRecords, nRowLength : _nRowLength, ts: tsv}),
+                contentType: "application/json; charset=utf-8",
+                success: function(data)
+                {
+                    var oEmployeeSalarys =[];
+                    oEmployeeSalarys = jQuery.parseJSON(data);
+                    if(oEmployeeSalarys.length>0 && oEmployeeSalarys[0].ErrorMessage=="")
+                    {
+                        if(!_bNext)
+                        {
+                            _oEmployeeSalarys=[];
+                            RefreshList(_oEmployeeSalarys);
+                        }
+
+                        for (var j = 0; j < oEmployeeSalarys.length; j++)
+                        {
+                            $('#tblEmployeeSalary').datagrid('appendRow',oEmployeeSalarys[j]);
+                        }
+                    }
+                    else
+                    {
+                        if(_bNext == false)
+                        {
+                            alert("Data not found !!");
+                            _oEmployeeSalarys=[];
+                            RefreshList(_oEmployeeSalarys);
+                        }
+                        else
+                        {
+                            alert("No more data found !");
+                        }
+                    }
+                    var oEmployeeSalarys=$('#tblEmployeeSalary').datagrid('getRows');
+                    document.getElementById("lblcount").innerHTML = " | Count ="+ oEmployeeSalarys.length;
+                    _bNext = false;
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+
+        function Next()
+        {
+            var oEmployeeSalarys =[];
+            oEmployeeSalarys=$('#tblEmployeeSalary').datagrid('getRows');
+            _nRowLength = oEmployeeSalarys.length;
+            _bNext = true;
+
+            if (oEmployeeSalarys.length<=0)
+            {
+                alert('Please Select Criteria and click on "Search" to find information.!!');
+                return;
+            }
+            var oEmployeeSalary = oEmployeeSalarys[oEmployeeSalarys.length-1];
+
+            if (_nLastEmployeeSalaryID==oEmployeeSalary.EmployeeSalaryID)
+            {
+                alert('No more data found by this date range');
+                return;
+            }
+            _nLastEmployeeSalaryID=oEmployeeSalary.EmployeeSalaryID;
+            SearchByDepartmentAndDateRangeWithPasignation();
+        }
+        
+        $('#btnSalarySheet_First').click(function (e)
+        {
+            //var sEmpID="";
+            //if(document.getElementById("chkFromthelist").checked == true)
+            //{
+            //    var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getRows');
+            //    if(oEmployeeSalarys==null )
+            //    {
+            //        alert("Please Select At Least One Item !");
+            //        return;
+            //    }
+            //    for(var i=0; i<oEmployeeSalarys.length; i++)
+            //    {
+            //        sEmpID+=oEmployeeSalarys[i].EmployeeID+",";
+            //    }
+            //    sEmpID=sEmpID.substring(0,sEmpID.length-1);
+            //}
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+            //window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_First?sEmpIDs="+sEmpID+"&sDate="+sDate+"&sDepartmentIDs="+_sDepartmentIds+"&sDesignationIDs="+_sDesignationIDs +"&sSalarySchemeIDs="+_sSalarySchemeIDs+"&ts="+tsv, "_blank");
+        debugger
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_First"+S); 
+            }
+
+        });
+
+        $('#btnSalarySheet_OT').click(function (e)
+        {
+            //var sEmpID="";
+            //if(document.getElementById("chkFromthelist").checked == true)
+            //{
+            //    var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getRows');
+            //    if(oEmployeeSalarys==null )
+            //    {
+            //        alert("Please Select At Least One Item !");
+            //        return;
+            //    }
+
+            //    for(var i=0; i<oEmployeeSalarys.length; i++)
+            //    {
+            //        sEmpID+=oEmployeeSalarys[i].EmployeeID+",";
+            //    }
+            //    sEmpID=sEmpID.substring(0,sEmpID.length-1);
+            //}
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+            //window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_OT?sEmpIDs="+sEmpID+"&sDate="+sDate+"&sDepartmentIDs="+_sDepartmentIds+"&sDesignationIDs="+_sDesignationIDs +"&sSalarySchemeIDs="+_sSalarySchemeIDs+"&ts="+tsv, "_blank");
+            debugger
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_Final"+S); 
+            }
+
+        });
+
+        $('#btnSalarySheet_Final').click(function (e)
+        {
+            debugger
+            //var sEmpID="";
+            //if(document.getElementById("chkFromthelist").checked == true)
+            //{
+            //    var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getRows');
+            //    if(oEmployeeSalarys==null )
+            //    {
+            //        alert("Please Select At Least One Item !");
+            //        return;
+            //    }
+            //    for(var i=0; i<oEmployeeSalarys.length; i++)
+            //    {
+            //        sEmpID+=oEmployeeSalarys[i].EmployeeID+",";
+            //    }
+            //    sEmpID=sEmpID.substring(0,sEmpID.length-1);
+            //}
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+            //window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_Final?sEmpIDs="+sEmpID+"&sDate="+sDate+"&sDepartmentIDs="+_sDepartmentIds+"&sDesignationIDs="+_sDesignationIDs +"&sSalarySchemeIDs="+_sSalarySchemeIDs+"&ts="+tsv, "_blank");
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySheet_Final"+S); 
+            }
+
+        });
+
+        function DepartmentPicker()
+        {
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = true;
+            var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id=0";
+            var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            if (oReturnObjects != null)
+            {
+                for(var i=0; i<oReturnObjects.length; i++)
+                {
+                    _sDepartmentNames+=oReturnObjects[i].text+",";
+                    _sDepartmentIds+=oReturnObjects[i].id+",";
+                }
+                _sDepartmentNames=_sDepartmentNames.substring(0,_sDepartmentNames.length-1);
+                _sDepartmentIds=_sDepartmentIds.substring(0,_sDepartmentIds.length-1);
+
+                //_sDepartmentNames = oReturnObject.text;
+                //_nDepartmentId = oReturnObject.id ;
+                $("#txtDepartment").val(_sDepartmentNames);
+                //$("#txtDepartment")[0].value = oReturnObject.text;
+                //$("#departmentID")[0].value = oReturnObject.id;
+                //var departmentID= oReturnObject.id;
+            }
+        }
+
+        $('#txtDepartment').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)//Enter key-13
+            {
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url = _sBaseAddress + "/Department/DepartmentPickerWithCheckBox?id=0";
+                var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                if (oReturnObject != null)
+                {
+                    //for(var i=0; i<oReturnObjects.length; i++)
+                    //{
+                    //    _sDepartmentNames+=oReturnObjects[i].text+",";
+                    //    _sDepartmentIds+=oReturnObjects[i].id+",";
+                    //}
+
+                    //_sDepartmentNames=_sDepartmentNames.substring(0,_sDepartmentNames.length-1);
+                    //_sDepartmentIds=_sDepartmentIds.substring(0,_sDepartmentIds.length-1);
+
+                    _sDepartmentNames = oReturnObject.text;
+                    _sDepartmentIds = oReturnObject.id ;
+                    $("#txtDepartment").val(_sDepartmentNames);
+                    //$("#txtDepartment")[0].value = oReturnObject.text;
+                    //$("#departmentID")[0].value = oReturnObject.id;
+                    //var departmentID= oReturnObject.id;
+                }
+            }
+        });
+
+        $('#btnCDepartment').click(function (e)
+        {
+            document.getElementById("txtDepartment").value = "" ;
+            _sDepartmentIds = "" ;
+            _sDepartmentNames = "";
+        });
+
+        function DesignationPicker()
+        {
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = true;
+            var url = _sBaseAddress + "/Designation/DesignationPickerWithCheckBox?id=0";
+            var oReturnObjects = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            if(oReturnObjects!=null)
+            {
+                for(var i=0; i<oReturnObjects.length; i++)
+                {
+                    _sDesignationNames+=oReturnObjects[i].text+",";
+                    _sDesignationIDs+=oReturnObjects[i].id+",";
+                }
+                _sDesignationNames=_sDesignationNames.substring(0,_sDesignationNames.length-1);
+                _sDesignationIDs=_sDesignationIDs.substring(0,_sDesignationIDs.length-1);
+                $("#txtDesignation")[0].value = _sDesignationNames;
+            }
+        }
+
+        $('#txtDesignation').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)//Enter key-13
+            {
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = false;
+                var url = _sBaseAddress + "/Designation/DesignationPickerWithCheckBox?id=0";
+                var oReturnObject = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:550px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                if(oReturnObject!=null)
+                {
+                    _sDesignationNames = oReturnObject.text;
+                    _sDesignationIDs = oReturnObject.id ;
+                    $("#txtDesignation").val(_sDesignationNames);
+                }
+            }
+        });
+
+        $('#btnCDesignation').click(function (e)
+        {
+            document.getElementById("txtDesignation").value = "" ;
+            _sDesignationIDs = "" ;
+            _sDesignationNames = "";
+        });
+
+        //$('#txtEmployeeCode').click(function (e)
+        //{
+        //    document.getElementById("txtEmployeeCode").value = "" ;
+        //});
+
+        $('#btnRemoveFromGrid').click(function (e)
+        {
+            var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getChecked');
+            if(oEmployeeSalarys.length<=0)
+            {
+                alert("Please select at least onr item!");
+                return;
+            }
+
+            for(var i=0; i<oEmployeeSalarys.length;i++)
+            {
+                var SelectedRowIndex = $('#tblEmployeeSalary').datagrid('getRowIndex', oEmployeeSalarys[i]);
+                $('#tblEmployeeSalary').datagrid('deleteRow', SelectedRowIndex);
+            }
+        });
+
+        $('#txtSalaryScheme').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sSSName = document.getElementById("txtSalaryScheme").value;
+
+            if (code == 13)//Enter key-13
+            {
+                var nts=(new Date()).getTime()/1000;
+                var oParameter = new Object();
+                oParameter.MultipleItemReturn = true;
+                var url = _sBaseAddress + "/SalaryScheme/SalarySchemeSearchByName?sSSName="+sSSName+"&nts="+nts;
+                var oSalarySchemes = window.showModalDialog(url, oParameter, 'dialogHeight:330px;dialogWidth:260px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+                if(oSalarySchemes != null)
+                {
+                    var sSalarySchemeNames = "";
+                    _sSalarySchemeIDs = "";
+                    for(var i=0; i<oSalarySchemes.length; i++)
+                    {
+                        sSalarySchemeNames+=oSalarySchemes[i].Name+",";
+                        _sSalarySchemeIDs+=oSalarySchemes[i].SalarySchemeID+",";
+                    }
+
+                    sSalarySchemeNames=sSalarySchemeNames.substring(0,sSalarySchemeNames.length-1);
+                    _sSalarySchemeIDs=_sSalarySchemeIDs.substring(0,_sSalarySchemeIDs.length-1);
+                    $("#txtSalaryScheme").val(sSalarySchemeNames);
+                }
+            }
+        });
+
+        $('#btnSalaryScheme').click(function (e)
+        {
+            var sSSName = "";
+            var nts=(new Date()).getTime()/1000;
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = true;
+            var url = _sBaseAddress + "/SalaryScheme/SalarySchemeSearchByName?sSSName="+sSSName+"&nts="+nts;
+            var oSalarySchemes = window.showModalDialog(url, oParameter, 'dialogHeight:330px;dialogWidth:260px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+
+            if(oSalarySchemes != null)
+            {
+                var sSalarySchemeNames = "";
+                _sSalarySchemeIDs = "";
+                for(var i=0; i<oSalarySchemes.length; i++)
+                {
+                    sSalarySchemeNames+=oSalarySchemes[i].Name+",";
+                    _sSalarySchemeIDs+=oSalarySchemes[i].SalarySchemeID+",";
+                }
+
+                sSalarySchemeNames=sSalarySchemeNames.substring(0,sSalarySchemeNames.length-1);
+                _sSalarySchemeIDs=_sSalarySchemeIDs.substring(0,_sSalarySchemeIDs.length-1);
+                $("#txtSalaryScheme").val(sSalarySchemeNames);
+            }
+        });
+
+        $('#btnCSalaryScheme').click(function (e)
+        {
+            $("#txtSalaryScheme").val("");
+            _sSalarySchemeIDs = "";
+        });
+
+        $('#btnPaySlip_First').click(function (e)
+        {
+            debugger
+            //var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getChecked');
+            //if(oEmployeeSalarys.length <= 0 )
+            //{
+            //    alert("Please Select At Least One Item !");
+            //    return;
+            //}
+            //var sEmployeeIDs = "";
+            //for(var i =0; i<oEmployeeSalarys.length;i++)
+            //{
+            //    sEmployeeIDs += oEmployeeSalarys[i].EmployeeID +",";
+            //}
+            //sEmployeeIDs = sEmployeeIDs.substring(0,sEmployeeIDs.length-1);
+
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+
+            //var oParameter = new Object();
+            ////oParameter.DateStart = dtStartDate;
+            ////oParameter.DateEnd = dtEndDate;
+
+            //var url = _sBaseAddress + "/EmployeeSalary_ZN/View_PrintMultiplePaySlip_ZN_First?EmployeeIDs="+sEmployeeIDs+"&sDate="+sDate+"&ts="+tsv;
+            //var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:1050px;dialogWidth:1350px;dialogLeft:20;dialogRight:0;center:yes;resizable:yes;status:no;scroll:no');
+
+            
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                var oParameter = new Object();
+                oParameter.DateStart = dtStartDate;
+                oParameter.DateEnd = dtEndDate;
+                var url = _sBaseAddress+ "/EmployeeSalary_ZN/View_PrintMultiplePaySlip_ZN_First"+S;
+                var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:1050px;dialogWidth:1350px;dialogLeft:20;dialogRight:0;center:yes;resizable:yes;status:no;scroll:no');
+            }
+
+        });
+
+        $('#btnPaySlip_Final').click(function (e)
+        {
+            //var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getChecked');
+            //if(oEmployeeSalarys.length <= 0 )
+            //{
+            //    alert("Please Select At Least One Item !");
+            //    return;
+            //}
+            //var sEmployeeIDs = "";
+            //for(var i =0; i<oEmployeeSalarys.length;i++)
+            //{
+            //    sEmployeeIDs += oEmployeeSalarys[i].EmployeeID +",";
+            //}
+            //sEmployeeIDs = sEmployeeIDs.substring(0,sEmployeeIDs.length-1);
+
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+
+            //var oParameter = new Object();
+            ////oParameter.DateStart = dtStartDate;
+            ////oParameter.DateEnd = dtEndDate;
+
+            //var url = _sBaseAddress + "/EmployeeSalary_ZN/View_PrintMultiplePaySlip_ZN_Final?EmployeeIDs="+sEmployeeIDs+"&sDate="+sDate+"&ts="+tsv;
+            //var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:1050px;dialogWidth:1350px;dialogLeft:20;dialogRight:0;center:yes;resizable:yes;status:no;scroll:no');
+            debugger
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                var oParameter = new Object();
+                oParameter.DateStart = dtStartDate;
+                oParameter.DateEnd = dtEndDate;
+                var url = _sBaseAddress+ "/EmployeeSalary_ZN/View_PrintMultiplePaySlip_ZN_Final"+S;
+                var oEmployees = window.showModalDialog(url, oParameter, 'dialogHeight:1050px;dialogWidth:1350px;dialogLeft:20;dialogRight:0;center:yes;resizable:yes;status:no;scroll:no');
+            }
+
+        });
+
+        $('#btnSalarySummery_Ac').click(function (e)
+        {
+            debugger
+            //var sEmpID="";
+            //if(document.getElementById("chkFromthelist").checked == true)
+            //{
+            //    var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getRows');
+            //    if(oEmployeeSalarys.length<=0)
+            //    {
+            //        alert("Please Select At Least One Item !");
+            //        return;
+            //    }
+
+            //    for(var i=0; i<oEmployeeSalarys.length; i++)
+            //    {
+            //        sEmpID+=oEmployeeSalarys[i].EmployeeID+",";
+            //    }
+            //    sEmpID=sEmpID.substring(0,sEmpID.length-1);
+            //}
+
+            //var dtStartDate= $('#dtStartDate').datebox('getValue');
+            //var dtEndDate= $('#dtEndDate').datebox('getValue');
+            //if(new Date(dtStartDate)>new Date(dtEndDate))
+            //{
+            //    alert("Invalid date range !");
+            //    return;
+            //}
+            //var sDate=dtStartDate+","+dtEndDate;
+            //var tsv = ((new Date()).getTime()) / 1000;
+            //window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySummery_Ac?sEmpIDs="+sEmpID+"&sDate="+sDate+"&sDepartmentIDs="+_sDepartmentIds+"&sDesignationIDs="+_sDesignationIDs +"&sSalarySchemeIDs="+_sSalarySchemeIDs+"&ts="+tsv, "_blank");
+
+            var S=ReturnConnectionStringForController();
+            if(S=="" || S == null)
+            {
+                return;
+            }
+            else
+            {
+                window.open(_sBaseAddress+ "/EmployeeSalary_ZN/PrintSalarySummery_Ac"+S); 
+            }
+
+        });
+
+        function ReturnConnectionStringForController()
+        {
+            var sString="";
+            var sEmpID="";
+            if(document.getElementById("chkFromthelist").checked == true)
+            {
+                var oEmployeeSalarys= $('#tblEmployeeSalary').datagrid('getRows');
+                if(oEmployeeSalarys==null || oEmployeeSalarys.length<=0)
+                {
+                    alert("Please Select At Least One Item !");
+                    return;
+                }
+                for(var i=0; i<oEmployeeSalarys.length; i++)
+                {
+                    sEmpID+=oEmployeeSalarys[i].EmployeeID+",";
+                }
+                sEmpID=sEmpID.substring(0,sEmpID.length-1);
+            }
+
+            var dtStartDate= $('#dtStartDate').datebox('getValue');
+            var dtEndDate= $('#dtEndDate').datebox('getValue');
+            if(new Date(dtStartDate)>new Date(dtEndDate))
+            {
+                alert("Invalid Date Range!");
+                return;
+            }
+            var sDate=dtStartDate+","+dtEndDate;
+  
+            var tsv = ((new Date()).getTime()) / 1000;
+            sString="?sEmpIDs="+sEmpID+"&sDate="+sDate+"&sDepartmentIDs="+_sDepartmentIds+"&sDesignationIDs="+_sDesignationIDs +"&sSalarySchemeIDs="+_sSalarySchemeIDs+"&ts="+tsv, "_blank";
+            return sString;
+        }
+
+    </script>

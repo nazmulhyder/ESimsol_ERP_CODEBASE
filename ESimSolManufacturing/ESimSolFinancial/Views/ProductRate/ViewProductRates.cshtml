@@ -1,0 +1,190 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ProductRate>
+
+    @{
+        ViewBag.Title = "Sample Yarn Rate";
+    }
+
+    <div class="menuMainCollectionTable" style="margin-left: 0px; height:100%; width:100%">
+        <table style="height:100%;width:100%" border="0" cellpadding="0" cellspacing="0">
+            <tr style="height:100%">
+                <td style="width:60%">
+                    <table id="tblProductRate" title="Product Rates" class="easyui-datagrid" style="height:545px" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarcategory">
+                        <thead>
+                            <tr>
+                                <th field="ProductCode" width="10%">Code</th>
+                                <th field="ProductName" width="55">Product Name</th>
+                                <th field="RateString" width="15%" align="right" >Rate</th>
+                                <th field="ActivationDateString" width="20%">Activation Date</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div id="toolbarcategory" align="right">
+                        <input type="text" id="txtCodeSearch" placeholder="Search by Code" style="width:120px" />
+                        <input type="text" id="txtNameSearch" placeholder="Search by Name" style="width:280px" />
+                        <label type="text" id=" lblspace" style="width:70px" />
+                        <a id="btnGetRateHistory" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Rate History-></a>
+                    </div>
+                </td>
+                <td style="width: 40%">
+                    <div style="height:100%;width:100%">
+                    <table id="tblProductRateHistory" title="Rate History of " class="easyui-datagrid" style="height:545px;width:100%" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                            <thead>
+                                <tr>
+                                    <th field="RateString" width="15%" align="right">Rate</th>
+                                    <th field="ActivationDateString" width="20%">Activation Date</th>
+                                </tr>
+                            </thead>
+                        </table>
+
+                        <div id="toolbar">
+                            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh Rate</a>
+                            <input type="text" id="txtRateEntry" placeholder="type new rate" style="width:80px" />
+                            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    
+
+<script type= "text/javascript">
+    var _oProductRates=[];
+    var _sBaseAddress="";
+    var _oProductRatesHistory=[];
+    var _nProductID=0;
+    var _nSelectedRowIndex=0;
+
+    $(document).ready(function () {
+        _oProductRates=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        
+        _nProductID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oProductRates =sessionStorage.getItem("ProductRates");
+        if(oProductRates!=null)
+        {
+            oProductRates = jQuery.parseJSON(oProductRates);  
+        }
+        else
+        {
+            oProductRates=_oProductRates;
+        }
+        if(oProductRates.length==0)
+        {
+            oProductRates=[];
+        }
+
+        RefreshProductRate(oProductRates)
+        RefreshRateHistory(_oProductRatesHistory);        
+    });
+
+
+    function RefreshRateHistory(oProductRates)
+    {
+        var data= oProductRates;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductRateHistory').datagrid('loadData',data);
+    }
+
+    function RefreshProductRate(oProductRates)
+    {
+        var data= oProductRates;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductRate').datagrid('loadData',data);
+    }
+
+    $("#btnGetRateHistory").click(function(){
+        var oProductRate= $('#tblProductRate').datagrid('getSelected');
+        _nProductID=oProductRate.ProductID;
+      
+        if(oProductRate==null)
+        {
+            alert("Please select a product from list!");
+            return;
+        }
+
+        $( "#tblProductRateHistory").datagrid({title : 'Rate History of: '+ oProductRate.ProductName});
+      
+        var oProduct={ ProductID : oProductRate.ProductID };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ProductRate/GetByProduct",
+            traditional: true,
+            data: JSON.stringify(oProduct),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oProductRates = jQuery.parseJSON(data);
+                if(oProductRates!=null)
+                {
+                    RefreshRateHistory(oProductRates);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });   
+    });
+
+    $('#txtNameSearch').keyup(function (e) {
+        var strProductName = document.getElementById('txtNameSearch').value;
+        var oProductRates = [];  
+        var sTempName="";
+        var oProductRateList = $('#tblProductRate').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oProductRateList = _oProductRates;// $('#tblProductRate').data('ProductRates');
+        }
+        for(i=0; i<oProductRateList.length; ++i){
+            sTempName = oProductRateList[i].ProductName;
+            n = sTempName.toUpperCase().indexOf(strProductName.toUpperCase())
+            if(n!=-1)
+            {
+                oProductRates.push(oProductRateList[i]);
+            }
+        }
+        RefreshProductRate(oProductRates);
+    });
+
+    $("#btnAdd").click(function(){
+        if(_nProductID<=0)
+        {
+            alert("Please select a product!");
+            return;
+        }
+        var nRate=$('#txtRateEntry').val();
+        var   oProductRate= {
+            ProductID : _nProductID,
+            Rate : nRate
+        };
+        var oTempProductRate= $('#tblProductRate').datagrid('getSelected');
+        var nIndex=$('#tblProductRate').datagrid('getRowIndex', oTempProductRate);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ProductRate/Save",
+            traditional: true,
+            data: JSON.stringify(oProductRate),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oProductRates = jQuery.parseJSON(data);
+                if(oProductRates!=null)
+                {
+                    debugger;
+                    RefreshRateHistory(oProductRates);
+                    var aaa=parseFloat(nRate);
+                    oTempProductRate.Rate=aaa;
+                    oTempProductRate.RateString=formatPrice(aaa,0);
+                    $('#tblProductRate').datagrid('updateRow',{index: nIndex, row:oTempProductRate});
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+</script>

@@ -1,0 +1,164 @@
+﻿<html>
+<body>
+    <head>  
+        @{
+            ViewBag.Title = "Route Location";
+        }      
+    </head>
+    @model ESimSol.BusinessObjects.RouteLocation
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Color Category" style="font-family:Tahoma; text-align:center; height:88%;">
+            <fieldset style="height:95%; text-align:left;">
+                <legend style="font-weight:bold;"> Route Location Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="3" style="margin:10% auto; font-size:11px; font-weight:bold; text-align:center; width:80%">
+                    <tr>
+                        <td style="height:20px;">&nbsp;</td>
+                        <td style="height:20px;">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%; text-align:right">
+                            Location Code :
+                        </td>
+                        <td style="width:70%; text-align:left">
+                            @Html.TextBoxFor(model => model.LocCode, new { style = "width:70%", id = "txtLocCode", disabled = "disabled" })
+
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%; text-align:right">
+                            Location Type :
+                        </td>
+                        <td style="width:70%; text-align:left">
+                            @Html.DropDownListFor(model => model.LocationTypeInt, Model.LocationTypes.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboLocationType", style = "width:70%" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%; text-align:right">
+                            Location Name :
+                        </td>
+                        <td style="width:70%; text-align:left">
+                            @Html.TextBoxFor(model => model.Name, new { style = "width:70%", id = "txtName" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%; text-align:right">
+                            Remarks :
+                        </td>
+                        <td style="width:70%; text-align:left">
+                            @Html.TextBoxFor(model => model.Description, new { style = "width:70%", id = "txtDescription" })
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script>
+    var _oRouteLocation = null;
+    $(document).ready(function () {
+        _oRouteLocation = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));        
+        var sRouteLocationHeader=sessionStorage.getItem("RouteLocationHeader");        
+        if(sRouteLocationHeader=="View Route Location")
+        {
+            document.getElementById('btnSave').style.display = 'none';
+            document.getElementById('txtLocCode').disabled= true;
+            document.getElementById('cboLocationType').disabled= true;
+            document.getElementById('txtName').disabled= true;
+            document.getElementById('txtDescription').disabled= true;
+        }
+    });
+
+    function ValidateInput()
+    {
+        if(parseInt($("#cboLocationType").val()) <=0)
+        {
+            alert("Please select a Location Type.");
+            return false;
+        }
+
+        if($("#txtName").val() ===null || $("#txtName").val() === "")
+        {
+            alert("Please give a Name.");
+            return false;
+        }
+
+        if(sessionStorage.getItem("BUID")===null || sessionStorage.getItem("BUID")==="" || parseInt(sessionStorage.getItem("BUID"))<=0)
+        {
+            alert("Invalid Business Unit");
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject() {
+        var oRouteLocation = {
+            RouteLocationID : _oRouteLocation.RouteLocationID,
+            LocCode : $("#txtLocCode").val(),
+            LocationTypeInt : parseInt($("#cboLocationType").val()),
+            Name  : $("#txtName").val(),
+            BUID : parseInt(sessionStorage.getItem("BUID")),
+            Description :  $.trim($("#txtDescription").val())
+        };
+        return oRouteLocation;
+    }
+
+    $('#btnSave').click(function(e){
+        if(!ValidateInput()) return;
+        var oRouteLocation = RefreshObject();        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '@Url.Action("Save", "RouteLocation")',
+            traditional: true,
+            data: JSON.stringify(oRouteLocation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oRouteLocation = jQuery.parseJSON(data);
+                if(oRouteLocation.RouteLocationID>0){
+                    alert("Successfully Saved");
+                    var oRouteLocations = sessionStorage.getItem("RouteLocations");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oRouteLocations != null) {
+                        oRouteLocations = jQuery.parseJSON(oRouteLocations);
+                    }
+                    else {
+                        oRouteLocations = [];
+                    }
+                    if (nIndex != -1) {
+                        oRouteLocations[nIndex] = oRouteLocation;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oRouteLocations.length);
+                        oRouteLocations.push(oRouteLocation);
+                    }
+                    sessionStorage.setItem("RouteLocations", JSON.stringify(oRouteLocations));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else{
+                    alert(oRouteLocation.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });    
+
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+</script>
+

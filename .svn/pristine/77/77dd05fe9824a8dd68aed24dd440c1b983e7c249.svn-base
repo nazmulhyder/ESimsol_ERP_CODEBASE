@@ -1,0 +1,205 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.AttendanceProcessManagement>
+@{
+    ViewBag.Title = "ViewAttendanceProcessManagements";
+}
+
+<div style="margin-left:0px; height:550px">
+    <table id="tblAttendanceProcessManagement" title="AttendanceProcessManagement List"  class="easyui-datagrid" style="width:900px;height:548px" fitColumns="false" rownumbers="true" pagination="true" singleSelect="true" autoRowHeight="false" toolbar="#toolbar">
+        <thead>  
+            <tr>
+                <th field="DepartmenName" width="200" align="left">Department</th>
+                <th field="ProcessTypeInString" width="160" align="left">Type</th>
+                <th field="StatusInString" width="150" align="left">Status</th>
+                <th field="AttendanceDateInString" width="150"  align="left">Date</th>
+            </tr>  
+        </thead> 
+    </table>​ 
+    <div id="toolbar">
+         @*<a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" plain="true" onclick="AdvanceSearch()">Adv.Search </a>*@
+         <input id="txtSelectDate" type="text" style="width: 140px" class="easyui-datebox" data-options="formatter:icsdateformat"/>         
+         <a id="btnSrc" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" plain="true" onclick="Search()">Search</a>
+         <a id="btnCollectRTData" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="RTData()">Collect RT Data</a> 
+         <a id="btnNew" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="ProcessAttendance()">Process</a>
+         <a id="btnRollBack" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="RollBack()">RollBack</a>
+         <a id="btnReProcess" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="ReProcess()">Re-Processed</a>
+         <a id="btnFreeze" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-ok" plain="true" onclick="Freeze()">Freeze</a>
+         
+    </div>  
+</div>
+
+<script type="text/javascript">
+
+//debugger;
+var _oAttendanceProcessManagements=[];
+var _sBaseAddress="";
+$(document).ready(function () {
+    //debugger;
+    _oAttendanceProcessManagements =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    $('#txtSelectDate').datebox('setValue', icsdateformat(new Date()));
+    RefreshList(_oAttendanceProcessManagements);
+});
+
+
+function RefreshList(oAttendanceProcessManagements)
+{
+    data = oAttendanceProcessManagements;
+    data = { "total": "" + data.length + "", "rows": data };
+    $('#tblAttendanceProcessManagement').datagrid('loadData', data);
+}
+ 
+
+function ProcessAttendance()
+{
+    //debugger;
+    var oParameter = new Object();
+    oParameter.Name = " Attendance Process ";
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/ProcessManagement/ViewAttendanceProcessManagementALL?nId=0&ts=" + tsv;
+    var oAPMs = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:300px;dialogLeft:250;dialogRight:250;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+    debugger;
+    if (oAPMs.length>0) {
+        _oAttendanceProcessManagements=[];
+        _oAttendanceProcessManagements=oAPMs;
+        RefreshList(_oAttendanceProcessManagements); 
+        $('#txtSelectDate').datebox('setValue', oAPMs[0].AttendanceDateInString);      
+    }
+}
+
+function RollBack() {
+//    debugger;
+//    var oAttendanceProcessManagement = $('#tblAttendanceProcessManagement').datagrid('getSelected');
+//    if (oAttendanceProcessManagement == null || oAttendanceProcessManagement.AttendanceProcessManagementID <= 0) {
+//        alert("Please select an item from list!");
+//        return;
+//    }
+//    if (oAttendanceProcessManagement.StatusInString=='Freeze' || oAttendanceProcessManagement.StatusInString=='Rollback')
+//    {
+//        alert('Status must be in "Process" or "Re-Process" to Rollback.!');
+//        return;
+//    }    
+    if (!confirm("Confirm to Rollback?")) return
+    APMIUD("Rollback",2);//RollBack
+}
+
+function ReProcess() {
+    debugger;
+//    var oAttendanceProcessManagement = $('#tblAttendanceProcessManagement').datagrid('getSelected');
+//    if (oAttendanceProcessManagement == null || oAttendanceProcessManagement.AttendanceProcessManagementID <= 0) {
+//        alert("Please select an item from list!");
+//        return;
+//    }
+//    if (oAttendanceProcessManagement.StatusInString!='Rollback')
+//    {
+//        alert('Status must be in "Rollback" to Re-Process.!');
+//        return;
+//    }    
+//    oAttendanceProcessManagement.StatusInt=3;//Re-Process
+    if (!confirm("Confirm to Re-Process?")) return
+    APMIUD("Re-Process",3);//Re-Process
+}
+
+function Freeze() {
+    debugger;
+//    var oAttendanceProcessManagement = $('#tblAttendanceProcessManagement').datagrid('getSelected');
+//    if (oAttendanceProcessManagement == null || oAttendanceProcessManagement.AttendanceProcessManagementID <= 0) {
+//        alert("Please select an item from list!");
+//        return;
+//    }
+//    if (oAttendanceProcessManagement.StatusInString=='Rollback' || oAttendanceProcessManagement.StatusInString=='Freeze')
+//    {
+//        alert('Status must be in "Process" or "ReProcessed" to Freeze.!');
+//        return;
+//    }    
+//    oAttendanceProcessManagement.StatusInt=4;//freeze
+    if (!confirm("Confirm to freeze?")) return
+    APMIUD("Freeze",4);//freeze
+}
+
+function APMIUD(sAction,nStatus)
+{   
+    var sDate=$('#txtSelectDate').datebox('getValue')    
+    $.ajax({
+         type: "POST",
+         dataType: "json",
+         url: _sBaseAddress + "/ProcessManagement/AttendanceProcessManagement_StatusUpdate",
+         traditional: true,
+         data: JSON.stringify({sDate:sDate,nStatus:nStatus}),
+         contentType: "application/json; charset=utf-8",
+         success: function(data)         
+            {
+                debugger;
+                var oAPMs = jQuery.parseJSON(data);
+                if (oAPMs[0].ErrorMessage !="") 
+                {
+                    alert(oAPMs[0].ErrorMessage);
+                } 
+                else 
+                {
+                    _oAttendanceProcessManagements=[];
+                    _oAttendanceProcessManagements=oAPMs;
+                    RefreshList(_oAttendanceProcessManagements);
+                    $('#txtSelectDate').datebox('setValue', oAPMs[0].AttendanceDateInString);
+                }
+                
+            },
+         error: function(xhr, status, error)
+            {
+                alert(error);
+            }
+     });
+}
+
+function RTData()
+{
+    var tsv = ((new Date()).getTime()) / 1000;
+    var oParameter=new Object();
+    var url = _sBaseAddress + "/ProcessManagement/ViewDataCollectionRT?ts=" + tsv;
+    window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:300px;dialogLeft:250;dialogRight:250;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+}
+
+function  icsdateformat(date)
+{
+     var mthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+     var y = date.getFullYear();
+     var m = date.getMonth();
+     var d = date.getDate();
+     var result= d +' '+ mthNames[m]+' '+ y;
+     return result;
+}
+
+function Search()
+{
+    var sDate=$('#txtSelectDate').datebox('getValue');
+
+    $.ajax({
+        type: "GET",
+        dataType: "json",
+        url: '@Url.Action("GetAPMs", "ProcessManagement")',
+        data: { sParam: sDate },
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            debugger;
+            var  oAPMs = jQuery.parseJSON(data);                  
+            if(oAPMs.length>0)
+            {
+                _oAttendanceProcessManagements=[];
+                _oAttendanceProcessManagements=oAPMs;
+                RefreshList(_oAttendanceProcessManagements);
+            }
+            else
+            {
+                alert("Data not found by this date!!");
+                _oAttendanceProcessManagements=[];
+                _oAttendanceProcessManagements=oAPMs;
+                RefreshList(_oAttendanceProcessManagements);
+                
+            }              
+
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+}
+</script>

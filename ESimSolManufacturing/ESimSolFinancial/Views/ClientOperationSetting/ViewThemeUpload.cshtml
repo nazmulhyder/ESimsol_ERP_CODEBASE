@@ -1,0 +1,156 @@
+﻿@model ESimSol.BusinessObjects.ThemeUpload
+@{
+    ViewBag.Title = "Upload Theme";
+}
+
+<div style="margin-left: 0px; font-size:12px;  font-family:Tahoma; height:100%; width:100%">
+    <div id="Middle_Div" style="height:85%">
+        <div class="easyui-panel" title="Upload Theme" style=" width:100%; height:100%;">
+            <div style="height: 420px">
+                <table style="font-size:11px; font-weight:bold; text-align:center; width:99%">
+                    <tr>
+                        <td style="height:10px;"></td>
+
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td style="height:400px;">
+                            @*<div id="fileLogo" style="width:420px; height:20px; border: 1px solid blue;"></div>*@
+                            <div id="img">
+                                <img id="imgLogo" src="@Url.Content("~/Content/Images/" + "BGTheme.jpg")" style="width:800px; height:400px; border: 1px solid blue;" />
+                                @*<img src="@Url.Content("~/Content/Images/"+Model.FileName)" />*@
+                            </div>
+                        </td>
+                    </tr>
+                    @*<tr>
+                            <td style="height:10px;"></td>
+                        </tr>*@
+                </table>
+            </div>
+            <input type="file" name="fileInput" id="fileInput" onchange="ImageAttachment(this)" style="padding-left:300px;" accept="image/*" data-type='image' />
+        </div>
+    </div>
+    <div id="footer_Div" style="height:12%">
+        <fieldset style="height:90%">
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:12px; width:100%; font-weight:bold">
+                <tr>
+                    <td style="width:93%; text-align:right">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                    </td>
+                    <td style="width:7%; text-align:right;">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    var _oThemeUpload=null;
+    var _oAuthorizationRolesMapping = [];
+    var _sBaseAddress="";
+    $(document).ready(function () {
+          debugger;
+          _oThemeUpload=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+          _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+          @*_oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));*@
+
+    });
+
+    function ImageAttachment(input) {
+        debugger;
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $('#imgLogo')
+                    .attr('src', e.target.result)
+                    .width(800)
+                    .height(400);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function RefreshObject()
+    {
+        var oAttachment= {
+            //AttachmentID : 0,
+            FileName: $("#fileInput").val(),
+        };
+
+        return oAttachment;
+    }
+
+
+    function Save()
+    {
+        sessionStorage.setItem("URLAddress", window.location.href);
+        if(document.getElementById("fileInput").value==null || document.getElementById("fileInput").value=="")
+        {
+            alert("Please enter a file!");
+            $('#fileInput').focus();
+            return false;
+        }
+        //if(!ValidateImage()) return;
+        debugger;
+        var oAttachment=RefreshObject();
+
+        var IsFile = true;
+        var  oFormdata = new FormData();
+        var fileInput = document.getElementById("fileInput");
+        var fileType = fileInput.value;
+        var len = fileType.split('.').length;
+        var type = fileType.split('.')[len-1];
+        //alert(type);
+        if(type != 'jpg' && type != 'JPG' && type != 'PNG'){
+            alert('Please select JPG or PNG file!!');
+            return;
+        }
+
+        if(fileInput.files[0]!=null){oFormdata.append(fileInput.files[0].name, fileInput.files[0]);} else IsFile=false;
+        var nts=((new Date()).getTime())/1000;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST',_sBaseAddress+'/ClientOperationSetting/SaveThemeUpload?nts='+ nts);
+        //xhr.setRequestHeader('AttachmentID', oAttachment.AttachmentID);
+        xhr.setRequestHeader('FileName', oAttachment.FileName);
+
+        xhr.send(oFormdata);
+        debugger;
+        console.log(oAttachment);
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4 && xhr.status == 200)
+            { //the response is ready
+                oAttachment = MakeObject(xhr.responseText);
+                if (oAttachment.AttachmentID > 0) {
+                    $("#fileInput")[0].value = null;
+                    alert("Image Added sucessfully");
+                    debugger;
+                    window.location.href = _sBaseAddress + sessionStorage.setItem("URLAddress");
+                }
+
+                else {
+                    $("#fileInput")[0].value = null;
+                    alert(oAttachment.ErrorMessage);
+                }
+            }
+        };
+    }
+
+    function MakeObject(sResponseValue)
+    {
+        sResponseValue=sResponseValue.split('\\"')[1];
+        var oAttachment=
+            {
+                ErrorMessage: sResponseValue.split('~')[0],
+                FileName : sResponseValue.split('~')[1]
+
+            };
+        return oAttachment;
+    }
+
+
+</script>

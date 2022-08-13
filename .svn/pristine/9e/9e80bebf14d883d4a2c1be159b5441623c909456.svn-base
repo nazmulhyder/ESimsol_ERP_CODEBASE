@@ -1,0 +1,203 @@
+﻿<script src="http://malsup.github.com/jquery.form.js"></script>
+@{
+    ViewBag.Title = "Fabrics List";
+}
+@model ESimSol.BusinessObjects.FabricAttachment
+    <head>
+        <title></title>
+
+    </head>
+    <body>
+
+        <div style="width:100%; font-family:Tahoma">
+            <fieldset class="actionfieldsetstyle">
+                <legend></legend>
+                <table style="width:100%;text-align:left" border="0" cellpadding="2" cellspacing="2">
+                    <tr>
+                       
+                        <td style="width:50%;text-align:left">
+                            <label id="lblArticleRef" style="color:green;"></label>
+                        </td>
+                        <td style="width:50%;text-align:left">
+                        </td>
+                       
+                    </tr>
+                </table>
+            </fieldset>
+            @using (Html.BeginForm("UploadAttchment", "Fabric", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank" }))
+            {
+                <table id="tblFabricAttachment" class="easyui-datagrid" style="width:100%;height:465px"margin:0;" data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbarFabricAttachment' ">
+                    <thead>
+                        <tr>
+                            <th field="AttatchmentName" width="60%">AttatchmentName</th>
+                            <th field="SwatchTypeinString" width="15%">Swatch Type</th>
+                            <th field="Remarks" width="20%">Remarks</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbarFabricAttachment">
+                    <input type="text" name="FabricID" id="txtFabricIdSubmit" hidden="hidden" />
+                    <input type="text" name="SwatchTypeInInt" id="txtSwatchTypeSubmit" hidden="hidden" />
+                    <input type="file" id="fileControl" name="file" style="width: 200px;" />
+                    Swatch Type : <select id="cboSwatchTypeSubmit"> </select>
+                    Remark :
+                    <input id="txtRemarks" name="Remarks" type="text" />
+                    <input id="btnSubmitFabricAttachment" type="submit" value="Upload" style="font-weight: bold;" />
+                    <input id="btnDeleteFabricAttachment" type="button" value="Delete" style="font-weight: bold" />
+                </div>
+            }
+            <fieldset class="actionfieldsetstyle">
+                <legend>Actions : </legend>
+                <table style="width:100%;text-align:right" border="0" cellpadding="2" cellspacing="2">
+                    <tr>
+                        <td style="width:50%; text-align:left">
+                            @using (Html.BeginForm("DownloadAttachment", "Fabric", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank" }))
+                            {
+                                <input type="text" name="FabricAttchmentID" id="txtFabricAttchmentID" hidden="hidden" />
+                                <input type="submit" value="Download" id="btnDownload" />
+                            }
+                        </td>
+                        <td style="width:20%; text-align:left;color:red;">
+                            <label id="lblError"> @TempData["message"]</label>
+                        </td>
+                        <td style="width:10%">
+                            <label id="lblArticleRef" style="color:green;"></label>
+                        </td>
+
+                        <td style="width:10%;text-align:right">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+
+    </body>
+
+    <style type="text/css">
+
+      
+    </style>
+
+    <script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oFabric = null;
+    var _oFabricAttachments=[];
+    var _oFabricAttachment=null;
+    var _oSwatchTypes=[];
+    var oFabric=null;
+    $(document).ready(function() {
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricAttachment =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oSwatchTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.SwatchTypes));
+        oFabric = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Fabric));
+        _oFabricAttachments= _oFabricAttachment.FabricAttachments;
+        $("#lblArticleRef" ).html("FabricNo: "+oFabric.FabricNo);
+        
+        $("#cboSwatchTypeSubmit").icsLoadCombo({
+            List: _oSwatchTypes,
+            OptionValue: "id",
+            DisplayText: "Value"
+        });
+        if(_oFabricAttachments!=null)
+        {
+            DynamicRefreshList(_oFabricAttachments, "tblFabricAttachment");
+        }
+        else{
+            DynamicRefreshList([], "tblFabricAttachment");
+        }
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode === 27) { $("div").icsWindow("close")}});
+
+
+    //Fabric Attachment
+
+    $("#btnAttachment").click(function() {
+        var oFabric = $("#tblFabrics").datagrid('getSelected');
+        if(oFabric==null || parseInt(oFabric.FabricID)<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        var oFabricAttachment = {
+            FabricID :oFabric.FabricID
+        };
+        $.ajax({
+            type: "POST",
+            url: _sBaseAddress + "/Fabric/GetsAttachmentByFabric",
+            traditional: true,
+            data: JSON.stringify(oFabricAttachment),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oFabricAttachments = jQuery.parseJSON(data);
+                if (oFabricAttachments != null) {
+                    if (oFabricAttachments.length > 0) {
+                        DynamicRefreshList(oFabricAttachments, "tblFabricAttachment");
+                    }
+                    else {
+                        DynamicRefreshList([], "tblFabricAttachment");
+                    }
+                }
+            }
+        });
+        $("#txtFabricIdSubmit").val('0');
+        $("#txtSwatchTypeSubmit").val('0');
+        $("#cboSwatchTypeSubmit").val(0);
+        $("#txtRemarks").val('');
+        $("#fileControl").val('');
+        $("#winFabricAttachment").icsWindow("Open","Fabric Attachments");
+    });
+
+    $("#btnSubmitFabricAttachment").click(function(e) {
+        var nSwatchTypeSubmitVal = parseInt($("#cboSwatchTypeSubmit").val());
+        if (parseInt(nSwatchTypeSubmitVal) == 0) {
+            alert("Please select a Swatch Type.");
+            e.preventDefault();
+            return false;
+        }
+        //var oFabric = $("#tblFabrics").datagrid("getSelected");
+        $("#txtFabricIdSubmit").val(_oFabricAttachment.FabricID);
+        $("#txtSwatchTypeSubmit").val(nSwatchTypeSubmitVal);
+        //$("#winFabricAttachment").icsWindow("close");
+    });
+
+    $("#btnDownload").click(function() {
+        var oFabricAttachment = $("#tblFabricAttachment").datagrid("getSelected");
+        if (oFabricAttachment == null || parseInt(oFabricAttachment.FabricAttachmentID) <= 0) {
+            alert("Please select an item from list!");
+            return false;
+        }
+        $('#txtFabricAttchmentID').val(oFabricAttachment.FabricAttachmentID);
+    });
+
+    $("#btnDeleteFabricAttachment").click(function() {
+        var oFabricAttachment = $("#tblFabricAttachment").datagrid("getSelected");
+        if (oFabricAttachment == null || parseInt(oFabricAttachment.FabricAttachmentID) <= 0) {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return false;
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFabricAttachment,
+            ControllerName: "Fabric",
+            ActionName: "DeleteFabricAttachment",
+            TableId: "tblFabricAttachment",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+  
+    function onSuccess(result) {
+        alert(result)
+    }
+    //  end Fabric Attachment
+    /// Fabric entry
+    function Close()
+    {
+        window.close();
+    }
+
+</script>

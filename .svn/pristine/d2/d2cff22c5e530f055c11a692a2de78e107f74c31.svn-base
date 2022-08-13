@@ -1,0 +1,229 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Route Sheet Grace";
+}
+@model ESimSol.BusinessObjects.RouteSheetGrace
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+            <div class="col-md-12">
+                <div class="form-inline">
+                    <fieldset>
+                        <div class="row col-md-12">
+                            <div class="col-md-2 text-right">
+                                <label class="control-label">Note :</label>
+                            </div>
+                            <div class="col-md-9 text-left">
+                                <input class="form-control" ng-model="RouteSheetGrace.NoteApp" style="width:100%" />
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Approve($entity)"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>*@
+                </div>
+                <div ui-grid="gridOptions1" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                <fieldset>
+                    <button type="button" style="float:right" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Close($entity)"> <span class="glyphicon glyphicon-eye-close" aria-hidden="true"></span> Close</button>
+                    <button type="button" style="float:right; margin-right:5px" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="Approve($entity)"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 3px;
+        }
+        .grid {
+            height: 480px;
+            width: 100%;
+        }
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+        var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oRouteSheetGrace =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oRouteSheetDOs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RouteSheetDOs));
+
+        debugger;
+        var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+        mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+            $scope.RouteSheetGrace = oRouteSheetGrace;
+
+            $scope.gridOptions1 ={
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                columnDefs: [
+                    { field: 'ProductName', name: 'ProductName', width: '18%',  cellClass: 'text-left',enableCellEdit:false   },
+                    { field: 'ColorName', name: 'ColorName', width: '12%',  cellClass: 'text-left',enableCellEdit:false   },
+                    { field: 'ColorNo', name: 'ColorNo', width: '12%',  cellClass: 'text-right',enableCellEdit:false   },
+                    { field: 'OrderQty', name: 'OrderQty', width: '12%',  cellClass: 'text-right',enableCellEdit:false   },
+                    { field: 'DeliveryToName', name: 'DeliveryToName', width: '12%',  cellClass: 'text-right',enableCellEdit:false   },
+                ],
+                data:oRouteSheetDOs,
+                onRegisterApi:function(gridApi)
+                {
+                    $scope.gridApi = gridApi;
+                }
+            };
+            $scope.Add = function(e)
+            {
+                var modalInstance = $uibModal.open({
+                    ariaLabelledBy: 'modal-title',
+                    ariaDescribedBy: 'modal-body',
+                    size: 'md',
+                    templateUrl: 'RouteSheetGrace.html',
+                    controller: 'RouteSheetGraceCtrl',
+                    controllerAs: 'mainController',
+                    resolve: {
+                        obj: function () {
+                            return { value: oRouteSheetGrace, Operation: 'New'};
+                        }
+                    }
+                });
+                modalInstance.result.then(function (result) {
+                    if(result.RouteSheetGraceID>0)
+                    {
+                        $scope.gridOptions1.data.push(result);
+                    }
+
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            }
+            $scope.Edit = function(e)
+            {
+                debugger;
+                var oData = $scope.gridApi.selection.getSelectedRows()[0];
+                if(oData==null || oData.RouteSheetGraceID<=0)
+                {
+                    alert("Please Select an Route Sheet");
+                    return;
+                }
+                var nIndex = $scope.gridOptions1.data.indexOf(oData);
+                var modalInstance = $uibModal.open({
+                    ariaLabelledBy: 'modal-title',
+                    ariaDescribedBy: 'modal-body',
+                    size: 'md',
+                    templateUrl: 'RouteSheetGrace.html',
+                    controller: 'RouteSheetGraceCtrl',
+                    controllerAs: 'mainController',
+                    resolve: {
+                        obj: function () {
+                            return { value:oData, Operation: 'Edit'};
+                        }
+                    }
+                });
+                modalInstance.result.then(function (result) {
+                    debugger;
+                    if(result.RouteSheetGraceID>0)
+                    {
+                        $scope.gridOptions1.data[nIndex]=result;
+                    }
+
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            }
+            $scope.Approve = function(e)
+            {
+                debugger;
+                $http.post(_sBaseAddress+'/RouteSheetGrace/Approve',JSON.stringify($scope.RouteSheetGrace)).then(
+                function (response) {
+                    debugger;
+                    var result=jQuery.parseJSON(response.data);
+                    if(result.RouteSheetGraceID>0)
+                    {
+                        alert("Saved Successful");
+                        window.close();
+                    }
+                    else
+                    {
+                        alert(result.ErrorMessage);
+                    }
+                },
+                function (response) { alert((response.statusText));}
+            );
+
+            }
+            $scope.Close = function(e)
+            {
+                window.close();
+            }
+
+            
+        });
+
+
+        mainAppModule.controller('RouteSheetGraceCtrl', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+            debugger;
+            $scope.RouteSheetGrace = obj.value;
+            if($scope.RouteSheetGrace.RouteSheetGraceID==0)
+            {
+                $scope.RouteSheetGrace.Code = nLastCode+1;
+            }
+            $scope.Save = function ()
+            {
+                if(($scope.RouteSheetGrace.QtyGrace == 0 || $scope.RouteSheetGrace.QtyGrace == undefined)) {
+                    msModal.Message({headerTitle : '', bodyText:'Please Enter The Grace Amount', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(!Number($scope.RouteSheetGrace.QtyGrace))
+                {
+                    alert("Please Enter Only Number In Grace");
+                    return;
+                }
+                $http.post(_sBaseAddress+'/RouteSheetGrace/Save',JSON.stringify($scope.RouteSheetGrace)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        if(result.RouteSheetGraceID>0)
+                        {
+                            debugger;
+                            msModal.Message({headerTitle : '', bodyText:'Save Successful.', sucessText : 'Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                            $scope.RouteSheetGrace=result;
+                            nLastCode = result.Code;
+                            $uibModalInstance.close($scope.RouteSheetGrace);
+                        }
+                        else
+                        {
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert((response.statusText));}
+                );
+            };
+            $scope.cancel= function () {
+                debugger;
+                $uibModalInstance.close();
+            };
+
+        });
+    </script>
+
+
+
+
+
+
+
+
+
+
+
+
+

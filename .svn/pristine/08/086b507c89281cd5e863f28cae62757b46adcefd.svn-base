@@ -1,0 +1,195 @@
+﻿@{
+    ViewBag.Title = "Spare Parts Consumption Report";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Product>
+
+    <div style="margin-left:0px; width:100%;" class="menuMainCollectionTable">
+        <table id="tblProduct" style="width:896px;height:548px" title="Capital Resource List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="true" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ProductCode" width="9%">Code</th>
+                    <th field="ProductName" width="35%">Spare Parts Name</th>
+                    <th field="ProductCategoryName" width="12%">Category</th>
+                    <th field="ReportingUnit" width="5%">Unit</th>
+                    <th field="GroupName" width="12%">Group</th>
+                    <th field="ShortQty" width="8%" align="right">Total Qty</th>
+                    <th field="PurchasePrice" align="right" data-options="formatter:cellClickEvent" width="10%">Amount</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:auto">
+            <table>
+                <tr>
+                    <td>
+                        <select id="cboBU" style="height:24px"></select>
+                        @*<select id="cboResourcesType" style="height:24px" onchange="SearchByType()"></select>*@
+                        <input type="text" class="easyui-datebox" style="width: 100px; font-size:11px;" id="txtDateFrom" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        <label>to</label>
+                        <input type="text" class="easyui-datebox" style="width: 100px; font-size:11px;" id="txtDateTo" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        <input type="text" id="txtSearchByName" placeholder="Search by Name" style="width:110px" />
+                        <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:110px" />
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                        @*<a id="btnAddResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true"></a>
+                            <a id="btnEditResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true"></a>
+                            <a id="btnDeleteResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true"></a>
+                            <a id="btnCopyProduct" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-copy" plain="true">Copy</a>
+                            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>*@
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+    <script type="text/javascript">
+
+        var _oProducts=[];
+        var _sBaseAddress="";
+        var _nBUID = 0;
+        var _oResourcesTypes = [];
+        var _oBUs = [];
+        var _nMenuID = 0;
+        $(document).ready(function () {
+            debugger;
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oProducts=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            _nMenuID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MenuID));
+            @*_oResourcesTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ResourcesType));*@
+            _oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+            //_oResourcesTypes[0] = {CRID:0,Name:"Resource Type"}
+            var oTempProducts =sessionStorage.getItem("Products");
+            if(oTempProducts!=null)
+            {
+                _oProducts = jQuery.parseJSON(oTempProducts);
+            }
+            RefreshList(_oProducts);
+            RefreshPageControl();
+            //$('#tblProduct').datagrid({onClickRow: function(row){ RowSelect(row);}});
+        });
+        function RefreshList(oProducts)
+        {
+            data=oProducts;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblProduct').datagrid('loadData',data);
+
+            var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if(nID!=-1)
+            {
+                $('#tblProduct').datagrid('selectRow', nID);
+            }
+        }
+        function RefreshPageControl()
+        {
+            $("#cboResourcesType").icsLoadCombo({List: _oResourcesTypes,OptionValue: "CRID",DisplayText: "Name"});
+            $("#cboBU").icsLoadCombo({List: _oBUs,OptionValue: "BusinessUnitID",DisplayText: "Name"});
+            var dPreviousMonthDate = new Date();
+            dPreviousMonthDate.setMonth(dPreviousMonthDate.getMonth()-1)
+            $('#txtDateFrom').datebox('setValue',icsdateformat(dPreviousMonthDate));
+            $('#txtDateTo').datebox('setValue',icsdateformat(new Date()));
+            //$('#txtCRDate').datebox('setValue',oCR.CommissioningDateInString);
+            if(_nBUID>0)
+            {
+                $('#cboBU').val(_nBUID);
+                $('#cboBU').prop("disabled", true);
+            }
+        }
+        function cellClickEvent(value,row,index) {
+            return '<a id="btnShowDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="" plain="true" onclick="CellOnClick('+row.ProductID+')">'+row.PurchasePrice+'</a>';
+        }
+        function CellOnClick(nCRID) {
+            var oProduct= $('#tblProduct').datagrid('getSelected');
+            var SelectedRowIndex=$('#tblProduct').datagrid('getRowIndex',oProduct);
+            var oProducts= $('#tblProduct').datagrid('getRows');
+            sessionStorage.setItem("Products", JSON.stringify(oProducts));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BUID", sessionStorage.getItem('BUID'));
+            sessionStorage.setItem("BackLinkSPC", window.location.href);
+            window.location.href = sessionStorage.getItem('BaseAddress')+  "/SparePartsConsumption/ViewCapitalResourceConsumptionSPWise?nProductID="+oProduct.ProductID+"&buid="+sessionStorage.getItem('BUID')+"&menuid="+_nMenuID;
+        }
+        //-----------------------Basic Search(Start)--------------------------------------//
+        //function SearchByType()
+        //{
+        //    var oData = {
+        //        Code:'',
+        //        Name:'',
+        //        ParentID: $('#cboResourcesType').val(),
+        //        BUID:sessionStorage.getItem("BUID")
+        //    };
+        //    var obj = {
+        //        BaseAddress: _sBaseAddress,
+        //        Object: oData,
+        //        ControllerName: "Product",
+        //        ActionName: "GetCRByNameCodeTypeBUID",
+        //        IsWinClose: false
+        //    };
+        //    BasicSearch(obj);
+        //}
+        //$('#txtSearchByCode').keypress(function (e) {
+        //    debugger;
+        //    var oData = {
+        //        Code:document.getElementById('txtSearchByCode').value,
+        //        Name:'',
+        //        ParentID: $('#cboResourcesType').val(),
+        //        BUID:sessionStorage.getItem("BUID")
+        //    };
+        //    var obj = {
+        //        BaseAddress: _sBaseAddress,
+        //        Object: oData,
+        //        ControllerName: "Product",
+        //        ActionName: "GetCRByNameCodeTypeBUID",
+        //        IsWinClose: false
+        //    };
+        //    BasicSearch(obj);
+        //});
+        //function BasicSearch(obj)
+        //{
+
+        //    $("#progressbar").progressbar({ value: 0 });
+        //    $("#progressbarParent").show();
+        //    $.icsDataGets(obj, function (response) {
+        //        $("#progressbarParent").hide();
+        //        if (response.status && response.objs.length > 0) {
+        //            if (response.objs[0].CRID > 0) {
+        //                $('#tblProduct').datagrid('loadData',[]);
+        //                $("#tblProduct").datagrid("loadData", response.objs);
+        //            }
+        //            else { alert(response.objs[0].ErrorMessage); }
+        //        }
+        //        else{
+        //            alert("No Capital Resource found.");
+        //        }
+        //    });
+        //}
+        //function RefreshList(oProducts)
+        //{
+        //    data=oProducts;
+        //    data={"total":""+data.length+"","rows":data};
+        //    $('#tblProduct').datagrid('loadData',data);
+
+        //    var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        //    if(nID!=-1)
+        //    {
+        //        $('#tblProduct').datagrid('selectRow', nID);
+        //    }
+        //}
+        //-----------------------Basic Search (END)--------------------------------------//
+        //-----------------------------PRINT------------------------------------//
+
+        //$('#btnPrint').click(function(e)
+        //{
+        //    var oCR = $('#tblProduct').datagrid('getSelected');
+        //    if(oCR==null ||oCR.id<=0) { alert("Please select a valid item");return; }
+        //    var nts = (new Date().getTime()) / 1000;
+        //    window.open(_sBaseAddress +"/Product/PrintMachine?nCRID="+oCR.CRID+"&nts="+nts , "_blank");
+        //});
+        //$('#btnPrintList').click(function(e)
+        //{
+        //    var nts = (new Date().getTime()) / 1000;
+        //    window.open(_sBaseAddress +"/Product/PrintMachineList?nBuid="+ _nBUID +"&nts="+nts , "_blank");
+        //});
+        //-----------------------------PRINT(END)------------------------------------//
+
+    </script>
+

@@ -1,0 +1,205 @@
+﻿@{
+    ViewBag.Title = "Production ForeCast";
+}
+@model IEnumerable<ESimSol.BusinessObjects.DyeingForeCast>
+    <html>
+    <body>
+        <div class="easyui-panel" title="Production ForeCast" id="pnlDyeingForeCast" style="width:100%;height:100%;float:left" data-options="fit:true,border:false">
+            <div class="menuMainCollectionTable" style="height:88%">
+                <table id="tblDyeingForeCast" title="" class="easyui-datagrid" style="height:100%; width:100%" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarDyeingForeCast">
+                    <thead>
+                        <tr>
+                            <th field="DyeingTypeSt" width="18%" align="left">Dyeing Type</th>
+                            <th field="YetToProdQtySt" width="23%" align="right">Prod Pending</th>
+                            <th field="VirtualYetToProdQtySt" width="23%" align="right">Equivalent Qty</th>
+                            <th field="ProductionCapacitySt" width="20%" align="right">Capacity/Day</th>
+                            <th field="ReqDaysSt" width="12%" align="left">Req Days</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbarDyeingForeCast">
+                    <select style="width:250px" id="cboForecastLayout"></select>
+                    <input id="txtStartDateDyeingForeCast" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                    To
+                    <input id="txtEndDateDyeingForeCast" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                    <a id="btnSearchDyeingForeCast" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                    <a id="btnDyeingForeCastDetails" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Details</a>
+                </div>
+            </div>
+            <fieldset style="">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:12px; font-weight:bold" width="100%">
+                    <tr>
+                        <td style="width:52%; text-align:left;color:red;"></td>
+                        <td style="width:40%"></td>
+                        <td style="width:8%">
+                            <a href="javascript:void(0)" id="btnClose" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oDyeingForeCasts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnit = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnit));
+        var oForecastLayouts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ForecastLayout));
+        var sStartDateForecast= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ForecastStartDate));
+        var sEndDateForecast = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ForecastEndDate));
+
+        $('#pnlDyeingForeCast').panel('setTitle', 'Dyeing Forecast for '+oBusinessUnit.Name);
+        $('#txtStartDateDyeingForeCast').datebox('setValue', sStartDateForecast);
+        $('#txtEndDateDyeingForeCast').datebox('setValue', sEndDateForecast);
+
+        $('#tblDyeingForeCast').data("BaseAddress", sBaseAddress);
+        $('#tblDyeingForeCast').data("BusinessUnit", oBusinessUnit);
+        $("#cboForecastLayout").icsLoadCombo({ List: oForecastLayouts, OptionValue: "id", DisplayText: "Value", InitialValue:"--Select Layout--" });
+        $("#cboForecastLayout").val(1);
+        DynamicRefreshList(oDyeingForeCasts, "tblDyeingForeCast");
+    });
+
+    $('#btnClose').click(function(){
+        window.close();
+    });
+
+    $('#btnSearchDyeingForeCast').click(function(){
+        RefreshDyeingForeCast();
+    });
+
+    $("#cboForecastLayout").change(function (e){        
+        RefreshDyeingForeCast();
+    });
+
+    function RefreshDyeingForeCast()
+    {
+        if(parseInt($("#cboForecastLayout").val()) <= 0){
+            DynamicRefreshList([], "tblDyeingForeCast");
+            return;
+        }
+
+        if(parseInt($('#tblDyeingForeCast').data("BusinessUnit").BusinessUnitID) <= 0){
+            alert("Please Enter Business Unit!!");            
+            return;
+        }
+
+        var sStartDate   = $('#txtStartDateDyeingForeCast').datebox('getValue');
+        var sEndDate   = $('#txtEndDateDyeingForeCast').datebox('getValue');
+        if(sStartDate===null || sStartDate==="")
+        {
+            alert("Please select start date!");
+            $('#txtStartDateDyeingForeCast').focus();
+            return false;
+        }
+        if(sEndDate===null || sEndDate==="")
+        {
+            alert("Please select end date!");
+            $('#txtEndDateDyeingForeCast').focus();
+            return false;
+        }
+        if(new Date(sStartDate) > new Date(sEndDate))
+        {
+            alert("Start date must be smallar than or equal end date!");
+            $('#txtStartDateDyeingForeCast').focus();
+            return false;
+        }
+        
+        var oDyeingForeCast ={
+            BUID : parseInt($('#tblDyeingForeCast').data("BusinessUnit").BusinessUnitID),           
+            ForecastLayoutInt : parseInt($("#cboForecastLayout").val()),
+            StartDate : $('#txtStartDateDyeingForeCast').datebox('getValue'),
+            EndDate : $('#txtEndDateDyeingForeCast').datebox('getValue')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : $('#tblDyeingForeCast').data("BaseAddress") +"/ManagementDashboard/GetsDyeingForeCast",
+            traditional: true,
+            data:  JSON.stringify(oDyeingForeCast),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var oDyeingForeCasts = jQuery.parseJSON(data);
+                if(oDyeingForeCasts!=null && oDyeingForeCasts.length>0)
+                {
+                    if(oDyeingForeCasts[0].ErrorMessage === null || oDyeingForeCasts[0].ErrorMessage === "")
+                    {
+                        DynamicRefreshList(oDyeingForeCasts, "tblDyeingForeCast");
+                    }
+                    else
+                    {
+                        alert(oDyeingForeCasts[0].ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Data Not Found!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+
+    $('#btnDyeingForeCastDetails').click(function(){
+        var oTempDyeingForecast= $('#tblDyeingForeCast').datagrid('getSelected');
+        if(oTempDyeingForecast == null || parseInt(oTempDyeingForecast.DyeingTypeInt) <=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var sStartDate   = $('#txtStartDateDyeingForeCast').datebox('getValue');
+        var sEndDate   = $('#txtEndDateDyeingForeCast').datebox('getValue');
+        if(sStartDate===null || sStartDate==="")
+        {
+            alert("Please select start date!");
+            $('#txtStartDateDyeingForeCast').focus();
+            return false;
+        }
+        if(sEndDate===null || sEndDate==="")
+        {
+            alert("Please select end date!");
+            $('#txtEndDateDyeingForeCast').focus();
+            return false;
+        }
+        if(new Date(sStartDate) > new Date(sEndDate))
+        {
+            alert("Start date must be smallar than or equal end date!");
+            $('#txtStartDateDyeingForeCast').focus();
+            return false;
+        }
+
+        var oDyeingForecast = {
+            BUID : parseInt($('#tblDyeingForeCast').data("BusinessUnit").BusinessUnitID),
+            DyeingTypeInt : parseInt(oTempDyeingForecast.DyeingTypeInt),
+            ForecastLayoutInt : parseInt($("#cboForecastLayout").val()),
+            StartDate : $('#txtStartDateDyeingForeCast').datebox('getValue'),
+            EndDate : $('#txtEndDateDyeingForeCast').datebox('getValue')
+        };
+       
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : $('#tblDyeingForeCast').data('BaseAddress')+"/ManagementDashboard/SetSessionSearchCriteria",
+            data: JSON.stringify(oDyeingForecast),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv=((new Date()).getTime())/1000;
+                    window.open($('#tblDyeingForeCast').data('BaseAddress')+  "/ManagementDashboard/PrintDyeingForeCastDetails?ts="+tsv,"_blank");
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+        });
+    });
+</script>
+

@@ -1,0 +1,211 @@
+﻿@{
+    ViewBag.Title = "MachineType";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.MachineType>
+
+<div ng-app="MachineTypeModule">
+ 
+    <div ng-controller="MachineTypeController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+                <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+            </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oMachineTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+   
+    debugger;
+ 
+    var  MachineTypeModule = angular.module('MachineTypeModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ms.service']);
+
+    MachineTypeModule.controller('MachineTypeController', function ($scope, $http,$timeout, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oMachineTypes= (userSession.getData('MachineTypes').length>0)? userSession.getData('MachineTypes'):oMachineTypes;
+      
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'Name', name: 'Name', width: '50%' },
+                  { field: 'Note', name: 'Note', width: '40%' }
+            ],
+            data:oMachineTypes,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oMachineTypes.length>0 && userSession.getRowIndex()>=0)
+                {
+                    var index=userSession.getRowIndex();debugger;
+                    $timeout(function () {
+                        gridApi.grid.modifyRows($scope.gridOptions.data).then(gridApi.selection.selectRow($scope.gridOptions.data[index]));
+                        gridApi.selection.selectRow(index);
+                        //gridApi.core.scrollTo($scope.gridOptions.data, $scope.gridOptions.columnDefs[0]);
+                    }, 100);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("MachineTypeHeader", "Add MachineType");
+            sessionStorage.setItem("MachineTypes", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/MachineType/ViewMachineType?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.MachineTypeID==data[0].MachineTypeID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("MachineTypeHeader", "Edit MachineType");
+                    sessionStorage.setItem("MachineTypes", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/MachineType/ViewMachineType?nId="+value.MachineTypeID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+         
+            if (!confirm("Confirm to Delete?")) return ;
+          
+            $http.post('/MachineType/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.MachineTypeID==data[0].MachineTypeID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.MachineTypeID==data[0].MachineTypeID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("MachineTypeHeader", "View MachineType");
+                    sessionStorage.setItem("MachineTypes", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/MachineType/ViewMachineType?nId="+value.MachineTypeID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+     
+     
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oMachineType = data[0];
+            if(oMachineType==null || oMachineType.MachineTypeID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/MachineType/PrintMachineTypePreview?id='+oMachineType.MachineTypeID);
+        };
+
+     
+      
+     
+    
+
+
+        //button hide
+      
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

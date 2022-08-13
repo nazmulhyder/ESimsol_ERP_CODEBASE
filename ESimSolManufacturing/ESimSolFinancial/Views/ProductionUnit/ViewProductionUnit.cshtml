@@ -1,0 +1,347 @@
+﻿@{
+    ViewBag.Title = "Production Unit";
+}
+@model ESimSol.BusinessObjects.ProductionUnit
+
+<div style="padding-top:5px; height:99%" ng-app="ProductionUnitAPP" ng-controller="ProductionUnitCtrl" class="form-horizontal regionProductionUnit">
+    
+    <div style="height:90%">  
+        <fieldset style="height:100%">
+            <legend>Requisition Setup Info: </legend>
+            <div style="padding:15% 0 0 10%">
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right"><label class="control-label">Name:</label></div>
+                    <div class="col-md-8 text-left">
+                        <input ng-model="ProductionUnit.Name" ng-disabled="disabled" class="form-control" />
+                    </div>
+                </div>
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right"><label class="control-label">ShortName:</label></div>
+                    <div class="col-md-8 text-left">
+                        <input ng-model="ProductionUnit.ShortName" ng-disabled="disabled" class="form-control" />
+                    </div>
+                </div>
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right"><label class="control-label">Unit Type:</label></div>
+                    <div class="col-md-8 text-left">
+                        <select id="cboProductionUnitType" ng-model="ProductionUnit.ProductionUnitType" ng-options="obj.id as obj.Value for obj in ProductionUnitTypes" ng-disabled="disabled" ng-change="cboUnitType()" class="form-control">
+                            <option value="">--Select Type--</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right"><label class="control-label">Ref Name:</label></div>
+                    <div class="col-md-8 text-left">
+                        <div class="input-group">
+                            <input ng-model="ProductionUnit.RefName" class="form-control" ng-keydown="SearchKeyDown($event)" placeholder="Type Name & Press Enter" ng-disabled="ProductionUnit.ProductionUnitType<=0 || disabled" />
+                            <span class="input-group-btn">
+                                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Pick()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+
+               
+            </div>
+        </fieldset>
+    </div>
+   
+    <div style="height:10%">
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-show="hide_Save" ng-click="Save()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">Save</span> </button>
+                <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+
+    .grid{
+        width:100%; 
+        height:320px;
+    }
+    .regionProductionUnit .form-horizontal .control-label{
+        padding-top:3px;
+    }
+    .regionProductionUnit .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .regionProductionUnit .col-md-12{
+        width:100%;
+        padding-right:5px;
+        padding-left:5px;
+        margin-bottom:5px;
+    }
+    .regionProductionUnit .col-md-2{
+        width:13%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+    .regionProductionUnit .col-md-3{
+        width:20%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProductionUnit .col-md-4{
+        width:28%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProductionUnit .col-md-5{
+        width:40%;
+        padding-right:5px;
+        padding-left:0px;
+    }
+
+     .regionProductionUnit .col-md-10{
+        width:86%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+
+    .regionProductionUnit .col-md-8{
+        width:69%;
+        padding-right:5px;
+        padding-left:5px;
+    }
+    .regionProductionUnit .btn-sm{
+         padding:3px 10px;
+     }
+     .regionProductionUnit .input-group-addon{
+         padding: 4px 8px;
+     }
+</style>
+
+<script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oProductionUnit =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oProductionUnitTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionUnitTypes));
+    var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+    
+    var oProductionUnitType=oProductionUnit.ProductionUnitType;
+    var ProductionUnitModule = angular.module('ProductionUnitAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ms.service']);
+    ProductionUnitModule.controller('ProductionUnitCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        var viewType = sessionStorage.getItem("Operation");
+        if (viewType == 'View')
+        {
+            $scope.disabled= true;
+            $scope.hide=false;
+            $scope.hide_Revise=false;
+            $scope.hide_Approve=false;
+            $scope.hide_Save=false;
+        }
+        else
+        {
+            $scope.disabled= false;
+            $scope.hide=false;
+            $scope.hide_Revise=true;
+            $scope.hide_Approve=true;
+            $scope.hide_Save=true;
+        }
+
+        $scope.ProductionUnitTypes=oProductionUnitTypes;
+        $scope.ProductionUnit=oProductionUnit;
+
+        $scope.cboUnitType=function()
+        {
+            debugger;
+            if($scope.ProductionUnit.ProductionUnitType!=oProductionUnitType) 
+            {
+                $scope.ProductionUnit.RefID=0;
+                $scope.ProductionUnit.RefName="";
+            }
+        };
+
+        $scope.SearchKeyDown=function(e)
+        {
+            if($scope.ProductionUnit.ProductionUnitType==1) //InHouse
+                $scope.SearchKeyDownBusinessUnit(e);
+            else
+                $scope.SearchKeyDownApplicant(e);
+        }
+        $scope.Pick=function()
+        {
+            if($scope.ProductionUnit.ProductionUnitType==1) //InHouse
+                $scope.PickBusinessUnit();
+            else
+                $scope.PickApplicant();
+        }
+        $scope.SearchKeyDownBusinessUnit=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var RefName = $.trim($scope.ProductionUnit.RefName);
+                if(RefName==""||RefName==null)
+                {
+                    alert("Type BusinessUnit Name and Press Enter");
+                    return;
+                }
+                $scope.PickBusinessUnit();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.ProductionUnit.RefName='';
+                $scope.ProductionUnit.RefID = 0;
+            }
+        };
+        $scope.PickBusinessUnit= function () 
+        {
+            // debugger;
+            $scope.BUName =($scope.ProductionUnit.RefName == undefined || $scope.ProductionUnit.RefName =="")?"": $.trim($scope.ProductionUnit.RefName) ;
+            var obj={ NameCode: $scope.BUName }
+
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/BusinessUnit/GetsBUByCodeOrName',$.param(obj), config).then(function (response)
+            { 
+                var results=jQuery.parseJSON(response.data);
+                var modalObj={
+                    size:'md',
+                    title:'Business Unit',
+                    url:_sBaseAddress+'/Home/Modal',
+                    modalController:'ModalCtrl', 
+                    appController:'EASPController', 
+                    objs:results, 
+                    multiSelect:false,
+                    columns:[{ field: 'Code', name: 'Code' }, { field: 'Name', name: 'Business Unit Name' }]
+                }
+                var modalInstance=msModal.Instance(modalObj);
+                modalInstance.result.then(function (result)
+                {
+                    debugger;
+                    $scope.ProductionUnit.RefName=result.Name;
+                    $scope.ProductionUnit.RefID=result.BusinessUnitID;
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            },
+                function (response) { alert(jQuery.parseJSON(response.data).Message);}
+            );
+        };
+        // Search Applicant Start
+        $scope.SearchKeyDownApplicant=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var RefName = $.trim($scope.ProductionUnit.RefName);
+                if(RefName==""||RefName==null)
+                {
+                    alert("Type Applicant Name and Press Enter");
+                    return;
+                }
+                $scope.PickApplicant();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.ProductionUnit.RefName='';
+                $scope.ProductionUnit.RefID = 0;
+            }
+        };
+        $scope.PickApplicant= function () {
+            // debugger;
+            var oContractor = {
+                Params: '2' + '~' + $.trim($scope.ProductionUnit.RefName)+'~'+sessionStorage.getItem('BUID')
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/Contractor/ContractorSearchByNameType',$.param(oContractor), config).then(
+                                function (response)
+                                {
+                                    var oColumns = [];
+                                    var oColumn = { field: 'ContractorID', name: 'Code',width: '20%'  };oColumns.push(oColumn);
+                                    oColumn = { field: 'Name', name: 'Applicant Name',width: '50%', enableSorting: false  };oColumns.push(oColumn);
+                                    oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+                                    var results=jQuery.parseJSON(response.data);
+                                    var modalObj={
+                                        size:'md',
+                                        //url:sessionStorage.getItem('BaseAddress')+'/CommonModal/CommonListModal',
+                                        modalcontroller:'ModalCommonListCtrl',
+                                        appcontroller:'ProductionUnitController',
+                                        objs:results,
+                                        multiSelect:false,
+                                        pickertitle:'Applicant List',
+                                        searchingbyfieldName:'Name',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        $scope.ProductionUnit.RefName=result.Name;
+                                        $scope.ProductionUnit.RefID=result.ContractorID;
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+        };
+
+        $scope.Validation = function()
+        {
+            debugger;
+            
+            if($scope.ProductionUnit.ProductionUnitType<=0)
+            {
+                alert("Please Select Unit Type And Try Again.");
+                return false;
+            }
+            if($scope.ProductionUnit.Name==undefined ||$scope.ProductionUnit.Name=="")
+            {
+                alert("Please Enter Name And Try Again.");
+                return false;
+            }
+            if($scope.ProductionUnit.RefID<=0)
+            {
+                alert("Please Pick Applicant And Try Again.");
+                return false;
+            }
+            return true;
+        }
+        $scope.Save = function () {
+
+            if(!$scope.Validation())
+                return;
+
+            $http.post(_sBaseAddress+'/ProductionUnit/Save',JSON.stringify($scope.ProductionUnit)).then(
+                function (response) {
+                    var result=jQuery.parseJSON(response.data);
+                    if(result.ProductionUnitID>0)
+                    {
+                        debugger;
+                        $scope.ProductionUnit=result;
+                        userSession.setData('ProductionUnits',$scope.ProductionUnit);
+                        //sessionStorage.setItem('ProductionUnit',$scope.ProductionUnit);
+                        userSession.previousPage();
+                        // msModal.Message({headerTitle : '', bodyText:'Save Successfully.', sucessText : 'Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    }
+                    else
+                    {
+                        alert(result.ErrorMessage);
+                    }
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        );
+        };
+     
+        $scope.Close = function () {
+            userSession.previousPage();
+        };
+
+    });
+</script>
+
+

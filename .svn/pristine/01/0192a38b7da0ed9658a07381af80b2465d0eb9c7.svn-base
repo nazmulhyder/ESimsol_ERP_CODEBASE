@@ -1,0 +1,343 @@
+﻿@{
+    ViewBag.Title = "RouteSheet";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.RouteSheet>
+
+    <head>
+        <title>Route Sheet</title>
+    </head>
+
+    <body>
+        <div class="menuMainCollectionTable">
+            <div style="font-family:Tahoma; height:88%; width:100%;overflow:hidden;">
+                <table id="tblRouteSheet" title="DyeLine Approve" class="easyui-datagrid" style="width:100%;height:100%;"
+                       data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbarExportSCDetail'">
+                    <thead>
+                        <tr>
+                            <th field="RouteSheetDateStr" width="10%">Date</th>
+                            <th field="RouteSheetNo" width="10%">RouteSheet No</th>
+                            <th field="OrderNo" width="10%">OrderNo</th>
+                            <th field="RSStateStr" width="10%">Status</th>
+                            <th field="MachineName" width="12%">Machine</th>
+                            <th field="ProductName" width="15%">Product Name</th>
+                            <th field="Qty" width="10%" formatter="formatPrice">Qty</th>
+                            <th field="ApproveByName" width="14%">Approved</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbarExportSCDetail">
+                    <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-details" plain="true">View</a>
+                    <input id="chkIsCommon" type="checkbox" />
+                    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-print" plain="true">Print</a>
+                    <a id="btnRSState" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-approved" plain="true"> <label id="lblRSState">Send To Floor</label> </a>
+                    <a id="btnUndo" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-undo" plain="true">Undo</a>
+                </div>
+
+            </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight: bold">Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                        <tr>
+                            <td style="width: 10%;text-align:right"></td>
+                            <td style="width:60%; text-align:right"></td>
+                            <td style="width: 20%;text-align:right"></td>
+                            <td style="width: 10%;text-align:right">
+                                <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+        
+    </body>
+
+    <style type="text/css">
+        .td-AdvSearch-Level {
+            width: 35%;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .td-AdvSearch-Input {
+            width: 64%;
+        }
+
+        .td-AdvSearch-Input select {
+            width: 99%;
+        }
+
+        .td-AdvSearch-Input .textSearch {
+            width: 96%;
+        }
+
+        .td-AdvSearch-Input .pickersearch {
+            width: 74%;
+        }
+        .region-parent{
+        float:left; width:100%;
+        }
+        .region-child{
+            float:left; width:50%;
+        }
+        .cbo-styler{
+            width:98%;
+         }
+    </style>
+
+
+
+    <script type="text/javascript">
+    var _sBaseAddress="";
+    var _oRouteSheets=[];
+    var _oRSStatuss=[];
+    var _sPTUIDs="";
+    var _sContractorIDs="";
+    var _sMachineIDs="";
+
+    var _sMessage='';
+    var _nNextStatus=-1;
+
+   
+
+    $(document).ready(function () {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oRouteSheets =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oRSStatuss=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.EnumRSStatuss));
+        var oOrderTypes=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.OrderTypes));
+        debugger;
+        //$('.number').icsCurrencyBox();
+ 
+        //$('.initial-state').hide();
+        debugger;
+        if(sessionStorage.getItem("RouteSheets")!=null && sessionStorage.getItem("RouteSheets").length>0)
+        {
+            _oRouteSheets= jQuery.parseJSON(sessionStorage.getItem('RouteSheets'));
+            var nIndex= sessionStorage.getItem('SelectedRowIndex');
+            DynamicRefreshList(_oRouteSheets, 'tblRouteSheet');
+            if(nIndex>-1){
+                $('#tblRouteSheet').datagrid('selectRow',nIndex);
+                OperationPerforms(nIndex, _oRouteSheets[nIndex]);
+            }
+        }
+        else{
+            DynamicRefreshList(_oRouteSheets, 'tblRouteSheet');
+        }
+
+       
+    
+        DynamicRefreshList(_oRSStatuss, 'tblOrderStatus');
+
+        $("#cboOrderType").icsLoadCombo({
+            List: oOrderTypes,
+            OptionValue: "OrderType",
+            DisplayText: "ShortName"
+        });
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+
+    $('#tblRouteSheet').datagrid({ onSelect: function (rowIndex, rowData) { OperationPerforms(rowIndex, rowData); } });
+
+    function OperationPerforms(rowIndex, rowData) {
+      
+        if (rowData != null && rowData.RouteSheetID > 0) {
+            _nNextStatus=-1;
+            _sMessage="";
+            $('#btnView,#btnPrint,#btnPrintBailyFormat').show();
+            if (rowData.RSState==1)  //Initialized = 1,
+            {
+                $('#btnEdit,#btnDelete,#btnRSState').show();
+                _nNextStatus=3;
+                _sMessage="Send to Floor";
+                $('#lblRSState').text('Send to Floor');
+            }
+            else if (rowData.RSState==3)  //In Floor
+            {
+                $('#btnUndo').show();
+            }
+            //if (rowData.RSState>=6 && rowData.RSState<=17)  //Sub Finishing Store to Finish
+            //{
+            //    $('#btnCancel').hide();
+            //}
+        }
+    }
+
+
+    /*.......... Searching ............. */
+
+
+    $("#txtRouteSheetNo").keyup(function (e) {
+        var oRouteSheets =[];
+        var keyCode = e.keyCode || e.which;
+        $('#txtRouteSheetNo').removeClass("errorFieldBorder");
+        if (keyCode == 8) { oRouteSheets = _oRouteSheets; }
+        else{ oRouteSheets = $('#tblRouteSheet').datagrid('getRows'); }
+        if (e.keyCode == 13) // Enter Press
+        {
+            if (!$.trim($("#txtRouteSheetNo").val()).length) {
+
+                alert("Please enter routesheet no to search.");
+                $('#txtRouteSheetNo').focus();
+                $('#txtRouteSheetNo').val("");
+                return;
+            }
+            else { $('#txtRouteSheetNo').removeClass("errorFieldBorder"); }
+
+            var oRouteSheet={
+                Params:   $.trim($("#txtRouteSheetNo").val())+'~'+ $('#chkDate').is(':checked')+ '~'+ $('#dtRouteSheetFrom').datebox('getValue')+'~'+ $('#dtRouteSheetTo').datebox('getValue')+'~'+ '' +'~'+ '' + '~'+ '' +'~'+ '' 
+
+            };
+            GetsRouteSheet(oRouteSheet,false);
+        }
+        else {
+            var sTempName="";
+            var oSearchedData = [];
+            for(i=0;i<oRouteSheets.length;++i)
+            {
+                sTempName=oRouteSheets[i]['RouteSheetNo'];
+                if(sTempName.toUpperCase().indexOf($('#txtRouteSheetNo').val().toUpperCase())>-1)
+                {
+                    oSearchedData.push(oRouteSheets[i]);
+                }
+            }
+            $('#tblRouteSheet').empty();
+            if (oSearchedData.length == 0) { DynamicRefreshList(_oRouteSheets, "tblRouteSheet");}
+            else { DynamicRefreshList(oSearchedData, "tblRouteSheet"); }
+
+        }
+    });
+
+    $('#btnSearch').click(function(e){
+
+        if($.trim($("#txtRouteSheetNo").val())=="" && !$('#chkDate').is(':checked')){
+            alert("No searching criteria found to search."); return false;
+        }
+        var oRouteSheet={
+            Params:   $.trim($("#txtRouteSheetNo").val())+'~'+ $('#chkDate').is(':checked')+ '~'+ $('#dtRouteSheetFrom').datebox('getValue')+'~'+ $('#dtRouteSheetTo').datebox('getValue')+'~'+ '' +'~'+ '' + '~'+ '' +'~'+ '' 
+
+        };
+        GetsRouteSheet(oRouteSheet, false) ;
+    });
+
+ 
+
+
+
+
+
+
+    
+
+    $('#btnView').click(function (e)
+    {
+        var oRouteSheet = $('#tblRouteSheet').datagrid('getSelected');
+        if (oRouteSheet ==null || oRouteSheet.RouteSheetID <=0 ) { alert("Please select an item from list."); return ; }
+
+        var nIndex=$('#tblRouteSheet').datagrid('getRowIndex',oRouteSheet);
+
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "View");
+        sessionStorage.setItem("SelectedRowIndex", nIndex);
+        sessionStorage.setItem("RouteSheetHeader", "View Production");
+        sessionStorage.setItem("RouteSheets", JSON.stringify($('#tblRouteSheet').datagrid('getRows')));
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/RouteSheet/ViewRouteSheet?nId="+oRouteSheet.RouteSheetID+"&ts="+tsv;;
+    });
+
+    $('#btnPrint').click(function (e)
+    {
+        var oRouteSheet = $('#tblRouteSheet').datagrid('getSelected');
+        if (oRouteSheet ==null || oRouteSheet.RouteSheetID <=0 ) { alert("Please select an item from list."); return ; }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+ "/RouteSheet/PrintRouteSheet?nId="+oRouteSheet.RouteSheetID+"&bIsCommon="+$("#chkIsCommon").is(":checked")+"&nts="+tsv, "_blank");
+
+    });
+
+
+
+    /*----------Copy---------------*/
+
+    /*----------Order Status Change----------------*/
+    function Validation(oRouteSheet){
+
+        if(oRouteSheet.PTUID<=0){
+            alert('No  order found.');
+            return false;
+        }
+
+        if(oRouteSheet.ProductID_Raw<=0){
+            alert('No raw product found.');
+            return false;
+        }
+        if(oRouteSheet.LotID<=0){
+            alert('No lot found.');
+            return false;
+        }
+        if( parseFloat(oRouteSheet.Qty)<=0){
+            alert('Quantity required.');
+            return false;
+        }
+        if( oRouteSheet.MachineID<=0){
+            alert('No machine found.');
+            return false;
+        }
+     
+       
+
+        return true;
+    }
+  
+    $("#btnRSState").click(function () {
+        ChangeRSState();
+    });
+
+    $("#btnUndo").click(function () {
+        _nNextStatus=1;
+        _sMessage="undo";
+        ChangeRSState();
+    });
+
+    function ChangeRSState(){
+
+        var oRouteSheet = $('#tblRouteSheet').datagrid('getSelected');
+        if (oRouteSheet ==null || oRouteSheet.RouteSheetID <=0 ) { alert("Please select an item from list."); return ; }
+        if(!Validation(oRouteSheet)) return false;
+        if (oRouteSheet.RSState >=4 ) { alert("Already Approve."); return ; }
+        if(!confirm("Confirm to "+_sMessage)) return false;
+
+        var oRSH={
+            RouteSheetID : oRouteSheet.RouteSheetID,
+            CurrentStatus : _nNextStatus,
+            PreviousState : oRouteSheet.RSState,
+            EventTime : new Date(),
+            EventEmpID : 0
+        };
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oRSH,
+            ObjectId: oRSH.RouteSheetID,
+            ControllerName: "RouteSheet",
+            ActionName: "ChangeRSStatus",
+            TableId: "tblRouteSheet",
+            IsWinClose: false,
+            Message: _sMessage.charAt(0).toUpperCase()+_sMessage.slice(1) +" Successfully."
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if (response.obj.RouteSheetID > 0) {
+                    OperationPerforms(-1, response.obj);
+                }
+            }
+        });
+    }
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLinkRSAprove");
+    });
+
+    </script>

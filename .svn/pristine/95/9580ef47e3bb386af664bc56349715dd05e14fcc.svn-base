@@ -1,0 +1,219 @@
+﻿@{
+    ViewBag.Title = "Party Wise Bank List";
+}
+<html>
+
+<body>
+    @model ESimSol.BusinessObjects.Contractor
+    <div id="divPartyWiseBanks" class="easyui-panel" title="PartyWiseBanks List" style="font-family:Tahoma; height:100%;">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblPartyWiseBanks" class="easyui-datagrid" fitcolumns="false" fit="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="BankName" style="width:30%;">Bank Name</th>
+                        <th field="AccountName" style="width:30%;">Account Name</th>
+                        <th field="AccountNo" style="width:30%;">Account No</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" placeholder="Search by IssueTo Name" id="txtName" style="width:200px" onclick="ClearNamefield()" />
+                @*<a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>*@
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddPartyWiseBank()">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="EditPartyWiseBank()">Edit</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+                @*<a id="btnActive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Active()">Active/In-Active</a>*@
+                @*<a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPartyWiseBank()">Print List</a>*@
+                @*<a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPartyWiseBankInXL()">Print in XL</a>*@
+            </div>
+        </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight:bold"> Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; width:100%; font-weight:bold">
+                        <tr>
+                            <td style="width:90%; text-align:right"></td>
+
+                            <td style="width:10%; text-align:right">
+                                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false" onclick="Close()">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _nMenuid=null;    
+    var _oPartyWiseBanks=[];
+    var _oPartyWiseBank={ErrorMessage:''};
+    var _oSelectedContractor=null;
+    var _sPartyWiseBankHeader=null;
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oSelectedContractor =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oPartyWiseBanks=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.PartyWiseBanks));
+        _sPartyWiseBankHeader=(sessionStorage.getItem("PartyWiseBanksHeader")==''?sessionStorage.getItem("PartyWiseBanksHeader"):localStorage.getItem("PartyWiseBanksHeader"));
+        $('#divPartyWiseBanks').panel({ title:_sPartyWiseBankHeader});
+        var oPartyWiseBanks =sessionStorage.getItem("PartyWiseBanks");
+        var nIndex =sessionStorage.getItem("SelectedRowIndex");
+        if(oPartyWiseBanks!=null)
+        {
+            oPartyWiseBanks = jQuery.parseJSON(oPartyWiseBanks)===null?_oPartyWiseBanks:jQuery.parseJSON(oPartyWiseBanks);
+        }
+        else
+        {
+            oPartyWiseBanks=_oPartyWiseBanks;
+        }
+        DynamicRefreshList(_oPartyWiseBanks, 'tblPartyWiseBanks');
+        if(nIndex!=null)
+        {
+            $('#tblPartyWiseBanks').datagrid('selectRow', nIndex);
+        }        
+    });
+    function ClearNamefield()
+    {
+        $("#txtName")[0].value='';
+    }
+
+    $('#txtName').keyup(function (e) {
+        debugger;
+        var c = String.fromCharCode(e.which);
+        var txtName = document.getElementById('txtName').value;
+
+        var oSearchedPartyWiseBanks = [];  var sTempName="";
+        var oCurrentList = $('#tblPartyWiseBanks').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oCurrentList = _oPartyWiseBanks;
+        }
+        for(i=0;i<oCurrentList.length;++i){
+            sTempName=oCurrentList[i].ChequeIssueTo;
+            n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedPartyWiseBanks.push(oCurrentList[i]);
+            }
+        }
+        RefreshList(oSearchedPartyWiseBanks);
+    });
+
+    function RefreshList(oPartyWiseBanks)
+    {
+        data = oPartyWiseBanks;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblPartyWiseBanks').datagrid('loadData',data);
+    }
+    function AddPartyWiseBank()
+    {
+        var oPartyWiseBanks= $('#tblPartyWiseBanks').datagrid('getRows');
+        sessionStorage.setItem("PartyWiseBanks", JSON.stringify(oPartyWiseBanks));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("PartyWiseBankHeader", "Add PartyWiseBank");
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/PartyWiseBank/ViewPartyWiseBank?id=0&nid="+_oSelectedContractor.ContractorID;
+    }
+
+    function EditPartyWiseBank()
+    {
+        var oPartyWiseBank= $('#tblPartyWiseBanks').datagrid('getSelected');
+        if(oPartyWiseBank==null || oPartyWiseBank.PartyWiseBankID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblPartyWiseBanks').datagrid('getRowIndex',oPartyWiseBank);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblPartyWiseBanks').datagrid('getRowIndex',oPartyWiseBank);
+        var oPartyWiseBanks= $('#tblPartyWiseBanks').datagrid('getRows');
+        sessionStorage.setItem("PartyWiseBanks", JSON.stringify(oPartyWiseBanks));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PartyWiseBankHeader", "Edit PartyWiseBank");
+        window.location.href = _sBaseAddress+  "/PartyWiseBank/ViewPartyWiseBank?id="+oPartyWiseBank.PartyWiseBankID+"&nid="+_oSelectedContractor.ContractorID;
+    }
+
+    function Delete()
+    {
+        debugger;
+        var oPartyWiseBank= $('#tblPartyWiseBanks').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+
+        if(oPartyWiseBank==null || oPartyWiseBank.PartyWiseBankID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblPartyWiseBanks').datagrid('getRowIndex',oPartyWiseBank);
+
+        var tsv = ((new Date()).getTime()) / 1000;
+        if (oPartyWiseBank.PartyWiseBankID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/PartyWiseBank/Delete",
+                traditional: true,
+                data:{id:oPartyWiseBank.PartyWiseBankID,ts:tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage === "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblPartyWiseBanks').datagrid('deleteRow',SelectedRowIndex);
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+    function Details()
+    {
+        var oPartyWiseBank= $('#tblPartyWiseBanks').datagrid('getSelected');
+        if(oPartyWiseBank==null || oPartyWiseBank.PartyWiseBankID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblPartyWiseBanks').datagrid('getRowIndex',oPartyWiseBank);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblPartyWiseBanks').datagrid('getRowIndex',oPartyWiseBank);
+        var oPartyWiseBanks= $('#tblPartyWiseBanks').datagrid('getRows');
+        sessionStorage.setItem("PartyWiseBanks", JSON.stringify(oPartyWiseBanks));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PartyWiseBankHeader", "View PartyWiseBank");
+        window.location.href = _sBaseAddress+  "/PartyWiseBank/ViewPartyWiseBank?id="+oPartyWiseBank.PartyWiseBankID+"&nid="+_oSelectedContractor.ContractorID;
+    }
+    function Close()
+    {
+        debugger;
+        if(localStorage.getItem("PartyWiseBankFromSQ")=="true")
+            window.close();
+        else
+            window.location.href = sessionStorage.getItem("ContractorBackTo");;
+    }
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/Contractor/ViewContractors?menuid="+_nMenuid;
+        }
+    });
+</script>
+        

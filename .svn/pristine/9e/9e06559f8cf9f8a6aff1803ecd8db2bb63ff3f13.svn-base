@@ -1,0 +1,150 @@
+﻿@{
+    ViewBag.Title = "Body Part List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.BodyPart>
+
+<div class="menuMainCollectionTable">
+    <table id="tblBodyParts" title="Body Part List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="BodyPartCode" width="150">Body Part Code</th>
+                <th field="BodyPartName" width="200">Body Part Name</th>
+                <th field="Remarks" width="250">Remarks</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">        
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+$(document).ready(function () {
+    //debugger;
+    var oTempBodyParts =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));    
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));  
+    var oBodyParts =sessionStorage.getItem("BodyParts");
+    if(oBodyParts!=null)
+    {
+        oBodyParts = jQuery.parseJSON(oBodyParts);
+    }
+    else
+    {
+        oBodyParts=oTempBodyParts;
+    }
+    RefreshList(oBodyParts);
+    RefreshControlLayout(oAuthorizationRolesMapping);
+});
+
+
+$('#btnAdd').click(function(){
+    var oBodyParts= $('#tblBodyParts').datagrid('getRows');
+    sessionStorage.setItem("BodyParts", JSON.stringify(oBodyParts));
+    sessionStorage.setItem("SelectedRowIndex", -1);
+    sessionStorage.setItem("BodyPartHeader", "Add Body Part");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+ "/BodyPart/ViewBodyPart?id=0";
+});
+
+$('#btnEdit').click(function(){
+    var oBodyPart= $('#tblBodyParts').datagrid('getSelected');
+    if(oBodyPart==null || oBodyPart.BodyPartID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBodyParts').datagrid('getRowIndex',oBodyPart);
+    var oBodyParts= $('#tblBodyParts').datagrid('getRows');
+    sessionStorage.setItem("BodyParts", JSON.stringify(oBodyParts));
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("BodyPartHeader", "Edit Body Part");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+  "/BodyPart/ViewBodyPart?id="+oBodyPart.BodyPartID;
+});
+
+$('#btnView').click(function(){
+    var oBodyPart= $('#tblBodyParts').datagrid('getSelected');
+    if(oBodyPart==null || oBodyPart.BodyPartID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBodyParts').datagrid('getRowIndex',oBodyPart);
+    var oBodyParts= $('#tblBodyParts').datagrid('getRows');
+    sessionStorage.setItem("BodyParts", JSON.stringify(oBodyParts));
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("BodyPartHeader", "View Body Part");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+  "/BodyPart/ViewBodyPart?id="+oBodyPart.BodyPartID;
+});
+
+$('#btnDelete').click(function(){
+    var oBodyPart= $('#tblBodyParts').datagrid('getSelected');
+    if (!confirm("Confirm to Delete?")) return ;
+        
+    if(oBodyPart==null || oBodyPart.BodyPartID<=0)
+    {
+        alert("Invalid Field!!! please select a valid Field!");                  
+        return false;
+    }
+    var SelectedRowIndex=$('#tblBodyParts').datagrid('getRowIndex',oBodyPart);
+
+    if (oBodyPart.BodyPartID > 0) 
+    {
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",                
+            url : sessionStorage.getItem('BaseAddress')+  "/BodyPart/Delete",
+            data: JSON.stringify(oBodyPart),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Data delete successfully") 
+                {
+                    alert("Delete sucessfully");                        
+                    $('#tblBodyParts').datagrid('deleteRow',SelectedRowIndex);
+                          
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+                      
+        });
+    }
+});
+    
+function RefreshList(oBodyParts)
+{    
+    data=oBodyParts;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBodyParts').datagrid('loadData',data);  
+    var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+    if(nID!=-1)
+    {
+        $('#tblBodyParts').datagrid('selectRow', nID);
+    }
+}
+
+function RefreshControlLayout(oAuthorizationRolesMapping)
+{
+    $('#btnAdd,#btnEdit,#btnView,#btnDelete').hide(); 
+    
+    if(PermissionChecker('Add','BodyPart',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+    if(PermissionChecker('Edit','BodyPart',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+    if(PermissionChecker('View','BodyPart',oAuthorizationRolesMapping)){$("#btnView").show();}
+    if(PermissionChecker('Delete','BodyPart',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+
+}
+</script>

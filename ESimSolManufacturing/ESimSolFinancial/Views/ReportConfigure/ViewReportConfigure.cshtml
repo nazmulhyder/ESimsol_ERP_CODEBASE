@@ -1,0 +1,198 @@
+﻿@{
+    ViewBag.Title = "Report Configure";
+}
+@model ESimSol.BusinessObjects.ReportConfigure
+<div id="divReportConfigure" class="easyui-panel" title="Role Assign" style="font-family:Tahoma; height:100%; width:100%">
+    <div style="width:100%; height:87%; text-align:left; padding-top:2px">
+        <table id="tblReportConfigure" title="" class="easyui-datagrid" fitcolumns="false" fit="true" rownumbers="true" pagination="fales" singleselect="true" selectoncheck="false" checkonselect="false" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th data-options="field:'Selected',checkbox:true"></th>
+                    <th field="FieldNames" width="400">DB Field</th>
+                    <th field="CaptionNames" width="600">Report Caption</th>
+                </tr>
+            </thead>
+        </table> 
+        <div id="toolbar">
+            <a id="btnUp" style=" width:50px; text-align:left;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+            <a id="btnDown" style=" width:60px; text-align:left;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+        </div>
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right"></td>
+                    <td style="width: 10%">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                    </td>
+                    <td style="width: 10%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var _oReportConfigures=[];
+    $(document).ready(function () {
+        var oReportConfigure = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divReportConfigure').data('ReportConfigure', oReportConfigure);
+        $('#divReportConfigure').panel('setTitle', 'Report Configure For : '+ sessionStorage.getItem('ReportConfigureFor'));
+        _oReportConfigures = oReportConfigure.ReportConfigures; 
+        RefreshList(_oReportConfigures);
+    });
+
+    function RefreshList(oReportConfigures)
+    {
+        data=oReportConfigures;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblReportConfigure').datagrid('loadData',data);
+
+        oReportConfigures = $('#tblReportConfigure').datagrid('getRows');
+        for(var i =0;i<oReportConfigures.length;i++)
+        {
+            if(oReportConfigures[i].Selected ===  true)
+            {
+                $('#tblReportConfigure').datagrid('checkRow', i);                
+            }
+        }
+    }
+
+    function ValidateInput()
+    {
+        var oReportConfigures = $('#tblReportConfigure').datagrid('getChecked');
+        if(oReportConfigures.length<=0)
+        {
+            alert("Please select at least one Role!");
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oReportConfigures = $('#tblReportConfigure').datagrid('getChecked');
+        var oReportConfigure = {
+            ReportConfigureID:parseInt($('#divReportConfigure').data("ReportConfigure").ReportConfigureID),
+            FieldNames : ICS_PropertyConcatation(oReportConfigures,'FieldNames'),
+            CaptionNames : ICS_PropertyConcatation(oReportConfigures,'CaptionNames'),
+            ReportTypeInInt : parseInt($('#divReportConfigure').data("ReportConfigure").ReportTypeInInt)
+        };
+        return oReportConfigure;
+    }
+
+    $('#btnSave').click(function(){
+        if(!ValidateInput()) return;
+        var oReportConfigure = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/ReportConfigure/Save",
+            traditional: true,
+            data:  JSON.stringify(oReportConfigure),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oReportConfigure = jQuery.parseJSON(data);
+                if (oReportConfigure.ErrorMessage==null || oReportConfigure.ErrorMessage=="")
+                {
+                    alert("Successfully Configuration");
+                    var win = window.open("","_self");
+                    win.close();
+                }
+                else 
+                {
+                    alert(oReportConfigure.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $('#btnClose').click(function(){
+        var win = window.open("","_self");
+        win.close();
+    });
+
+    function UP()
+    {
+        debugger;
+        var oReportConfigure = $('#tblReportConfigure').datagrid('getSelected');
+        if(oReportConfigure==null || oReportConfigure.CaptionNames == "")
+        {
+            alert("Please select an item");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblReportConfigure').datagrid('getRowIndex',oReportConfigure);
+        if(SelectedRowIndex==0)return;
+        var oReportConfigures=[];
+        oReportConfigures=_oReportConfigures;
+        _oReportConfigures=[];
+        for(var i=0; i<oReportConfigures.length; i++)
+        {
+            if(i==(SelectedRowIndex-1))
+            {
+                _oReportConfigures[i]=oReportConfigures[i+1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oReportConfigures[i]=oReportConfigures[i-1];
+            }
+            else
+            {
+                _oReportConfigures[i]=oReportConfigures[i];
+            }
+            _oReportConfigures[i].Sequence=i+1;
+        }
+        data = _oReportConfigures;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblReportConfigure').datagrid('loadData',data);
+        var newSelectedRowIndex=SelectedRowIndex-1;
+        $('#tblReportConfigure').datagrid('selectRow',newSelectedRowIndex);
+    }
+
+    function Down()
+    {
+        debugger;
+        var oReportConfigure = $('#tblReportConfigure').datagrid('getSelected');
+        if(oReportConfigure==null || oReportConfigure.CaptionNames == "")
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblReportConfigure').datagrid('getRowIndex',oReportConfigure);
+        if(SelectedRowIndex==(_oReportConfigures.length-1))return;
+        var oReportConfigures=[];
+        oReportConfigures=_oReportConfigures;
+        _oReportConfigures=[];
+        for(var i=0; i<oReportConfigures.length; i++)
+        {
+            if(i==(SelectedRowIndex+1))
+            {
+                _oReportConfigures[i]=oReportConfigures[i-1];
+            }
+            else if(i==SelectedRowIndex)
+            {
+                _oReportConfigures[i]=oReportConfigures[i+1];
+            }
+            else
+            {
+                _oReportConfigures[i]=oReportConfigures[i];
+            }
+            _oReportConfigures[i].Sequence=i+1;
+        }
+        data = _oReportConfigures;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblReportConfigure').datagrid('loadData',data);
+        var newSelectedRowIndex=SelectedRowIndex+1;
+        $('#tblReportConfigure').datagrid('selectRow',newSelectedRowIndex);
+    }
+
+</script>

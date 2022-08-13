@@ -1,0 +1,315 @@
+﻿
+@{
+    ViewBag.Title = "Batch Cost";
+}
+@model IEnumerable<ESimSol.BusinessObjects.DUBatchCost>
+
+<div class="menuMainCollectionTable" ng-app="DUBatchCostApp">
+    <div ng-controller="DUBatchCostController" title="Recycle Process">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <input type="text" class="form-control" ng-model="RefNo" ng-keydown="searchByRefNo($event)" placeholder="Type Batch No & Press Enter">
+            <button type="button"  class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+            <button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-list" aria-hidden="true"> View Details</span></button>
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span>Preview(Batch Cost)</button>
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewRS()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span>Preview(Dyeing Card)</button>
+             @*<button type="button" ng-show="btnSQ" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintSQ()"><span class="glyphicon glyphicon-copy" aria-hidden="true"> SQ</span></button>*@
+            @*<button type="button" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintListXL()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> XL Summary</span></button>*@
+            <button type="button" id="btnPriviewXL" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintListXL_Report()"><span class="glyphicon glyphicon-print" aria-hidden="true"> XL Report</span></button>
+            
+            @*<button type="button" ng-show="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>*@
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns style="width: 99%; height:535px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+</style>
+
+ <script type="text/javascript">
+    var oDUBatchCostList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oDUBatchCostStatusList = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUBatchCostStatusList));
+
+    var CInvoiceapp= angular.module('DUBatchCostApp',   ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.cellNav','ms.service','ui.grid.pinning','ms.service']);
+    CInvoiceapp.controller('DUBatchCostController',  function ($scope, $http, $timeout, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch)  {
+        oDUBatchCostList= (userSession.getData('DUBatchCostList').length>0)? userSession.getData('DUBatchCostList'):oDUBatchCostList;
+        debugger;
+
+        $scope.RSStates = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RSStates));
+        $scope.OrderTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+        $scope.RSShifts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RSShifts));
+        $scope.DyeingTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUDyeingTypes));
+        $scope.BUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+        sessionStorage.setItem("BackLink", window.location.href);
+        $scope.gridOptions = {
+            enableRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableColumnResizing: true,
+            enableFullRowSelection: true,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'RSDateSt', name:'Batch Date', width:'12%' },
+
+                //Re-production Qty(kg)	Addition Qty(kg)	No. of Addition	Loading Capacity	Programe Short
+
+                { field: 'MachineName', name:'M/C No', width:'15%' },
+                { field: 'OrderNo', name:'Order No', width:'10%' },
+                { field: 'RSNo', name:'Batch No', width:'10%' },
+               // { field: 'ProductCategoryName', name:'CategoryName', width:'15%' },
+                { field: 'ProductName', name:'ProductName', width:'15%' },
+                { field: 'ColorName', name:'Color Name', width:'10%' },
+
+                { field: 'ShadeName', name:'Shade', width:'10%' },
+                { field: 'ShadePertage', name:'Shade (%)',cellFilter:'number:2', cellClass:'text-right',  width:'10%' },
+                { field: 'MLoadTimeSt', name:'LoadTime', width:'10%' },
+                { field: 'MUnLoadTimeSt', name:'UnLoadTime', width:'10%' },
+                { field: 'DyeingTimeDuration', name:'DyeingDuration', cellClass:'text-right', width:'10%' },
+
+                { field: 'NumberOfAddition', name:'NumberOfAddition', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                { field: 'Qty_Yarn', name:'Batch Qty', cellFilter:'number:4', cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right', width:'10%' },
+                { field: 'UnitPrice', name:'Sale Rate(USD)', cellFilter:'number:4', width:'10%'  ,  cellClass: 'text-right', cellFilter: 'number: 2' },
+              //  { field: 'TotalRate', name:'TotalRate', cellFilter:'number:4', width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+
+                //{ field: 'NumberOfAddition', name:'NumberOfAddition', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                //{ field: 'TotalQty', name:'Total Qty', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+
+                //{ field: 'TotalRate', name:'TotalRate', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+
+             
+                { field: 'Qty_Dyes', name:'Qty Dyes', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+                { field: 'Qty_Chemical', name:'Qty Chemical', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+
+
+                { field: 'Value_Yarn', name:'Value Yarn', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                { field: 'Value_Dyes', name:'Value Dyes', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                { field: 'Value_Chemical', name:'Value Chemical', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+
+                { field: 'Dyeing_Cost', name:'Dyeing Cost', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                { field: 'Chem_CostPerKG', name:'Ch.per Unit', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                { field: 'Dyes_CostPerKG', name:'Dyes per Unit', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+                { field: 'Dyeing_CostPerKg', name:'Dye. Cost per Unit', cellFilter:'number:4', cellClass:'text-right', width:'10%' },
+
+                { field: 'RecycleQty', name:'RecycleQty', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+                { field: 'WastageQty', name:'WastageQty', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+                { field: 'Qty_Finishid', name:'Packing Qty', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+                { field: 'Finish_Cost', name:'Packing Value', cellFilter:'number:4',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 4', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:4', footerCellClass: 'text-right'  },
+                // Dyeing_Cost Chem_CostPerKG 	 Dyes_CostPerKG  Dyeing_CostPerKg
+
+                //{ field: 'Qty_RP', name:'Re-production',cellFilter:'number:2',  width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                //{ field: 'Qty_Add', name:'Addition Qty',cellFilter:'number:2',  width:'10%'  ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'NumberOfAddition', name:'No. of Addition',cellFilter:'number:2', cellClass:'text-right', width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                { field: 'MCapacity', name:'Loading Capacity',cellFilter:'number:2', cellClass:'text-right', width:'10%' ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                { field: 'PShort', name:'Programe Short',cellFilter:'number:2', width:'10%'  ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'PINo', name:'PI No', width:'10%' },
+                { field: 'IsInHouseSt', name:'InHouse', width:'10%' },
+                { field: 'IsReDyeingST', name:'ReDyeing', width:'10%' },
+                { field: 'RSStateSt', name:'Status', width:'10%' },
+                { field: 'WUName', name:'Store Name', width:'10%' },
+                
+            ],
+            data: oDUBatchCostList,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oDUBatchCostList.length>0 && userSession.getRowIndex()>=0)
+                {
+                    var index=userSession.getRowIndex();debugger;
+                    $timeout(function () {
+                        gridApi.grid.modifyRows($scope.gridOptions.data).then(gridApi.selection.selectRow($scope.gridOptions.data[index]));
+                        gridApi.selection.selectRow(index);
+                        gridApi.core.scrollTo($scope.gridOptions.data,$scope.gridOptions.data[index]);
+                    }, 100);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.AdvanceSearch=function()
+        {
+
+            // ----------------- MACHINE STARTS -----------------
+            var oColumns = [];
+            var oColumn = { field: 'Code', name: 'Code',width: '30%'  };oColumns.push(oColumn);
+            oColumn = { field: 'Name', name: 'MachineName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'MachineTypeName', name: 'Type',width: '20%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Machine={
+                obj:{Name: '@@MachineID'},
+                objName:'Name',
+                url:_sBaseAddress+'/DUPSchedule/GetsMachine',
+                title:'Machine List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            // ----------------- MACHINE ENDS -----------------
+
+            
+            // ----------------- PRODUCT STARTS -----------------
+            oColumns = [];
+            oColumn = { field: 'ProductCategoryName', name: 'CategoryName',width: '20%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'ProductCode', name: 'ProductCode',width: '30%'  };oColumns.push(oColumn);
+            oColumn = { field: 'ProductName', name: 'ProductName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Product={
+                obj:{ProductName: '@@ProductID',  BUID: $scope.BUID},
+                objName:'ProductName',
+                url:_sBaseAddress+'/Product/SearchByProductBUWise',
+                title:'Product List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            // ----------------- PRODUCT ENDS -----------------
+
+            var oStatusList=oDUBatchCostStatusList;
+            var oElementList = [
+                                { DisplayName: "Batch No",  BOField: "RSNo",      InputType: 'text' },
+                                { DisplayName: "Order No",  BOField: "OrderNo",      InputType: 'text' },
+                                //{ DisplayName: "Komm No",    BOField: "KommNo",       InputType: 'text' },
+                                { DisplayName: "Order Type",    BOField: "OrderType",       InputType: 'select', OptionList: $scope.OrderTypes, OptionValue: {id:'OrderType',Value:'OrderName'}},
+                                { DisplayName: "Shift",    BOField: "RSShiftID",       InputType: 'select', OptionList: $scope.RSShifts, OptionValue: {id:'RSShiftID',Value:'Name'}},
+                                { DisplayName: "Dyeing Type",    BOField: "DyeingType",       InputType: 'select', OptionList: $scope.DyeingTypes, OptionValue: {id:'DyeingType',Value:'Name'}},
+                                { DisplayName: "Status",    BOField: "RSState",       InputType: 'select', OptionList: $scope.RSStates},
+                                { DisplayName: "Status Date",   BOField: "IssueDate",    InputType: 'date' },
+                                { DisplayName: "Yarn Type",  BOField: "ProductID",   InputType: 'picker', PickerObject:paramObj_Product },
+                                { DisplayName: "Machine",  BOField: "MachineID",   InputType: 'picker', PickerObject:paramObj_Machine },
+                                
+                                { DisplayName: ["Is Re-Dyeing?"],  BOField: ["IsReDyeing"],   InputType: 'bool'},
+                                //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+                                //{ DisplayName: "SomeType",    BOField: "SomeType",       InputType: 'select', OptionList:[{id:2,Value:"KisuNai"}]},
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                data:{
+                    RSState:7
+                },
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/DUBatchCost/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.searchByRefNo = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                debugger;
+                var oDUBatchCost = {
+                    RSNo: $scope.RefNo
+                };
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress + '/DUBatchCost/AdvSearch',$.param(oDUBatchCost), config).then(
+                                    function (response) {
+                                        debugger;
+                                        sessionStorage.setItem('AdvSearchString',$scope.RefNo+'~~0~0~0~18 Aug 2018~18 Aug 2018~');
+                                        $scope.gridOptions.data=[];
+                                        result=response.data;
+                                        $scope.gridOptions.data=(result);
+                                    }, function () {
+                                        $log.info('GetServiceOrder Dismissed at: ' + new Date());
+                                    });
+            }
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var oDUBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDUBatchCost==null || oDUBatchCost.RouteSheetID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.DUBatchCostID == oDUBatchCost.DUBatchCostID)
+                {
+                    sessionStorage.setItem("DUBatchCostList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DUBatchCostHeader", "View Batch Cost");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/DUBatchCost/ViewDUBatchCost?id="+oDUBatchCost.RouteSheetID+"&buid="+$scope.BUID;
+                }
+            }, $scope.gridOptions.data);
+        }
+
+        $scope.PrintListXL = function ()
+        {
+            debugger;
+            var tsv=((new Date()).getTime())/1000;
+            var sParams=sessionStorage.getItem('AdvSearchString');
+            window.open(sessionStorage.getItem('BaseAddress') + '/DUBatchCost/ExportToExcelDUBatchCost?sParams='+sParams+"&buid="+  $scope.BUID +"&ts="+tsv);
+        }
+        $scope.PrintListXL_Report = function ()
+        {
+            debugger;
+            var tsv=((new Date()).getTime())/1000;
+            var sParams=sessionStorage.getItem('AdvSearchString');
+            window.open(sessionStorage.getItem('BaseAddress') + '/DUBatchCost/Excel_BatchCostReport?sParams='+sParams+"&buid="+  $scope.BUID +"&ts="+tsv);
+        }
+        $scope.PrintPreview = function ()
+        {
+            var oDUBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDUBatchCost==null || oDUBatchCost.RouteSheetID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(sessionStorage.getItem('BaseAddress') +  "/DUBatchCost/PrintDUBatchCost?nId="+oDUBatchCost.RouteSheetID+"&nts="+nts, "_blank");
+        };
+        $scope.PrintPreviewRS = function ()
+        {
+            var oDUBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDUBatchCost==null || oDUBatchCost.RouteSheetID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            var nts = ((new Date()).getTime()) / 1000;
+            // window.open(sessionStorage.getItem('BaseAddress') +  "/DUBatchCost/PrintDUBatchCost?nId="+oDUBatchCost.RouteSheetID+"&nts="+nts, "_blank");
+            window.open(_sBaseAddress+ "/RouteSheet/PrintRouteSheet?nId="+oDUBatchCost.RouteSheetID+"&bIsCommon="+true+"&nts="+nts, "_blank");
+        };
+
+        $scope.close = function()
+        {
+            window.location.href =sessionStorage.getItem("BackLink");
+        }
+        //button hide
+        $scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnImage=  $scope.btnPrintList= $scope.btnPriview=$scope.btnView  = true;
+        ////button show
+        //if(PermissionChecker('Add','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+        //if(PermissionChecker('Edit','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        //if(PermissionChecker('View','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        //if(PermissionChecker('Delete','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        //if(PermissionChecker('Preview','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+        //if(PermissionChecker('Print','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+        //if(PermissionChecker('Print','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnXLList = true;}
+        //if(PermissionChecker('Print','DUBatchCost',oAuthorizationRolesMapping)){$scope.btnSQ = true;}
+    });
+
+</script>

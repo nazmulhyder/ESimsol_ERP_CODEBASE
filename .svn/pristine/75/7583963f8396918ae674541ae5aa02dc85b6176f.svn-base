@@ -1,0 +1,426 @@
+﻿@{
+    ViewBag.Title = "BDYEA Certificate List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.BDYEAC>
+<head>
+</head>
+<body>
+    <div class="menuMainCollectionTable">
+        <table id="tblBDYEACs" title="BDYEA Certificate List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarBDYEAC">
+            <thead>
+                <tr>
+                    <th field="ExportLCNo" width="15%">LC No</th>
+                    <th field="ExportBillNo" width="15%">BIll No</th>                    
+                    <th field="BankName" width="15%">Bank Name</th>
+                    <th field="PartyName" width="15%">Party Name</th>
+                    <th field="InvoiceDateInString" width="10%">Invoice Date</th>
+                    <th field="DeliveryDateInString" width="10%">Delivery Date</th>
+                    <th field="ImportLCDateInString" width="12%">Import LC Date</th>
+                    <th field="IsPrintInString" width="15%">Is Print</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarBDYEAC">
+            <table>
+                <tr>
+                    <td>
+                        @*<a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>*@
+                        <input type="text" id="txtByLCNo" placeholder="Search By LC No" style="width:100px" />
+                        <input type="text" id="txtByBILLNo" placeholder="Search By BILL No" style="width:100px" />
+                        <a id="btnWaitforPrint" href="javascript:void(0)" class="easyui-linkbutton " iconcls="icon-search" plain="true">Wait for Print</a>
+                        <a id="btnAddBDYEAC" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-add" title="Add BDYEAC" plain="true">New</a>
+                        <a id="btnEditBDYEAC" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-edit" title="Edit BDYEAC" plain="true">Edit</a>
+                        <a id="btnViewBDYEAC" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-details" title="View BDYEAC" plain="true">View</a>
+                        <a id="btnDeleteBDYEAC" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-remove" title="Delete BDYEAC" plain="true">Delete</a>
+                        <a id="btnPrintPreview" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-print" title="Preview BDYEAC" plain="true">Preview</a>
+                        <a id="btnCertificateOfOrigin" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-print" title="Print Certificate Of Origin" plain="true">Certificate Of Origin</a>
+                        <a id="btnIsCreatePrint" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-approved" title="Confirm Print Certificate" plain="true">Print Certificate</a>
+                    </td>
+                    <td>
+                        @using (Html.BeginForm("PrintBDYEACs", "BDYEAC", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                        {
+                            <input type="text" name="txtBDYEACCollectionList" id="txtBDYEACCollectionList" hidden="hidden" />
+                            @*<input type="submit" id="btnPrintBDYEAC" value="  Print List" class="icon-print PrintList" style="margin-top: 4px;" />*@
+                        }
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oBDYEAC = null;
+    var _oBDYEACs = [];
+    var _sBaseAddress = "";
+    var _oAuthorizationRolesMapping = [];
+    var _oBDYEACBranch = null;
+    var _nID=null;
+    var _nBUID = 0;
+    $(document).ready(function() {
+        debugger;
+        _oBDYEACs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oBDYEACs =sessionStorage.getItem("BDYEACs");
+        if(oBDYEACs!=null)
+        {
+            oBDYEACs = jQuery.parseJSON(oBDYEACs);
+        }
+        else
+        {
+            oBDYEACs=_oBDYEACs;
+        }
+        DynamicRefreshList(oBDYEACs, 'tblBDYEACs');
+        if(_nID!=-1)
+        {
+            $('#tblBDYEACs').datagrid('selectRow', _nID);
+        }
+        //RefreshControlLayout();
+
+    });
+
+    $('#txtByLCNo').keydown(function (e)
+    {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code== 13) {
+            var txtByLCNo = $.trim($('#txtByLCNo').val());
+            if(txtByLCNo!="")
+            {
+                //debugger;
+                var oBDYEAC={ExportLCNo:txtByLCNo,ExportBillNo:''};
+                SearchByLCNoBillNO(oBDYEAC);
+            }else{
+                alert("Type LC No and Press Enter.");
+                return;
+            }
+        }
+
+    });
+    $('#txtByBILLNo').keydown(function (e)
+    {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code== 13) {
+            var txtByBillNo = $.trim($('#txtByBILLNo').val());
+            if(txtByBillNo!="")
+            {
+                debugger;
+                var oBDYEAC={ExportLCNo:'',ExportBillNo:txtByBillNo};
+                SearchByLCNoBillNO(oBDYEAC);
+            }else{
+                alert("Type Bill No and Press Enter.");
+                return;
+            }
+        }
+
+    });
+    function SearchByLCNoBillNO(oBDYEAC)
+    {
+        $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/BDYEAC/SearchLCNoOrBillNo",
+                traditional: true,
+                data:  JSON.stringify(oBDYEAC),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oBDYEACs = jQuery.parseJSON(data);
+                    if (oBDYEACs.length>0)
+                    {
+                        DynamicRefreshList(oBDYEACs, 'tblBDYEACs');
+                    }
+                    else
+                    {
+                        alert("Data Not found");
+                        DynamicRefreshList([], 'tblBDYEACs');
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });             //debugger;
+
+    }
+    
+    $('#btnWaitforPrint').click(function (){
+        var oBDYEAC = {};
+        $.ajax
+           ({
+               type: "POST",
+               dataType: "json",
+               url : _sBaseAddress+"/BDYEAC/WaitForPrint",
+               traditional: true,
+               data:  JSON.stringify(oBDYEAC),
+               contentType: "application/json; charset=utf-8",
+               success: function (data) {
+                   //debugger;
+                   var oBDYEACs = jQuery.parseJSON(data);
+                   if (oBDYEACs.length>0)
+                   {
+                       DynamicRefreshList(oBDYEACs, 'tblBDYEACs');
+                   }
+                   else
+                   {
+                       alert("Data Not found");
+                       DynamicRefreshList([], 'tblBDYEACs');
+                   }
+               },
+               error: function (xhr, status, error)
+               {
+                   alert(error);
+               }
+           });             //debugger;
+    });
+
+    $('#btnPrintPreview').click(function (){
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || oBDYEAC.BDYEACID<=0)
+        {
+            return false;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+ "/BDYEAC/PrintBDYEACERTIFICATE?id="+oBDYEAC.BDYEACID+"&ts="+tsv,'_blank');
+    });
+
+    $('#btnCertificateOfOrigin').click(function (){
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || oBDYEAC.BDYEACID<=0)
+        {
+            return false;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        window.open(_sBaseAddress+ "/BDYEAC/PrintCERTIFICATEOfOrigin?id="+oBDYEAC.BDYEACID+"&ts="+tsv,'_blank');
+    });
+    
+    $('#btnIsCreatePrint').click(function (){
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || parseInt(oBDYEAC.BDYEACID)<=0)
+        {
+            alert("Please select an Item in List.");
+            return;
+        }
+        if(oBDYEAC.IsPrint)
+        {
+            alert("Sorry, Already Print.");
+            return;
+        }
+        if (!confirm("Confirm to Print?")) return ;
+        var SelectedRowIndex=$('#tblBDYEACs').datagrid('getRowIndex',oBDYEAC);
+        oBDYEAC.IsPrint = true;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/BDYEAC/CreatePrint",
+            traditional: true,
+            data:  JSON.stringify(oBDYEAC),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oBDYEAC = jQuery.parseJSON(data);
+                if (oBDYEAC.IsPrint==true)
+                {
+                    alert("Successfully Printed.");   
+                    $('#tblBDYEACs').datagrid('updateRow',{index: SelectedRowIndex,	row: oBDYEAC});
+                }
+                else {
+                    alert(oBDYEAC.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+        
+    });
+
+    $('#txtSearchbyCode').keyup(function(e){$('#txtSearchbyCode').icsSearchByText({Event: e,
+        SearchProperty: "Code",
+        GlobalObjectList: _oBDYEACs,
+        TableId: "tblBDYEACs"});});
+
+    $('#txtSearchByName').keyup(function(e){$('#txtSearchByName').icsSearchByText({Event: e,
+        SearchProperty: "Name",
+        GlobalObjectList: _oBDYEACs,
+        TableId: "tblBDYEACs"});});
+
+    function RefreshArguments(){
+        var sErrorMessage='Arguments;';
+
+        var txtSearchbyCode=$("#txtSearchbyCode").val();
+        if(txtSearchbyCode!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchbyCode+'~';
+        }
+        var txtSearchByName=$("#txtSearchByName").val();
+        if(txtSearchByName!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchByName+'~';
+        }
+
+        return {ErrorMessage:sErrorMessage};
+    }
+
+    $('#btnRefresh').click(function(){
+        var oBDYEAC=RefreshArguments();
+        $.icsDataGets({
+            BaseAddress: _sBaseAddress,
+            Object: oBDYEAC,
+            ControllerName: "BDYEAC",
+            ActionName: "Gets",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oBDYEACs=response.objs;
+                    DynamicRefreshList(oBDYEACs, 'tblBDYEACs');
+                }
+            }
+        });
+    });
+
+    $('#btnPrintBDYEAC').click(function(){
+        var oBDYEACs=$('#tblBDYEACs').datagrid('getRows');
+        if(oBDYEACs==null||oBDYEACs.length<=0){return false;}
+        for(var i=0;i<oBDYEACs.length;i++){
+            oBDYEACs[i].BDYEACDate=oBDYEACs[i].BDYEACDateSt;
+            oBDYEACs[i].GLDate=oBDYEACs[i].GLDateSt;
+            oBDYEACs[i].ApproveDate=oBDYEACs[i].ApproveDateSt;
+            oBDYEACs[i].RefObjectDate=oBDYEACs[i].RefObjectDateSt;
+        }
+        $("#txtBDYEACCollectionList").val(JSON.stringify(oBDYEACs));
+    });
+
+    $("#btnAddBDYEAC").click(function(){
+        var oBDYEACs= $('#tblBDYEACs').datagrid('getRows');
+        sessionStorage.setItem("BDYEACs", JSON.stringify(oBDYEACs));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("BDYEACHeader", "Add BDYEA Certificate");
+        sessionStorage.setItem("BUID", _nBUID);
+        sessionStorage.setItem("BackLink",window.location.href);
+        window.location.href = _sBaseAddress+ "/BDYEAC/ViewBDYEAC?id=0&buid="+_nBUID;
+    });
+
+    $("#btnEditBDYEAC").click(function(){
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || oBDYEAC.BDYEACID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oBDYEAC.BDYEACStatus>0)
+        {
+            alert("Selected note Can not be Edited anymore!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblBDYEACs').datagrid('getRowIndex',oBDYEAC);
+        var oBDYEACs= $('#tblBDYEACs').datagrid('getRows');
+        sessionStorage.setItem("BDYEACs", JSON.stringify(oBDYEACs));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("BDYEACHeader", "Edit BDYEA Certificate");
+        sessionStorage.setItem("BackLink",window.location.href);
+        window.location.href = _sBaseAddress+  "/BDYEAC/ViewBDYEAC?id="+oBDYEAC.BDYEACID+"&buid="+_nBUID;
+    });
+
+    $("#btnViewBDYEAC").click(function(){
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || oBDYEAC.BDYEACID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblBDYEACs').datagrid('getRowIndex',oBDYEAC);
+        var oBDYEACs= $('#tblBDYEACs').datagrid('getRows');
+        sessionStorage.setItem("BDYEACs", JSON.stringify(oBDYEACs));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("BDYEACHeader", "View BDYEA Certificate");
+        sessionStorage.setItem("BackLink",window.location.href);
+        window.location.href = _sBaseAddress+"/BDYEAC/ViewBDYEAC?id="+oBDYEAC.BDYEACID+"&buid="+_nBUID;
+    });
+
+  
+    $("#btnDeleteBDYEAC").click(function(){
+        debugger;
+        var oBDYEAC= $('#tblBDYEACs').datagrid('getSelected');
+        if(oBDYEAC==null || oBDYEAC.BDYEACID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if(oBDYEAC.IsPrint)
+        {
+            alert("Sorry, Already Print.");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblBDYEACs').datagrid('getRowIndex',oBDYEAC);
+        if (oBDYEAC.BDYEACID > 0)
+        {
+            $.icsDelete({
+                BaseAddress: _sBaseAddress,
+                Object: oBDYEAC,
+                ControllerName: "BDYEAC",
+                ActionName: "DeleteBDYEAC",
+                TableId: "tblBDYEACs",
+                IsWinClose: false
+            });
+        }
+    });
+
+    function RefreshControlLayout() {
+        //BDYEAC
+        $("#btnAddBDYEAC").hide();
+        $("#btnEditBDYEAC").hide();
+        $("#btnViewBDYEAC").hide();
+        $("#btnDeleteBDYEAC").hide();
+
+        $("#btnPrintListBDYEAC").hide();
+        
+
+        if (HavePermission('Add', 'BDYEAC')) {
+            $("#btnAddBDYEAC").show();
+        }
+        if (HavePermission('Edit', 'BDYEAC')) {
+            $("#btnEditBDYEAC").show();
+        }
+        if (HavePermission('View', 'BDYEAC')) {
+            $("#btnViewBDYEAC").show();
+        }
+        if (HavePermission('Delete', 'BDYEAC')) {
+            $("#btnDeleteBDYEAC").show();
+        }
+
+        if (HavePermission('PrintList', 'BDYEAC')) {
+            $("#btnPrintListBDYEAC").show();
+        }
+  
+
+    }
+
+    function HavePermission(sOperationType,sDbObject) {
+        var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nUserId === -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString === sOperationType && _oAuthorizationRolesMapping[i].DBObjectName === sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+
+
+
+
+
+</script>

@@ -1,0 +1,501 @@
+﻿@{
+    ViewBag.Title = "Accounts Book";
+}
+@model ESimSol.BusinessObjects.AccountsBook
+    <div class="menuMainCollectionTable">
+        <table id="tblAccountsBooks" title="Accounts Book" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="AccountHeadName" width="38%" align="left">Account Head Name</th>
+                    <th field="OpenningBalanceInString" width="15%" align="right">Opening Balance</th>
+                    <th field="DebitAmountInString" width="15%" align="right">Debit Amount</th>
+                    <th field="CreditAmountInString" width="15%" align="right">Credit Amount</th>
+                    <th field="ClosingBalanceInString" width="15%" align="right">Balance</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            Business Unit :<input type="text" id="txtBUName" style="width:180px;" disabled /><input type="button" onclick="BUClean()" value="C" /><input type="button" value="Pick" onclick="PickBusinessUnit()" style="width:40px;" />
+            Accounts Book : <select id="cboAccountsBookSetup" style="width:180px"></select>
+            Date  <select id="cboDateSearch" style="width:100px;font-size:12px;margin-right:10px;" />
+            <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            To
+            <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <label > <input type="checkbox" id="chkApproved" /> Approved</label>
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>            
+            <a id="btnDetailView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Detail View</a>
+            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+        </div>
+    </div>
+
+
+
+    <script type="text/javascript">
+        var _oAccountsBook=null;        
+    $(document).ready(function () {
+        _oAccountsBook =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));         
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+
+        $("#txtBUName").data('BusinessUnits',oBusinessUnits);
+        $('#txtBUName').val(_oAccountsBook.BUName);
+        $('#txtBUName').addClass('fontColorOfPickItem');
+        $('#tblAccountsBooks').data('AccountsBookSetups', _oAccountsBook.AccountsBookSetups);
+
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        RefreshDateSearch();
+        RefreshComboBox();
+        ChangeDateSearch();
+        $('#Mainlayout').layout('collapse', 'west');
+        var sAccountBooks = sessionStorage.getItem('AccountsBooks'); 
+        if(sAccountBooks!=null)
+        {
+            var oAccountBooks = jQuery.parseJSON(sAccountBooks);
+            RefreshList(oAccountBooks);
+
+            var sAccountsBookSetup = sessionStorage.getItem('AccountsBookSetups');
+            var oAccountsBookSetup = jQuery.parseJSON(sAccountsBookSetup);
+
+            $('#txtStartDate').datebox('setValue', oAccountsBookSetup.StartDate);
+            $('#txtEndDate').datebox('setValue', oAccountsBookSetup.EndDate);
+            $('#cboAccountsBookSetup').val(parseInt(oAccountsBookSetup.AccountsBookSetupID))
+        }
+    });
+
+       
+
+    $("#btnPrintXL").click(function(){
+        if(!ValidateInput())return;            
+        var cboAccountsBookSetupVal = parseInt($('#cboAccountsBookSetup').val());
+        var cboTextVal = $('#cboAccountsBookSetup option:selected').text();
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) === 1)
+        {
+            sEndDate = sStartDate;
+        }
+        
+        var bIsApproved = document.getElementById('chkApproved').checked;
+        var sParams = parseInt(cboAccountsBookSetupVal) + "~" + cboTextVal + "~" + sStartDate + "~" + sEndDate+ '~'+ _oAccountsBook.BUIDs+ '~'+ bIsApproved;
+        window.open(sessionStorage.getItem('BaseAddress')+'/AccountsBook/PrintAccountsBookInXL?sParams=' + sParams, "_blank");
+    });
+
+    $("#btnPrint").click(function(){
+        if(!ValidateInput())return;            
+        var cboAccountsBookSetupVal = parseInt($('#cboAccountsBookSetup').val());
+        var cboTextVal = $('#cboAccountsBookSetup option:selected').text();
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) === 1)
+        {
+            sEndDate = sStartDate;
+        }
+        var bIsApproved = document.getElementById('chkApproved').checked;
+        var sParams = parseInt(cboAccountsBookSetupVal) + "~" + cboTextVal + "~" + sStartDate + "~" + sEndDate+ '~'+_oAccountsBook.BUIDs+ '~'+ bIsApproved;
+
+        window.open(sessionStorage.getItem('BaseAddress')+'/AccountsBook/PrintAccountsBook?sParams=' + sParams, "_blank");
+    });
+
+    function RefreshComboBox()
+    {
+        var oBusinessUnits = $('#tblAccountsBooks').data('BusinessUnits');
+        var oAccountsBookSetups = $('#tblAccountsBooks').data('AccountsBookSetups');
+        $("#cboBusinessUnit").combobox({data:oBusinessUnits});
+        //$("#cboBusinessUnit").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "ShortNameCode", InitialValue : "Custom" });
+        $("#cboAccountsBookSetup").icsLoadCombo({ List: oAccountsBookSetups, OptionValue: "AccountsBookSetupID", DisplayText: "AccountsBookSetupName" });
+    }
+
+    function RefreshDateSearch()
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+    }
+
+    $("#btnDetailsBreakdown").click(function(){
+        var oAccountsBook = $('#tblAccountsBooks').datagrid('getSelected');
+        if(oAccountsBook == null)
+        {
+            alert("Please select an item.");
+            return;
+        }
+        var nAccountHeadID = oAccountsBook.AccountHeadID;
+        var nVoucherType = 0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var bIsApproved = document.getElementById('chkApproved').checked;
+        var sParams = parseInt(nAccountHeadID) + "~" + parseInt(nVoucherType) + "~" + dStartDate + "~" + dEndDate;
+
+        var oParameter = new Object();
+        oParameter.AccountHeadName = oAccountsBook.AccountHeadName;
+        oParameter.StartDate = dStartDate;
+        oParameter.EndDate = dEndDate;
+        var url =sessionStorage.getItem('BaseAddress')+ "/GeneralJournal/DetailsBreakdown?sParams="+sParams;
+        var oSP_GeneralJournals = window.showModalDialog(url, oParameter, 'dialogHeight:700px;dialogWidth:1200px;dialogLeft:100;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    function RefreshObject()
+    {   
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) === 1)
+        {
+            sEndDate = sStartDate;
+        }
+        
+        var oAccountsBook = {
+            AccountsBookSetupID : parseInt($('#cboAccountsBookSetup').val()),
+            StartDate :  $('#txtStartDate').datebox('getValue'),
+            EndDate : sEndDate,//$('#txtEndDate').datebox('getValue'),
+            
+            BUIDs:_oAccountsBook.BUIDs,
+            BUName:_oAccountsBook.BUName,
+            IsApproved : document.getElementById('chkApproved').checked
+        };
+        return oAccountsBook;
+    }
+
+    function ValidateInput()
+    {            
+        var cboAccountsBookSetupVal = parseInt($('#cboAccountsBookSetup').val());
+        if(parseInt(cboAccountsBookSetupVal) == 0)
+        {
+            alert("Please select an accounts book.");
+            return false;
+        }
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        if (sStartDate==null || sStartDate =="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        if ( sEndDate ==null || sEndDate=="") {
+            alert("Please select end date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+                        
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) != 1)
+        {
+            var dStartDate = new Date(sStartDate);
+            var dEndDate = new Date(sEndDate);
+            if(dEndDate <= dStartDate) {
+                alert("End date must be grater then start date!!");
+                $('#txtEndDate').focus();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    $("#btnRefresh").click(function(){
+        if(!ValidateInput()) return;
+        var oAccountsBook = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: sessionStorage.getItem("BaseAddress")+  "/AccountsBook/Refresh",                
+            data: JSON.stringify(oAccountsBook),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oAccountsBooks = jQuery.parseJSON(data);
+                if (oAccountsBooks != null) {
+                    sessionStorage.setItem('AccountsBookSetups', null);
+                    sessionStorage.setItem('AccountsBooks', null);
+                    RefreshList(oAccountsBooks);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function ValidateInputForDetailView()
+    {            
+        var cboAccountsBookSetupVal = parseInt($('#cboAccountsBookSetup').val());
+        if(parseInt(cboAccountsBookSetupVal) == 0)
+        {
+            alert("Please select an accounts book.");
+            return false;
+        }
+        var oAccountsBookSetup =  GetAccountBookSetup(cboAccountsBookSetupVal);
+        if(oAccountsBookSetup === null)
+        {
+            alert("Please select an accounts book.");
+            return false;
+        }
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        if (sStartDate==null || sStartDate =="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        if ( sEndDate ==null || sEndDate=="") {
+            alert("Please select end date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+                        
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) != 1)
+        {
+            var dStartDate = new Date(sStartDate);
+            var dEndDate = new Date(sEndDate);
+            if(dEndDate <= dStartDate) {
+                alert("End date must be grater then start date!!");
+                $('#txtEndDate').focus();
+                return false;
+            }
+        }
+        var oAccountsBook = $('#tblAccountsBooks').datagrid('getSelected'); 
+        if(oAccountsBook == null || parseInt(oAccountsBook.AccountHeadID) <=0)
+        {
+            alert("Please select a item from list!");
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnDetailView").click(function(){
+        if(!ValidateInputForDetailView())return;
+        
+        sessionStorage.setItem('AccountsBookSetups', RefreshObject());
+        sessionStorage.setItem('AccountsBooks', $('#tblAccountsBooks').datagrid('getRows'));
+
+        var nAccountsBookSetupID = parseInt($('#cboAccountsBookSetup').val());
+        var oAccountsBookSetup =  GetAccountBookSetup(nAccountsBookSetupID);
+        var oAccountsBook = $('#tblAccountsBooks').datagrid('getSelected'); 
+        var sStartDate = $('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var cboDateSearch = parseInt($('#cboDateSearch').val());
+        if(parseInt(cboDateSearch) === 1)
+        {
+            sEndDate = sStartDate;
+        }
+            
+        if(parseInt(oAccountsBookSetup.MappingTypeInt)===1) //for ledger
+        {                
+            var oGeneralLedger= {
+                AccountHeadID : parseInt(oAccountsBook.AccountHeadID),
+                StartDate: sStartDate,
+                EndDate: sEndDate,
+                CurrencyID : 0,
+                DisplayMode : 0,
+                BusinessUnitIDs:_oAccountsBook.BUIDs,
+                BUName:_oAccountsBook.BUName,
+                Narration : '',   // For Advance Search
+                ACConfigs: [],
+                IsApproved : $('#chkApproved').is(':checked')
+            }
+            var sHeaderText=RefreshHeader();
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/GeneralLedger/SetSessionData",
+                traditional: true,
+                data:  JSON.stringify(oGeneralLedger),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/GeneralLedger/ViewGeneralLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        else  if(parseInt(oAccountsBookSetup.MappingTypeInt)===2) //for sub ledger
+        {   
+            sHeaderText=RefreshHeader();            
+            var obj={
+                AccountHeadID: 0,
+                CCID : parseInt(oAccountsBook.AccountHeadID),
+                StartDate : sStartDate,
+                EndDate : sEndDate,
+                //BusinessUnitID : parseInt($('#cboBusinessUnit').val()),
+                BusinessUnitIDs :_oAccountsBook.BUIDs,
+                BUName:_oAccountsBook.BUName,
+                CurrencyID : 0,
+                IsApproved : $('#chkApproved').is(':checked'),
+                ACConfigs : []
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress') +  "/FinancialStatement/SetCCBSessionData",
+                traditional: true,
+                data:  JSON.stringify(obj),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);                
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem('BaseAddress') + "/FinancialStatement/ViewSubLedgerLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }); 
+
+    function RefreshHeader(){
+        var sHeaderText='';
+        var oAccountsBook = $('#tblAccountsBooks').datagrid('getSelected'); 
+        sHeaderText='General Ledger || '+ oAccountsBook.AccountHeadName;
+        var sBUName = $('#txtBUName').val();
+        if(_oAccountsBook.BUIDs!="0")
+        {
+            sHeaderText=sHeaderText+' || '+sBUName+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+
+        }else{
+            sHeaderText=sHeaderText+' || "'+$('#txtStartDate').datebox('getValue')+'" to "'+$('#txtEndDate').datebox('getValue')+'"';
+        }
+        return sHeaderText;
+    }
+        
+    function GetAccountBookSetup(nAccountsBookSetupID)
+    {
+        var oAccountsBookSetups = $('#tblAccountsBooks').data('AccountsBookSetups');
+        for(var i=0; i<oAccountsBookSetups.length; i++)
+        {
+            if(parseInt(oAccountsBookSetups[i].AccountsBookSetupID) === parseInt(nAccountsBookSetupID))
+            {
+                return oAccountsBookSetups[i];
+            }
+        }
+        return null;
+    }
+
+    function RefreshList(oAccountsBooks)
+    {
+        var data=oAccountsBooks;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblAccountsBooks').datagrid('loadData',data);
+    }
+
+    $('#cboDateSearch').change(function () {
+        ChangeDateSearch();
+    });
+
+    function ChangeDateSearch()
+    {
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    }
+
+    function BUClean() 
+    {
+        $("#txtBUName").removeClass("fontColorOfPickItem");
+        $("#txtBUName").val("Group Accounts");
+        _oAccountsBook.BUIDs="0";
+        _oAccountsBook.BUName = "Group Accounts";
+    }
+    function PickBusinessUnit()
+    {
+        //debugger;
+        var oBusinessUnits=  $("#txtBUName").data('BusinessUnits');
+        var tblColums = []; var oColumn = { field: "Code", title: "Code", width:60, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 120, align: "left" }; tblColums.push(oColumn);
+       
+        var oPickerParam = {
+            winid: 'winBusinessUnit',
+            winclass: 'clsBusinessUnit',
+            winwidth: 420,
+            winheight: 460,
+            tableid: 'tblBusinessUnits',
+            tablecolumns: tblColums,
+            datalist: oBusinessUnits,
+            multiplereturn: true,
+            searchingbyfieldName: 'Name',
+            windowTittle: 'Business Unit List'
+        };
+        $.icsPicker(oPickerParam);
+        IntializePickerbutton(oPickerParam);
+        var aSelectedBU = _oAccountsBook.BUIDs.split(',');
+        var oBUList = $('#tblBusinessUnits').datagrid('getRows');
+        debugger;
+        for(var i =0;i<oBUList.length;i++)
+        {
+            if(ICS_IsExistInArray(oBUList[i].BusinessUnitID,aSelectedBU))
+            {
+                $('#tblBusinessUnits').datagrid('checkRow',i);
+            }
+        }
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+
+        if (oPickerobj.winid == 'winBusinessUnit')
+        {
+            if (oreturnobjs.length>0)
+            {
+                $('#txtBUName').val(ICS_PropertyConcatation(oreturnobjs,'ShortName'));
+                $('#txtBUName').addClass('fontColorOfPickItem');
+                _oAccountsBook.BUIDs=ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID');
+                _oAccountsBook.BUName = $('#txtBUName').val();
+            }
+        }
+    }
+
+    </script>

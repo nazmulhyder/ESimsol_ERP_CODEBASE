@@ -1,0 +1,289 @@
+﻿
+@{
+    ViewBag.Title = "Batch Consumption";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FNBatchCost>
+
+<div class="menuMainCollectionTable" ng-app="FNBatchCostApp">
+    <div ng-controller="FNBatchCostController" title="Recycle Process">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            @*<input type="text" class="form-control" ng-model="RefNo" ng-keydown="searchByRefNo($event)" placeholder="Type Batch No & Press Enter">*@
+            <button type="button" ng-show="btnView" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+            @*<button type="button" ng-show="btnView" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-list" aria-hidden="true"> View Details</span></button>*@
+             @*<button type="button" ng-show="btnSQ" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintSQ()"><span class="glyphicon glyphicon-copy" aria-hidden="true"> SQ</span></button>*@
+            <button type="button" ng-show="btnView" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ExportToExcel_Details()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> XL Report</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ExportToExcel_MonthWise()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> XL (Machine Wise)</span></button>
+            @*<button type="button" id="btnView" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="PrintListXL_Che()"><span class="glyphicon glyphicon-print" aria-hidden="true"> XL Che.</span></button>*@
+            
+            @*<button type="button" ng-show="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>*@
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns style="width: 99%; height:500px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control 
+    {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+</style>
+
+ <script type="text/javascript">
+
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFNBatchCostList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+     var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+     var oFNBatchCostStatusList = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNBatchCostStatusList));
+
+     var CInvoiceapp= angular.module('FNBatchCostApp',   ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service','ui.grid.pinning','ms.service']);
+     CInvoiceapp.controller('FNBatchCostController',  function ($scope, $http, $timeout, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch)  {
+         oFNBatchCostList= (userSession.getData('FNBatchCostList').length>0)? userSession.getData('FNBatchCostList'):oFNBatchCostList;
+         debugger;
+
+         $scope.RSStates = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RSStates));
+         $scope.OrderTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+         $scope.BUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+         
+         sessionStorage.setItem("BackLink", window.location.href);
+         sessionStorage.setItem("BaseAddress", _sBaseAddress);
+         $scope.gridOptions = {
+             enableRowSelection: true,
+             enableSelectAll: true,
+             multiSelect: false,
+             enableColumnResizing: true,
+             enableFullRowSelection: true,
+             columnDefs: [
+                  {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                 { field: 'ProDateSt', name:'Date', width:'12%' },
+                 { field: 'OrderNo', name:'Order No', width:'10%' },
+                 { field: 'ExcNo', name:'Dispo No', width:'10%' },
+                 { field: 'Qty_Order', name:'Qty_Order', cellFilter:'number:2', cellClass:'text-right', width:'10%' },
+                 { field: 'ContractorName', name:'Buyer', width:'15%' },
+                 { field: 'Construction', name:'Construction', width:'15%' },
+                 { field: 'Color', name:'Color', width:'10%' },
+                 { field: 'Construction', name:'Construction', width:'15%' },
+                 { field: 'Color', name:'Color', width:'10%' },
+                 
+                 { field: 'ProductCategoryName', name:'CategoryName', width:'15%' },
+                 { field: 'ProductName', name:'ProductName', width:'12%' },
+
+                 { field: 'Qty', name:'Qty', cellFilter:'number:2', cellClass:'text-right', width:'10%' },
+                 { field: 'UnitPrice', name:'Rate', cellFilter:'number:2', cellClass:'text-right', width:'10%' },
+                 { field: 'Amount', name:'Value', cellFilter:'number:2', cellClass:'text-right', width:'10%' },
+                 { field: 'PINo', name:'PINo', width:'12%' },
+            ],
+             data: oFNBatchCostList,
+             onRegisterApi:function(gridApi) {
+                 $scope.gridApi = gridApi;
+                 $scope.gridApi.selection.clearSelectedRows();
+                 $scope.gridApi.core.refresh();
+                 debugger;
+                 if(oFNBatchCostList.length>0 && userSession.getRowIndex()>=0)
+                 {
+                     var index=userSession.getRowIndex();debugger;
+                     $timeout(function () {
+                         gridApi.grid.modifyRows($scope.gridOptions.data).then(gridApi.selection.selectRow($scope.gridOptions.data[index]));
+                         gridApi.selection.selectRow(index);
+                         gridApi.core.scrollTo($scope.gridOptions.data,$scope.gridOptions.data[index]);
+                     }, 100);
+                 }
+             }
+         };
+
+         $scope.AdvanceSearch=function()
+         {
+             var oColumns = [];
+             var oColumn = { field: 'ModelNo', name: 'ModelNo',width: '30%'  };oColumns.push(oColumn);
+             oColumn = { field: 'CategoryName', name: 'CategoryName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+
+             var paramObj_Model={
+                 obj:{ModelNo: '@@VehicleModelID'},
+                 objName:'ModelNo',
+                 url:_sBaseAddress+'/VehicleModel/GetVehicleModels',
+                 title:'Model List',
+                 multiSelect:true,
+                 columns:oColumns
+             }
+
+             var oStatusList=oFNBatchCostStatusList;
+             var oElementList = [
+                                 //{ DisplayName: "Batch No",  BOField: "RSNo",      InputType: 'text' },
+                                 //{ DisplayName: "Order No",  BOField: "OrderNo",      InputType: 'text' },
+                                 //{ DisplayName: "Komm No",    BOField: "KommNo",       InputType: 'text' },
+                                 //{ DisplayName: "OrderType",    BOField: "OrderType",       InputType: 'select', OptionList: $scope.OrderTypes},
+                                 //{ DisplayName: "RS State",    BOField: "RSState",       InputType: 'select', OptionList: $scope.RSStates},
+                                 { DisplayName: "Date",   BOField: "IssueDate",    InputType: 'date' },
+                                 //{ DisplayName: "Model No",  BOField: "VehicleModelID",   InputType: 'picker', PickerObject:paramObj_Model }
+                                 //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+                                 //{ DisplayName: "SomeType",    BOField: "SomeType",       InputType: 'select', OptionList:[{id:2,Value:"KisuNai"}]},
+             ];
+             var modalObj={
+                 size:'md',
+                 title:"Advance Search",
+                 url:_sBaseAddress+'/Home/AdvanceSearch',
+                 CompareOperators:[oCompareOperators[5]],
+                 HtmlElements:oElementList,
+                 isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                 urlAdvanceSearch:_sBaseAddress + '/FNBatchCost/AdvSearch_Detail'
+             }
+
+             var modalInstance=advanceSearch.Instance(modalObj);
+             modalInstance.result.then(function (result)
+             {
+                 console.log(result);
+                 $scope.gridOptions.data=result;
+             }, function ()
+             {
+                 $log.info('Modal dismissed at: ' + new Date());
+             });
+         };
+
+         $scope.searchByRefNo = function(e)
+         {
+             var code = (e.keyCode ? e.keyCode : e.which);
+             if (code == 13)
+             {
+                 debugger;
+                 var oFNBatchCost = {
+                     RSNo: $scope.RefNo
+                 };
+                 var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                 $http.post(_sBaseAddress + '/FNBatchCost/AdvSearch_Detail',$.param(oFNBatchCost), config).then(
+                                     function (response) {
+                                         debugger;
+
+                                         sessionStorage.setItem('AdvSearchString',$scope.RefNo+'~~0~0~0~18 Aug 2018~18 Aug 2018~');
+                                         $scope.gridOptions.data=[];
+                                         result=response.data;
+                                         $scope.gridOptions.data=(result);
+                                     }, function () {
+                                         $log.info('GetServiceOrder Dismissed at: ' + new Date());
+                                     });
+             }
+         }
+         $scope.View =  function ()
+         {
+             //debugger;
+             var oFNBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+             if(oFNBatchCost==null || oFNBatchCost.RouteSheetID<=0)
+             {
+                 alert("Please Select an item from list");
+                 return;
+             }
+             angular.forEach($scope.gridOptions.data, function (value, index) {
+                 if (value.FNBatchCostID == oFNBatchCost.FNBatchCostID)
+                 {
+                     sessionStorage.setItem("FNBatchCostList", JSON.stringify($scope.gridOptions.data));
+                     sessionStorage.setItem("SelectedRowIndex", index);
+                     sessionStorage.setItem("FNBatchCostHeader", "View Batch Cost");
+                     sessionStorage.setItem("BackLink", window.location.href);
+                     window.location.href =sessionStorage.getItem('BaseAddress')+"/FNBatchCost/ViewFNBatchCost?id="+oFNBatchCost.RouteSheetID+"&buid="+$scope.BUID;
+                 }
+             }, $scope.gridOptions.data);
+         }
+
+         $scope.PrintPreview = function ()
+         {
+             debugger;
+             var oFNBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+             if(oFNBatchCost==null || oFNBatchCost.FNBatchCostID<=0)
+             {
+                 alert("Please select a item from list!");
+                 return;
+             }
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/PrintFNBatchCostPreview?id='+oFNBatchCost.FNBatchCostID);
+         };
+         $scope.PrintPreviewXL = function ()
+         {
+             debugger;
+             var oFNBatchCost = $scope.gridApi.selection.getSelectedRows()[0];
+             if(oFNBatchCost==null || oFNBatchCost.FNBatchCostID<=0)
+             {
+                 alert("Please select a item from list!");
+                 return;
+             }
+             //window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/PrintFNBatchCostPreview?id='+oFNBatchCost.FNBatchCostID);
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/PrintFNBatchCostXL?id='+oFNBatchCost.FNBatchCostID);
+         };
+         $scope.PrintList = function ()
+         {
+             var oFNBatchCosts=  $scope.gridOptions.data;//$('#tblFNBatchCost').datagrid('getRows');
+             var ids ="";
+             if(oFNBatchCosts.length >0)
+             {
+
+                 for(var i =0;i<oFNBatchCosts.length;i++)
+                 {
+                     ids =ids+oFNBatchCosts[i].FNBatchCostID+",";
+                 }
+                 ids= ids.substring(0, ids.length - 1);
+             }
+             else
+             {
+                 alert("Data not found ");
+                 return;
+             }
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/PrintList?sIDs='+ids);
+         };
+         
+         $scope.ExportToExcel_Details = function ()
+         {
+             debugger;
+             var tsv=((new Date()).getTime())/1000;
+             var sParams=sessionStorage.getItem('AdvSearchString');
+
+             if(sParams==null)
+             {
+                 alert("Nothing To Print!");
+             }
+
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/ExportToExcel_Details?sParams='+sParams+"&ts="+tsv);
+         }
+         $scope.ExportToExcel_MonthWise = function ()
+         {
+             debugger;
+             var tsv=((new Date()).getTime())/1000;
+             var sParams=sessionStorage.getItem('AdvSearchString');
+
+             if(sParams==null)
+             {
+                 alert("Nothing To Print!");
+             }
+
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/ExportToExcel_MonthWise?sParams='+sParams+"&ts="+tsv);
+         }
+         $scope.PrintListXL_Che = function ()
+         {
+             debugger;
+             var tsv=((new Date()).getTime())/1000;
+             var sParams=sessionStorage.getItem('AdvSearchString');
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/ExportToExcel_CheConsumption?sParams='+sParams+"&ts="+tsv);
+         }
+         $scope.PrintSQ = function ()
+         {
+             window.open(sessionStorage.getItem('BaseAddress') + '/FNBatchCost/PrintSQ');
+         }
+
+         $scope.close = function()
+         {
+             window.location.href =sessionStorage.getItem("BackLink");
+         }
+         //button hide
+         $scope.btnView = true;
+         //$scope.btnAdd = $scope.btnEdit = $scope.btnDetails = $scope.btnDelete = $scope.btnImage=  $scope.btnPrintList= $scope.btnPriview = false;
+         //button show
+         //if(PermissionChecker('Add','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+         //if(PermissionChecker('Edit','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+         //if(PermissionChecker('View','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnView = true;}
+         //if(PermissionChecker('Delete','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+         //if(PermissionChecker('Preview','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+         //if(PermissionChecker('Print','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+         //if(PermissionChecker('Print','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnXLList = true;}
+         //if(PermissionChecker('Print','FNBatchCost',oAuthorizationRolesMapping)){$scope.btnSQ = true;}
+     });
+
+</script>

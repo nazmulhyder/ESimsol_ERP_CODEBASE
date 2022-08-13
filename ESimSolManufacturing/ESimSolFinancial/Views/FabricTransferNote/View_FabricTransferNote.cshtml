@@ -1,0 +1,529 @@
+﻿@{
+    ViewBag.Title = "Fabric Transfer Note";
+}
+@model ESimSol.BusinessObjects.FabricTransferNote
+@{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Fabric Transfer Note</title>
+</head>
+<body class="menuMainCollectionTable">
+    <div class="easyui-layout" style="width:100%; height:490px;">
+        <div region="west" split="true" style="width:45%;">
+            <fieldset>
+                <legend>Challan Info</legend>
+                <table style="width:80%;margin:0 auto;">
+                    <tr>
+                        <td style="width:24%;text-align:right;">
+                            <label>FTN No : </label>
+                        </td>
+                        <td style="width:70%;">
+                            <input id="txtFTNNo" type="text" style="width:97%;" disabled />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:24%;text-align:right;">
+                            <label>Note Date : </label>
+                        </td>
+                        <td style="width:70%;">
+                            <input id="dtNoteDate" type="text" style="width: 101%;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:24%;text-align:right;">
+                            <label>Note : </label>
+                        </td>
+                        <td style="width:70%;">
+                            <input id="txtNote" type="text" style="width:97%;"/>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div>
+                <table id="tblFTPLs" title="Fabric Transfer Packing List" style="height:375px;width:100%;" class="easyui-datagrid" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" data-options="onClickRow: onClickRow" toolbar="#toolbarFTPL">
+                    <thead>
+                        <tr>
+                            <th data-options="field:'Selected',checkbox:true"></th>
+                            <th field="OrderNo" width="90%">Dispo No</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbarFTPL">
+                    <select id="cboFinishGoodsStore" class="clsReceive" style="width:200px"></select>
+                    <a id="btnCreateChallan" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Create Challan</a>
+                    @*<a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>*@
+                    <a id="btnAddPackingList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-pick" plain="true">Add Packing List</a>
+                    <a id="btnReceive" href="javascript:void(0)" class="easyui-linkbutton clsReceive" iconcls="icon-receive" plain="true">Receive</a>
+                    <a id="btnShowDetails" style="float:right;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-forword" plain="true">Show Details</a>
+                </div>
+            </div>
+        </div>
+        <div region="center" style="width:100%;overflow:hidden;">
+            <table id="tblFTPLDetail" title="Detail List" style="width:100%;" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarFTPLD">
+                <thead>
+                    <tr>
+                        <th field="LotNo" width="20%">Roll No</th>
+                        <th field="QtySt" width="25%" align="right">Fab. Qty (Y)</th>
+                        <th field="QtyInMeterSt" width="25%" align="right">Fab. Qty (M)</th>
+                        <th field="ReceiveDateSt" width="10%" align="center">Receive Date</th>
+                        <th field="ReceiveByName" width="20%">ReceiveByName</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarFTPLD">
+                <a id="btnIndividualFTLDReceive" href="javascript:void(0)" class="easyui-linkbutton clsReceive" iconcls="icon-receive" plain="true">Receive</a>
+            </div>
+        </div>
+    </div>
+    <fieldset>
+        <legend>Actions</legend>
+        <label class="lblLoadingMessage" style="float: left;">Loading Please Wait...</label>
+        <a id="btnBack" href="javascript:void(0)" style="float:right;" class="easyui-linkbutton" iconcls="icon-back" plain="true">Back</a>
+    </fieldset>
+</body>
+</html>
+<script type="text/javascript">
+    var _nMenuid=0;
+    var _sBaseAddress = "";
+    var _oFTN = null;
+    var _sBtnIDHtml="";
+
+    var _oFTPLs=[];
+    $(document).ready(function () {
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(MenuID));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFTN = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oWUs= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Stores));
+        _sBtnIDHtml = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BtnIDHtml));
+
+        
+        $("#cboFinishGoodsStore").icsLoadCombo({List: oWUs,OptionValue: "WorkingUnitID",DisplayText: "OperationUnitName" });
+        $("#cboFinishGoodsStore").val((oWUs.length>0)? oWUs[0].WorkingUnitID: 0);
+        $(".easyui-datebox").datebox({ disabled: false });
+        $(".easyui-datebox").datebox("setValue", icsdateformat(new Date()));
+        $(".lblLoadingMessage").hide();
+
+      //  (_sBtnIDHtml == "btnReceive" ? $(".clsReceive").show() : $(".clsReceive").hide());
+
+       
+        if(_oFTN.FTNID == 0)
+        {
+            _oFTPLs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FTPLs));
+            DynamicRefreshListForMultipleSelection(_oFTPLs,"tblFTPLs");
+        }
+        else{
+            RefreshControl(_oFTN);
+            $("#tblFTPLs").datagrid("checkAll");
+        }
+    });
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+    $("#btnIndividualFTLDReceive").click(function(){
+        debugger;
+        var oFTPLDetail = $("#tblFTPLDetail").datagrid("getSelected");
+        if(oFTPLDetail == null || oFTPLDetail.FTPLDetailID <= 0)
+        {
+            alert("Please select an item from list.");
+            return false;
+        }
+
+        if(oFTPLDetail.ReceiveBy > 0)
+        {
+            alert("Already received.");
+            return false;
+        }
+        if($("#cboFinishGoodsStore").val()<=0)
+        {
+            alert("Select a store to receive.");
+            return false;
+        }
+        if (!confirm("Confirm to receive?")) return;
+        var nRowIndex = $("#tblFTPLDetail").datagrid("getRowIndex", oFTPLDetail);
+
+        var sFTPListIDs = oFTPLDetail.FTPLDetailID;
+        var oFTN={
+            FTNID : ((_oFTN == null || _oFTN.FTNID == 0) ? 0 : _oFTN.FTNID),
+            FTPListIDs : sFTPListIDs, //Carry oFTPLDetail.FTPLDetailID
+            IsFTPLD : true,
+            WUID: $("#cboFinishGoodsStore").val(),
+            FTPLDetailID : oFTPLDetail.FTPLDetailID
+        };
+        ReceiveFTN(oFTN,nRowIndex);
+    });
+
+    $("#btnReceive").click(function(){
+        if(_oFTN.FTNID <= 0)
+        {
+            alert("Invalid fabric transfer note.");
+            return false;
+        }
+        var oFTPL = $("#tblFTPLs").datagrid("getChecked");
+        if(oFTPL == null || oFTPL.FTPListID <= 0)
+        {
+            alert("Please select item(s) from list.");
+            return false;
+        }
+        if($("#cboFinishGoodsStore").val()<=0)
+        {
+            alert("Select a store to receive.");
+            return false;
+        }
+        if (!confirm("Confirm to receive?")) return;
+
+        var sFTPListIDs="";
+        var oFTPLs = $("#tblFTPLs").datagrid("getChecked");
+        var nLength=oFTPLs.length;
+        for(var i=0;i<nLength;i++)
+        {
+            sFTPListIDs = oFTPLs[i].FTPListID + "," + sFTPListIDs;
+        }
+        sFTPListIDs = sFTPListIDs.substring(0, sFTPListIDs.length - 1);
+
+        var oFTN={
+            FTNID : ((_oFTN == null || _oFTN.FTNID == 0) ? 0 : _oFTN.FTNID),
+            WUID: $("#cboFinishGoodsStore").val(),
+            FTPListIDs : sFTPListIDs,
+        };
+
+        ReceiveFTN(oFTN,-1);
+    });
+
+    function ReceiveFTN(oFTN,nRowIndex)
+    {
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFTN,
+            ObjectId: oFTN.FTNID,
+            ControllerName: "FabricTransferNote",
+            ActionName: "ReceiveFTN",
+            TableId: "",
+            IsWinClose: false,
+            Message: "Successfully Received."
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if($.trim(response.obj.ErrorMessage) == "")
+                {
+                    //if(!response.obj.IsFTPLD)
+                    //{
+                    //    window.location.href = _sBaseAddress + "/FNExecutionOrder/ViewFNExeOrderReceivesByFabricDelChallan?menuid=" + _nMenuid;
+                    //}
+                    //else
+                    //{
+                        if(nRowIndex > -1)
+                        {
+                            $("#tblFTPLDetail").datagrid("updateRow", { index: nRowIndex, row: response.obj.FTPLD });
+                        }
+                    //}
+                }
+            }
+        });
+    }
+
+    $("#btnDelete").click(function(){
+        var oFTPL = $("#tblFTPLs").datagrid("getSelected");
+
+        if (oFTPL == null || oFTPL.FTPListID <= 0) {
+            alert("Please select an item from list!"); return;
+        }
+
+        if (!confirm("Confirm to Delete?")) return;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oFTPL,
+            ControllerName: "FabricTransferPackingList",
+            ActionName: "DeleteFTPLFromNote",
+            TableId: "tblFTPLs",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnAddPackingList").click(function(){
+
+        var oFTPLs=$("#tblFTPLs").datagrid("getRows");
+        var sFEOIDs = "";
+        if(oFTPLs.length > 0)
+        {
+            for(var i=0;i<oFTPLs.length;i++)
+            {
+                sFEOIDs = oFTPLs[i].FEOID + "," + sFEOIDs;
+            }
+            sFEOIDs = sFEOIDs.substring(0, sFEOIDs.length - 1);
+        }
+
+        var oFTPL = {
+            FEONo : sFEOIDs
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFTPL,
+            ControllerName: "FabricTransferPackingList",
+            ActionName: "GetsUntagPackingList",
+            IsWinClose: false
+        };
+        $.icsMaxDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FTPListID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "OrderNo", title: "Dispo No", width: "90%", align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winUntagPackingList',
+                        winclass: 'clsUntagPackingList',
+                        winwidth: 400,
+                        winheight: 460,
+                        tableid: 'tblUntagPackingList',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'OrderNo',
+                        windowTittle: 'Untag Packing List',
+                        placeholder : "Search By Order No"
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else
+            {
+                alert("Sorry, No List Found.");
+            }
+        });
+    });
+
+    function IntializePickerbutton(oPickerObj) {
+        $("#" + oPickerObj.winid).find("#btnOk").click(function () {
+            IntializePickerbuttonPick(oPickerObj);
+        });
+        $(document).find('.' + oPickerObj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                IntializePickerbuttonPick(oPickerObj);
+            }
+        });
+    }
+
+    function IntializePickerbuttonPick(oPickerObj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerObj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerObj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerObj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerObj.winid == 'winUntagPackingList') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                for(var i=0;i<oreturnObjs.length;i++)
+                {
+                    $("#tblFTPLs").datagrid("appendRow", oreturnObjs[i]);
+                }
+
+            } else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        $("#" + oPickerObj.winid).icsWindow("close");
+        $("#" + oPickerObj.winid).remove();
+    }
+
+    function CheckPermission()
+    {
+        if(_sBtnIDHtml == "btnView"){
+            alert("This operation is not possible.");
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshControl(oFTN)
+    {
+
+
+        if(_sBtnIDHtml == "btnView" || _sBtnIDHtml == "btnReceive")
+        {
+            $("#txtNote").prop("disabled",true);
+            $("#dtNoteDate").datebox({ disabled: true });
+            $("#btnCreateChallan,#btnDelete,#btnAddPackingList").hide();
+        }else{
+            $("#txtNote").prop("disabled",false);
+            $("#dtNoteDate").datebox({ disabled: false });
+        }
+        $("#dtNoteDate").datebox("setValue", icsdateformat(new Date()));
+
+        if(oFTN.FTNID>0)
+        {
+            $("#txtFTNNo").val(oFTN.FTNNo);
+            $("#dtNoteDate").datebox("setValue", oFTN.NoteDateSt);
+            $("#txtNote").val(oFTN.Note);
+            DynamicRefreshListForMultipleSelection(oFTN.FTPLs,"tblFTPLs");
+        }
+    }
+
+
+
+    $("#btnCreateChallan").click(function(){
+        if(!CheckPermission()) return false;
+        var oFTPLs = $("#tblFTPLs").datagrid("getChecked");
+        if(oFTPLs == null || oFTPLs.length <= 0)
+        {
+            alert("Select minimum one item.");
+            return false;
+        }
+
+        var oFTN = RefreshObject();
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFTN,
+            ObjectId: oFTN.FTNID,
+            ControllerName: "FabricTransferNote",
+            ActionName: "SaveFTN",
+            TableId: "",
+            IsWinClose: false
+        };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if($.trim(response.obj.ErrorMessage) == "")
+                {
+                    $("#txtFTNNo").val(response.obj.FTNNo);
+                    var sBtnID = sessionStorage.getItem("BtnID");
+                    if(sBtnID == "btnEdit" || sBtnID == "btnView")
+                    {
+                        var oSessionList = jQuery.parseJSON(sessionStorage.getItem("FTNs"));
+                        if(oSessionList!=null && oSessionList!="null" && oSessionList.length > 0){
+                            var nLength = oSessionList.length;
+                            for(var i=0;i<nLength;i++)
+                            {
+                                if(oSessionList[i].FTPListID == parseInt(response.obj.FTNID))
+                                {
+                                    oSessionList[i] = response.obj;
+                                    sessionStorage.setItem("FTNs", JSON.stringify(oSessionList));
+                                    break;
+                                }
+                            }
+                        }
+                        window.location.href = _sBaseAddress + "/FabricTransferNote/View_FabricTransferNotes?menuid=" + _nMenuid;
+                    }
+                    else if(sBtnID == "btnAdd")
+                    {
+                        var oSessionList = jQuery.parseJSON(sessionStorage.getItem("FTNs"));
+                        response.obj.NoOfPackingList = oFTN.NoOfPackingList;
+                        oSessionList.push(response.obj);
+                        sessionStorage.setItem("FTNs", JSON.stringify(oSessionList));
+                        sessionStorage.setItem("FTNID", response.obj.FTNID);
+                        window.location.href = _sBaseAddress + "/FabricTransferNote/View_FabricTransferNotes?menuid=" + _nMenuid;
+                    }
+                    else{
+                        alert("Invalid Fabric Transfer Packing List.");
+                    }
+                }
+                else
+                {
+                    alert(response.obj.ErrorMessage);
+                }
+            }
+        });
+    });
+
+    function RefreshObject()
+    {
+        var sFTPListIDs="";
+        var oFTPLs = $("#tblFTPLs").datagrid("getChecked");
+        var nLength=oFTPLs.length;
+        for(var i=0;i<nLength;i++)
+        {
+            sFTPListIDs = oFTPLs[i].FTPListID + "," + sFTPListIDs;
+        }
+        sFTPListIDs = sFTPListIDs.substring(0, sFTPListIDs.length - 1);
+
+
+        var oFTN={
+            FTNID : ((_oFTN == null || _oFTN.FTNID == 0) ? 0 : _oFTN.FTNID),
+            NoteDate : $('#dtNoteDate').datebox('getValue'),
+            Note : $.trim($("#txtNote").val()),
+            FTPListIDs : sFTPListIDs,
+            NoOfPackingList : oFTPLs.length
+        };
+        return oFTN;
+    }
+
+    $("#btnBack").click(function(){
+        window.location.href = _sBaseAddress + "/FabricTransferNote/View_FabricTransferNotes?menuid=" + _nMenuid;
+    });
+
+    $("#btnShowDetails").click(function(){
+        var oFTPL = $("#tblFTPLs").datagrid("getSelected");
+        if(oFTPL==null || oFTPL.FTPListID <= 0){
+            alert("Please select an item from list.");
+            return false;
+        }
+        $(".lblLoadingMessage").show();
+        var oFTPL={
+            FTPListID: oFTPL.FTPListID
+        };
+
+        $.icsMaxDataGets({
+            BaseAddress: _sBaseAddress,
+            Object: oFTPL,
+            ControllerName: 'FabricTransferPackingList',
+            ActionName: 'GetsFabricTransferPackingListDetail',
+            IsWinClose: false
+        }, function (response) {
+            if (response.status) {
+                if(response.objs.length > 0)
+                {
+                    if($.trim(response.objs[0].ErrorMessage) == "")
+                    {
+                        DynamicRefreshList(response.objs,"tblFTPLDetail");
+                        TotalCalculation();
+                    }
+                    else{
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else{
+                    DynamicRefreshList([],"tblFTPLDetail");
+                }
+            }
+            $(".lblLoadingMessage").hide();
+        });
+    });
+
+    function onClickRow(index) {
+        DynamicRefreshList([],"tblFTPLDetail");
+    }
+
+    function TotalCalculation()
+    {
+        var oFTPLDetails = $("#tblFTPLDetail").datagrid("getRows");
+        if(oFTPLDetails.length > 1)
+        {
+            var oFTPLDetail = {
+                FTPLDetailID : 0,
+                LotNo : "Total : ",
+                QtySt : 0,
+                QtyInMeterSt : 0,
+                ReceiveDateSt : "",
+                ReceiveByName : ""
+            };
+
+            var nTotalQty = 0,
+                nTotalQtyInMeter = 0;
+
+            $.map(oFTPLDetails, function(obj){
+                nTotalQty = parseFloat(obj.Qty) + parseFloat(nTotalQty);
+                nTotalQtyInMeter = parseFloat(GetMeter(obj.Qty,2)) + parseFloat(nTotalQtyInMeter);
+            });
+
+            oFTPLDetail.QtySt = formatPrice(nTotalQty);
+            oFTPLDetail.QtyInMeterSt = formatPrice(nTotalQtyInMeter);
+            $("#tblFTPLDetail").datagrid("appendRow", oFTPLDetail);
+        }
+    }
+</script>

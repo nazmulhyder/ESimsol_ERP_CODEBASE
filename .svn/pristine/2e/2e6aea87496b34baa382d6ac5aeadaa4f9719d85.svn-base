@@ -1,0 +1,346 @@
+﻿@{
+    ViewBag.Title = "Lot Assign";
+}
+@model ESimSol.BusinessObjects.LotParent
+    <div ng-app="LotParentModule">
+        <div ng-controller="LotParentController" style="width:99.5%">
+           <fieldset>
+               <legend>Lot Info:</legend>
+               <div class="col-md-12">
+                   <div class="col-md-1 text-right"><label>Lot:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="LotParent.LotNo" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Yarn Count:</label></div>
+                   <div class="col-md-4"><input type="text" ng-model="LotParent.ProductName" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Supplier:</label></div>
+                   <div class="col-md-3"><input type="text" ng-model="LotParent.ContractorName" style="width:100%" disabled /></div>
+               </div>
+               @*<div class="col-md-12">
+                   <div class="col-md-1 text-right"><label>Store:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="LotParent.StoreName" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Code:</label></div>
+                   <div class="col-md-4"><input type="text" ng-model="LotParent.ProductCode" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Invoice:</label></div>
+                   <div class="col-md-3"><input type="text" ng-model="LotParent.InvoiceNo" style="width:100%" disabled /></div>
+               </div>*@
+           </fieldset>
+            <div class="ui-grid-top-panel" style="padding-top:">
+                <div class="row">
+                    <div class="form-inline">
+                        <input class="form-control" ng-model="LotParent.txtOrderNo" placeholder="Type Order No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownOrder($event)" style="width:210px; height:24px; margin-left:20px" required />
+                        <button type="button" class="btn btn-primary btn-xs" aria-label="right Align" ng-click="PickOrderDetails()" ng-disabled="disabled"><span aria-hidden="true"> Pick </span></button>
+                        <button type="button" class="btn btn-danger btn-xs" aria-label="right Align" style="float:right; margin-right:5%" ng-click="Remove_LotParent()" ng-disabled="disabled"><span aria-hidden="true"> Remove </span></button>
+                    </div>
+                </div>
+            </div>
+            <div style="width:99.5%;" ui-grid="gridOptions" ui-grid-selection ui-grid-edit class="grid"></div>
+            <div class="row" style="width:100%;">
+                <fieldset style="height:60px; margin:10px 0 0 20px">
+                    <legend>Action</legend>
+                    <div class="row col-md-12">
+                        <div class="col-md-10 text-left" style="font-size:12px; font-weight:bold">
+                            <label class="text-info" style="padding-left:8px">Total Rcv. Qty : {{LotParent.Qty_Order | number:2}} </label>
+                            <label class="text-info" style="padding-left:8px">Assigning Qty : {{LotParent.TotalBalacne_Qty | number:2}} </label>
+                            <label class="text-info" style="padding-left:8px">Current Balance : {{LotParent.Qty_Order - LotParent.TotalBalacne_Qty | number:2}} </label>
+                            <label class="text-info" style="padding-left:8px">Actual Balance : {{LotParent.Qty | number:2}} </label>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Close</button>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 380px;
+            width: 99%;
+        }
+
+        .col-md-1 .col-md-2 .col-md-3 .col-md-4 {
+            padding: 5px 5px 5px 5px;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        var pager =[];
+        var _nBUID=0;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oLotParent =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+        debugger;
+        var  LotParentModule = angular.module('LotParentModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.edit', 'ui.grid.cellNav','ms.service']);
+        LotParentModule.controller('LotParentController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+            debugger;
+            $scope.LotParent=oLotParent;
+            $scope.LotParent.TotalBalacne_Qty=0;
+
+            $scope.gridOptions ={
+                enableSorting: true,
+                enableFullRowSelection: true,
+                showColumnFooter: true,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                //enableVerticalScrollbar : false,
+                columnDefs: [
+                   { name: '#', width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,pinnedLeft:true},
+       
+                    { field: 'DyeingOrderNo', name: 'OrderNo', width:'12%', enableCellEdit: false },
+                    //{ field: 'LotBalance', name: 'Openning Qty', width: '15%', cellClass:'text-right', cellFilter:'number:2' },
+                    { field: 'Qty_Order', name: 'OrderQty', width: '10%' , enableCellEdit: false ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'LotNo', name: 'LotNo', width:'10%', enableCellEdit: false , enableCellEdit: false },
+                    { field: 'Qty', name: 'Qty', width: '10%',  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right', enableCellEdit: false  },
+                    { field: 'Balance', name: 'Balance', width: '10%', enableCellEdit: true ,  cellClass: 'text-right', cellFilter: 'number: 2', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                    { field: 'LotParentDateSt', name: 'Assign Date', width:'15%',cellClass:'text-center', enableCellEdit: false },
+                    { field: 'Qty_Batch_Out', name: 'Batch Qty', width: '15%',cellClass:'text-right', cellFilter:'number:2', enableCellEdit: false  },
+                    //{ field: 'InOutName', name: 'In/Out', width: '10%' },
+                    //{ field: 'TriggerParentTypeSt', name: 'Type', width: '15%' }
+                ],
+                data:oLotParent.LotParents,
+                onRegisterApi:function(gridApi)
+                {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+
+                    $scope.gridApi.edit.on.afterCellEdit($scope,function(rowEntity, colDef, newValue, oldValue){ //console.log(rowEntity);
+                        if(newValue != oldValue)
+                            $scope.Edit_LotParent(rowEntity, oldValue, $scope.gridOptions.data.indexOf(rowEntity));
+                    })
+                    $scope.Set_Total_Balance();
+                }
+            };
+
+            $scope.Set_Total_Balance=function()
+            {
+                $scope.LotParent.TotalBalacne_Qty=0;
+                $scope.LotParent.TotalBalacne_Qty=$scope.gridOptions.data.select('Balance').sum();
+            }
+
+            $scope.SearchKeyDownOrder = function (e){
+                //debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var sOrderRefNo=$scope.LotParent.txtOrderNo;
+                    var txtOrder = $.trim(sOrderRefNo);
+                    if(txtOrder=="" || txtOrder==null)
+                    {
+                        alert("Type Order No and Press Enter");
+                        return;
+                    }
+
+                    $scope.PickOrderDetails(txtOrder);
+                }else if (code == 8) //backspace=8
+                {
+                    //debugger;
+                    $scope.LotParent.DyeingOrderNo='';
+                }
+            };
+            $scope.PickOrderDetails= function (txtOrder)
+            {
+                debugger;
+                txtOrder= (txtOrder==undefined? "" : txtOrder);
+                var oLotParent= {
+                    LotID:$scope.LotParent.LotID,
+                    ContractorID:$scope.LotParent.ContractorID,
+                    DyeingOrderNo: txtOrder
+                };
+                debugger;
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/LotStockReport/GetsDyeingOrderDetails',$.param(oLotParent), config).then(
+                            function (response)
+                            {
+                                debugger;
+                                var results=jQuery.parseJSON(response.data);
+                                debugger;
+                                if(results.length>0)
+                                {
+                                    //$scope.LotParent.LotParentDetails=result;
+
+                                    var oDetailColumns = [];
+                                    var oColumn = { field: 'DyeingOrderNo', name:'Order No', width:'20%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn = { field: 'ProductName', name:'ProductName', width:'40%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn ={ field: 'Qty', name:'Qty', width:'15%',cellClass: 'text-left', cellFilter:'number:2',enableCellEdit:false };oDetailColumns.push(oColumn);
+                                   
+                                    var modalObj={
+                                        size:'lg',
+                                        modalcontroller:'',
+                                        url:_sBaseAddress+'/Home/Modal',
+                                        appcontroller:'DUProGuideLineCtrl',
+                                        objs:results,
+                                        multiSelect:false,
+                                        pickertitle:'Order List',
+                                        searchingbyfieldName:'DestinationLotNo',
+                                        columns:oDetailColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                   
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        var oLotParents =  $scope.gridOptions.data;
+
+                                        if(result.Qty > $scope.LotParent.Qty)
+                                        {
+                                            alert("Order Qty Is Greater Than Balance!"); return;
+                                        }
+
+                                        for(var i=0; i<oLotParents.length; i++)
+                                        {
+                                            if(oLotParents[i].DyeingOrderID==result.DyeingOrderID)
+                                            {
+                                                alert("Duplicate Entry Not Possible!"); return;
+                                            }
+                                        }
+                                        //SAVE LOT PARENT
+                                        $scope.Save_LotParent(result);
+
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+
+                                }else {alert("No Data Found!!");}
+                            },
+                                function (response) { alert(response.statusText);}
+                        );
+            };
+           
+            $scope.Save_LotParent = function (result) 
+            {
+                var oLotParent= {
+                    LotID: $scope.LotParent.LotID,
+                    ContractorID: $scope.LotParent.ContractorID,
+                    DyeingOrderID: result.DyeingOrderID,
+                    ParentType: result.ParentType,
+                    ParentID: result.ParentID,
+                    UnitPrice: result.UnitPrice,
+                    CurrencyID: result.CurrencyID,
+                    Note: "Assigned From Stock Lot",
+                    ProductID: result.ProductID,
+                    Qty: result.Qty,
+                    Balance: $scope.LotParent.Qty
+                };
+                console.log(oLotParent);
+                $http.post(_sBaseAddress+'/LotStockReport/Save_LotParent',JSON.stringify(oLotParent)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        
+                        if(result.LotParentID>0 && result.ErrorMessage=="")
+                        {
+                            debugger;
+                            alert("Data Saved Successfully!!");
+                            //$scope.LotParent.Qty-=result.Qty;
+                            $scope.gridOptions.data.push(result);
+
+                            $scope.Set_Total_Balance();
+                        }
+                        else
+                        {
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+            };
+            $scope.Edit_LotParent = function (rowentity, oldValue, index) 
+            {
+                var oLotParent= {
+                    LotID: rowentity.LotID,
+                    LotParentID: rowentity.LotParentID,
+                    ContractorID: $scope.LotParent.ContractorID,
+                    ProductID: $scope.LotParent.ProductID,
+                    DyeingOrderID: rowentity.DyeingOrderID,
+                    ParentType: rowentity.ParentType,
+                    ParentID: rowentity.ParentID,
+                    UnitPrice: rowentity.UnitPrice,
+                    CurrencyID: rowentity.CurrencyID,
+                    Note: "Assigned Dyeing Lot (InHouse)",
+                    Qty: rowentity.Qty,
+                    Balance: rowentity.Balance
+                };
+
+                $http.post(_sBaseAddress+'/DyeingOrder/Edit_Lot',JSON.stringify(oLotParent)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        console.log(result);
+                        if(result.LotParentID>0 && result.ErrorMessage=="")
+                        {
+                            debugger;
+                            alert("Data Saved Successfully!!");
+                            $scope.gridOptions.data[index]=result;
+
+                            $scope.Set_Total_Balance();
+                        }
+                        else
+                        {
+                            debugger;
+                            $scope.gridOptions.data[index].Balance=oldValue;
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+            };
+            $scope.Remove_LotParent= function ()
+            {
+                var oLotParent = $scope.gridApi.selection.getSelectedRows()[0];
+                if(oLotParent==null || oLotParent.LotParentID<=0)
+                {
+                    alert("Select At least One item !");
+                    return;
+                }
+                var SelectedRowIndex=$scope.gridOptions.data.indexOf(oLotParent);
+                if (!confirm("Confirm to Remove?")) return ;
+
+                $http.post(_sBaseAddress+'/LotStockReport/Delete_LotParent',JSON.stringify(oLotParent)).then(
+                   function (response) {
+                       var result=jQuery.parseJSON(response.data);
+                       console.log(result);
+                       if(result=="Deleted")
+                       {
+                           debugger;
+                           alert("Data Deleted Successfully!!");
+                           $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                           //$scope.LotParent.Qty+=oLotParent.Qty;
+                           
+                           $scope.Set_Total_Balance();
+                       }
+                       else
+                       {
+                           alert(result);
+                       }
+                   },
+                   function (response) { alert(response.statusText);});
+            };
+
+            $scope.Close=function ()
+            {
+                debugger;
+                //window.location.href = sessionStorage.getItem("BackLink");
+                userSession.previousPage();
+            };
+        });
+
+    </script>
+
+
+
+

@@ -1,0 +1,251 @@
+﻿@{
+    ViewBag.Title = "Attendance Access Point";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.AttendanceAccessPoint>
+    <head>
+        <title></title>
+
+    </head>
+    <body>
+
+        <div class="menuMainCollectionTable">
+            <table id="tblAttendanceAccessPoint" title="Attendance Access Point Item" style="width:100%; height:565px" class="easyui-datagrid" data-options="singleSelect: true,fitColumns:true, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="Name" width="12%">Name</th>
+                        <th field="MachineSLNo" width="15%">Machine SL </th>
+                        <th field="DataProviderInStr" width="20%">Data Provider</th>
+                        <th field="DBName" width="14%" align="left">DBName</th>
+                        <th field="DBLoginID" width="12%" align="left">Login ID</th>
+                        <th field="PCInfo" width="10%" align="left">PC Info</th>
+                        <th field="ActivityInStr" width="10%" align="left">Status</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input id="txtSearchName" class="resetfield" maxlength="7" placeholder="Search Name" type="text" />
+                <span><label>Data Provider:</label> </span>
+                <select id="cboDataProvider" style="width:20%;"></select>
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">New</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                <a id="btnActivity" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true"><label id="lblActivityStatus">Active</label></a>
+            </div>
+        </div>
+    </body>
+
+    <script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oAAPs = [];
+    var _oAAP=null;
+    $(document).ready(function() {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAAPs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oDataProviders=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.DataProviders));
+        if(sessionStorage.getItem("AttendanceAccessPoints")!=null && sessionStorage.getItem("AttendanceAccessPoints").lengh>0){
+            _oAAPs=sessionStorage.getItem("AttendanceAccessPoints");
+        }
+        DynamicRefreshList(_oAAPs, "tblAttendanceAccessPoint");
+        $('#cboDataProvider').icsLoadCombo({
+            List: oDataProviders,
+            OptionValue: "Value",
+            DisplayText: "Text",
+            InitialValue: "-----Select Data Provider-----"
+        });
+        $('#tblAttendanceAccessPoint').datagrid({onSelect: function(rowIndex, rowData){ RowSelect(rowIndex, rowData);}});
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+    function RowSelect(rowIndex, rowData)
+    {
+        $('#btnEdit,#btnDelete,#btnActivity').show();
+        $('#lblActivityStatus').text('Active');
+        if(rowData.IsActive)
+        {
+            $('#btnEdit,#btnDelete').hide();
+            $('#lblActivityStatus').text('Inactive');
+        }
+        else if(!rowData.IsActive){
+            $('#btnEdit,#btnDelete').show();
+            $('#lblActivityStatus').text('Active');
+        }
+    }
+
+    /*.......... Searching ............. */
+
+    $('#txtSearchName').keyup(function (e) {
+        
+        var oAAPs =[];
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 8) { oAAPs = _oAAPs; }
+        else{ oAAPs = $('#tblAttendanceAccessPoint').datagrid('getRows'); }
+        if (keyCode == 13){
+            Search(true);
+        }
+        else{
+            var sTempName="";
+            var oSearchedData = [];
+            for(i=0;i<oAAPs.length;++i)
+            {
+                sTempName=oAAPs[i]['Name'];
+                if(sTempName.toUpperCase().indexOf($('#txtSearchName').val().toUpperCase())>-1)
+                {
+                    oSearchedData.push(oAAPs[i]);
+                }
+            }
+            $('#tblAttendanceAccessPoint').empty();
+            if (oSearchedData.length == 0) { DynamicRefreshList(_oAAPs, "tblAttendanceAccessPoint");}
+            else { DynamicRefreshList(oSearchedData, "tblAttendanceAccessPoint"); }
+
+        }
+        
+
+    });
+
+    $("#btnSearch").click(function(e){
+        Search(false);
+    });
+
+    function Search(bTextSearch){
+
+        if(bTextSearch){
+            if($.trim($('#txtSearchName').val())==''){ alert('Please enter name to search.'); return false;}
+        }
+        else{
+            if($.trim($('#txtSearchName').val())=='' && $('#cboDataProvider').val()<=0 ){
+                alert('Please enter at least one criteria.'); return false;
+            }
+        }
+       
+
+        var oAAP={ Params: $.trim($('#txtSearchName').val())+'~'+""+"~"+  $('#cboDataProvider').val()};
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oAAP,
+                ControllerName: "AttendanceAccessPoint",
+                ActionName: "Gets",
+                IsWinClose: false
+            };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs != null && response.objs.length>0) {
+                if (response.objs[0].AAPID > 0) {
+                    _oAAPs=response.objs;
+                    DynamicRefreshList(response.objs, "tblAttendanceAccessPoint");
+                }
+                else 
+                { 
+                    alert((response.objs[0].ErrorMessage!=null || response.objs[0].ErrorMessage!='')? response.objs[0].ErrorMessage : "No data found."); 
+                    DynamicRefreshList([], "tblAttendanceAccessPoint");
+                }
+            }
+            else{
+                alert("No data found.");
+                DynamicRefreshList([], "tblAttendanceAccessPoint");
+            }
+        });
+    }
+
+
+    /*-----------------End--------------------*/
+
+
+
+    $('#btnAdd').click(function(e){
+        var oAAPs= $('#tblAttendanceAccessPoint').datagrid('getRows');
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "New");
+        sessionStorage.setItem("AttendanceAccessPoints", JSON.stringify(oAAPs));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("AttendanceAccessPointHeader", "Add Attendance Access Point");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/AttendanceAccessPoint/ViewAttendanceAccessPoint?nId=0";
+    });
+
+    $('#btnEdit').click(function(e){
+        var oAAP = $('#tblAttendanceAccessPoint').datagrid('getSelected');
+        if (oAAP == null || oAAP.AAPID <= 0) {
+            alert("Please select an item from list");
+            return false;
+        }
+        var nIndex=$('#tblAttendanceAccessPoint').datagrid('getRowIndex',oAAP);
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "Edit");
+        sessionStorage.setItem("SelectedRowIndex", nIndex);
+        sessionStorage.setItem("AttendanceAccessPointHeader", "Edit Attendance Access Point");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/AttendanceAccessPoint/ViewAttendanceAccessPoint?nId="+oAAP.AAPID+"";
+
+    });
+
+    $('#btnView').click(function(e){
+
+        var oAAP = $('#tblAttendanceAccessPoint').datagrid('getSelected');
+        if (oAAP == null || oAAP.AAPID <= 0) {
+            alert("Please select a valid item from list");
+            return false;
+        }
+
+        var nIndex=$('#tblAttendanceAccessPoint').datagrid('getRowIndex',oAAP);
+        sessionStorage.clear();
+        sessionStorage.setItem("Operation", "View");
+        sessionStorage.setItem("SelectedRowIndex", nIndex);
+        sessionStorage.setItem("AttendanceAccessPointHeader", "View Attendance Access Point");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/AttendanceAccessPoint/ViewAttendanceAccessPoint?nId="+oAAP.AAPID+"";
+    });
+
+    $("#btnDelete").click(function () {
+
+        var oAAP = $("#tblAttendanceAccessPoint").datagrid("getSelected");
+        if (oAAP == null || oAAP.AAPID <= 0) { alert("Please select an item from list!"); return false; }
+        if (oAAP.IsActive) { alert('Unable to delete.Inactive first to delete.'); return false; }
+        if (!confirm("Confirm to Delete?")) return false;
+        var oAAP={ AAPID:oAAP.AAPID };
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oAAP,
+            ControllerName: "AttendanceAccessPoint",
+            ActionName: "DeleteAAP",
+            TableId: "tblAttendanceAccessPoint",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+    });
+
+    $("#btnActivity").click(function (e) {
+
+
+        var oAAP = $("#tblAttendanceAccessPoint").datagrid("getSelected");
+        if (oAAP == null || oAAP.AAPID <= 0) { alert("Please select an item from list!"); return false; }
+
+        if (!confirm((oAAP.IsActive) ?"Confirm to inactive?":"Confirm to active?")) return;
+        var nIndex=$('#tblAttendanceAccessPoint').datagrid('getRowIndex',oAAP);
+
+        var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oAAP,
+                ObjectId: oAAP.AAPID,
+                ControllerName: "AttendanceAccessPoint",
+                ActionName: "ActicationAAP",
+                TableId: "tblAttendanceAccessPoint",
+                IsWinClose: false,
+                Message: (oAAP.IsActive)?"Inactive Successfully." : "Active Successfully."
+            };
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                RowSelect(nIndex,response.obj);
+            }
+        });
+
+    });
+
+    </script>

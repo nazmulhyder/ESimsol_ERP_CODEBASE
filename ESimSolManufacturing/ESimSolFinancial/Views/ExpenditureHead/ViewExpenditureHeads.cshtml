@@ -1,0 +1,335 @@
+﻿@{
+    ViewBag.Title = "ExpenditureHead";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ExpenditureHead>
+
+<div ng-app="ExpenditureHeadModule">
+    <div ng-controller="ExpenditureHeadController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    @*<label class="control-label">Exe No :</label>*@
+                    <input type="text" class="form-control" ng-model="ChallanNo" ng-keydown="searchByName($event)" placeholder="Type Name & Press Enter">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="receive()"> <span class="glyphicon glyphicon-import" aria-hidden="true"></span> Receive</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+                    
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection   class="grid"></div>
+        @*<div class="custom-pagination">
+            <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+        </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 530px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oExpenditureHeads =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    debugger;
+ 
+    var  ExpenditureHeadModule = angular.module('ExpenditureHeadModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ms.service']);
+    ExpenditureHeadModule.controller('ExpenditureHeadController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oExpenditureHeads= (userSession.getData('ExpenditureHeads').length>0)? userSession.getData('ExpenditureHeads'):oExpenditureHeads;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableRowSelection: true,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                { field: 'Name', name: 'Name', width:'50%', enableCellEdit: false },
+                { field: 'AccountCode', name: 'A/C Head Code', width:'23%', enableCellEdit: false },
+               { field: 'AccountHeadName', name: 'A/C Head Name', width:'25%', enableCellEdit: false }
+           
+            ],
+            data:oExpenditureHeads,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.grid.modifyRows(oExpenditureHeads);
+                userSession.clearSession();
+            }
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("ExpenditureHeadHeader", "Add ExpenditureHead");
+            sessionStorage.setItem("ExpenditureHeads", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ExpenditureHead/ViewExpenditureHead?nId=0&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var oExpenditureHead = $scope.gridApi.selection.getSelectedRows()[0]; 
+            if(oExpenditureHead==null || parseInt(oExpenditureHead.ExpenditureHeadID) <=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ExpenditureHeadID== parseInt(oExpenditureHead.ExpenditureHeadID))
+                {
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ExpenditureHeadHeader", "Edit ExpenditureHead");
+                    sessionStorage.setItem("ExpenditureHeads", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ExpenditureHead/ViewExpenditureHead?nId="+oExpenditureHead.ExpenditureHeadID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].IsGRN==true){
+                msModal.Message({headerTitle : '', bodyText:'Already GRN Create.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+          
+            $http.post('/ExpenditureHead/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.ExpenditureHeadID==data[0].ExpenditureHeadID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ExpenditureHeadID==data[0].ExpenditureHeadID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ExpenditureHeadHeader", "View ExpenditureHead");
+                    sessionStorage.setItem("ExpenditureHeads", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ExpenditureHead/ViewExpenditureHead?nId="+value.ExpenditureHeadID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.searchByName = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.ChallanNo);
+                if (sChallanNo=!"")
+                {
+                    debugger;
+                    var tsv=((new Date()).getTime())/1000;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.get(_sBaseAddress + '/ExpenditureHead/searchByName', {params:{sTempData:$scope.ChallanNo, ts:tsv} }, config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }else if (code == 8) //backspace=8
+            {
+                $scope.ChallanNo='';
+            }
+        };
+        $scope.searchByImportInvoiceNo = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var sChallanNo = $.trim($scope.ImportInvoiceNo);
+                if (sChallanNo=!"")
+                {
+                    debugger;
+                    var tsv=((new Date()).getTime())/1000;
+                    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                    $http.get(_sBaseAddress + '/ExpenditureHead/SearchByInvoiceNo', {params:{sTempData:$scope.ImportInvoiceNo, ts:tsv} }, config).then(
+                                function (response)
+                                {
+                                    var oResults = jQuery.parseJSON(response.data);
+                                    if(oResults.length>0)
+                                    {
+                                        $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                    }else{
+                                        alert("Data Not found.");
+                                    }
+
+                                },
+                                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+
+
+                }
+            }else if (code == 8) //backspace=8
+            {
+                $scope.ImportInvoiceNo='';
+            }
+        };
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oExpenditureHead = data[0];
+            if(oExpenditureHead==null || oExpenditureHead.ExpenditureHeadID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/ExpenditureHead/PrintExpenditureHeadPreview?id='+oExpenditureHead.ExpenditureHeadID);
+        };
+
+        $scope.approve = function () {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].ApproveBy!=0){
+                msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to approve?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result)
+            {
+
+                if(result)
+                {
+                    angular.forEach($scope.gridOptions.data,function(value,index){
+                        if(value.ExpenditureHeadID==data[0].ExpenditureHeadID){
+                            $http.post('/ExpenditureHead/Approved', JSON.stringify(data[0])).then(
+                                 function (response) {
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.ExpenditureHeadID>0)
+                                     {
+                                         debugger;
+                                         $scope.gridOptions.data[index]=result;
+                                         $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                         $scope.gridApi.selection.selectRow(result);
+                                     }
+                                     else{
+                                         alert(result.ErrorMessage);
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+                        }
+                    },$scope.gridOptions.data);
+                }
+            });
+
+        };
+        $scope.receive = function () {
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].ReceiveBy!=0){
+                msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to Received?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+                    angular.forEach($scope.gridOptions.data,function(value,index){
+                        if(value.ExpenditureHeadID==data[0].ExpenditureHeadID){
+                            $http.post('/ExpenditureHead/Received', JSON.stringify(data[0])).then(
+                                 function (response) {
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.ExpenditureHeadID>0)
+                                     {
+                                         debugger;
+                                         $scope.gridOptions.data[index]=result;
+                                         $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                         $scope.gridApi.selection.selectRow(result);
+                                     }
+                                     else{
+                                         alert(result.ErrorMessage);
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+                        }
+                    },$scope.gridOptions.data);
+                }
+            });
+
+        };
+
+
+    });
+
+
+</script>
+                       
+
+
+              

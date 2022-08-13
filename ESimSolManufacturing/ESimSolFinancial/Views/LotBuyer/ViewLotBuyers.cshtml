@@ -1,0 +1,185 @@
+﻿
+@{
+    ViewBag.Title = "Lot Buyer Report";
+}
+
+
+@model IEnumerable <ESimSol.BusinessObjects.LotBuyer>
+ <script src="~/Views/LotBuyer/AdvLotBuyer.js"></script>
+  <div ng-app="LotBuyerApp" class="form-horizontal">
+       <div ng-controller="LotBuyerController">
+              <div class="row ui-grid-top-panel regionSCLC">
+                   <div class="container">
+                        <div class="form-inline">
+                            @*<input type="text" ng-model="PINo" ng-change="filter()" class="form-control" style="width:200px" placeholder="Search PI No " ng-keyup="searchPINoKeyUp($event)" />
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PINosearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>*@
+
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Search</span></button>
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="printExcel()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> ExportXL</span></button>
+                           
+                         </div>
+                    </div>
+               </div>
+              <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns class="grid-angular"></div>
+         </div>
+  </div>
+
+    <style type="text/css">
+        .regionSCLC .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid-angular {
+            height: 520px;
+            width: 100%;
+        }
+
+        .regionSCLC .btn-sm {
+            padding: 3px 10px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+    var pager =[];
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oLotBuyers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Stores));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+        var  LotBuyerApp = angular.module('LotBuyerApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service','LotBuyer.service']);
+        sessionStorage.setItem('BUID',nBUID);
+        LotBuyerApp.controller('LotBuyerController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession, LotBuyerservice)
+        {
+
+            $scope.Stores= oStores;
+            $scope.gridOptions ={
+                enableSorting: true,
+                showColumnFooter: true,
+                enableRowSelection: true,
+                enableSelectAll: false,
+                multiSelect:false,
+
+                
+                columnDefs: [
+                    { field: 'ContractorName', name: 'Party Name', width:'20%',  cellClass: 'text-left' },
+                    { field: 'ProductCode', name: 'Product Code', width: '10%',  cellClass: 'text-left'},
+                    { field: 'ProductName',  name: 'Product Name', width:'15%',  cellClass: 'text-left' },
+                    { field: 'LotNo', name: 'Lot No',  cellClass: 'text-left', width: '12%'  },
+                    { field: 'Balance', name: 'Balance',  cellClass: 'text-right', width: '12%', cellFilter: 'number: 2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'  },
+                    { field: 'MUName', name: 'Unit', cellClass: 'text-left', width: '5%' },
+                    { field: 'LocationName', name: 'Location Name',  cellClass: 'text-left', width: '10%'  },
+                    { field: 'OperationUnitName', name: 'Store Name',  cellClass: 'text-left', width: '10%'  }
+                   
+                ],
+                data:oLotBuyers,
+                onRegisterApi:function(gridApi) {
+                    $scope.gridApi = gridApi;
+                    //$scope.gridApi.grid.registerRowsProcessor( $scope.singleFilter, 200 );
+                }
+            };
+            $scope.filter=function(){
+                debugger;
+                $scope.gridApi.grid.refresh();
+            }
+            $scope.PINo ="";
+            $scope.singleFilter=function(renderableRows){
+
+                var matcherPINo = new RegExp(angular.uppercase($scope.PINo));
+
+                renderableRows.forEach( function( row ) {
+                    debugger;
+                    var match = false;
+                    if (angular.uppercase(row.entity['PINo']).match(matcherPINo))
+                    {
+                        match = true;
+                    }
+                    if ( !match ){
+                        row.visible = false;
+                    }
+                });
+                return renderableRows;
+            };
+
+            $scope.AdvanceSearch = function ()
+            {
+                debugger;
+
+                var modalObj={
+                    modalcontroller:'ModalLotBuyerAdvanceSearchCtrl',
+                    appcontroller:'LotBuyerController',
+                    Stores:$scope.Stores
+
+                }
+                var modalInstance=LotBuyerservice.Instance(modalObj);
+                modalInstance.result.then(function (result)
+                {
+                    debugger;
+                    $scope.gridOptions.data = result;
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+
+            $scope.searchPINoKeyUp=function(keyEvent){
+                if(keyEvent.which==13 ||keyEvent.which ==8){
+                    debugger;
+                    $scope.PIsearch();
+                }
+            };
+
+            $scope.PINosearch=function(){
+                $scope.PIsearch();
+            };
+
+            $scope.PIsearch = function () {
+                debugger;
+
+                var sTempString = ($scope.cboPIDate == undefined ? 0 : $scope.cboPIDate) + '~' + ($scope.PIDateStart == undefined ? icsdateformat(new Date()): $scope.PIDateStart) + '~' + ($scope.PIDateEnd == undefined ?  icsdateformat(new Date()) : $scope.PIDateEnd) + '~' + ($scope.cboLCOpenDate == undefined ? 0: $scope.cboLCOpenDate) + '~' + ($scope.LCOpenDateStart == undefined ?  icsdateformat(new Date()) : $scope.LCOpenDateStart) + '~' + ($scope.LCOpenDateEnd == undefined ?  icsdateformat(new Date()) : $scope.LCOpenDateEnd)+ '~' + ($scope.cboAmendmentDate == undefined ? 0: $scope.cboAmendmentDate)+ '~' +($scope.AmendmentDateStart == undefined ?  icsdateformat(new Date()): $scope.AmendmentDateStart) + '~' + ($scope.AmendmentDateEnd == undefined ?icsdateformat(new Date()): $scope.AmendmentDateEnd) + '~' + ($scope.PINo == undefined ? "" : $scope.PINo) + '~' + ($scope.LCNo == undefined ? "" : $scope.LCNo) + '~' + ($scope.BuyerIDs == undefined ? "" : $scope.BuyerIDs) + '~' + ($scope.ContractorIDs == undefined ? "" : $scope.ContractorIDs) + '~' + ($scope.chkYetToDistribute == undefined ? false : $scope.chkYetToDistribute) + '~' + ($scope.chkYetToPayable == undefined ? false : $scope.chkYetToPayable) + '~' +  ($scope.chkYetToPaid == undefined ? false : $scope.chkYetToPaid) + '~' +  ($scope.chkMaturityReceived == undefined ? false : $scope.chkMaturityReceived)+ '~' + ($scope.chkPaymentReceived == undefined ? false : $scope.chkPaymentReceived) ;
+                sessionStorage.setItem("sTempString", sTempString);
+
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.get(_sBaseAddress + '/SalesCommissionLC/AdvSearch', { params: { sTemp: sTempString } }, config).then(
+                      function (response) {
+                          //var result = jQuery.parseJSON(response.data);
+                          //if (result.length > 0) {
+                          //    $scope.gridOptions.data=result;
+                          //    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                          //}
+                          //if (result.length <= 0) {
+                          //    $scope.gridOptions.data=[];
+                          //    $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                          //}
+                          var results = jQuery.parseJSON(response.data);
+                          if (results.length > 0) {
+                              $scope.gridOptions.data=results;
+                          } else {
+                              msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                              // alert("Data Not Found.");
+                              return;
+                          }
+
+                      },
+                      function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+                );
+            };
+            $scope.printExcel = function(){
+                debugger;
+                if(sessionStorage.getItem("sTempString")!=null){
+                    var sParams=sessionStorage.getItem("sTempString");
+                }
+
+
+
+                window.open(_sBaseAddress + '/LotBuyer/Print_ReportXL?sTempString=' + sParams+'&BUID='+sessionStorage.getItem("BUID"), "_blank");
+
+            }
+
+    
+
+
+        });
+
+</script>

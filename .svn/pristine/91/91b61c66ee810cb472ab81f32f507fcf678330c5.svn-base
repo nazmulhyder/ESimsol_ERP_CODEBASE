@@ -1,0 +1,171 @@
+﻿@{
+    ViewBag.Title = "Employee List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Employee>
+
+<div style="margin-left:0px; height:550px">
+            <table id="tblEmployees" title="Employee List"  class="easyui-datagrid" style="width:896px;height:548px" fitColumns="true"  rownumbers="true" pagination="true" singleSelect="true", autoRowHeight="false" toolbar="#toolbar">
+                <thead>  
+                    <tr>  
+                        <th field="Code" width="80" >Code</th>  
+                        <th field="Name" width="150" >Employee Name</th>  
+                        <th field="EmployeeTypeInString" width="100">EmployeeType</th>
+                        <th field="Address" width="150" >Address</th>
+                        <th field="ContactNo" width="140" >ContactNo</th>                         
+                        <th field="EmailAddress" width="150" >Email Address</th>     
+                        <th field="LocationNameCode" width="120" >Location</th>                         
+                    </tr>  
+                </thead> 
+            </table>​  
+            <div id="toolbar"> 
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="Refresh()"></a>
+                                
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="Add()">Add</a>  
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-edit" plain="true" onclick="Edit()">Edit</a>                
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="Details()">View</a>
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Delete()">Delete</a>                 
+            </div>  
+</div>
+
+
+
+<script type="text/javascript">
+var _oEmployees=[];
+var _sBaseAddress="";
+$(document).ready(function () {
+    //debugger;
+    _oEmployees =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    RefreshList(_oEmployees);
+});
+
+function Refresh()
+{    
+    var oEmployees = $('#tblEmployees').datagrid('getRows'); 
+    data=oEmployees;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblEmployees').datagrid('loadData',data);           
+}   
+
+function Add()
+{
+//debugger;
+    var oParameter = new Object();
+    oParameter.Name = "Add Employee";
+    var url =_sBaseAddress+ "/Employee/ViewEmployee?id=0";
+    var oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:440px;dialogWidth:550px;dialogLeft:300;dialogTop:80;center:yes;resizable:no;status:no;scroll:no');
+    //debugger
+    if(oEmployee!=null)
+    {
+        if(oEmployee.EmployeeID>0)
+        {
+            var oEmployees = $('#tblEmployees').datagrid('getRows');               
+            var nIndex=oEmployees.length;
+                       
+            $('#tblEmployees').datagrid('appendRow',oEmployee); 
+            $('#tblEmployees').datagrid('selectRow', nIndex);
+        }
+    }
+} 
+
+
+
+function Edit()
+{
+    //debugger;
+    var oEmployee= $('#tblEmployees').datagrid('getSelected'); 
+    if(oEmployee==null || oEmployee.EmployeeID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblEmployees').datagrid('getRowIndex',oEmployee);
+    var oParameter = new Object();        
+    oParameter.Name = "Edit Employee";
+    var url =_sBaseAddress+  "/Employee/ViewEmployee?id="+oEmployee.EmployeeID;
+    oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:440px;dialogWidth:550px;dialogLeft:300;dialogTop:80;center:yes;resizable:no;status:no;scroll:no');
+      
+    //debugger
+    if(oEmployee!=null)
+    {
+        if(oEmployee.EmployeeID>0)
+        {
+                
+            $('#tblEmployees').datagrid('updateRow',{index: SelectedRowIndex,	row: oEmployee});
+        }
+    }
+} 
+
+
+function Details()
+{
+//debugger;
+    var oEmployee= $('#tblEmployees').datagrid('getSelected'); 
+    if(oEmployee==null || oEmployee.EmployeeID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var oParameter = new Object();        
+    oParameter.Name = "View Employee";
+
+    var url =_sBaseAddress+  "/Employee/ViewEmployee?id="+oEmployee.EmployeeID;
+    oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:440px;dialogWidth:550px;dialogLeft:300;dialogTop:80;center:yes;resizable:no;status:no;scroll:no');
+          
+} 
+
+function Delete()
+{
+       debugger;  
+        var oEmployee= $('#tblEmployees').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+        
+        if(oEmployee==null || oEmployee.EmployeeID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        var SelectedRowIndex=$('#tblEmployees').datagrid('getRowIndex',oEmployee);
+
+        if (oEmployee.EmployeeID > 0) 
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",                
+                url : _sBaseAddress+  "/Employee/Delete",
+                data: { id: oEmployee.EmployeeID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                   debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully") 
+                    {
+                        alert("Delete sucessfully");                        
+                        $('#tblEmployees').datagrid('deleteRow',SelectedRowIndex);
+                          
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        }
+}
+
+    
+function RefreshList(oEmployees)
+{    
+    data=oEmployees;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblEmployees').datagrid('loadData',data);      
+}
+
+ 
+</script>

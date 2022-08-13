@@ -1,0 +1,149 @@
+﻿ @{
+     ViewBag.Title = "Doc Realization";
+  }
+<html>
+<body>
+    @model ESimSol.BusinessObjects.CommercialBS
+<div style="font-family: Tahoma" class="menuMainCollectionTable">
+    <fieldset>
+        <legend style="font-weight: bold">Commercial Bank Submition Info : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width:100%; font-weight: bold" >
+            <tr>
+                <td style="width:15%; text-align: right">
+                    Ref No :
+                </td>
+                <td style="width:35%;">
+                    @Html.TextBoxFor(model => model.RefNo, new { style = "width:100%;", id = "txtRefNo", disabled = "disabled" })
+                </td>
+                <td style="width: 15%; text-align: right">
+                    Issue Date :
+                </td>
+                <td style="width: 35%">
+                    @Html.TextBoxFor(model => model.IssueDateInString, new { style = "width: 100%;", id = "txtIssueDate", disabled = "disabled" })
+                </td>
+            </tr>
+            <tr>
+                <td style="width:15%; text-align: right">
+                    Master LC No :
+                </td>
+                <td style="width: 35%">
+                    @Html.TextBoxFor(model => model.MasterLCNo, new { style = "width: 100%;", id = "txtMasterLCNo", disabled = "disabled" })
+                </td>
+                <td style="width:15%; text-align: right">
+                    Bill Amount :
+                </td>
+                <td style="width: 35%">
+                    @Html.TextBoxFor(model => model.BSAmount, new { style = "width: 100%;text-align: right", id = "txtBSAmount", disabled = "disabled" })
+                </td>
+            </tr>
+            
+            <tr>
+                <td style="width:15%; text-align: right">
+                    Buyer Name :
+                </td>
+                <td style="width:85%" colspan="3">
+                    @Html.TextBoxFor(model => model.BuyerName, new { style = "width: 100%;", id = "txtBuyerName", disabled = "disabled" })
+                </td>               
+            </tr>
+        
+            <tr>
+                <td style="width:15%; text-align: right">
+                    Remark :
+                </td>
+                <td style="width: 35%">
+                    @Html.TextBoxFor(model => model.RealizationRemarks, new { style = "width: 100%;", id = "txtRealizationRemarks" })
+                </td>
+                <td style="width:15%; text-align: right">
+                    Realization Date :
+                </td>
+                <td style="width: 35%">
+                    <input id="txtRealizationDate" type="text" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" style="width: 100%;" />
+                </td>
+            </tr>   
+         
+        </table>
+    </fieldset>
+    <fieldset>
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px;width:100%; font-weight: bold">
+            <tr>
+                <td style="width:85%; text-align: right">
+                </td>
+                <td style="width:15%;text-align:right">
+                    <a id="btnCommit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Commit</a>
+                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oCommercialBS =null;
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCommercialBS =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#txtBSAmount').numberbox({min:0, precision:2 });//number box
+        $('#txtRealizationDate').datebox('setValue', icsdateformat(new Date()));
+    });
+
+    $('#btnCommit').click(function (e) {
+        debugger;
+        var oCommercialBS = _oCommercialBS;
+        if(oCommercialBS.BSStatus!=4)
+        {
+            alert("Please select only 'Maturity Received' item ");
+            return;
+        }
+        if (!confirm("Confirm to Doc Rialization?")) return ;
+        oCommercialBS.Remark = document.getElementById("txtRealizationRemarks").value;
+        oCommercialBS.DynamicDate =$('#txtRealizationDate').datebox('getValue');
+        oCommercialBS.ActionTypeInString="DocRialization";
+        oCommercialBS.BSStatusInInt = 4;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CommercialBS/ChangeStatus",
+            traditional: true,
+            data:  JSON.stringify(oCommercialBS),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oCommercialBS= jQuery.parseJSON(data);
+                if (oCommercialBS.ErrorMessage=="")
+                {
+                    alert("Successfully Doc Rialization.");
+                    var oCommercialBSs = sessionStorage.getItem("CommercialBSs");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oCommercialBSs != null)
+                    {
+                        oCommercialBSs = jQuery.parseJSON(oCommercialBSs);
+                    }
+                    else {
+                        oCommercialBSs = [];
+                    }
+                    oCommercialBSs[nIndex] = oCommercialBS;
+                    sessionStorage.setItem("CommercialBSs", JSON.stringify(oCommercialBSs));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }else
+                {
+                    alert(oCommercialBS.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+
+    });
+
+    $('#btnClose').click(function (e) {
+        window.location.href =sessionStorage.getItem("BackLink");
+    });
+
+
+</script>

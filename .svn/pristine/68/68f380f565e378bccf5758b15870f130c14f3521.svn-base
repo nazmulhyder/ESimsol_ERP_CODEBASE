@@ -1,0 +1,204 @@
+﻿@{
+    ViewBag.Title = "Voucher List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Voucher>
+    <div class="menuMainCollectionTable">
+        <div id="divVoucher" style="margin-left: 0px; height: 100%; width:100%">
+            <table id="tblVouchers" title="Voucher List" class="easyui-datagrid" fit="true" fitcolumns="true" singleselect="true" pagination="true" rownumbers="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        <th field="VoucherDateInString" width="8%">Date</th>
+                        <th field="VoucherNo" width="18%">Voucher No</th>                        
+                        <th field="Narration" width="43%">Narration</th>
+                        <th field="VoucherAmountInString" width="11%" align="right">Voucher Amount</th>
+                        <th field="AuthorizedByName" width="10%">Approved By</th>
+                        <th field="PreparedByName" width="10%">Prepared By</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <select id="cboSrcBusinessUnit" style="width:200px"></select>
+                <select id="cboSrcVoucherType" style="width:200px"></select>
+                <input id="txtSrcVoucherStartDate" type="text" style="width: 120px;" class="easyui-datebox" disabled="disabled" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                to<input id="txtSrcVoucherEndDate" type="text" style="width: 115px;" class="easyui-datebox" disabled="disabled" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <a id="btnAdvSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>                
+                <a id="btnPreview" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">XL</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    var _oVouchers=[];
+    $(document).ready(function () {
+        _oVouchers =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));        
+        var oVoucherTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.VoucherTypes));
+        var oBusinessUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        var oVouchers =sessionStorage.getItem("Vouchers");
+        if(oVouchers!=null)
+        {
+            oVouchers = jQuery.parseJSON(oVouchers);
+        }
+        else
+        {
+            oVouchers=_oVouchers;
+        }
+        RefreshList(oVouchers);        
+        $('#cboSrcVoucherType').data('VoucherTypes', oVoucherTypes);
+        $('#cboSrcBusinessUnit').data('BusinessUnits', oBusinessUnits);                
+        $("#progbar").progressbar({ value: 0 });
+        $("#progbarParent").hide();
+        RefreshComboBoxControls();
+    });
+
+    //Start Search
+    function RefreshComboBoxControls()
+    {  
+        $('#txtSrcVoucherStartDate').datebox({ disabled : false });
+        $('#txtSrcVoucherEndDate').datebox({ disabled : false });
+
+        $('#txtSrcVoucherStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtSrcVoucherEndDate').datebox('setValue', icsdateformat(new Date()));
+
+        var oVoucherTypes = $('#cboSrcVoucherType').data('VoucherTypes');
+        var oBusinessUnits = $('#cboSrcBusinessUnit').data('BusinessUnits');
+
+        $("#cboSrcVoucherType").icsLoadCombo({ List: oVoucherTypes, OptionValue: "VoucherTypeID", DisplayText: "VoucherName", InitialValue : '--Voucher Type--'});
+        $("#cboSrcBusinessUnit").icsLoadCombo({ List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : '--Business Unit--'});        
+    }
+
+    function ValidateSearch()
+    {
+        var nVoucherType = parseInt($('#cboSrcVoucherType').val());      
+        var nBusinessUnit = parseInt($('#cboSrcBusinessUnit').val()); 
+        var sVoucherStartDate   = $('#txtSrcVoucherStartDate').datebox('getValue');
+        var sVoucherEndDate   = $('#txtSrcVoucherEndDate').datebox('getValue');
+        if(sVoucherStartDate===null || sVoucherStartDate==="")
+        {
+            alert("Please select Voucher start date!");
+            $('#txtSrcVoucherStartDate').focus();
+            return false;
+        }
+        if(sVoucherEndDate===null || sVoucherEndDate==="")
+        {
+            alert("Please select Voucher end date!");
+            $('#txtSrcVoucherEndDate').focus();
+            return false;
+        }
+        if(new Date(sVoucherStartDate) > new Date(sVoucherEndDate))
+        {
+            alert("Start date must be smallar than or equal end date!");
+            $('#txtSrcVoucherStartDate').focus();
+            return false;
+        }
+        //if(nVoucherType ===0 && nBusinessUnit===0)
+        //{
+        //    alert("Please select atleast one searching criteriea!");
+        //    return false;
+        //}
+        return true;
+    }
+
+    $('#btnAdvSearch').click(function(){        
+        if(!ValidateSearch()) return;
+
+        var nVoucherType = parseInt($('#cboSrcVoucherType').val());      
+        var nBusinessUnit = parseInt($('#cboSrcBusinessUnit').val()); 
+        var sVoucherStartDate   = $('#txtSrcVoucherStartDate').datebox('getValue');
+        var sVoucherEndDate   = $('#txtSrcVoucherEndDate').datebox('getValue');
+        
+        var oVoucher = {            
+            VoucherTypeID : parseInt(nVoucherType),            
+            BUID : parseInt(nBusinessUnit),            
+            Narration : (sVoucherStartDate + "~" + sVoucherEndDate)
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/Voucher/GetsUnApprovedVouchers",
+            data: JSON.stringify(oVoucher),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oVouchers = data;
+                if (oVouchers != null) {
+                    if(oVouchers.length>0)
+                    {
+                        RefreshList(oVouchers);
+                    }
+                    else
+                    {
+                        alert("Data not found!!");
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });    
+    });
+
+    function RefreshList(oVouchers)
+    {       
+        var data={"total":""+oVouchers.length+"","rows":oVouchers};
+        $('#tblVouchers').datagrid('loadData',data);   
+        $('#tblVouchers').datagrid({selectOnCheck:false, checkOnSelect:true});
+    }
+
+    $('#btnPreview').click(function(){
+        var oVouchers=[];
+        oVouchers = $('#tblVouchers').datagrid('getChecked');
+        if(oVouchers.length<=0)
+        {
+            alert("Please select atleast one Voucher.");
+            return;
+        }
+        else if(oVouchers.length == 1)
+        {
+            window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintVoucher?id=' + oVouchers[0].VoucherID+'&buid=0', "_blank");
+        }
+        else
+        {
+            var ids =ICS_PropertyConcatation(oVouchers, 'VoucherID');
+            window.open(sessionStorage.getItem('BaseAddress')+'/Voucher/PrintMultiVoucher?ids='+ ids, "_blank");
+        }
+    });
+
+    $('#btnPrint').click(function(){
+        var oVouchers= $('#tblVouchers').datagrid('getRows');
+        var ids ="";
+        if(oVouchers.length >0)
+        {
+
+            for(var i =0;i<oVouchers.length;i++)
+            {
+                ids =ids+oVouchers[i].VoucherID+",";
+            }
+            ids= ids.substring(0, ids.length - 1);
+        }
+        else{
+            return;
+        }
+        window.open(sessionStorage.getItem('BaseAddress') + '/Voucher/PrintVouchers?sIDs='+ids, "_blank");
+    });
+
+    $('#btnPrintXL').click(function(){
+        var oVouchers= $('#tblVouchers').datagrid('getRows');
+        var ids ="";
+        if(oVouchers.length >0)
+        {
+
+            for(var i =0;i<oVouchers.length;i++)
+            {
+                ids =ids+oVouchers[i].VoucherID+",";
+            }
+            ids= ids.substring(0, ids.length - 1);
+        }
+        else{
+            return;
+        }
+        window.open(sessionStorage.getItem('BaseAddress') + '/Voucher/PrintVouchersInXL?sIDs='+ids, "_blank");
+    });
+</script>

@@ -1,0 +1,192 @@
+﻿<html>
+<head>  
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+     <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" /> 
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />  
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>            
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>  
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>    
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script> 
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script> 
+    
+</head>
+<body>
+
+@model ESimSol.BusinessObjects.ApprovalRequest
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+    <tr>
+        <td style="background-color:#CFB53B; text-align:center; width:400px; color:White">
+            <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline; width:845px">Request to Approval</label>
+        </td>
+    </tr>
+</table>
+<fieldset>
+      
+        <table border="0"style ="font-size:12">
+            <tr>
+                <td style="width:150px; text-align:right">Request To:</td>
+                <td style="width:250px; text-align:left"><select id="cboRequestTo"  style="width:220px;font-size:12px;"/></td> 
+              </tr>  
+
+                <tr>
+                  <td style="width:150px; text-align:right">Note :</td>
+                <td style="width:250px; text-align:left">                
+                        @Html.TextBoxFor(model => model.Note, new { style = "width: 220px;", id = "txtNote" })
+                </td>   
+            </tr>
+        </table>
+        
+      
+       
+</fieldset>
+    
+<fieldset>
+    <legend style="font-weight:bold"> Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;width:820px font-weight:bold">
+            <tr>
+                <td style="width:720px; text-align:right">
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true" onclick="Confirm()">Confirm</a>
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+             </tr>       
+         </table>
+</fieldset>
+</div>
+</body>
+</html>
+
+<script type="text/javascript"> 
+ var _oApprovalRequest=null;
+ var _value ="";
+ var _sBaseAddress="";
+ var _oUserList =[];
+ var _obj = null;
+ var _nObjectID =0;
+ $(document).ready(function () {
+    debugger;     
+     _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+     _oApprovalRequest =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+     _oUserList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.UserList)); 
+     _obj = window.dialogArguments;
+     _nObjectID =_obj.ObjectID;
+    document.getElementById('lblHeaderName').innerHTML =_obj.Name;
+    LoadRequestToComboBox();
+ });
+
+
+
+ 
+function LoadRequestToComboBox()
+{
+    $('#cboRequestTo').empty();
+    var listEmployees= "<option value='"+0+"'>" +"--Select User--" + "</option>";
+    for (var i = 0; i < _oUserList.length; i++)
+    {
+        listEmployees+= "<option value='" + _oUserList[i].UserID + "'>" + _oUserList[i].UserName + "</option>";
+    }
+    $("#cboRequestTo").html(listEmployees);
+}
+
+
+
+ function Confirm()
+{
+   debugger;
+      if(!ValidateInput()) return;
+      var oApprovalRequest=RefreshObject();
+       $.ajax
+            ({
+                type: "POST",
+                dataType: "json",                
+                url : _sBaseAddress+  "/TechnicalSheet/RequestForApproval",                
+                data:  JSON.stringify(oApprovalRequest),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    oTechnicalSheet = jQuery.parseJSON(data);
+                    if(oTechnicalSheet!=null)
+                    {
+                        if(oTechnicalSheet.ErrorMessage=="")
+                        {
+                           alert('Data save Successfully');
+                           window.returnValue = oTechnicalSheet;
+                           window.close();
+                        }
+                        else
+                        {
+                            alert(oTechnicalSheet.ErrorMessage);
+                        }
+                    }
+                    else
+                    {
+                        alert(oTechnicalSheet.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+       
+}
+
+
+
+function ValidateInput()
+{
+  debugger;
+  if($('#cboRequestTo').val()==0)
+   {
+        alert('Please Select User');
+        $('#cboRequestTo').focus();
+        return false;
+   }
+   
+   return true;
+}
+
+
+
+
+function RefreshObject()
+{  
+   var cboRequestTo = document.getElementById("cboRequestTo");
+   var nRequestTo=cboRequestTo.options[cboRequestTo.selectedIndex].value; 
+      debugger;
+
+   var oApprovalRequest= { 
+                            ApprovalRequestID :0,
+                            OperationObjectID :_nObjectID,
+                            RequestTo :nRequestTo,
+                            Note :$("#txtNote").val() 
+          
+                     };
+   return oApprovalRequest;
+} 
+
+     
+function Close()
+{
+    
+    window.close();
+}
+
+
+$(document).keydown(function(e) {    
+    //debugger;
+    if(e.which == 27)//escape=27
+    {
+        //debugger;        
+        window.close();
+    }
+});
+</script>

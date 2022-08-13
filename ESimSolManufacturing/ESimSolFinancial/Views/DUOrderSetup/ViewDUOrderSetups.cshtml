@@ -1,0 +1,234 @@
+﻿@{
+    ViewBag.Title = "DUOrderSetup";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.DUOrderSetup>
+
+<div ng-app="DUOrderSetupModule">
+    @*<script src="~/Views/DUOrderSetup/AdvanceSearch.js"></script>*@
+ 
+    <div ng-controller="DUOrderSetupController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="StepSetup()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Step Setup</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+                <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+            </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oDUOrderSetups =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+    debugger;
+    var  DUOrderSetupModule = angular.module('DUOrderSetupModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    DUOrderSetupModule.controller('DUOrderSetupController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oDUOrderSetups= (userSession.getData('DUOrderSetups').length>0)? userSession.getData('DUOrderSetups'):oDUOrderSetups;
+      
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'OrderName', name: 'OrderName', width:'10%', enableCellEdit: false },
+                { field: 'NoCode', name: 'Number Code', width: '15%' },
+                { field: 'ShortName', name: ' Name', width: '15%' },
+                { field: 'ComboNo', name: 'ComboNo', width: '10%' },
+                { field: 'PrintName', name: 'Print Name', width: '20%' },
+                { field: 'ActivitySt', name: 'Activity', width: '10%' }
+            ],
+            data:oDUOrderSetups,
+            onRegisterApi:function(gridApi) 
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oDUOrderSetups.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oDUOrderSetups);
+                    $scope.gridApi.selection.selectRow(oDUOrderSetups[userSession.getRowIndex()]);
+                    $scope.RowSelect(oDUOrderSetups[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("DUOrderSetupHeader", "Add DUOrderSetup");
+            sessionStorage.setItem("DUOrderSetups", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+         
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/DUOrderSetup/ViewDUOrderSetup?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DUOrderSetupID==data[0].DUOrderSetupID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DUOrderSetupHeader", "Edit DUOrderSetup");
+                    sessionStorage.setItem("DUOrderSetups", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DUOrderSetup/ViewDUOrderSetup?nId="+value.DUOrderSetupID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            if (!confirm("Confirm to Delete?")) return ;
+          
+            $http.post('/DUOrderSetup/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.DUOrderSetupID==data[0].DUOrderSetupID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DUOrderSetupID==data[0].DUOrderSetupID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DUOrderSetupHeader", "View DUOrderSetup");
+                    sessionStorage.setItem("DUOrderSetups", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DUOrderSetup/ViewDUOrderSetup?nId="+value.DUOrderSetupID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.StepSetup = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.DUOrderSetupID==data[0].DUOrderSetupID){
+                    sessionStorage.setItem("Operation", "StepSetup");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("DUOrderSetupHeader", "View DUOrderSetup");
+                    sessionStorage.setItem("DUOrderSetups", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("OrderSetup", JSON.stringify(value));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/DUOrderSetup/ViewDUStepWiseSetups?nId="+value.DUOrderSetupID;
+                }
+            },$scope.gridOptions.data);
+        };
+        
+     
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oDUOrderSetup = data[0];
+            if(oDUOrderSetup==null || oDUOrderSetup.DUOrderSetupID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/DUOrderSetup/PrintDUOrderSetupPreview?id='+oDUOrderSetup.DUOrderSetupID);
+        };
+
+     
+      
+     
+    
+
+
+        //button hide
+      
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

@@ -1,0 +1,363 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Mgt DB A/C Setup";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.MgtDBACSetup>
+
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div id="divMgtDBACSetup" class="easyui-panel menuMainCollectionTable" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:99%; text-align:center">
+            <table id="tblMgtDBACSetup" title="Mgt Dashboard Account Setup" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:true,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="MgtDBACTypeInString" width="300" align="left">Type</th>
+                        <th field="AccountHeadName" width="300" align="left">Account Head</th>
+                        <th field="Remarks" width="300" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                Type : <select id="cboMgtDBACType" style="width:120px;height:22px;"></select>
+                Account Head : <input type="text" id="txtAccountHead" placeholder="Type A/C Head & Press Enter" onkeydown="AccountHeadKeyDown(event)" />
+                <input type="button" style="width:37px; font-size:12px" id="btnAccountHeadPicker" value="Pick" onclick="PickAccountHead()" />
+                Remarks : <input type="text" id="txtRemarks" placeholder="Enter Remarks" /> 
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        @*<div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>*@
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+    var _oMgtDBACSetups=[];
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping=[];
+    var _oMgtDBACTypes = [];
+    $(document).ready(function () {
+        _oMgtDBACSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        //$('#tblMgtDBACSetup').datagrid({ title: ('Mgt DB A/C Setup for User : ' +_oMgtDBACSetups.UserName)});
+        _oMgtDBACTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MgtDBACTypes));
+        $("#cboMgtDBACType").icsLoadCombo({ List:_oMgtDBACTypes, OptionValue: "id", DisplayText: "Value" });
+        RefreshList(_oMgtDBACSetups);
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $("#divMgtDBACSetup").data("AccountHeadIDs","");
+ });
+
+ function ValidateInput()
+ {
+     if(parseInt($('#cboMgtDBACType').val())<=0)
+     {
+        alert("please select Type!");
+        $('#cboMgtDBACType').focus();
+        return false;
+     }
+     var sAccountHeadIDs = $("#divMgtDBACSetup").data("AccountHeadIDs");
+     if(sAccountHeadIDs == null || sAccountHeadIDs == "")
+     {
+         alert("Please Enter atleast one Account Head!");
+         $('#txtAccountHead').focus();
+        return false;
+     }
+     return true;
+ }
+
+
+function RefreshObject()
+{
+    var oMgtDBACSetup = {
+                    MgtDBACSetupID : 0,
+                    MgtDBACType : parseInt($('#cboMgtDBACType').val()),
+                    AccountHeadIDs : $("#divMgtDBACSetup").data("AccountHeadIDs"),
+                    Remarks : $.trim($('#txtRemarks').val())
+                            };
+    return oMgtDBACSetup;
+}
+
+$("#btnAdd").click(function(){
+    debugger;
+    if(!ValidateInput()) return;
+    var oMgtDBACSetup=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/MgtDBACSetup/Save",
+        traditional: true,
+        data:  JSON.stringify(oMgtDBACSetup),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            debugger;
+            var oMgtDBACSetup = jQuery.parseJSON(data);
+            if(oMgtDBACSetup.MgtDBACSetups.length > 0)
+            {
+                alert("Data Saved sucessfully");
+                for(var i=0;i<oMgtDBACSetup.MgtDBACSetups.length;i++){
+                    $('#tblMgtDBACSetup').datagrid('appendRow',oMgtDBACSetup.MgtDBACSetups[i]);
+                }
+                var nIndex=$('#tblMgtDBACSetup').datagrid('getRows').length;
+                $('#tblMgtDBACSetup').datagrid('selectRow',parseInt(nIndex));
+
+                $("#cboMgtDBACType").val(0);
+                $("#divMgtDBACSetup").data("AccountHeadIDs","");
+                $("#txtRemarks").val('');
+            }
+            else {
+                alert(oMgtDBACSetup.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oMgtDBACSetup = $('#tblMgtDBACSetup').datagrid('getSelected');
+    if(oMgtDBACSetup==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex=$('#tblMgtDBACSetup').datagrid('getRowIndex',oMgtDBACSetup);
+    if (parseInt(oMgtDBACSetup.MgtDBACSetupID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/MgtDBACSetup/Delete",
+            traditional: true,
+            data:  JSON.stringify(oMgtDBACSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblMgtDBACSetup').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList(oMgtDBACSetups)
+{
+    var data=oMgtDBACSetups;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblMgtDBACSetup').datagrid('loadData',data);
+}
+
+$("#btnRefresh").click(function(){
+    var data=$('#tblMgtDBACSetup').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblMgtDBACSetup').datagrid('loadData',data);
+});
+
+
+//Picker ac head start
+function AccountHeadKeyDown(event) {
+    //return;
+    if (event.which == 13) {
+        var oTxtName=$("#txtAccountHead").val();
+        if (oTxtName != null) {
+            PickAccountHead(oTxtName);
+        }
+    }
+    if (event.which == 8) //backspace=8
+    {
+        //debugger;
+        txtAccountHead.style.color = "black";
+        txtAccountHead.style.fontWeight = "normal";
+        $("#divMgtDBACSetup").data("AccountHeadIDs","");
+
+    }
+}
+
+function PickAccountHead(oTxtName)
+{
+    var oStyleSearch = { ErrorMessage: (typeof(oTxtName) != 'undefined'?oTxtName:"") };
+    //var oStyleSearch = { Params: 2 + '~' + (typeof(oTxtName) != 'undefined'?oTxtName:"") };
+    //console.log(oStyleSearch);
+    debugger;
+    var obj = {
+        BaseAddress:_sBaseAddress,
+        Object: (oStyleSearch) ,
+        ControllerName: "MgtDBACSetup", 
+        ActionName: "GetAccountHead",
+        IsWinClose: false
+    };
+    var tblColums = []; var oColumn = { field: "AccountHeadName", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+    oColumn = { field: "AccountCode", title: "Code", width: 120, align: "left" }; tblColums.push(oColumn);
+    DynamicPiker('AccountHead',obj,tblColums,true,'AccountHeadName','AccountHeadID'); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+}
+
+function SetAccountHead(oSelectedStyle) {
+    debugger;
+    txtAccountHead.style.color = "green";
+    txtAccountHead.style.fontWeight = "bold";
+
+
+    if(oSelectedStyle.length == 1){
+        document.getElementById("txtAccountHead").value = oSelectedStyle[0].AccountHeadName;
+    }
+    else if(oSelectedStyle.length > 1){
+        document.getElementById("txtAccountHead").value = "You selected " + oSelectedStyle.length + " items.";
+    }
+    var ids = "";
+    var len = oSelectedStyle.length;
+    for (var i = 0; i < len; i++) {
+
+        ids += oSelectedStyle[i].AccountHeadID + ",";
+    }
+    if(ids.length > 0){
+        ids = ids.substring(0, ids.length-1);
+    }
+
+    $("#divMgtDBACSetup").data("AccountHeadIDs",ids);
+    $("#txtAccountHead").focus();
+}
+    //Picker ac head end
+
+function SetPickerValueAssign(oPickerobj)
+{
+    debugger;
+    var oResult;
+    if (oPickerobj.multiplereturn)
+    {
+        oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+    }
+    else
+    {
+        oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+    }
+
+
+    if (oPickerobj.winid == 'winAccountHead')
+    {
+        SetAccountHead(oResult);
+    }
+    
+
+    $("#" + oPickerobj.winid).icsWindow("close");
+    $("#" + oPickerobj.winid).remove();
+}
+function updateProgress() {
+    var value =$('#progressbar').progressbar('getValue');
+    if (value < 90){
+        value += Math.floor(Math.random() * 10);
+        $('#progressbar').progressbar('setValue', value);
+    }
+}
+function hideShow(miliseconds) {
+    $("#progressbarParent").hide();
+}
+function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID)
+{
+    debugger;
+    $("#progressbar").progressbar({ value: 0 });
+    $("#progressbarParent").show();
+    setInterval(updateProgress,250);
+
+    $.icsDataGets(obj, function (response) {
+        debugger;
+        if (response.status && response.objs.length > 0) {
+            if (response.objs[0][pID] > 0) {
+                debugger;
+                var tblColums = pTblColums;
+                var oPickerParam = {
+                    winid: 'win'+pickerName,
+                    winclass: 'cls'+pickerName,
+                    winwidth: 600,
+                    winheight: 460,
+                    tableid: 'tbl'+pickerName+'s',
+                    tablecolumns: tblColums,
+                    datalist: response.objs,
+                    multiplereturn: pMultiReturn,
+                    searchingbyfieldName: pSearchField,
+                    windowTittle: pickerName+' List',
+                    colsable:true
+                };
+                $.icsPicker(oPickerParam);
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                IntializePickerbutton(oPickerParam);
+            }
+            else { alert(response.objs[0].ErrorMessage); }
+        }
+        else{
+            alert("Data Not Found.");
+            $("#progressbar").progressbar({ value: 0 });//hide
+            $("#progressbarParent").hide();
+            return;
+        }
+    });
+}
+function IntializePickerbutton(oPickerobj) {
+    debugger;
+    $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+        debugger;
+        //for Single Select
+        SetPickerValueAssign(oPickerobj);
+    });
+    $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+        if (e.which == 13)//enter=13
+        {
+            SetPickerValueAssign(oPickerobj);
+        }
+        else if (e.which == 27)//enter=13
+        {
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+        }
+    });
+}
+
+//$("#btnClose").click(function(){
+//    window.location.href = sessionStorage.getItem("BackLink");
+//});
+
+//$(document).keydown(function(e) {
+//    if(e.which == 27)//escape=27
+//    {
+//        window.location.href = sessionStorage.getItem("BackLink");
+//    }
+//});
+</script>

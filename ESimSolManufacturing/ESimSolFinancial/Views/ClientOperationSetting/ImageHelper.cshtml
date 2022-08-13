@@ -1,0 +1,222 @@
+﻿ <html>
+@{
+    ViewBag.Title = "Image of Client Operation Setting";
+}
+ <body>
+
+     @model ESimSol.BusinessObjects.COSImage
+     <div class="ClientOperationSettingMainCollectionTable" id="divCOS">
+         <div class="easyui-panel" title="Client Operation Setting (Image)" style="font-family:Tahoma; text-align:center; height:89%;">
+             @using (Html.BeginForm("ImageHelper", "ClientOperationSetting", FormMethod.Post, new { enctype = "multipart/form-data" }))
+             {
+                 <table border="0" cellspacing="1" cellpadding="1" style="font-size:11px; font-weight:bold"width="100%">
+                     <tr>
+                         <td style="width:100%; vertical-align:bottom">
+                             <fieldset>
+                                 <legend style="font-weight:bold"> Image Informations :</legend>
+                                 <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                                     <tr>
+                                         <td style="width:10%;text-align:right;">Image Title</td>                                     
+                                         <td style="width:10%;text-align:left">@Html.TextBoxFor(model => model.ImageTitle, new { style = "width:100%;", id = "txtImageTitle" }) </td>
+                                         <td style="width:14%; text-align:right"><label class="asterixStyle">*Operation Type</label></td>
+                                         <td style="width:20%;text-align:left">@Html.DropDownListFor(model => model.OperationType, Model.OperationTypes.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboOperationType", style = "width: 100%;font-size:12px;text-align:left", @Class = "ChangeOperationType" })</td>
+                                         <td style="width:10%; text-align:right"><label class="asterixStyle">* Foramt</label></td>
+                                         <td style="width:18%;text-align:left">@Html.DropDownListFor(model => model.COSVFormat, Model.COSVFormats.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboCOSVFormat", style = "width:100%;font-size:12px;text-align:left" })</td>
+                                         <td style="width:5%; text-align:right"> </td>
+                                         <td style="width:8%;text-align:left"><input type="file" name="file" onchange="readURL(this);" /></td>
+                                         <td style="width:5%; text-align:right"> </td>
+                                         <td style="width:5%;text-align:left;"><input id="btnSubmit" type="submit" value="Upload" style="width:60px; font-weight:bold" /></td>
+                                     </tr>
+                                 </table>
+                                 @Html.HiddenFor(model => model.COSImageID)
+                             </fieldset>
+                         </td>
+                     </tr>
+                     <tr>
+                         <td style="width:100%;text-align:right;">
+                             <fieldset style="height:380px; text-align:center;">
+                                 <legend style="font-weight:bold;"> Sample Image : </legend>
+                                 <table border="1" style="text-align:center; width:415px; height:375px;">
+                                     <tr>
+                                         <td style="text-align:center;">
+                                                 <img id="imgSample" src="@Url.Action("GetLargeImage", "ClientOperationSetting", new { id = Model.COSImageID })" alt="Photo" style="width:405px; height:365px" />
+                                         </td>
+                                     </tr>
+                                     
+                                 </table>
+                             </fieldset>
+                         </td>
+                     </tr>
+                 </table>
+             }
+            </div>
+             <fieldset>
+                 <legend style="font-weight:bold"> Action : </legend>
+                 <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%">
+                     <tr>
+                         <td style="width:90%; text-align:center;"><div style="color: red;font-weight:900; margin-top:10px">@TempData["message"]</div></td>
+                         <td style="width:10%;text-align:right;">
+                             <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                         </td>
+                     </tr>
+                 </table>
+             </fieldset>
+         </div>
+ </body>
+</html>
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oCOSImage =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divCOS').data('COSImage',oCOSImage);
+        if(sessionStorage.getItem("COSHeader")=="View")
+        {
+            $('#btnSubmit').hide();
+        }
+        if(parseInt(oCOSImage.COSImageID)>0)
+        {
+            $('#cboOperationType').val(oCOSImage.OperationTypeInInt);
+            LoadCOSFormats();
+        }
+     
+        if(parseInt(oCOSImage.COSImageID)>0 && oCOSImage.ErrorMessage=="Succefully Saved")
+        {
+            alert("Succefully Saved");
+            var oCOSImages = sessionStorage.getItem("COSImages");
+            var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            if (oCOSImages != null) {
+                oCOSImages = jQuery.parseJSON(oCOSImages);
+            }
+            else {
+                oCOSImages = [];
+            }
+            if (nIndex != -1) {
+                oCOSImages[nIndex] = oCOSImage;
+            }
+            else {
+                sessionStorage.setItem("SelectedRowIndex", oCOSImages.length);
+                oCOSImages.push(oCOSImage);
+            }
+            sessionStorage.setItem("COSImages", JSON.stringify(oCOSImages));
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+
+        //document.getElementById('txtImageTitle').value = _obj.StyleNo;
+        //
+    });
+
+    $('.ChangeOperationType').change(function()
+    {
+        if(parseInt($('#cboOperationType').val())>0)
+        {
+            debugger;
+            LoadCOSFormats();
+        }
+    });
+
+    function LoadCOSFormats()
+    {
+        var oClientOperationSetting={OperationTypeInInt :$('#cboOperationType').val()};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/ClientOperationSetting/GetClientOperationSetupEnumList",
+            traditional: true,
+            data:  JSON.stringify(oClientOperationSetting),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oTempList = jQuery.parseJSON(data);
+                if (oTempList.length>0 )
+                {
+                    $("#cboCOSVFormat").icsLoadCombo({List: oTempList,OptionValue: "id",DisplayText: "Value",InitialValue:"Default"});
+                    $('#cboCOSVFormat').val($('#divCOS').data('COSImage').COSVFormatInInt);
+                }
+                else {
+                    alert("Data No found.");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+
+
+    function readURL(input) {
+        if (input.files && input.files[0])
+        {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $('#imgSample')
+                    .attr('src', e.target.result)
+                    .width(250)
+                    .height(250);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+
+    $('#btnSubmit').click(function (e) {
+        if(document.getElementById("txtImageTitle").value==null || document.getElementById("txtImageTitle").value=="")
+        {
+            alert("Please enter image title!");
+            $('#txtImageTitle').focus();
+            return false;
+        }
+        var cboOperationType = document.getElementById("cboOperationType");
+        var nOperationTypeID=cboOperationType.options[cboOperationType.selectedIndex].value;
+        if(parseInt(nOperationTypeID)<=0)
+        {
+            alert("Please Select Image Type");
+            $('#cboOperationType').focus();
+            return false;
+        }
+    });
+
+    function RemoveImage(nCOSImageID)
+    {
+        if (!confirm("Confirm to Delete?")) return ;
+
+        debugger;
+        var nCOSImageID=nCOSImageID;
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+  "/TechnicalSheet/DeleteCOSImage",
+            data: { id: nCOSImageID},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Delete Successfully")
+                {
+                    alert("Delete sucessfully");
+                    //location.reload();
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+        });
+
+    }
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+</script>

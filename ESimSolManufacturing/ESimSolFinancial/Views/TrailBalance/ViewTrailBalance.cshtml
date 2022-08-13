@@ -1,0 +1,148 @@
+﻿
+@model ESimSol.BusinessObjects.TrailBalance
+@{
+    ViewBag.Title = "Trail Balance";
+}
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblTrailBalance" title="Trail Balance" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="AccountCode" width="90" align="left"> Account Code </th>
+                <th field="AccountHeadName" width="150" align="left">AccountHead Name</th>
+                <th field="OpeningDrBalance" width="100" align="right" formatter="formatPrice">Openning Dr.</th>
+                <th field="OpeningCrBalance" width="100" align="right" formatter="formatPrice">Openning Cr.</th>
+                <th field="DebitTransaction" width="100" align="right" formatter="formatPrice">Dr. Transaction</th>
+                <th field="CreditTransaction" width="100" align="right" formatter="formatPrice">Cr. Transaction</th>
+                <th field="ClosingDrBalance" width="100" align="right" formatter="formatPrice">Closing Dr.</th>
+                <th field="ClosingCrBalance" width="100" align="right" formatter="formatPrice">Closing Cr</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <table border="0" cellpadding="2" cellspacing="2">
+            <tr>
+                <td style="width:210px">
+                    <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:200px"/>
+                </td>
+                <td style="width:160px">
+                    <select id="cboAccountingYear" style="width:150px;font-size:12px;" />
+                </td>
+                <td style="width:50px">
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                </td>
+                <td style="width:50px">
+                    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                </td>
+                <td style="width:50px">
+                    <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">PrintXL</a>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<script type="text/javascript">
+    var _oTrailBalances=[];    
+    var _sBaseAddress="";
+    $(document).ready(function () {
+          var oAccountingYears  =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.AccountingYears)); 
+          _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));            
+          RefreshAccountingYears(oAccountingYears);
+    });     
+    function RefreshAccountingYears(oAccountingYears)
+    {
+        $('#cboAccountingYear').empty();
+        var listAccountingYears= "<option value='"+0+"'>" +"--Accounting Year--" + "</option>";
+        for (var i = 0; i < oAccountingYears.length; i++)
+        {
+            listAccountingYears+= "<option value='" + oAccountingYears[i].AccountingSessionID + "'>" + oAccountingYears[i].SessionName + "</option>";
+        }
+        $("#cboAccountingYear").html(listAccountingYears);        
+    }
+
+    $("#btnRefresh").click(function(){
+        var cboAccountingYear = document.getElementById("cboAccountingYear");
+        var nSessionid=parseInt(cboAccountingYear.options[cboAccountingYear.selectedIndex].value); 
+        if(nSessionid<=0)
+        {
+            alert("Please select an accounting session!");
+            $('#cboAccountingYear').focus();
+            return false;
+        }
+        var oAccountingSession= {
+            AccountingSessionID:nSessionid 
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/TrailBalance/Refresh",
+            traditional: true,
+            data:  JSON.stringify(oAccountingSession),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTrailBalance = jQuery.parseJSON(data);
+                if (oTrailBalance.ErrorMessage=="") {                    
+                    RefreshList(oTrailBalance.TrailBalances);
+                }
+                else {
+                    alert(oTrailBalance.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+   
+    function RefreshList(oTrailBalances)
+    {    
+          var data=oTrailBalances;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblTrailBalance').datagrid('loadData',data);          
+    }
+    
+    $('#txtSearchByName').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        var bFlag=false;
+        var sTempName="";
+        var rows = $('#tblTrailBalance').datagrid('getRows');        
+        for(i=0;i<rows.length;++i){
+            sTempName=rows[i]['AccountHeadName'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblTrailBalance').datagrid('selectRow', i);
+        }
+    });
+
+    $("#btnPrint").click(function(){
+        var cboAccountingYear = document.getElementById("cboAccountingYear");
+        var nSessionid=parseInt(cboAccountingYear.options[cboAccountingYear.selectedIndex].value); 
+        if(nSessionid<=0)
+        {
+            alert("Please select an accounting session!");
+            $('#cboAccountingYear').focus();
+            return false;
+        }
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBalance?id='+nSessionid, "_blank");
+     });
+
+     $("#btnPrintXL").click(function(){
+         
+        var cboAccountingYear = document.getElementById("cboAccountingYear");
+        var nSessionid=parseInt(cboAccountingYear.options[cboAccountingYear.selectedIndex].value); 
+        if(nSessionid<=0)
+        {
+            alert("Please select an accounting session!");
+            $('#cboAccountingYear').focus();
+            return false;
+        }
+        window.open(_sBaseAddress + '/TrailBalance/PrintTrialBalanceInXL?id='+nSessionid, "_blank");
+     });
+</script>

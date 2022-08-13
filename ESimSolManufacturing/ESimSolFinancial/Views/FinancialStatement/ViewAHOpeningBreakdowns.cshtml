@@ -1,0 +1,328 @@
+﻿@model ESimSol.BusinessObjects.AHOpeningBreakdown
+    @{
+        ViewBag.Title = "Account Opening";
+    }
+    
+   
+    <div id="winReport" class="easyui-panel" title="Trial Balance" style="margin-left: 0px; height: 100%; width:100%;" fit="true">
+        <div id="divAHOpeningBreakdown" style="height:100%;width:100%;">
+            <table id="tblAHOpeningBreakdowns" class="easyui-datagrid" style="width:100%; height:96.5%;" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="BreakdownName" width="37%" align="left" formatter="FormatStyle">Breakdown Name</th>
+                        <th field="OpeningAmountSt" width="15%" align="right">Opening Value</th>
+                        <th field="DebitAmountSt" width="15%" align="right">Debit</th>
+                        <th field="CreditAmountSt" width="15%" align="right">Credit</th>
+                        <th field="ClosingAmountSt" width="15%" align="right">Closing Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                Date At <input id="txtSettingFromDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:219px;margin-left: 5px;" />
+                <select id="cboCurrency" style="width:90px;"></select>
+                <input type="checkbox" id="chkboxApproved" style="width:20px;" />Approved
+                <select id="cboBusinessUnit" style="width:200px"></select>
+                <a id="btnRefreshAHOB" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPDF()">Print</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintExcel()">Export To Excel</a>
+            </div>
+            <div style="height:10px;width:100%;">
+                <table style="height:100%;width:100%;">
+                    <tr>
+                        <td style="width:26px;"></td>
+                        <td style="width:37%;"></td>
+                        <td style="width:15%;text-align:right;">
+                            <label id="lblAHOBOpeningBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                            <label id="lblAHOBDebitBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                            <label id="lblAHOBCreditBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:15%;text-align:right;">
+                            <label id="lblAHOBClosingBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:38px;"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            debugger;
+            var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+
+
+            var oAHOpeningBreakdown =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            $('#divAHOpeningBreakdown').data('obj',oAHOpeningBreakdown);
+            $('#divAHOpeningBreakdown').data('objs',oAHOpeningBreakdown.AHOpeningBreakdowns);
+
+            var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+            $("#cboCurrency").data('objs',oCurrencies);
+            $("#cboCurrency").icsLoadCombo({List: oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+
+            var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+            $("#txtAccountHeadName").data('obj',oCOA);
+
+            var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+            $("#cboBusinessUnit").data('objs',oBusinessUnits);
+            $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "--Select Business Unit--"});
+
+
+            
+
+            sessionStorage.setItem("Company", JSON.stringify(oCompany));
+
+            $('#txtSettingFromDate').datebox('setValue', icsdateformat(new Date()));
+
+           
+
+            ////refresh control
+            $('#txtSettingFromDate').datebox('setValue', oAHOpeningBreakdown.StartDateSt);
+            $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+            $('#cboCurrency').val(oAHOpeningBreakdown.CurrencyID);
+            $('#cboBusinessUnit').val(oAHOpeningBreakdown.BusinessUnitID);
+            document.getElementById('chkboxApproved').checked =  oAHOpeningBreakdown.IsApproved;
+
+            /////end refresh control
+
+            var sHeaderText=RefreshHeader();
+            $('#winReport').panel({ title:sHeaderText});
+            $('#Mainlayout').layout('collapse', 'west');
+
+
+
+            DynamicRefreshList(oAHOpeningBreakdown.AHOpeningBreakdowns,'tblAHOpeningBreakdowns');
+            RefreshTotalSummary(oAHOpeningBreakdown.AHOpeningBreakdowns);
+
+            $('#txtAccountHeadName').icsAutoComplete({
+                BaseAddress : sessionStorage.getItem('BaseAddress'),
+                ControllerName: "ChartsOfAccount",
+                ActionName: "GetsAccountsHead",
+                Object: {AccountHeadName:''},
+                PropertyName: "AccountHeadName",
+                ParamName: "AccountHeadName",
+                Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+            });
+            
+        });
+
+        function RefreshHeader(){
+            var sHeaderText='';
+            if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0){
+                sHeaderText='Opening Breakdown || '+$('#txtAccountHeadName').data('obj').AccountHeadName;
+            }else{
+                sHeaderText='Opening Breakdown';
+            }
+        
+            if( parseInt($('#cboBusinessUnit').val()) &&  parseInt($('#cboBusinessUnit').val())>0){
+                var oBUs=$("#cboBusinessUnit").data('objs');
+                var sBUName='';
+                for (var i=0;i<oBUs.length;i++){
+                    if(parseInt($('#cboBusinessUnit').val())===oBUs[i].BusinessUnitID){
+                        sBUName=oBUs[i].Name;
+                    }
+                }
+                sHeaderText=sHeaderText+' || '+sBUName+' || '+' Date At "'+$('#txtSettingFromDate').datebox('getValue')+'"';
+
+            }else{
+                sHeaderText=sHeaderText+' || '+jQuery.parseJSON(sessionStorage.getItem("Company")).Name+' || '+' Date At "'+$('#txtSettingFromDate').datebox('getValue')+'"';
+            }
+            return sHeaderText;
+        }
+
+        function FormatStyle(value,row,index){
+            debugger;
+            var s='';
+            var param=row.AccountHeadID+","+row.CCID;
+            if(row.BreakdownType===1){
+                s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="CCOpeningBreakdown('+param+')">'+value+'</label>';
+            }
+            else{
+                s=value;
+            }
+            return s;
+        }
+
+        
+        function CCOpeningBreakdown(nAccountHeadID, nCCID)
+        {
+            debugger;
+            var oAHOpeningBreakdown = {
+                AccountHeadID : nAccountHeadID,
+                CCID:nCCID,
+                BusinessUnitID:parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0,
+                StartDate : $('#txtSettingFromDate').datebox('getValue'),
+                CurrencyID : parseInt($('#cboCurrency').val()),
+                IsApproved:$('#chkboxApproved').is(':checked')
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/FinancialStatement/SetCCOBSessionData",
+                traditional: true,
+                data:  JSON.stringify(oAHOpeningBreakdown),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);                
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem("BaseAddress")+ "/FinancialStatement/ViewCCOpeningBreakdowns?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+
+        
+        }
+
+
+    $('#btnRefreshAHOB').click(function(){
+        if(!ValidateInput()){return false;}
+        RefreshData();
+    });
+   
+
+    function RefreshTotalSummary(objs){
+        
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='DebitAmount';
+        sParamCredit='CreditAmount';
+        sLabelDebit='lblAHOBDebitBalance';
+        sLabelCredit='lblAHOBCreditBalance';
+
+        sParamOpening='OpeningAmount';
+        sLabelOpening='lblAHOBOpeningBalance';
+        sParamClosing='ClosingAmount';
+        sLabelClosing='lblAHOBClosingBalance';
+        
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+            nClosing=nClosing+parseFloat((objs[i][sParamClosing]).toFixed(2));
+            nOpenig=nOpenig+parseFloat((objs[i][sParamOpening]).toFixed(2));
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        nClosing=nClosing<0?'('+formatPrice((nClosing*(-1)).toFixed(2))+')':nClosing===0.00?'-':formatPrice(nClosing.toFixed(2));
+        nOpenig=nOpenig<0?'('+formatPrice((nOpenig*(-1)).toFixed(2))+')':nOpenig===0.00?'-':formatPrice(nOpenig.toFixed(2));
+        $('#'+sLabelOpening).html(nOpenig);
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+        $('#'+sLabelClosing).html(nClosing);
+    }
+    function PrintPDF(){
+        if(!ValidateInput())return;
+        var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+        var nBusinessUnitID=parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0;
+        var sHeader=RefreshHeader();
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+
+
+
+
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+nBusinessUnitID+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+        window.open(_sBaseAddress+'/FinancialStatement/PrintAHOpeningBreakdowns?Params=' +sParam, "_blank");
+    }
+    function PrintExcel(){
+        if(!ValidateInput())return;
+        var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+        var nBusinessUnitID=parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0;
+        var sHeader=RefreshHeader();
+        var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+        var bIsApproved=$('#chkboxApproved').is(':checked');
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+
+
+
+
+        var sParam=nAccountHeadID+'~'+sStartDate+'~'+nBusinessUnitID+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+        window.open(_sBaseAddress+'/FinancialStatement/ExportAHOBToExcel?Params=' +sParam, "_blank");
+    }
+
+
+
+    function ValidateInput()
+    {
+        if ( $('#txtSettingFromDate').datebox('getValue')=="") {
+            alert("please select Start date!");
+            $('#txtSettingFromDate').focus();
+            return false;
+        }
+
+        if ((!$('#txtAccountHeadName').data('obj') || $('#txtAccountHeadName').data('obj') == null) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }
+
+        if ((!parseInt($('#txtAccountHeadName').data('obj').AccountHeadID) || parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)<=0) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }
+        return true;
+    }
+
+
+   
+
+    function RefreshData(){
+        debugger;
+        var nAccountHeadID,nBUID,nCCID=0;
+        var sHeaderText,sControllerName,sActionName,sStartDate,sEndDate='';
+        var obj={};
+
+        nBUID=parseInt($("#cboBusinessUnit").val())?parseInt($("#cboBusinessUnit").val()):0;
+        sControllerName='FinancialStatement';
+        sActionName='GetsItemTransactions';
+
+
+        sStartDate=$('#txtSettingFromDate').datebox('getValue');
+        
+        nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        
+        sHeaderText=RefreshHeader();
+
+        if(sActionName===''){return false;}
+
+        
+        
+        obj={
+            AccountHeadID:nAccountHeadID,
+            StartDate:sStartDate,
+            BusinessUnitID:nBUID,
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            IsApproved:$('#chkboxApproved').is(':checked')
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/FinancialStatement/SetAHOBSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = _sBaseAddress+ "/FinancialStatement/ViewAHOpeningBreakdowns?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+    
+  
+    </script>
+    

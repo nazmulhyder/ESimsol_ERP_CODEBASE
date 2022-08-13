@@ -1,0 +1,261 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.OrderRecap>
+@{
+    ViewBag.Title = "Order Recap List";
+}
+<div style="margin-left: 0px;  width:100%; height:100%;">
+    <table id="tblOrderRecap" title="Order Recap List" class="easyui-datagrid" style=" width:100%; height:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true"
+        autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="SLNo" width="140" align="left">
+                    Recap No
+                </th>
+                <th field="OrderRecapNo" width="140" align="left">
+                    Order No
+                </th>
+                <th field="StyleNo" width="140" align="left">
+                    Style No
+                </th>
+                <th field="OrderRecapStatusInString" width="140" align="left">
+                    Status
+                </th>
+                <th field="BuyerName" width="140" align="left">
+                    Buyer Name
+                </th>
+                <th field="OrderDateForViewInString" width="140" align="right">
+                    Order Date
+                </th>
+            </tr>
+        </thead>
+    </table>
+    ​
+    <div id="toolbar" style =" height:25px;">
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="Refresh()"></a>
+        <input type="text" id="txtSearchbyCode" placeholder="Search by OrderNo" style="width: 150px"/>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Adv. Search</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+        <a id="btnIssueForPolyPacking" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Issue For PolyPacking</a>
+        <a id="btnPolyPackingList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" >PolyPacking List</a>
+    </div>
+</div>
+<script type="text/javascript">
+var _oOrderRecaps=[];
+var _sBaseAddress="";
+var _sMenuManagement ="";
+$(document).ready(function () 
+{
+
+    _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    _oOrderRecaps =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+        
+    RefreshList(_oOrderRecaps);
+
+});
+
+function formatPrice(val,row)
+{  
+    if(val==null)
+    {
+        val=0.00;
+    }
+    val=parseFloat(val);
+    var test = val.toFixed(2);
+    var tests = addComma(test);
+    return tests;       
+} 
+function addComma(nStr)
+{
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var process = /(\d+)(\d{3})/;
+	while (process.test(x1)) {
+		x1 = x1.replace(process, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
+} 
+  
+function Refresh()
+{    
+    RefreshList(_oOrderRecaps);
+}    
+
+function RefreshList(oOrderRecaps)
+{    
+    data=oOrderRecaps;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblOrderRecap').datagrid('loadData',data);
+    $('#tblOrderRecap').datagrid({selectOnCheck:false, checkOnSelect:false})
+
+    ////debugger;
+    var rows = $('#tblOrderRecap').datagrid('getRows');
+    for(i=0;i<rows.length;++i){
+        if(rows[i]['IsActive']==true) 
+        {
+            $('#tblOrderRecap').datagrid('checkRow',i);
+        }
+    }
+
+}
+
+$('#txtSearchbyCode').keypress(function (e) {
+    
+    var keyCode = e.keyCode || e.which;
+    if (keyCode == 13) {
+       var txtSearchbyCode = document.getElementById('txtSearchbyCode').value;
+        txtSearchbyCode = txtSearchbyCode ;
+        var bFlag=true;
+        var sTempName="";
+        var oSearchedData = [];
+        var rows = $('#tblOrderRecap').datagrid('getRows');        
+        for(i=0;i<rows.length;++i)
+        {
+            sTempName=rows[i]['OrderRecapNo'];
+            if(txtSearchbyCode.toUpperCase()==sTempName.toUpperCase())
+            {
+                oSearchedData.push(rows[i]);
+                bFlag=false;
+            }
+        }
+
+        if (bFlag==true)
+        {
+            var tsv=((new Date()).getTime())/1000;
+            $.ajax({
+                type: "POST",
+                dataType: "json",            
+                url : _sBaseAddress+  "/OrderRecap/GetByOrderRecapNo",
+                traditional: true,
+                data:  JSON.stringify({sOrderRecapNo:txtSearchbyCode,nts:tsv}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var oORs = jQuery.parseJSON(data);                
+                    if (oORs.length>0) {
+                        RefreshOrderRecaps(oORs);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+        else
+        {
+            RefreshOrderRecaps(oSearchedData);
+        }
+    }
+
+});
+
+function RefreshOrderRecaps(data)
+{
+    data={"total":""+data.length+"","rows":data};
+    $('#tblOrderRecap').datagrid('loadData',data);
+}
+
+
+function Search()
+{   
+       
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = true;
+    oParameter.name = "Order Recap Advance Search";
+    var url =_sBaseAddress+ "/OrderRecap/OrderRecapSearch";
+    var nLeft=(window.screen.width/2)-(910/2);
+    var nHeight=(window.screen.height/2)-(540/2);
+    var oSelectedOrderRecaps = window.showModalDialog(url, oParameter, 'dialogHeight:540px;dialogWidth:910px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    var oNSelectedOrderRecaps=[];
+    if(oSelectedOrderRecaps!=null)
+    {
+        if(oSelectedOrderRecaps.length>0)
+        {
+            var j=0;
+            for(var i=0; i<oSelectedOrderRecaps.length; i++)
+            {
+                if(oSelectedOrderRecaps[i].ApproveBy>0)
+                {
+                    
+                    oNSelectedOrderRecaps[j++]=oSelectedOrderRecaps[i];
+                    
+                }
+                
+            }
+            data =oNSelectedOrderRecaps;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblOrderRecap').datagrid('loadData',data); 
+            $('#tblOrderRecap').datagrid({selectOnCheck:false, checkOnSelect:false})
+          
+            var rows = $('#tblOrderRecap').datagrid('getRows');
+            for(i=0;i<rows.length;++i){
+                if(rows[i]['IsActive']==true) 
+                {
+                    $('#tblOrderRecap').datagrid('checkRow',i);
+                }
+            }
+        
+        }
+    }
+    
+}
+
+$('#btnIssueForPolyPacking').click(function (e) 
+{
+    var oOrderRecape = $('#tblOrderRecap').datagrid('getSelected');
+    if (oOrderRecape == null || oOrderRecape.OrderRecapID <= 0)
+    {
+        alert("Please select an item from the list!");
+        return ;
+    }
+    var oParameter = new Object();
+    oParameter.oOrderRecape=oOrderRecape;
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/EmployeeProduction/View_IssuePolyPacking?nId="+oOrderRecape.OrderRecapID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(700/2);
+    var nHeight=(window.screen.height/2)-(246/2);
+    var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:246px;dialogWidth:700px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+
+
+});
+
+function View()
+{
+    //debugger;
+    var oOrderRecap= $('#tblOrderRecap').datagrid('getSelected'); 
+    if(oOrderRecap==null || oOrderRecap.OrderRecapID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var oParameter = new Object();        
+    oParameter.Name = "View Order Recap";
+    var tsv=((new Date()).getTime())/1000;
+    var url =_sBaseAddress+ "/OrderRecap/ViewOrderRecap?id="+oOrderRecap.OrderRecapID+"&TSID=0&ts="+tsv;
+    var nLeft=(window.screen.width/2)-(1016/2);
+    var nHeight=(window.screen.height/2)-(616/2);
+    var oOrderRecap = window.showModalDialog(url, oParameter, 'dialogHeight:616px;dialogWidth:1016px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+
+} 
+
+$('#btnPolyPackingList').click(function (e) 
+{
+    var oOrderRecape = $('#tblOrderRecap').datagrid('getSelected');
+    if (oOrderRecape == null || oOrderRecape.OrderRecapID <= 0)
+    {
+        alert("Please select an item from the list!");
+        return ;
+    }
+    var oParameter = new Object();
+    oParameter.oOrderRecape=oOrderRecape;
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url = _sBaseAddress + "/EmployeeProduction/View_PolyPackingList?nId="+oOrderRecape.OrderRecapID+"&ts=" + tsv;
+    var nLeft=(window.screen.width/2)-(810/2);
+    var nHeight=(window.screen.height/2)-(510/2);
+    var oEPS = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:810px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+ 
+});
+
+
+  
+</script>

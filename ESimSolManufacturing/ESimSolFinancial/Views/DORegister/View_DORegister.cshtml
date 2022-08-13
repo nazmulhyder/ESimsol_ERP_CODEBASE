@@ -1,0 +1,232 @@
+﻿@{
+    ViewBag.Title = "DO Register";
+}
+@model IEnumerable <ESimSol.BusinessObjects.DORegister>
+    <div ng-app="DORegister" style="height:100%">
+        <div ng-controller="DUOrderSetupController" style="overflow-x:hidden">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input type="text" ng-model="PINo" ng-keydown="SearchByNo($event)" placeholder="Search by PI No" />
+                        <button type="button" class="btn btn-primary btn-sm" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"></span> Advance Search</button>
+                        <button type="button" class="btn btn-primary btn-sm" ng-click="PrintPDF()"><span class="glyphicon glyphicon-print"></span> Print Preview</button>
+                        <button type="button" class="btn btn-primary btn-sm" ng-click="PrintExel()"><span class="glyphicon glyphicon-print"></span> Print Exel</button>
+                        @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="StepSetup()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Step Setup</button>*@
+                    </div>
+                </div>
+            </div>
+            <div style="width:100%;" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        </div>
+    </div>
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+        .grid {
+            height: 520px;
+            width: 100%;
+        }
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+<script type="text/javascript">
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oDORegisters =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oProductCategorys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductCategorys));
+    var oReportLayouts =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportLayouts));
+    
+    var  DORegister = angular.module('DORegister', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    DORegister.controller('DUOrderSetupController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch) {
+        debugger;
+        oDORegisters= (userSession.getData('DORegisters').length>0)? userSession.getData('DORegisters'):oDORegisters;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'PINo', name: 'PINo', width:'10%', enableCellEdit: false },
+                { field: 'PIDateSt', name: 'Issue Date', width: '12%' },
+                { field: 'CustomerName', name: 'ContractorName', width: '18%' },
+                { field: 'BuyerName', name: ' BuyerName', width: '18%' },
+                { field: 'ProductCategoryName', name: 'CategoryName', width: '15%' },
+                { field: 'ProductName', name: 'Product Name', width: '15%' },
+                { field: 'PIQty', name: 'TotalQty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },
+                { field: 'Qty', name: 'PIQty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },
+                { field: 'DOQty', name: 'DOQty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },
+                { field: 'YetToDO', name: 'YetToDo', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },
+                { field: 'ChallanQty', name: 'ChallanQty', width: '10%', cellFilter:"number:2", cellClass:'text-right'  },
+                { field: 'YetToChallan', name: 'YetToChallan', width: '10%', cellFilter:"number:2", cellClass:'text-right' },
+                { field: 'ColorName', name: 'Color', width: '10%' },
+                { field: 'StyleNo', name: 'Style No', width: '10%' },
+            ],
+            data:oDORegisters,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oDORegisters.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oDORegisters);
+                    $scope.gridApi.selection.selectRow(oDORegisters[userSession.getRowIndex()]);
+                    $scope.RowSelect(oDORegisters[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        $scope.AdvanceSearch = function()
+        {
+
+            oColumns = [];
+            var oColumn = { field: 'Name', name: 'Customer Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '2,3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Customer List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            oColumns1 = [];
+            var oColumn1 = { field: 'Name', name: 'Buyer Name',width: '70%', enableSorting: false  };oColumns1.push(oColumn1);
+            oColumn1 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns1.push(oColumn1);
+
+            var paramObj_Buyer={
+                obj:{Params: '2,3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Buyer List',
+                multiSelect:true,
+                columns:oColumns1
+            }
+
+
+            var oDORegister = [
+                               { DisplayName: "PINo",               BOField: "PINo",                InputType: 'text' },
+                               { DisplayName: "Contractor Name",    BOField: "CustomerName",        InputType: 'picker', PickerObject:paramObj_Contractor },
+                               { DisplayName: "Buyer Name",         BOField: "BuyerName",           InputType: 'picker', PickerObject:paramObj_Buyer },
+                               { DisplayName: "Issue Date",         BOField: "IssueDate",           InputType: 'date' },
+                               { DisplayName: "Product Category",   BOField: "ProductCategoryName", InputType: 'select', OptionList:oProductCategorys, OptionValue:{id:'ProductCategoryID', Value:'ProductCategoryName'}},
+                               { DisplayName: "Report Layout",      BOField: "ReportLayout",        InputType: 'select', OptionList:oReportLayouts},
+                               { BOField:     "BUID",               Value:_nBUID,                   InputType: 'hidden'},
+            ];
+
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oDORegister,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/DORegister/AdvSearch'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        }
+        $scope.SearchByNo = function (e,nid) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var oDORegister ={};
+                if (nid!=0)
+                {
+                    oDORegister = {
+                        SCNo:"",
+                        PINo:$.trim($scope.PINo),
+                        MKTPName:$.trim($scope.MKTRefNo),
+                        PONo:$.trim($scope.PONo),
+                        BUID:_nBUID
+                    };
+                }
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/DORegister/Search',$.param(oDORegister), config).then(
+                            function (response)
+                            {        debugger;
+                                var oResults = jQuery.parseJSON(response.data);
+                                if(oResults.length>0)
+                                {
+                                    $scope.gridOptions.data = jQuery.parseJSON(response.data);
+                                }else{
+                                    alert("Data Not found.");
+                                }
+                            },
+                                function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                        );
+            }
+        };
+        $scope.PrintPDF = function(){
+            debugger;
+            var string = sessionStorage.getItem("AdvSearchString");
+            if(string=="" || string==null)
+            {
+                alert("No Data Found!");
+                return;
+            }
+            var obj= JSON.parse(sessionStorage.getItem("AdvSearchObject"));
+            $http.post(_sBaseAddress+'/DORegister/SetSessionSearchCriteria',JSON.stringify(obj)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    debugger;
+                                    if(result=="Successful")
+                                        window.open(_sBaseAddress + '/DORegister/PrintDORegister?ts=' + Math.random(420));
+                                },
+                                function (response) { alert(response.data);}
+                        );
+
+        };
+        $scope.PrintExel = function(){
+            debugger;
+            var string = sessionStorage.getItem("AdvSearchString");
+            if(string=="" || string==null)
+            {
+                alert("No Data Found!");
+                return;
+            }
+            var obj= JSON.parse(sessionStorage.getItem("AdvSearchObject"));
+            $http.post(_sBaseAddress+'/DORegister/SetSessionSearchCriteria',JSON.stringify(obj)).then(
+                                function (response) {
+                                    var result=jQuery.parseJSON(response.data);
+                                    console.log(result);
+                                    debugger;
+                                    if(result=="Successful")
+                                        window.location.href= _sBaseAddress + '/DORegister/ExportToExcelDORegister?ts=' + Math.random(420);
+                                },
+                                function (response) { alert(response.data);}
+                        );
+
+        };
+    });
+
+</script>

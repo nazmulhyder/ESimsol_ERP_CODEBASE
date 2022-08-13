@@ -1,0 +1,159 @@
+﻿
+<html>
+<body>
+
+@model ESimSol.BusinessObjects.ConsumptionChallan
+
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+    <tr>
+        <td style="text-align:center; width:460px; color:White">
+            <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline; width:460px;text-color:black;">Current Stock</label>
+        </td>
+    </tr>
+</table>    
+
+
+ <div id="PageBody" style="width:900px; height:550px; margin-left:0px;margin-right:0px"> 
+
+<table id="tblPCosts" title="Current Stock List"  
+class="easyui-datagrid" style="width:895px;height:532px" 
+fitColumns="false" rownumbers="true" toolbar="#toolbar" 
+pagination="false" singleSelect="true", 
+autoRowHeight="false",autoRowWidth="false">        
+                <thead>                   
+                    <tr>  
+                        @*<th field="ck" checkbox="true"></th>*@
+                        <th field="ProductNameCode"  width="300">Product Name Code</th>
+                        <th field="PreferenceUnitName" width="100">Unit</th>
+                        <th field="TotalBalanceInString" width="150">Current Stock</th>
+                        <th field="TotalValueInString" width="150">Value (BDT)</th>
+                    </tr>  
+                </thead>        
+ </table>​ 
+ <div id="toolbar"> 
+
+                 <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" plain="true" >Search</a>@*onclick="Search()"*@
+                <a id="btnReset" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-print" plain="true" onclick="Print()">Print </a>
+                @*<label id="lblProject"></label>*@
+                        
+            </div>   
+</div>         
+</div>
+</body>
+</html>
+<script type="text/javascript">
+ var _oReturnObject = new Object();
+var _ROWS = [];
+var _sBaseAddress ='';
+var _sCCName="";
+
+ $(document).ready(function () {
+     debugger;
+       _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _ROWS =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+    data = _ROWS;     
+    data={"total":""+data.length+"","rows":data};
+    $('#tblPCosts').datagrid('loadData',data); 
+    $('#tblPCosts').datagrid({selectOnCheck:true, checkOnSelect:true})
+   
+});
+
+function RefreshList(oReturnObject)
+{ 
+//debugger;   
+    data=oReturnObject;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblPCosts').datagrid('loadData',data);   
+}
+
+
+function Print()
+{
+    debugger;
+    var TotalRows = $('#tblPCosts').datagrid('getRows');
+    var ProductIDs="";
+    for(var i=0;i<TotalRows.length;i++)
+    {
+        ProductIDs=ProductIDs+TotalRows[i].ProductID+',';
+    }
+    if (ProductIDs=="")
+    {
+        alert('There is nothing to print.!!');
+        return;
+    }
+    ProductIDs = ProductIDs.substring(0, ProductIDs.length - 1);
+    window.open(_sBaseAddress + '/Report/PrintCurrentStock?sProductIDs='+ProductIDs, "_blank");
+}
+
+//function Search()
+$('#btnSearch').click( function()
+{   
+    debugger;
+    var oParameter = new Object();
+    oParameter.MultipleItemReturn = true;
+    var tsv = ((new Date()).getTime()) / 1000;
+    var url =_sBaseAddress+"/Product/ProductSearching?ts="+tsv;
+    
+    var oSelectedProducts = window.showModalDialog(url, oParameter, 'dialogHeight:615px;dialogWidth:652px;dialogLeft:450;dialogTop:50;center:yes;resizable:yes;status:no;scroll:no');
+    debugger;
+    if(oSelectedProducts!=null)
+    {
+        if(oSelectedProducts.length>0)
+        {
+           var sProductIDs = "";
+        for (i = 0; i < oSelectedProducts.length; ++i) {
+            var ProductID = oSelectedProducts[i].ProductID;
+            sProductIDs = sProductIDs + ProductID + ',';
+
+        }
+        sProductIDs = sProductIDs.substring(0, sProductIDs.length - 1);
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url: _sBaseAddress+ "/Report/ViewCurrentStockSearch",
+            traditional: true,
+            data: JSON.stringify({sProductIDs:sProductIDs}),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+            debugger;
+               var _oReturnObject = jQuery.parseJSON(data);
+                if (_oReturnObject != null) {
+                if (_oReturnObject.length > 0){
+
+                    if (_oReturnObject[0].LotID > 0){
+
+                         document.getElementById("PageBody").style.display = '';
+                         document.getElementById("tblPCosts").style.display = '';
+                         RefreshList(_oReturnObject);
+
+                     }
+                     else
+                     {
+                      alert('Nothing Found by this Product');
+
+                     }
+                }
+                else {
+                      alert('Nothing Found by this Product');
+                       document.getElementById("PageBody").style.display = ''; 
+                       
+                      
+                    }
+                    
+                }
+                
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+            });
+            }
+            }
+        
+        });
+    
+ 
+
+</script>

@@ -1,0 +1,221 @@
+﻿@{
+    ViewBag.Title = "FA Schedule Rule";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FASchedule>
+
+<div ng-app="FAScheduleModule">
+    @*<script src="~/Views/FASchedule/AdvanceSearch.js"></script>*@
+ 
+    <div ng-controller="FAScheduleController">
+        <div class="row ui-grid-top-panel" style="height:30px; width:100%; padding-left:30px">
+              Product:       <label class="text-success">    {{FARegister.ProductName}}         </label>
+            - FA Code:       <label class="text-success">    {{FARegister.FACodeFull}}          </label>
+            - Method:        <label class="text-success">    {{FARegister.FAMethodSt}}   </label>
+            - Cost Price:    <label class="text-success">    {{FARegister.ActualCostPriceSt}}   </label>
+            - Salvage:       <label class="text-success">    {{FARegister.ActualSalvageSt}}     </label>
+            - Dep Rate:      <label class="text-success">    {{FARegister.ActualDepRateSt}}%    </label>
+        </div>
+        <div style="width:99%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+                <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+            </div>*@
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-12 text-right">
+                <button type="button" class="btn btn-sm btn-success" aria-label=" left align" ng-click="PrintSchedules()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print</button>
+               <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFASchedules =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oFARegister =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FARegister));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    debugger;
+    var  FAScheduleModule = angular.module('FAScheduleModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    FAScheduleModule.controller('FAScheduleController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oFASchedules= (userSession.getData('FASchedules').length>0)? userSession.getData('FASchedules'):oFASchedules;
+        $scope.FARegister=oFARegister;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            enableVerticalScrollbar : true,
+            columnDefs: [
+                { field: 'StartDateSt', name: 'StartDate', width: '10%' },
+                { field: 'EndDateSt', name: 'EndDate', width: '10%' },
+                { field: 'MonthCount', name: 'Term Count', width: '10%' , cellFilter:'number', cellClass:'text-right'},
+                { field: 'DepreciationRateSt', name: 'Rate', width: '6%' , cellFilter:'number', cellClass:'text-right'},
+                { field: 'OpeningBookValueSt', name: 'Opening Book Value', width: '15%' ,  cellClass:'text-right'},
+                { field: 'DepreciationValueSt', name: 'DepreciationValue', width: '15%' ,  cellClass:'text-right'},
+                { field: 'AccumulatedDepValueSt', name: 'AccumulatedValue', width: '15%' ,  cellClass:'text-right'},
+                { field: 'ClosingBookValueSt', name: 'ClosingBookValue', width: '15%' , cellClass:'text-right'},
+            ],
+            data:oFASchedules,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+            }
+        };
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("FAScheduleHeader", "Add FASchedule");
+            sessionStorage.setItem("FASchedules", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FASchedule/ViewFASchedule?id=0&buid="+_nBUID+"&ts="+tsv;
+        };
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FAScheduleID==data[0].FAScheduleID){
+
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FAScheduleHeader", "Edit FASchedule");
+                    sessionStorage.setItem("FASchedules", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FASchedule/ViewFASchedule?id="+value.FAScheduleID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post('/FASchedule/Delete',JSON.stringify(data[0])).then(
+                            function (response) { debugger;
+                                if(jQuery.parseJSON(response.data)=='Data delete successfully')
+                                {
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.FAScheduleID==data[0].FAScheduleID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(response.statusText);}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FAScheduleID==data[0].FAScheduleID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FAScheduleHeader", "View FASchedule");
+                    sessionStorage.setItem("FASchedules", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FASchedule/ViewFASchedule?id="+value.FAScheduleID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.StepSetup = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FAScheduleID==data[0].FAScheduleID){
+                    sessionStorage.setItem("Operation", "StepSetup");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FAScheduleHeader", "View FASchedule");
+                    sessionStorage.setItem("FASchedules", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("OrderSetup", JSON.stringify(value));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FASchedule/ViewDUStepWiseSetups?id="+value.FAScheduleID;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.close = function () {
+            userSession.previousPage();
+        };
+        $scope.PrintSchedules = function()
+        {
+            window.open(_sBaseAddress+'/FARegister/PrintSchedules?id='+ oFARegister.FARegisterID);
+        }
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oFASchedule = data[0];
+            if(oFASchedule==null || oFASchedule.FAScheduleID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/FASchedule/PrintFASchedulePreview?id='+oFASchedule.FAScheduleID);
+        };
+    });
+</script>
+                       
+
+
+              

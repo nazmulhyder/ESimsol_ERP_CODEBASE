@@ -1,0 +1,173 @@
+﻿<html>
+
+<body>
+
+    @model ESimSol.BusinessObjects.ProductionStep
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Production Step" style="font-family:Tahoma; text-align:center;vertical-align:central; height:88%;">
+            <fieldset style="vertical-align:central; margin-top:20px; height:70%;">
+                <legend style="font-weight:bold;"> Production Step Informations : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; text-align:center; width:60%; vertical-align:middle; font-weight:bold">
+                    <tr>
+                        <td style="width:25%; text-align:right">
+                            Step Name :
+                        </td>
+                        <td style="width:75%">
+                            @Html.TextBoxFor(model => model.StepName, new { style = "width: 100%;", id = "txtStepName" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; text-align:right">
+                            Step Type :
+                        </td>
+                        <td style="width:75%">
+                            @Html.DropDownListFor(model => model.ProductionStepTypeInt, Model.ProductionStepTypeObjs.Select(x => new SelectListItem() { Text = x.Value, Value = x.id.ToString() }), new { id = "cboStepType", style = "width:100%;" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; text-align:right">
+                            Short Name :
+                        </td>
+                        <td style="width:75%">
+                            @Html.TextBoxFor(model => model.ShortName, new { style = "width: 100%;", id = "txtShortName" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:25%; text-align:right">
+                            Note :
+                        </td>
+                        <td style="width:75%">
+                            @Html.TextBoxFor(model => model.Note, new { style = "width:100%;", id = "txtNote" })
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                    <tr>
+                        <td style="width:85%; text-align:right"></td>
+                        <td style="width:15%;text-align:right;">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript"> 
+ var _oProductionStep=null;
+ var _sBaseAddress="";
+ $(document).ready(function () {
+    //debugger;     
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+
+         if(sessionStorage.getItem("ProductionStepHeader") =="View Production Step")
+        {
+            $('#btnSave').hide();
+        }   
+        _oProductionStep =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));  
+               
+ }); 
+
+
+   function ValidateInput()
+    {
+        if(document.getElementById("txtStepName").value==null || document.getElementById("txtStepName").value=="")
+        {        
+            alert("Please enter Step name!");
+            $('#txtStepName').focus();
+            return false;
+        }     
+
+        //if($('#cboStepType').val()===null || parseInt($('#cboStepType').val())<=0)
+        //{        
+        //    alert("Please select Step Type!");
+        //    $('#cboStepType').focus();
+        //    return false;
+        //}  
+        return true;
+    }
+
+
+    function RefreshObject()
+    {   
+        debugger;             
+        var oProductionStep= {                               
+                        ProductionStepID : _oProductionStep.ProductionStepID,                        
+                        StepName : $("#txtStepName").val(), 
+                        ProductionStepTypeInt : parseInt($("#cboStepType").val()),
+                        ShortName: $("#txtShortName").val(), 
+                        Note : $("#txtNote").val()                       
+                    };
+        return oProductionStep;
+    } 
+
+    function Save()
+    {
+        debugger;
+        if(!ValidateInput()) return;
+        var oProductionStep=RefreshObject();
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+  "/ProductionStep/Save",
+            traditional: true,
+            data:  JSON.stringify(oProductionStep),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oProductionStep = jQuery.parseJSON(data);
+                if (oProductionStep.ProductionStepID>0) {                    
+                    alert("Data Saved sucessfully");
+                    var oProductionSteps = sessionStorage.getItem("ProductionSteps");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oProductionSteps != null) {
+                        oProductionSteps = jQuery.parseJSON(oProductionSteps);
+                    }
+                    else {
+                        oProductionSteps = [];
+                    }
+                    if (nIndex != -1) {
+                        oProductionSteps[nIndex] = oProductionStep;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oProductionSteps.length);
+                        oProductionSteps.push(oProductionStep);
+                    }
+                    sessionStorage.setItem("ProductionSteps", JSON.stringify(oProductionSteps));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oProductionStep.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+      
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+
+    $(document).keydown(function(e) {    
+    //debugger;
+    if(e.which == 27)//escape=27
+    {
+        //debugger;        
+        window.close();
+    }
+});
+
+</script>

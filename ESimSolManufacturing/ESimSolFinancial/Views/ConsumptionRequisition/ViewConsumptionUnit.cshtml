@@ -1,0 +1,200 @@
+﻿<html>
+ @{
+     ViewBag.Title = "Consumption Unit";
+}
+<body>
+    @model ESimSol.BusinessObjects.ConsumptionUnit
+    <div class="menuMainCollectionTable">
+        <div class="easyui-panel" title="Consumption Unit Configure" style="font-family:Tahoma;text-align:center;  width:100%;height:100%;">
+            <div id="divConsumptionUnit" style="width:100%; height:87%; text-align:center">
+                <fieldset style="height:97%">
+                    <legend style="font-weight:bold">Consumption Unit Info: </legend>
+                    <table width="100%">
+                        <tr>
+                            <td style="width:70%">
+                                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                                    <tr>
+                                        <td style="width:200px; text-align:right">
+                                            Name :
+                                        </td>
+                                        <td style="width:300px">
+                                            @Html.TextBoxFor(model => model.Name, new { style = "width:300px;", id ="txtName" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:200px; text-align:right">
+                                            Note :
+                                        </td>
+                                        <td style="width:300px">
+                                            @Html.TextBoxFor(model => model.Note, new { style = "width:300px;", id ="txtNote" })
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td style="width:30%">
+                                <table id="tblBU" title="" class="easyui-datagrid" style="width:100%; height:160px;  font-size: 12px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false">
+                                    <thead>
+                                        <tr>
+                                            <th data-options="field:'Selected',checkbox:true">
+                                            </th>
+                                            <th field="Name" width="80%">Business Unit</th>
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                </fieldset>
+            </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight:bold"> Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                        <tr>
+                            <td style="width:85%; text-align:right"></td>
+
+                            <td style="width:10%;">
+                                <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                            </td>
+                            <td style="width:5%;">
+                                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        debugger;
+        var oConsumptionUnit =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBUWiseConsumptionUnits = oConsumptionUnit.BUWiseConsumptionUnits;
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BusinessUnits));
+        $('#divConsumptionUnit').data('ConsumptionUnit',oConsumptionUnit);
+        $('#divConsumptionUnit').data('BUWiseConsumptionUnits',oBUWiseConsumptionUnits);
+        DynamicRefreshList(oBusinessUnits, 'tblBU');
+        SetBUs();
+        var sOperationType  = sessionStorage.getItem("ConsumptionUnitHeader");
+        if(sOperationType==="View Consumption Unit")
+        {
+            $('#btnSave').hide();
+            $('#divConsumptionUnit :input').prop('disabled', true);
+        }
+    });
+
+
+    function SetBUs()
+    {
+        debugger;
+        var oBUWiseConsumptionUnits = $('#tblBU').datagrid('getRows');
+        var oNewBUWiseCUnits= $('#divConsumptionUnit').data('BUWiseConsumptionUnits');
+        if(oNewBUWiseCUnits.length>0)
+        {
+            for(var i =0;i<oNewBUWiseCUnits.length;i++)
+            {
+                for(var j =0;j<oBUWiseConsumptionUnits.length;j++)
+                {
+                    if(parseInt(oNewBUWiseCUnits[i].BUID) == parseInt(oBUWiseConsumptionUnits[j].BusinessUnitID))
+                    {
+                        $('#tblBU').datagrid('checkRow', j);
+                        break;
+                    }
+                }
+            }
+        }
+
+    }
+
+    function ValidateInput()
+    {
+        if($('#txtName').val() === null || $('#txtName').val() === "")
+        {
+            alert("Please Enter Consumption Unit Name!");
+            $('#txtName').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oConsumptionUnit= {
+            ConsumptionUnitID : $('#divConsumptionUnit').data('ConsumptionUnit').ConsumptionUnitID,
+            Name: $("#txtName").val(),
+            Note : $("#txtNote").val(),
+            BusinessUnits: $('#tblBU').datagrid('getChecked'),
+            ParentConsumptionUnitID: sessionStorage.getItem("ParentConsumptionUnitID"),
+        };
+        return oConsumptionUnit;
+    }
+
+    function Save()
+    {
+        if(!ValidateInput()) return;
+        var oConsumptionUnit=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/ConsumptionRequisition/SaveCU",
+            traditional: true,
+            data:  JSON.stringify(oConsumptionUnit),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oConsumptionUnit = jQuery.parseJSON(data);
+                if (oConsumptionUnit.ErrorMessage=="" || oConsumptionUnit.ErrorMessage==null)
+                {
+                    debugger;
+                    alert("Data Saved sucessfully");
+                    var oConsumptionUnits = sessionStorage.getItem("ConsumptionUnits");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oConsumptionUnits != null) {
+                        oConsumptionUnits = jQuery.parseJSON(oConsumptionUnits);
+                    }
+                    else {
+                        oConsumptionUnits = [];
+                    }
+                    if (nIndex != -1) {
+                        oConsumptionUnits[nIndex] = oConsumptionUnit;
+                    }
+                    else {
+                        if(oConsumptionUnit.ProductCategoryID>0)
+                        {
+                            var oConsumptionUnit={
+                                id : oConsumptionUnit.ConsumptionUnitID,
+                                Name : oConsumptionUnit.Name,
+                                Note : oConsumptionUnit.ParentCategoryID,
+                                BusinessUnits :oConsumptionUnit.BusinessUnits,
+                                ParentConsumptionUnitID : oConsumptionUnit.ParentConsumptionUnitID
+                            };
+
+                        }
+                        sessionStorage.setItem("SelectedRowIndex", oConsumptionUnits.length);
+                        //oConsumptionUnits.push(oConsumptionUnit);
+                    }
+                    sessionStorage.setItem("ConsumptionUnits", JSON.stringify(oConsumptionUnits));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else
+                {
+                    alert(oConsumptionUnit.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+</script>

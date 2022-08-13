@@ -1,0 +1,144 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ChequeHistory>
+    @{
+        ViewBag.Title = "Cheque History";
+    }
+<html>
+
+<body>
+    <div id="divChequeHistorys" class="easyui-panel" title="Cheque History List" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblChequeHistorys" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="PreviousStatusInString" width="120">Previous Status</th>
+                        <th field="CurrentStatusInString" width="120">Current Status</th>
+                        <th field="OperationByName" width="200">Operation By</th>
+                        <th field="Note" width="120">Remarks</th>
+                        <th field="ChangeLog" width="350">Change Log</th>
+                        <th field="OperationDateTimeInString" width="160">Operation Time</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeHistory()">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeHistoryInXL()">Print in XL</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%;">
+                    <tr>
+                        <td style="width:90%; text-align:right"></td>
+
+                        <td style="width:10%; text-align:right">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+ <script type="text/javascript">
+     var _sBaseAddress="";
+     var _sChequeHistoryHeader=null;
+     var _oAuthorizationRolesMapping = [];
+     var _oChequeHistorys=[];
+     var _oChequeHistory={ErrorMessage:''};
+     var _nCID,_nCBID=null;
+     var _obj;
+     $(document).ready(function () {
+         _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+         _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+         _oChequeHistorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+         _nCID=parseInt(sessionStorage.getItem("CID"));
+         _nCBID=parseInt(sessionStorage.getItem("CBID"));
+                  
+         _sChequeHistoryHeader=sessionStorage.getItem("ChequeHistoryHeader");
+         $('#divChequeHistorys').panel({ title:_sChequeHistoryHeader});
+         RefreshList(_oChequeHistorys);
+         RefreshControlLayout();
+     });
+     function PrintChequeHistory()
+     {
+         RefreshArguments();
+         window.open(_sBaseAddress+'/ChequeHistory/PrintChequeHistorys?arguments='+_oChequeHistory.ErrorMessage, "_blank");
+     }
+     function PrintChequeHistoryInXL()
+     {
+         RefreshArguments();
+         window.open(_sBaseAddress+'/ChequeHistory/PrintChequeHistorysInXL?arguments='+_oChequeHistory.ErrorMessage, "_blank");
+     }
+     function RefreshArguments()
+     {
+         debugger;
+         var arg='Arguments;';
+         var oCurrentList = $('#tblChequeHistorys').datagrid('getRows'),sChequeHistoryIDs="";
+         if(oCurrentList!=null&&oCurrentList.length>0){
+             for(var i=0;i<oCurrentList.length;++i){
+                 sChequeHistoryIDs=sChequeHistoryIDs+oCurrentList[i].ChequeHistoryID+",";
+             }
+             arg=arg+'~'+sChequeHistoryIDs.substr(0,sChequeHistoryIDs.length-1)+'~';
+         }
+         _oChequeHistory.ErrorMessage=arg;
+     }
+     
+
+
+     
+
+     function RefreshList(oChequeHistorys)
+     {
+         data = oChequeHistorys;
+         data={"total":""+data.length+"","rows":data};
+         $('#tblChequeHistorys').datagrid('loadData',data);
+     }
+
+
+
+
+
+     function RefreshControlLayout()
+     {
+       
+         document.getElementById('btnPrintList').style.display = 'none';
+         document.getElementById('btnPrintXL').style.display = 'none';
+    
+        
+         if(HavePermission('PrintList','ChequeHistory')){document.getElementById('btnPrintList').style.display = '';}
+         if(HavePermission('PrintList','ChequeHistory')){document.getElementById('btnPrintXL').style.display = '';}
+    
+     }
+
+     function HavePermission(sOperationType, sDbObject)
+     {
+         var nSessionID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+         if(nSessionID == -9) //check Superuser
+         {
+             return true;
+         }else
+         {
+
+             for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+             {
+                 if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                     return  true;
+             }
+             return false;
+         }
+     }
+     $("#btnClose").click(function(){         
+         window.location.href = sessionStorage.getItem("ChequeHistoryBackTo");
+     });
+
+     $(document).keydown(function(e) {
+         if(e.which == 27)//escape=27
+         {             
+             window.location.href = sessionStorage.getItem("ChequeHistoryBackTo");
+         }
+     });
+</script>
+       

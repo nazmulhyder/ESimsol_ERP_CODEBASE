@@ -1,0 +1,629 @@
+﻿@{
+    ViewBag.Title = "PI Register";
+}
+@model IEnumerable <ESimSol.BusinessObjects.ExportPIRWU>
+<div ng-app="ExportPIRWUApp">
+        <script type="text/ng-template" id="ExportPIRWU.html">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modal-title"> Export PI Details </h4>
+            </div>
+            <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+                <div class="row">
+                    <ul class="nav nav-tabs" style="background:#d6dbdf; color:white;">
+                        <li ng-class="{active:IsSet(1)}">
+                            <a href="" ng-click="SetTab(1)" style="color:black;">Fabric Wise</a>
+                        </li>
+                        <li ng-class="{active:IsSet(2)}">
+                            <a href="" ng-click="SetTab(2)" style="color:black;">Constraction</a>
+                        </li>
+                        <li ng-class="{active:IsSet(3)}">
+                            <a href="" ng-click="SetTab(3)" style="color:black;">Constraction & Prising Group</a>
+                        </li>
+                    </ul>
+                </div>
+                <div ng-if="IsSet(1)">
+                    <div class="col-md-12">
+                        <div ui-grid="FabricWiseGridOption" style="height:350px" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                    </div>
+                </div>
+                <div ng-if="IsSet(2)">
+                    <div class="col-md-12">
+                        <div ui-grid="ConstractionWiseGridOption" style="height:350px" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                    </div>
+                </div>
+                <div ng-if="IsSet(3)">
+                    <div class="col-md-12">
+                        <div ui-grid="ConstractionAndPrisingGridOption" style="height:350px" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="ok()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Close</button>
+            </div>
+        </script>
+    <div ng-controller="ExportPIRWUCtrl as MLCC" style="overflow-x:hidden">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline" style="padding:2px">
+                    <input type="text" style="width:125px" ng-model="PINo" ng-keydown="SearchByNo($event,1)" placeholder="Search by PI No" />
+                    <input type="text" style="width:125px" ng-model="MKTRefNo" ng-keydown="SearchByNo($event,2)" placeholder="Search by MKRT Ref No" />
+                    <input type="text" style="width:125px" ng-model="PONo" ng-keydown="SearchByNo($event,3)" placeholder="Search by PO No" />
+                    <input type="text" style="width:125px" ng-model="ExeNo" ng-keydown="SearchByNo($event,4)" placeholder="Search by Dispo No" />
+                    <button type="button" class="btn btn-primary btn-sm" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search"></span> Adv. Search</button>
+                    <button type="button" class="btn btn-warning btn-sm" ng-click="PrintExel()"><span class="glyphicon glyphicon-print"></span> Excel</button>
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>*@
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>*@
+                    @*<button type="button" class="btn btn-sm btn-primary" aria-label=" left align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>*@
+                    <button type="button" class="btn btn-info btn-sm" aria-label=" left align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-success btn-sm" aria-label=" left align" ng-click="POAssign()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> PO Assign</button>
+                    <button type="button" class="btn btn-danger btn-sm" aria-label=" left align" ng-click="RemoveDispo()"> <span class="glyphicon glyphicon-minus" aria-hidden="true"></span> Remove Dispo</button>
+                    <button type="button" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="PrintPreviewPI1()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview(PI)</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%;" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+    </div>
+</div>
+
+<style type="text/css">
+    .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .grid {
+        height: 520px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+<script type="text/javascript">
+    var pager =[];
+    var count = 0;
+    var _nBUID=0;
+    var _nList1 = [];
+    var _nList2 = [];
+    var _nList3 = [];
+    var _oUnits = [];
+    var _oProcessTypes = [];
+    var _oBankBranchs = [];
+    var _oPIStatus=[];
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oExportPIRWUs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    _oUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Units));
+    _oProcessTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProcessTypes));
+    _oBankBranchs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BankBranchs));
+    _oPIStatus = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PIStatus));
+    //for(var i=0;i<_oPIStatus.length;i++) _oPIStatus[i].id = _oPIStatus[i].id.toString(); 
+    debugger;
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var  ExportPIRWU_M = angular.module('ExportPIRWUApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    ExportPIRWU_M.controller('ExportPIRWUCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch) {
+        debugger;
+        oExportPIRWUs= (userSession.getData('ExportPIRWUs').length>0)? userSession.getData('ExportPIRWUs'):oExportPIRWUs;
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            showColumnFooter: true,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            enableVerticalScrollbar : false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'PINo',                     name: 'PINo', width:'10%', enableCellEdit: false },
+                { field: 'IssueDateSt',              name: 'Issue Date', width: '12%' },
+                { field: 'ContractorName',           name: 'ContractorName', width: '18%' },
+                { field: 'BuyerName',                name: 'BuyerName', width: '18%' },
+                { field: 'MKTPName',                 name: 'MKTPName', width: '15%' },
+                { field: 'ProductName',              name: 'Compossion', width: '15%' },
+                { field: 'FabricNo',                 name: 'MKTRef', width: '15%' },
+                { field: 'PONo',                     name: 'PO No', width: '10%' },
+                { field: 'ExeNo',                    name: 'Dispo No', width: '10%' },
+                { field: 'Construction',             name: 'Construction', width: '15%' },
+                { field: 'FabricTypeName',           name: 'Fabric Type', width: '10%' },
+                { field: 'Wave',                     name: 'Wave', width: '10%' },
+                { field: 'ColorInfo',                name: 'Color', width: '8%'},
+                { field: 'StyleNo',                  name: 'Style No', width: '8%' },
+                { field: 'BuyerRef',                 name: 'Buyer Ref', width: '10%' },
+                { field: 'FinishTypeName',           name: 'Finish Type', width: '10%' },
+                { field: 'MUName',                   name: 'MUName', width: '7%' },
+
+                { field: 'Qty.toFixed(2)',           name: 'Qty', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'UnitPrice.toFixed(2)',     name: 'UnitPrice', width: '8%' ,cellClass :'text-right'},
+                { field: 'Amount.toFixed(5)',        name: 'Amount', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'Qty_PO.toFixed(2)',        name: 'Qty PO', width: '8%',cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'Qty_DO.toFixed(2)',        name: 'Qty DO', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'Qty_DC.toFixed(2)',        name: 'Qty DC', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'YetToDo.toFixed(2)',       name: 'Yet To DO', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'YetToDelivery.toFixed(2)', name: 'Yet To delivery', width: '8%' ,cellClass :'text-right', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right'},
+                { field: 'ExportLCNo',               name: 'LC No', width: '8%' },
+                { field: 'BankName',                 name: 'Bank', width: '8%' }
+            ],
+            data:oExportPIRWUs,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oExportPIRWUs.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oExportPIRWUs);
+                    $scope.gridApi.selection.selectRow(oExportPIRWUs[userSession.getRowIndex()]);
+                    $scope.RowSelect(oExportPIRWUs[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        $scope.AdvanceSearch = function()
+        {
+
+            oColumns = [];
+            var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            var paramObj_Contractor={
+                obj:{Params: '3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Contractor List',
+                multiSelect:true,
+                columns:oColumns
+            }
+            oColumns1 = [];
+            var oColumn1 = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns1.push(oColumn1);
+            oColumn1 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns1.push(oColumn1);
+
+            var paramObj_Buyer={
+                obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+                objName:'Params',
+                objField:'ContractorID',
+                url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+                title:'Buyer List',
+                multiSelect:true,
+                columns:oColumns1
+            }
+            oColumns2 = [];
+            var oColumn2 = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns2.push(oColumn2);
+            oColumn2 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns2.push(oColumn2);
+
+            var paramObj_MKTP={
+                obj:{
+                    Name : '@@MarketingAccountID',
+                    //BUID : sessionStorage.getItem('BUID')
+                },
+                objName:'Name',
+                objField:'MarketingAccountID',
+                url:_sBaseAddress+'/MarketingAccount/GetsMarketingAccount',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroupForExportPIReport',
+                title:'Marketing Person List',
+                multiSelect:true,
+                columns:oColumns2
+            }
+
+            oColumns3 = [];
+            var oColumn3 = { field: 'Name', name: 'Marketing Account Name',width: '70%', enableSorting: false  };oColumns3.push(oColumn3);
+            oColumn3 = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns3.push(oColumn3);
+
+            var paramObj_MKTA={
+                obj:{
+                    Name : '@@MarketingAccountID'
+                    //BUID : sessionStorage.getItem('BUID')
+                },
+                objName:'Name',
+                objField:'MarketingAccountID',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroup',
+                url:_sBaseAddress+'/MarketingAccount/GetsGroup',
+                //url:_sBaseAddress+'/MarketingAccount/GetsGroupForExportPIReport',
+                title:'Marketing Person List',
+                multiSelect:true,
+                columns:oColumns3
+            }
+            var status = [
+                {ID:"0", Value:"Defult"},
+                {ID:"1", Value:"Open"},
+                {ID:"2", Value:"PO Issue"}
+            ];
+            var oStatus = [
+                //{ID:"0", Value:"Defult"},
+                {ID:"1", Value:"L/C Receive"},
+                {ID:"2", Value:"L/C Pending"}
+            ];
+            var oPaymentStatus = [
+                {ID:"1", Value:"L/C"},
+                {ID:"2", Value:"Non L/C"}
+            ];
+
+
+            var oExportPIRWU = [
+                                { DisplayName: "Contractor Name",    BOField: "ContractorName",         InputType: 'picker', PickerObject:paramObj_Contractor },
+                                { DisplayName: "Buyer Name",         BOField: "BuyerName",              InputType: 'picker', PickerObject:paramObj_Buyer },
+                                { DisplayName: "Marketing Group",    BOField: "NameMKTACC",             InputType: 'picker', PickerObject:paramObj_MKTA },
+                                { DisplayName: "Marketing Person",   BOField: "NameMktP",               InputType: 'picker', PickerObject:paramObj_MKTP },
+                                { DisplayName: "Construction",       BOField: "Construction",           InputType: 'text' },
+                                { DisplayName: "Issue Date",         BOField: "IssueDate",              InputType: 'date' },
+                                { DisplayName: "Validity Date",       BOField: "ValidityDate",          InputType: 'date' },
+                                { DisplayName: "Order Status",       BOField: "OrderSheetDetailID",     InputType: 'select', OptionList:status, OptionValue:{id:'ID', Value:'Value'}},
+                                //{ BOField:     "BUID",               Value:_nBUID,                      InputType: 'hidden'},
+
+                                { DisplayName: "Business Unit",       BOField: "BusinessUnit",          InputType: 'select', OptionList:_oUnits, OptionValue:{id:'BusinessUnitID', Value:'Name'}},
+                                { DisplayName: "LC Status",              BOField: "Status",                InputType: 'select', OptionList:oStatus, OptionValue:{id:'ID', Value:'Value'}},
+                                { DisplayName: "Process Type",        BOField: "ProcessType",           InputType: 'select', OptionList:_oProcessTypes, OptionValue:{id:'FabricProcessID', Value:'Name'}},
+                                { DisplayName: "Style No",            BOField: "StyleNo",               InputType: 'text' },
+                                { DisplayName: "LC No",               BOField: "ExportLCNo",            InputType: 'text' },
+                                //{ DisplayName: "Dispo No",            BOField: "DispoNo",               InputType: 'text' },
+                                { DisplayName: "Bank",                BOField: "Bank",                  InputType: 'select', OptionList:_oBankBranchs, OptionValue:{id:'BankBranchID', Value:'BankName'}},
+                                { DisplayName: "PI Status",           BOField: "PIStatus",              InputType: 'select', OptionList:_oPIStatus, OptionValue:{id:'id', Value:'Value'}},                                
+                                { DisplayName: "Payment Status",      BOField: "PaymentStatus",         InputType: 'select', OptionList:oPaymentStatus, OptionValue:{id:'ID', Value:'Value'}},
+                                { DisplayName: "LC Date",             BOField: "LCDate",                InputType: 'date' },
+                                { DisplayName: "Received Date",       BOField: "ReceivedDate",          InputType: 'date' },
+                                
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oExportPIRWU,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/ExportPIRWU/AdvanceSearch'
+            }
+            sessionStorage.setItem('BaseAddress',_sBaseAddress);
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        }
+
+        $scope.SearchByNo = function (e,nid) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var oExportPIRWU ={};
+                if (nid!=0)
+                {
+                    oExportPIRWU = {
+                        SCNo:"",
+                        PINo:$.trim($scope.PINo),
+                        MKTPName:$.trim($scope.MKTRefNo),
+                        PONo:$.trim($scope.PONo),
+                        ExeNo:$.trim($scope.ExeNo),
+                        BUID:_nBUID
+                    };
+                }
+                if(oExportPIRWU.PINo == "" && oExportPIRWU.MKTPName == "" && oExportPIRWU.PONo == "" && oExportPIRWU.ExeNo == "")
+                {
+                    alert("Please Enter Any Search Citeria");
+                    return;
+                }
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/ExportPIRWU/Search',$.param(oExportPIRWU), config).then(
+                            function (response)
+                            {        debugger;
+                                var oResults = response.data;
+                                if(oResults.length>0)
+                                {
+                                    $scope.gridOptions.data = response.data;
+                                }else{
+                                    alert("Data Not found.");
+                                }
+                            },
+                                function (response) { alert(response.data).Message; }
+                        );
+            }
+        };
+        $scope.PrintExel = function(){
+            debugger;
+            var string = sessionStorage.getItem("AdvSearchString");
+            if(string=="" || string==null)
+            {
+                alert("Please First Advance Search");
+                return;
+            }
+            window.open(_sBaseAddress + '/ExportPIRWU/PrintExel?tempString=' + string);
+        };
+        $scope.PrintPreviewPI1 = function ()
+        {
+            debugger;
+            var oExportPIRWU = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oExportPIRWU==null || oExportPIRWU.ExportPIID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress + '/ExportPI/PrintoExportPIPreviewTwo?id='+oExportPIRWU.ExportPIID+ "&bPrintFormat=true&nTitleTypeInImg=1", "_blank");
+        };
+        $scope.view = function(){
+            debugger;
+            var oExportPIRWU = $scope.gridApi.selection.getSelectedRows()[0]; //get selected index
+            if(oExportPIRWU==null || oExportPIRWU.PINo=="")
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            $http.post(_sBaseAddress+'/ExportPIRWU/GetsPIDetailForShowPricing',JSON.stringify(oExportPIRWU)).then(
+                                function (response) {
+                                    debugger;
+                                    var result=jQuery.parseJSON(response.data);
+                                    if(result.Item1.length==0)
+                                    {
+                                        alert("No Data Found");
+                                        return;
+                                    }
+                                    $scope.ShowModal(result);
+                                },
+                                function (response) { alert(response.data);}
+                        );
+        }, function ()
+        {
+            $log.info('Modal dismissed at: ' + new Date());
+        };
+        $scope.ShowModal = function (result) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'md',
+                templateUrl: 'ExportPIRWU.html',
+                controller: 'ExportPIRWUController',
+                controllerAs: 'ExportPIRWUControllerAS',
+                resolve: {
+                    obj: function () {
+                        return { value:result, Operation: 'view'  };
+                    }
+                }
+            });
+        };
+        $scope.ShowModalDO = function (result) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'md',
+                templateUrl: 'ExportPIRWUDO.html',
+                controller: 'ExportPIRWUController',
+                controllerAs: 'ExportPIRWUControllerAS',
+                resolve: {
+                    obj: function () {
+                        return { value:result, Operation: 'view'  };
+                    }
+                }
+            });
+        };
+        $scope.POAssign = function(){
+            debugger;
+            var oExportPIRWU = $scope.gridApi.selection.getSelectedRows()[0]; //get selected index
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oExportPIRWU);
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            if(oExportPIRWU==null || oExportPIRWU.PINo=="")
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            $http.post(_sBaseAddress+'/ExportPIRWU/PO_Assign',(oExportPIRWU)).then(
+                function (response) {
+                    debugger;
+                    var result=jQuery.parseJSON(response.data);
+                    if(result.length==0)
+                    {
+                        alert("No Data Found");
+                        return;
+                    }
+                    else
+                    {
+                        var oColumns = [];
+                        var oColumn = { field: 'BuyerName', name: 'BuyerName',width: '20%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'ContractorName', name: 'ContractorName',width: '20%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'SCNoFull', name: 'PO No',width: '15%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'FabricNo', name: 'MKT Ref',width: '12%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'ColorInfo', name: 'Color',width: '15%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'StyleNo', name: 'StyleNo',width: '10%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'ExeNo', name: 'Dispo',width: '10%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'Qty', name: 'Qty (Y)',width: '10%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'Amount.toFixed(5)', name: 'Amount',width: '10%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'PINo', name: 'PI No',width: '15%'  };oColumns.push(oColumn);
+                        oColumn = { field: 'Qty_PI', name: 'PI Qty',width: '10%'  };oColumns.push(oColumn);
+                        var results=jQuery.parseJSON(response.data);
+                        var modalObj={
+                            size:'lg',
+                            modalcontroller:'',
+                            appcontroller:'',
+                            objs:results,
+                            multiSelect:false,
+                            pickertitle:'Add PO',
+                            enableHorizontalScrollbar: true,
+                            searchingbyfieldName:'SCNoFull',
+                            columns:oColumns
+                        }
+                        var modalInstance=msModal.Instance(modalObj);
+                        modalInstance.result.then(function (result)
+                        {
+                            debugger;
+                            var oFabricSCReport = result; //get selected index
+                            if(oFabricSCReport==null || oFabricSCReport.FabricSalesContractDetailID==0)
+                            {
+                                alert("Please Select an item from list");
+                                return;
+                            }
+                            oExportPIRWU.FabricSalesContractDetailID=oFabricSCReport.FabricSalesContractDetailID;
+                            $http.post(_sBaseAddress+'/ExportPIRWU/POAssign',(oExportPIRWU)).then(
+                                function (response) {
+                                    debugger;
+                                    var oExportPIRWU = response.data;
+                                    if (oExportPIRWU.ErrorMessage=="" || oExportPIRWU.ErrorMessage==null)
+                                    {
+                                        alert("Data Saved Successfully!!");
+                                        $scope.gridOptions.data[SelectedRowIndex]=oExportPIRWU;
+                                        $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                        $scope.gridApi.selection.selectRow(oExportPIRWU);
+                                    }
+                                    else
+                                    {
+                                        alert(oExportPIRWU.ErrorMessage);
+                                    }
+                                    debugger;
+                                })
+                        }, function () {
+                            $log.info('Modal dismissed at: ' + new Date());
+                        });
+                    }
+                    debugger;
+                    $scope.ShowModalDO(result);
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                )
+        };
+        $scope.RemoveDispo = function(){
+            debugger;
+            if (!confirm("Confirm to Remove Dispo?")) return ;
+            var oExportPIRWU = $scope.gridApi.selection.getSelectedRows()[0]; //get selected index
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oExportPIRWU);
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            if(oExportPIRWU==null || oExportPIRWU.PINo=="")
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            if(oExportPIRWU==null || oExportPIRWU.ExeNo=="")
+            {
+                alert("This PI Has No Dispo");
+                return;
+            }
+            $http.post(_sBaseAddress+'/ExportPIRWU/RemoveDispoNo',(oExportPIRWU)).then(
+                function (response) {
+                    debugger;
+                    var result=jQuery.parseJSON(response.data);
+                    if(result.ErrorMessage=="")
+                    {
+                        alert("Dispo Number Removed Successfully");
+                        $scope.gridOptions.data[SelectedRowIndex]=result;
+                        $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                        $scope.gridApi.selection.selectRow(result);
+                        return;
+                    }
+                    else
+                    {
+
+                    }
+                    debugger;
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                )
+        };
+    });
+    ExportPIRWU_M.controller('ExportPIRWUController', function ($scope, $http, $uibModalInstance, uiGridConstants, msModal, obj) {
+        console.log(obj);
+        $scope.Operation=obj.Operation;
+        debugger;
+        $scope.ExportPIRWU = obj.value;
+        if(obj.value!=undefined)
+        {
+            $scope.FabricWiseGridOption ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                showColumnFooter: true,
+                enableGridMenu: true,
+                //uigridconstants.scrollbars.when needed,
+                columnDefs: [
+                    { field: 'FabricNo',         name: 'Fabric No', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'PINo',             name: 'PI No', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'Construction',     name: 'Construction', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'Qty',              name: 'Qty', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'UnitPrice',        name: 'Unit Price', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'StyleNo',          name: 'Style No', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'ColorInfo',        name: 'Color Info', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'UnitPrice_Avg',    name: 'Avg Unit Price', width:'25%', enableCellEdit: false,cellClass: 'text-left' }
+                    //{ field: 'FabricTypeName',   name: 'Process Type', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                ],
+                data:obj.value.Item1,
+                onRegisterApi:function(gridApi){
+                    $scope.gridApi = gridApi;
+                    debugger;
+                }
+            };
+            $scope.ConstractionWiseGridOption ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                showColumnFooter: true,
+                enableGridMenu: true,
+                columnDefs: [
+                    { field: 'Construction',     name: 'Construction', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'FabricTypeName',   name: 'Process Type', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'BuyerName',        name: 'Buyer Name', width:'30%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'FabricNo',         name: 'Fabric No', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'PINo',             name: 'PI No', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'Qty',              name: 'Qty', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'UnitPrice',        name: 'Unit Price', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'UnitPrice_Avg',    name: 'Avg Unit Price', width:'25%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'StyleNo',          name: 'Style No', width:'20%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'ColorInfo',        name: 'Color Info', width:'20%', enableCellEdit: false,cellClass: 'text-left' }
+                ],
+                data:obj.value.Item3,
+                onRegisterApi:function(gridApi){
+                    $scope.gridApi = gridApi;
+                    debugger;
+                }
+            };
+            $scope.ConstractionAndPrisingGridOption ={
+                enableRowHeaderSelection: false,
+                enableRowSelection: true,
+                enableFullRowSelection: true,
+                multiSelect: false,
+                enableColumnResizing: true,
+                noUnselect : true,
+                showColumnFooter: true,
+                enableGridMenu: true,
+                columnDefs: [
+                    { field: 'Construction',     name: 'Construction', width:'60%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'UnitPrice',        name: 'UnitPrice', width:'20%', enableCellEdit: false,cellClass: 'text-left' },
+                    { field: 'Qty',              name: 'Qty', width:'20%', enableCellEdit: false,cellClass: 'text-left' }
+                ],
+                data:obj.value.Item5,
+                onRegisterApi:function(gridApi){
+                    $scope.gridApi = gridApi;
+                    debugger;
+                }
+            };
+        }
+        $scope.tab = 1;
+        $scope.SetTab = function (tabId)
+        {
+            $scope.tab = tabId;
+        }
+        $scope.IsSet = function (tabid)
+        {
+            return $scope.tab === tabid;
+        }
+        $scope.ok= function () {
+            $uibModalInstance.close($scope.ExportPIRWU);
+        };
+    });
+   
+</script>

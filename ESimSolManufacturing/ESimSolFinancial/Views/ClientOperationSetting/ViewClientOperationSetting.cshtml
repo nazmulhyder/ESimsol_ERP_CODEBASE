@@ -1,0 +1,389 @@
+﻿<html>
+@{
+    ViewBag.Title = "Client Operation Setting";
+}
+<body>
+    @model ESimSol.BusinessObjects.ClientOperationSetting
+    <div class="ClientOperationSettingMainCollectionTable" id="divCOS">
+        <div class="easyui-panel" title="Client Operation Setting" style="font-family:Tahoma; text-align:center; height:89%;">
+            <fieldset style="width:98%;height:80px; text-align:center;">
+                <legend>Entry Operation:</legend>
+                <table border="0" cellpadding="2" cellspacing="2" style="width:100%;">
+                    <tr>
+                        <td style="width:20%;font-size:12px;text-align:right;">
+                            Operation Type:
+                        </td>
+                        <td style="width:40%;font-size:12px;">
+                            <select id="cboOperationType" style=" width:100%;" class="changeForOperationType"></select>
+                        </td>
+                        <td style="width:20%;font-size:12px;text-align:right;">
+                            Data Type:
+                        </td>
+                        <td style="width:20%;font-size:12px;">
+                            <select id="cboDataType" style=" width:100%;" class="changeForDataType"></select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%;font-size:12px; text-align:right;">
+                            Value:
+                        </td>
+                        <td style="width:80%;font-size:12px;" colspan="3" id="tdtxtField">
+                            <input type="text" id="txtValue" style="width:100%" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div style="height:380px; width:100%;text-align:center;">
+                <table border="1" style="height:380px; width:100%; text-align:center;">
+                    <tr>
+                        <td style=" text-align:center;">
+                            <img id="imgSampleImage" src="#" alt="Photo" style="width:400px; height:360px;" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width:100%; font-weight:bold">
+                <tr>
+                    <td style="width:85%; text-align:right"></td>
+                    <td style="width:15%">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oClientOperationSetting =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oOperationTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OperationTypes));
+        var oDataTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DataTypes));
+        $('#divCOS').data('ClientOperationSetting',oClientOperationSetting);
+        $("#cboOperationType").icsLoadCombo({List: oOperationTypes,OptionValue: "id",DisplayText: "Value",InitialValue:"Default"});
+        $("#cboOperationType").val(oClientOperationSetting.OperationTypeInInt);
+        $("#cboDataType").icsLoadCombo({List: oDataTypes,OptionValue: "id",DisplayText: "Value",InitialValue:"Default"});
+        $("#cboDataType").val(oClientOperationSetting.DataTypeInInt);
+        if(parseInt(oClientOperationSetting.DataTypeInInt)==1)//text
+        {
+            $('#txtValue').replaceWith($('#txtValue').clone().attr('type', 'text'));
+            $('#txtValue').css('text-align', 'left');
+            $('#txtValue').val(oClientOperationSetting.Value);
+        }else if(parseInt(oClientOperationSetting.DataTypeInInt)==2)//number
+        {
+            $('#txtValue').icsCurrencyBox(null,null,0);
+            $('#txtValue').val(oClientOperationSetting.Value);
+        }else if(parseInt(oClientOperationSetting.DataTypeInInt)==3)//Date
+        {
+            $('#txtValue').datebox({formatter:icsdateformat,parser:icsdateparser});
+            $('#txtValue').datebox('setValue',oClientOperationSetting.Value);
+        }else if(parseInt(oClientOperationSetting.DataTypeInInt)==4)//Boolean
+        {
+            debugger;
+            $('#tdtxtField').empty();
+            $('#tdtxtField').append('<label style="width:30%;text-align:center"> <input type=checkbox  id=chkbxValueYes onclick = CheckYes() "/> Yes </label>');
+            $('#tdtxtField').append('<label style="width:30%;text-align:right"><input type=checkbox  id=chkbxValueNo onclick = CheckNo() "/> No</label>');
+            if(parseInt(oClientOperationSetting.Value)==1)
+            {
+                //$('#chkbxValueYes').checked();
+                $("#chkbxValueYes").attr('checked',true);
+                $("#chkbxValueNo").attr('checked',false);
+            }else{
+                $("#chkbxValueYes").attr('checked',false);
+                $("#chkbxValueNo").attr('checked',true);
+            }
+        }
+        else if(parseInt(oClientOperationSetting.DataTypeInInt)==5)//Enum
+        {
+               
+            $('#tdtxtField').empty();
+            $('#tdtxtField').append('<select  id=cboValue onchange="LoadFormatImage()" style="width:100%;" ></select>');
+            GetEnumList();
+        }
+        
+    });
+
+    $('.changeForDataType').change(function(){
+        if(parseInt($('#cboDataType').val())>0)
+        {
+            $('#tdtxtField').empty();
+            LoadFormatImage();
+            if($("#cboOperationType").val()==0)
+            {
+                alert("please Select Operation Type");
+                $('#cboDataType').val(0);
+                return;
+            }
+            debugger;
+            if(parseInt($('#cboDataType').val())==1)//text
+            {
+                $('#tdtxtField').append('<input type=text  id=txtValue " style="width:100%" />');
+            }else if(parseInt($('#cboDataType').val())==2)//number
+            {
+                $('#tdtxtField').append('<input type=text id=txtValue  style="width:100%"" />');
+                $('#txtValue').icsCurrencyBox(null,null,0);
+            }else if(parseInt($('#cboDataType').val())==3)//Date
+            {
+                $('#tdtxtField').append('<input type=text  id=txtValue " style="width:100%" />');
+                $('#txtValue').datebox({formatter:icsdateformat,parser:icsdateparser});
+                $('#txtValue').datebox('setValue',icsdateformat(new Date()));
+            }else if(parseInt($('#cboDataType').val())==4)//Boolean
+            {
+                
+                $('#tdtxtField').append('<label style="width:30%;text-align:center"> <input type=checkbox  id=chkbxValueYes onclick = CheckYes() "/> Yes </label>');
+                $('#tdtxtField').append('<label style="width:30%;text-align:right"><input type=checkbox  id=chkbxValueNo onclick = CheckNo() "/> No</label>');
+                $("#chkbxValueYes").attr('checked',true);
+            }
+            else if(parseInt($('#cboDataType').val())==5)//Enum
+            {
+               
+                $('#tdtxtField').append('<select  id=cboValue onchange="LoadFormatImage()"  style="width:100%;"></select>');
+                GetEnumList();
+            }
+        }
+    });
+
+
+    function GetEnumList()
+    {
+        var oClientOperationSetting={OperationTypeInInt :$('#cboOperationType').val()};  
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+"/ClientOperationSetting/GetClientOperationSetupEnumList",
+            traditional: true,
+            data:  JSON.stringify(oClientOperationSetting),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oTempList = jQuery.parseJSON(data);
+                if (oTempList.length>0 )
+                {
+                    $("#cboValue").icsLoadCombo({List: oTempList,OptionValue: "id",DisplayText: "Value",InitialValue:"Default"});
+                    $('#cboValue').val(parseInt($('#divCOS').data('ClientOperationSetting').Value));
+                    LoadFormatImage();
+                }
+                else {
+                    alert("Data No found.");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function CheckYes()
+    {
+        debugger;
+        if(!$("#chkbxValueYes").attr('checked'))
+        {
+            $("#chkbxValueNo").attr('checked',true);
+        }else{
+            //$("#chkbxValueYes").attr('checked',false);
+            $("#chkbxValueNo").attr('checked',false);
+        }
+            
+    }
+    function CheckNo()
+    {
+        debugger; 
+        if(!$("#chkbxValueNo").attr('checked'))
+        {
+            $("#chkbxValueYes").attr('checked',true);
+        }else{
+            $("#chkbxValueYes").attr('checked',false);
+        }
+    }
+
+
+    function LoadFormatImage()
+    {
+        $('#imgSampleImage').attr('src', "#");
+        if(parseInt($("#cboOperationType").val())==0)
+        {
+            alert("please Select Operation Type for Image Display");
+            $('#cboDataType').val(0);
+            return;
+        }
+        if(parseInt($('#cboValue').val())>0)
+        {
+            debugger;
+            $.ajax({
+                cache:true,
+                type: "GET",
+                url: "@(Url.Action("GetStyleImageInBase64", "ClientOperationSetting"))",
+                data: {nOperationType:parseInt($("#cboOperationType").val()),nCOSFormat:parseInt($('#cboValue').val())},
+                success: function (data) 
+                {
+                      $('#imgSampleImage').attr('src', "data:image/jpg;base64," + data.base64imgage );
+            }
+        });
+
+
+        } 
+    }
+
+    function ValidateInput()
+    { 
+        if(parseInt($('#cboOperationType').val())<=0)
+        {        
+            alert("Please Select Operation Type.");
+            $('#cboOperationType').focus();
+            return false;
+        }
+
+        if(parseInt($('#cboDataType').val())<=0)
+        {        
+            alert("Please Select Data Type.");
+            $('#cboDataType').focus();
+            return false;
+        }
+        if($('#cboDataType').val()==1)//TExt
+        {
+            if($("#txtValue").val()==null || $("#txtValue").val()=="")
+            {        
+                alert("Please Type Value.");
+                $('#txtValue').focus();
+                return false;
+            }
+        }else if($('#cboDataType').val()==2)//number
+        {
+            if(parseInt(icsRemoveComma($("#txtValue").val()))<=0)
+            {
+                alert("Value Should be Greater than 0.");
+                $('#txtValue').focus();
+                return false;
+            }
+        }else if($('#cboDataType').val()==3)//Date
+        {
+            if(($('#txtValue').datebox('getValue'))==null)
+            {
+                alert("Please Select Date.");
+                $('#txtValue').focus();
+                return false;
+            }
+        }
+        if($('#cboOperationType').val()==35)
+        {
+            var str = $('#txtValue').val();
+            if(str.indexOf("~") == -1)
+            {
+                alert("Please Enter a '~' Sign Between Mail Address And Password");
+                return;
+            }
+            //if(str.indexOf(".com") == -1)
+            //{
+            //    alert("Invalid mail Address");
+            //    return;
+            //}
+        }
+        return true; 
+    }
+ 
+    function RefreshObject()
+    {   
+        debugger;
+        var sTempValue = "";
+        if(parseInt($('#cboDataType').val())==1)//text
+        {
+            sTempValue = $('#txtValue').val();
+        }else if(parseInt($('#cboDataType').val())==2)//number
+        {
+            sTempValue =  parseInt(icsRemoveComma($("#txtValue").val()));    
+        }else if(parseInt($('#cboDataType').val())==3)//Date
+        {
+            sTempValue = $('#txtValue').datebox('getValue');
+        }else if(parseInt($('#cboDataType').val())==4)//boolean
+        {
+            if(!$("#chkbxValueYes").attr('checked'))
+            {
+                sTempValue = 0;//No
+            }else{
+                sTempValue = 1;//Yes
+            }
+        }else if(parseInt($('#cboDataType').val())==5)//enum
+        {
+            sTempValue = $('#cboValue').val();
+        }
+
+
+        var oCOSetting={ 
+            ClientOperationSettingID:$('#divCOS').data('ClientOperationSetting').ClientOperationSettingID,
+            OperationTypeInInt :$('#cboOperationType').val(),
+            DataTypeInInt :$('#cboDataType').val(),
+            Value:sTempValue
+        };
+        return oCOSetting;
+    }
+
+ 
+    function Save(){
+        debugger;
+        if(!ValidateInput()) return;
+        var oClientOperationSetting=RefreshObject();  
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+"/ClientOperationSetting/Save",
+            traditional: true,
+            data:  JSON.stringify(oClientOperationSetting),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+              debugger;
+                var oClientOperationSetting = jQuery.parseJSON(data);
+                if (oClientOperationSetting.ErrorMessage =="")
+                {
+                    alert("Data Saved sucessfully");                   
+                    var oClientOperationSettings = sessionStorage.getItem("ClientOperationSettings");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oClientOperationSettings != null) {
+                        oClientOperationSettings = jQuery.parseJSON(oClientOperationSettings);
+                    }
+                    else {
+                        oClientOperationSettings = [];
+                    }
+                    if (nIndex != -1) {
+                        oClientOperationSettings[nIndex] = oClientOperationSetting;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oClientOperationSettings.length);
+                        oClientOperationSettings.push(oClientOperationSetting);
+                    }
+                    sessionStorage.setItem("ClientOperationSettings", JSON.stringify(oClientOperationSettings));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oClientOperationSetting.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+   
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+
+    $(document).keydown(function(e) {
+        //debugger;
+        if(e.which == 27)//escape=27
+        {
+            //debugger;
+            window.location.href = sessionStorage.getItem("BackLink");
+        }
+    });
+
+</script>

@@ -1,0 +1,699 @@
+﻿
+    @{
+        ViewBag.Title = "QC";
+    }
+    @model ESimSol.BusinessObjects.GUQC
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+    <div class="menuMainCollectionTable">
+        <div id="MainDiv" class="easyui-panel" title="QC" style="font-family:Tahoma;height:90%">
+            <fieldset>
+                <legend>QC Info</legend>
+
+
+                <table style="width:100%;">
+                    <tr>
+                        <td class="align-right" style="width:10%">QC No</td>
+                        <td style="width:20%">
+                            @Html.TextBoxFor(model => model.QCNo, new { style = "width: 97%;", id = "txtQCNo", disabled = "true" })
+                        </td>
+                        <td class="align-right" style="width:10%">QC Date</td>
+                        <td style="width:20%">
+                            <input type="text" style="width:200px;" id="txtQCDate" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </td>
+                        <td class="align-right" style="width:15%">QC By</td>
+                        <td style="width:25%">
+                            <select id="cboQCBy" style="width:99%;height:22px;"></select>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="align-right" style="width:10%">Buyer:</td>
+                        <td style="width:50%" colspan="3">
+                            @Html.TextBoxFor(model => model.BuyerName, new { onkeydown = "BuyerKeyDown(event);", style = "width:80%;", id = "txtBuyer", @placeholder = "" })
+                            <input type="button" id="btnBuyer" onclick="PickBuyer()" style="width:18%;float:right;" value="Pick" />
+                        </td>
+
+                        <td class="align-right" style="width:15%">Store</td>
+                        <td style="width:25%">
+                            <select id="cboStore" style="width:99%;height:22px;"></select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="align-right" style="width:10%">Remarks:</td>
+                        <td width="90%" colspan="5">
+                            @Html.TextBoxFor(model => model.Remarks, new { style = "width: 100%;", id = "txtRemarks", @placeholder = "", @class = "cls-txt" })
+
+                        </td>
+                    </tr>
+
+                </table>
+
+
+            </fieldset>
+
+            <table id="tblGUQCDetail" title="QC Details" class="easyui-datagrid" style="height:367px; width:100%;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar" data-options="onClickRow:onClickRow,onEndEdit: onEndEdit">
+                <thead>
+                    <tr>
+                        <th field="StyleNo" width="14%" align="left">Style No</th>
+                        <th field="OrderRecapNo" width="14%" align="left">Order No</th>
+                        <th field="TotalQuantity" width="10%" align="right">Total O.Qty</th>
+                        <th field="AlredyQCQty" width="10%" align="right">Alredy QC</th>
+                        <th field="YetToQCQty" width="10%" align="right">Yet To QC Qty</th>
+                        <th data-options="field:'QCPassQty',align:'right',editor:{type:'numberbox',options:{precision:0}}" width="10%">QC Pass Qty</th>
+                        <th data-options="field:'RejectQty',align:'right',editor:{type:'numberbox',options:{precision:0}}" width="10%">Reject Qty</th>
+                        <th data-options="field:'Remarks',align:'left',editor:{type:'textbox'}" width="20%">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" placeholder="Enter Recap/Style No" id="txtOrder" style="width:130px;" onkeydown="OrderKeyDown(event)" />
+                <input type="button" id="btnOrderRecap" style="width:60px;" onclick="PickOrderRecap()" value="Pick PO" />
+                @*<input type="button" id="btnClearOrder" style="width:30px;" value="C" />*@
+
+                <a id="btnRemoveDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefreshDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+
+            </div>
+            
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:60%; text-align:right"></td>
+                    <td style="width:40%;text-align:right;">
+                        <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Approve</a>
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" onclick="Close()" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+
+<style type="text/css">
+    td, th {
+        padding: 2px;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oGUQC = [];
+    var TypeList = [];
+    var Units = [];
+    var _oGUQCDetails = [];
+    var _oStores = [];
+    var _oEmployees =[];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oGUQC =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Stores));
+        _oEmployees = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Employees));
+        $('#btnApprove').hide();
+        if(sessionStorage.getItem('Action')=='View')
+        {
+            $('#tblGUQCDetail').data("GridEditable",false);
+            $('#btnSave, #toolbar').hide();
+            $('#MainDiv select,input').prop('disabled',true);
+        }
+        if(sessionStorage.getItem('Action')=='Approve')
+        {
+            $('#tblGUQCDetail').data("GridEditable",false);
+            $('#btnSave, #toolbar').hide();
+            $('#MainDiv select,input').prop('disabled',true);
+            $('#btnApprove').show();
+        }
+        debugger;
+        if(parseInt(_oGUQC.GUQCID)>0)
+        {
+            $('#txtPINo, #txtBuyer').addClass('fontColorOfPickItem');
+            _oGUQCDetails = _oGUQC.GUQCDetails;
+            RefreshList(_oGUQCDetails);
+        }
+
+        LoadEmployees();
+        LoadStores();
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+
+        $('#txtQCDate').datebox('setValue',_oGUQC.QCDateInString);
+
+        //$("#MainDiv").data("BuyerID",0);
+    });
+
+    var editIndex = undefined;
+    function endEditing() {
+        //debugger;
+        if (editIndex == undefined) { return true }
+        if ($('#tblGUQCDetail').datagrid('validateRow', editIndex)) {
+            $('#tblGUQCDetail').datagrid('endEdit', editIndex);
+            //RefreshSummery();
+
+            //$.icsMakeFooterColumn('tblGUQCDetail',['CostHeadName','FOBDTMCost','FOBRawCost','CNFAirDTMCost','CNFAirRawCost','CNFCTGDTMCost','CNFCTGRawCost','EXWorkDTMCost','EXWorkRawCost']);
+
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onEndEdit(index, row) {
+        //row.YetToQCQty = (parseFloat(row.TotalQuantity) - parseFloat(row.QCPassQty)) + parseFloat(row.AlredyQCQty) ;//(row.TotalQuantity - row.QCPassQty);    parseFloat(row.YetToQCQty)
+        //row.AlredyQCQty = parseFloat(row.AlredyQCQty) + parseFloat(row.QCPassQty);            
+    }
+
+    function onClickRow(index) {
+        debugger;
+        if (editIndex != index) {
+            if (endEditing()) {
+                $('#tblGUQCDetail').datagrid('selectRow', index).datagrid('beginEdit', index);
+                editIndex = index;
+            }
+            else {
+                $('#tblGUQCDetail').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function LoadEmployees(){
+        debugger;
+        $("#cboQCBy").icsLoadCombo({
+            List:_oEmployees,
+            OptionValue: "EmployeeID",
+            DisplayText: "Name",
+
+        });
+        $('#cboQCBy').val(_oGUQC.QCBy);
+    }
+    function LoadStores(){
+        $("#cboStore").icsLoadCombo({
+            List: _oStores,
+            OptionValue: "WorkingUnitID",
+            DisplayText: "WorkingUnitName"
+
+        });
+        $('#cboStore').val(_oGUQC.StoreID);
+    }
+
+    
+    function BuyerKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtBuyer").val();
+            if (oTxtName != null) {
+                PickBuyer(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            txtBuyer.style.color="Black";
+            _oGUQC.BuyerID = 0;
+            //$("#MainDiv").data("BuyerID",0);
+        }
+
+    }
+    function PickBuyer(oTxtName)
+    {
+        var oStyleSearch = {
+            Params: '2' + '~' + $("#txtBuyer").val() +'~'+_oGUQC.BUID
+        };//
+        console.log(oStyleSearch);
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch) ,
+            ControllerName: "Contractor", //TechnicalSheet
+            ActionName: "ContractorSearchByNameType",//ViewStyleSearch
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Address", title: "Address", width: 120, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "Email", title: "Email", width: 90, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "ShortName", title: "Short Name", width: 90, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('Buyer',obj,tblColums,false,'Name','ContractorID',600); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+    function SetBuyer(oSelectedStyle) {
+        debugger;
+        document.getElementById("txtBuyer").value = oSelectedStyle.Name;
+        txtBuyer.style.color="Blue";
+        //var text = "";
+        //var len = oSelectedStyle.length;
+        //for (var i = 0; i < len; i++) {
+
+        //    text += oSelectedStyle[i].ModuleName;
+        //}
+        //document.getElementById("txtModuleName").innerHTML = text;
+        //$("#MainDiv").data("BuyerID",oSelectedStyle.ContractorID);
+        _oGUQC.BuyerID = oSelectedStyle.ContractorID;
+    }
+
+    //$("#btnClearOrder").click(function ()
+    //{
+    //    $('#txtOrder').val("");
+    //    txtOrder.style.color="Black";
+    //    oSelectedStyle = [];
+    //});   
+
+    function OrderKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtOrder").val();
+            if (oTxtName != null) {
+                PickOrderRecap(oTxtName);
+            }
+        }
+        if (event.which == 8) {
+            txtOrder.style.color="Black";
+            oSelectedStyle = [];
+        }
+
+    }
+
+    function PickOrderRecap(oTxtName)
+    {
+        debugger;
+        if(parseInt(_oGUQC.BuyerID)<=0)
+        {
+            alert("Please Select a Buyer!");
+            return;
+        }
+        //var oStyleSearch = {Name:(typeof(oTxtName) != 'undefined'?oTxtName:"")};
+        var oOrderRecap = {
+            BuyerID: parseInt(_oGUQC.BuyerID),
+            OrderRecapNo: (typeof(oTxtName) != 'undefined'?oTxtName:"")
+        };
+
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oOrderRecap) ,
+            ControllerName: "GUQC", //TechnicalSheet
+            ActionName: "GetOrderRecaps",//ViewStyleSearch
+            IsWinClose: false
+        };
+        var tblColums = []; 
+        var oColumn = { field: "OrderRecapNo", title: "OrderRecap No", width: 180, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "StyleNo", title: "Style No", width: 160, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "BuyerName", title: "Buyer Name", width: 100, align: "left" }; tblColums.push(oColumn);
+        oColumn = { field: "TotalQuantityInString", title: "Total Quantity", width: 100, align: "right" }; tblColums.push(oColumn);
+        oColumn = { field: "ShipmentDateInString", title: "Shipment", width: 100, align: "center" }; tblColums.push(oColumn);
+        oColumn = { field: "ProductName", title: "Product Name", width: 100, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('PO',obj,tblColums,true,'StyleNo','OrderRecapID',800); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+
+    function SetOrderRecap(oSelectedStyle) {
+        debugger;
+        var oGUQCDetails = $('#tblGUQCDetail').datagrid('getRows');
+        var oGUQCDetail = [];
+        
+        for (var i = 0; i < oSelectedStyle.length; i++) {
+            var isExist = false;
+            for(var j=0;j<oGUQCDetails.length;j++){
+                if(oGUQCDetails[j].OrderRecapID == oSelectedStyle[i].OrderRecapID){
+                    isExist = true;
+                    continue;
+                }
+            }
+            if(isExist != true){
+                oGUQCDetail = {
+                    StyleNo: oSelectedStyle[i].StyleNo,
+                    OrderRecapID: oSelectedStyle[i].OrderRecapID,
+                    OrderRecapNo: oSelectedStyle[i].OrderRecapNo,
+                    TotalQuantity: oSelectedStyle[i].TotalQuantity,
+                    AlredyQCQty: oSelectedStyle[i].AlreadyQCQty,
+                    YetToQCQty: oSelectedStyle[i].YetToQcQty,
+                    QCPassQty: oSelectedStyle[i].YetToQcQty,
+                    RejectQty: 0,
+                    Remarks: ""
+                };
+                //oGUQCDetails.push(oGUQCDetail);
+                $('#tblGUQCDetail').datagrid('appendRow', oGUQCDetail);
+                oGUQCDetail=[];
+            }
+            
+        }
+        
+        //RefreshList(oGUQCDetails);
+    }
+
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        debugger;
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+
+        if (oPickerobj.winid == 'winBuyer')
+        {
+            SetBuyer(oResult);
+        }
+        else if (oPickerobj.winid == 'winPO')
+        {
+            SetOrderRecap(oResult);
+        }
+        
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,nWidth)
+    {
+        debugger;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        setInterval(updateProgress,250);
+
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: nWidth,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                }
+            }
+            else{
+                alert("Data Not Found.");
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                return;
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+
+    function RefreshList(oGUQCDetails)
+    {
+        debugger;
+        var data=oGUQCDetails;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblGUQCDetail').datagrid('loadData',data);
+    }
+
+
+    function Validation(){
+
+        if(parseInt(_oGUQC.BUID)<=0)
+        {
+            alert('No business unit found.');
+            return false;
+        }
+
+        if($("#txtQCDate").datebox('getValue') == '' || $("#txtQCDate").datebox('getValue') == null){
+            alert('Please Enter QC date!!');
+            $("#txtQCDate").focus();
+            return false;
+        }
+
+        if(parseInt($("#cboQCBy").val())<=0)
+        {
+            $('#cboQCBy').focus();
+            alert("Please Select QC By.");
+            return false;
+        }
+
+        if(parseInt($("#cboStore").val())<=0)
+        {
+            $('#cboStore').focus();
+            alert("Please Select Store.");
+            return false;
+        }
+
+
+        if(parseInt(_oGUQC.BuyerID)<=0)
+        {
+            $('#txtBuyer').focus();
+            alert("Please Enter Buyer!!");
+            return false;
+        }
+        
+
+        var oRows=$('#tblGUQCDetail').datagrid('getRows');
+        if(oRows.length<=0){
+            alert("Atleast onen QC detail required!!");
+            return false;
+        }
+
+        for(var i=0;i<oRows.length;i++){
+            if(parseInt(oRows[i].QCPassQty) <= 0){
+                alert("Please enter QC Pass Quantity of all QC Detail!!");
+                return false;
+            }
+        }
+        
+        for(var i=0;i<oRows.length;i++){
+            var addPercentageofTotalQty = ((parseInt(oRows[i].TotalQuantity)*5)/100) + parseInt(oRows[i].TotalQuantity);
+            if(((parseInt(oRows[i].QCPassQty) + parseInt(oRows[i].AlredyQCQty))) - parseInt(oRows[i].YetToQCQty) > parseInt(addPercentageofTotalQty)){
+                alert("QC Pass Quantity should be less than sum of 5% of total qty and total qty!!");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function RefreshObject()
+    {
+        var oGUQC={
+            GUQCID : _oGUQC.GUQCID,
+            BUID : parseInt(_oGUQC.BUID),
+            QCDate:$('#txtQCDate').datebox('getValue'),
+            QCNo : $("#txtQCNo").val(),
+            QCBy: $("#cboQCBy").val(),
+            StoreID : $("#cboStore").val(),
+            BuyerID : parseInt(_oGUQC.BuyerID),
+            Remarks : $.trim($('#txtRemarks').val()),
+            GUQCDetails: $('#tblGUQCDetail').datagrid('getRows')
+        };
+
+        return oGUQC;
+    }
+
+    $("#btnSave").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oGUQC=RefreshObject();
+        //return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/GUQC/Save",
+            traditional: true,
+            data:  JSON.stringify(oGUQC),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oGUQC = jQuery.parseJSON(data);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (oGUQC.ErrorMessage==null || oGUQC.ErrorMessage=="") {
+                    alert("Data Saved successfully");
+                    var oGUQCs = sessionStorage.getItem("GUQCs");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oGUQCs != null) {
+                        oGUQCs = jQuery.parseJSON(oGUQCs);
+                    }
+                    else
+                    {
+                        oGUQCs = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oGUQCs[nIndex] = oGUQC;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oGUQCs.length);
+                        oGUQCs.push(oGUQC);
+                    }
+                    sessionStorage.setItem("GUQCs", JSON.stringify(oGUQCs));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oGUQC.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $("#btnApprove").click(function (){
+        debugger;
+        endEditing();
+        if(!Validation()) return false;
+        var oGUQC=RefreshObject();
+        //return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/GUQC/Approve",
+            traditional: true,
+            data:  JSON.stringify(oGUQC),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                oGUQC = jQuery.parseJSON(data);
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                if (oGUQC.ErrorMessage==null || oGUQC.ErrorMessage=="") {
+                    alert("Approved successfully");
+                    var oGUQCs = sessionStorage.getItem("GUQCs");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oGUQCs != null) {
+                        oGUQCs = jQuery.parseJSON(oGUQCs);
+                    }
+                    else
+                    {
+                        oGUQCs = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oGUQCs[nIndex] = oGUQC;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oGUQCs.length);
+                        oGUQCs.push(oGUQC);
+                    }
+                    sessionStorage.setItem("GUQCs", JSON.stringify(oGUQCs));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else {
+                    alert(oGUQC.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $("#btnRemoveDetail").click(function ()
+    {
+        endEditing();
+        var oDCDetail=$('#tblGUQCDetail').datagrid('getSelected');
+        if(oDCDetail==null || oDCDetail.OrderRecapID<=0)
+        {
+            alert("Please select a valid item from list.");
+            return;
+        }
+        if(!confirm("Confirm to delete?")) return;
+        var nIndex= $('#tblGUQCDetail').datagrid('getRowIndex',oDCDetail);
+        $('#tblGUQCDetail').datagrid('deleteRow',nIndex);
+    });
+
+    $("#btnRefreshDetail").click(function ()
+    {
+        //debugger;
+        endEditing();
+        var oGUQCDetails = $('#tblGUQCDetail').datagrid('getRows')
+        RefreshList(oGUQCDetails)
+        //var oGUQC = [];
+        //var oGUQCDetail = {
+        //    GUQCID: _oGUQC.GUQCID
+        //}
+        //$.ajax({
+        //    type: "POST",
+        //    dataType: "json",
+        //    url : _sBaseAddress+"/GUQC/GetsDetailsByID",
+        //    traditional: true,
+        //    data:  JSON.stringify(oGUQCDetail),
+        //    contentType: "application/json; charset=utf-8",
+        //    success: function (data) {
+        //        //debugger;
+        //        oGUQC = jQuery.parseJSON(data);
+        //        if (oGUQC.ErrorMessage==null || oGUQC.ErrorMessage=="") {
+        //            RefreshList(oGUQC.GUQCDetails);
+        //        }
+        //        else {
+        //            alert(oGUQCDetail.ErrorMessage);
+        //        }
+        //    },
+        //    error: function (xhr, status, error) {
+        //        alert(error);
+        //    }
+
+        //});
+    });
+
+    $('#btnClose').click(function(e){
+        window.location.href = sessionStorage.getItem("BackLink");
+    })
+
+</script>

@@ -1,0 +1,430 @@
+﻿@{
+    ViewBag.Title = "Recap Shipment Summery";
+}
+@model IEnumerable<ESimSol.BusinessObjects.RecapShipmentSummary>
+<div class="menuMainCollectionTable" id="divRS">
+<div class="easyui-tabs"  data-options="tools:'#tab-tools'" style="width:100%;height:100%">
+    <div title="Graphical View">
+        <div style="height:543px;">
+            <div id="flot-placeholder" style="width:90%;height:400px;margin:0 auto; margin-top:50px"></div>
+            <div id="divGraphName" style="width:90%;margin:0 auto; margin-top:10px; text-align:center; font-weight:bold; color:Blue"></div>
+        </div>
+    </div>
+
+    <div title="Table View">
+        <div style="height:543px">
+            <table id="tblRecapShipmentSummary" title="Order Recap List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false">
+                <thead>
+                    <tr>
+                        <th field="ShipmentMonthInString" width="48%">Month </th>
+                        <th field="QuantityInString" align="right" width="48%">Quantity</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+<div id="tab-tools">
+    <select id="cboYear" style="width:150px; height:25px"> </select>
+    <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="Print()">Print</a>
+</div>
+</div>
+<script type="text/javascript">
+    var _sBaseAddress ="";
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oRecapShipmentSummarys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        $('#divRS').data('RecapShipmentSummarys',oRecapShipmentSummarys);
+        $('#divRS').data('RecapShipmentSummary',"");
+        $('#divRS').data('MonthWiseSummery',"");
+        $('#divRS').data('somePlot',null);
+        sessionStorage.setItem("BUID",nBUID);
+        RefreshList(oRecapShipmentSummarys);
+        LoadYear();
+        // RefreshControlLayout(oAuthorizationRolesMapping);
+    });
+
+
+
+    function SetPoint()
+    {
+        debugger;
+        var somePlot = $('#divRS').data('somePlot');
+        var ctx = somePlot.getCanvas().getContext("2d");
+        var data = somePlot.getData()[0].data;
+        var xaxis =somePlot.getXAxes()[0];
+        var yaxis =somePlot.getYAxes()[0];
+        var offset =somePlot.getPlotOffset();
+        ctx.font = "13px 'Tahoma'";
+        ctx.fillStyle = "Blue";
+
+
+        for (var i = 0; i <data.length; i++){
+            var text = formatPrice(data[i][1])+ '';
+            var metrics = ctx.measureText(text);
+            var xPos = (xaxis.p2c(data[i][0])+offset.left) - metrics.width/2;
+            var yPos = yaxis.p2c(data[i][1]) + offset.top - 5;
+            ctx.fillText(text, xPos, yPos);
+
+        }
+
+
+    }
+
+
+    function AdvanceSearch()
+    {
+        var cboYear=document.getElementById("cboYear");
+        var nYearSelectedID=cboYear.options[cboYear.selectedIndex].value;
+        var sYear=cboYear.options[cboYear.selectedIndex].text;
+        if(parseInt(nYearSelectedID)==0)
+        {
+            alert("Please select Year");
+            return;
+        }
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+"/OrderRecap/GetShipmentSummery",
+            data: { sYear:sYear,buid:sessionStorage.getItem("BUID")},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oRecapShipmentSummary = jQuery.parseJSON(data);
+                if (oRecapShipmentSummary!=null)
+                {
+                    $('#divRS').data('RecapShipmentSummary',oRecapShipmentSummary);
+                    var oBuyerWithDateWizeSummary = [];
+                    oBuyerWithDateWizeSummary = oRecapShipmentSummary.BuyerWithDateWiseSummaries;
+                    var oMonthWiseSummery=[];
+                    oMonthWiseSummery = oRecapShipmentSummary.MonthWiseSummaries;
+                    $('#divRS').data('MonthWiseSummery',oMonthWiseSummery);
+                    $('#divRS').data('RecapShipmentSummarys',oRecapShipmentSummary.RecapShipmentSummarys);
+                    PrepareDataGrid();
+                    PrepareGraph(oMonthWiseSummery);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Print()
+    {
+        var cboYear=document.getElementById("cboYear");
+        var nYearSelectedID=cboYear.options[cboYear.selectedIndex].value;
+        var sYear=cboYear.options[cboYear.selectedIndex].text;
+        if(parseInt(nYearSelectedID)==0)
+        {
+            alert("Please select Year");
+            return;
+        }
+        window.open(_sBaseAddress + '/OrderRecap/PrintRecapShipmentSummary?sYear='+sYear+'&buid='+sessionStorage.getItem("BUID"), "_blank");
+
+    }
+
+    function PrepareGraph(oMonthWiseSummery)
+    {
+        var oGraphData=[];
+        var oGraphTicks=[];
+        var oDataPonint=[]; var x=0; var y=0;
+        var oTickPonint=[]; var xx=0; var yy="";
+
+        oDataPonint.push(0); //SEt Intital Y Axis
+        oDataPonint.push(0)
+        oGraphData.push(oDataPonint);
+
+        oTickPonint.push(0); //SEt Intital X Axis
+        oTickPonint.push('')
+        oGraphTicks.push(oTickPonint);
+
+        for(var i=0; i<oMonthWiseSummery.length; i++)
+        {
+            oDataPonint=[];
+            x = oMonthWiseSummery[i].ShipmentMonth;
+            y = oMonthWiseSummery[i].Qty;
+            oDataPonint.push(x);
+            oDataPonint.push(y)
+            oGraphData.push(oDataPonint);
+
+            oTickPonint=[];
+            xx = oMonthWiseSummery[i].ShipmentMonth;
+            yy = oMonthWiseSummery[i].ShipmentMonthInString.substring(0,3);
+            oTickPonint.push(xx);
+            oTickPonint.push(yy)
+            oGraphTicks.push(oTickPonint);
+        }
+        var oGraphOptions = {
+            series: {
+                bars: {
+                    show: true
+                }
+            },
+
+            bars: {
+                align: "center",
+                barWidth: 0.5
+            },
+
+            xaxis: {
+                axisLabel: "Shipment Month",
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 12,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 10,
+                ticks: oGraphTicks
+
+            },
+
+            yaxis: {
+                axisLabel: "Shipment Qty",
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 12,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 3,
+                tickFormatter: function (v, axis) {
+                    return numberformat(v);
+                }
+            },
+
+            legend: {
+                noColumns: 0,
+                labelBoxBorderColor: "#000000",
+                position: "nw"
+            },
+
+            grid: {
+                hoverable: true,
+                borderWidth: 2,
+                backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                }
+            }
+        };
+
+        var cboYear=document.getElementById("cboYear");
+        var sYear=cboYear.options[cboYear.selectedIndex].text;
+
+        var oGraphDataSet = [ { label: sYear+ " Shipment Summery", data: oGraphData, color: "#5482FF" }];
+
+        var somePlot = $.plot($("#flot-placeholder"), oGraphDataSet, oGraphOptions);
+        $('#divRS').data('somePlot',somePlot);
+        $.plot($("#flot-placeholder"), oGraphDataSet, oGraphOptions);
+        $("#flot-placeholder").UseTooltip();
+        document.getElementById("divGraphName").innerHTML="Fig : "+ sYear+ " Shipment Summery (Month vs Qty)"
+        SetPoint();
+    }
+
+    function gd(year, month, day) {
+        return new Date(year, month, day).getTime();
+    }
+
+    var previousPoint = null, previousLabel = null;
+
+    $.fn.UseTooltip = function () {
+        $(this).bind("plothover", function (event, pos, item) {
+            if (item) {
+                if ((previousLabel != item.series.label) || (previousPoint != item.dataIndex)) {
+                    previousPoint = item.dataIndex;
+                    previousLabel = item.series.label;
+                    $("#tooltip").remove();
+
+                    var x = item.datapoint[0];
+                    var y = item.datapoint[1];
+
+                    var color = item.series.color;
+
+                    //console.log(item.series.xaxis.ticks[x].label);
+
+                    showTooltip(item.pageX,
+                        item.pageY,
+                        color,
+                        "<strong>" + item.series.label + "</strong><br>" + item.series.xaxis.ticks[x].label + " : <strong>" + numberformat(y) + "</strong>");
+                }
+            } else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+        });
+    };
+
+    function showTooltip(x, y, color, contents) {
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y - 40,
+            left: x - 120,
+            border: '2px solid ' + color,
+            padding: '3px',
+            'font-size': '9px',
+            'border-radius': '5px',
+            'background-color': '#fff',
+            'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+            opacity: 0.9
+        }).appendTo("body").fadeIn(200);
+    }
+
+    function PrepareDataGrid()
+    {
+        //debugger;
+        var oMonthWiseSummery = $('#divRS').data('MonthWiseSummery');
+        $('#tblRecapShipmentSummary').datagrid({
+            data:oMonthWiseSummery,
+            view:detailview,
+            detailFormatter:function(index,row){
+                return '<div style="padding:2px;width:100%"><table id="tblMonthWise" class="ddv" ></table></div>';
+            },
+            onExpandRow: function(index,row)
+            {
+                var ddv = $(this).datagrid('getRowDetail',index).find('table.ddv');
+                ddv.datagrid({
+                    data:row.BuyerWithMonthWiseSummaries,
+                    fitColumns:true,
+                    singleSelect:true,
+                    rownumbers:true,
+                    loadMsg:'',
+                    height:'auto',
+                    columns:[[
+                        {field:'BuyerName',title:'Buyer Name',width:250},
+                        {field:'ShipmentMonthInString',title:'Month',width:150,align:'center'},
+                        {field:'ShipmentCountInString',title:'Count', formatter:function(value,row,index){ return formatlabel(value, true); },width:50,align:'right'},
+                        {field:'QuantityInString',title:'Quantity',width:100,align:'right'}
+                    ]],
+                    onResize:function(){
+                        $('#tblRecapShipmentSummary').datagrid('fixDetailRowHeight',index);
+                    },
+                    onLoadSuccess:function(){
+                        setTimeout(function(){
+                            $('#tblRecapShipmentSummary').datagrid('fixDetailRowHeight',index);
+                        },0);
+                    }
+                });
+                $('#tblRecapShipmentSummary').datagrid('fixDetailRowHeight',index);
+            }
+        });
+    }
+
+    function ViewMonthWiseOrderReap(TempID)
+    {
+        debugger;
+        if(TempID==null || parseInt(TempID)<0)
+        {
+            alert("Invalid Reference!");
+            return;
+        }
+        var oMonthWiseRecaps = GetsMonthWiseRecaps(TempID);
+        if (parseInt(oMonthWiseRecaps[0].BuyerID)> 0)
+        {
+            var tblColums = []; var oColumn = { field: "ShipmentDateInString", title: "Shipment Date", width:100, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "StyleNo", title: "Style No", width: 100, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "OrderNo", title: "Order No", width: 120, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "FOBValueInString", title: "FOB Value", width: 100, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "CMValueInString", title: "CM Value", width: 80, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "QuantityInString", title: "Quantity", width: 80, align: "rigt" }; tblColums.push(oColumn);
+            var oPickerParam = {
+                winid: 'winRecap',
+                winclass: 'clsRecap',
+                winwidth:650,
+                winheight:460,
+                tableid: 'tblRecap',
+                tablecolumns: tblColums,
+                datalist: oMonthWiseRecaps,
+                multiplereturn: false,
+                searchingbyfieldName: 'StyleNo',
+                windowTittle: 'Shipment Date Wise Summary For ('+'Buyer : '+oMonthWiseRecaps[0].BuyerName+' Month :'+oMonthWiseRecaps[0].ShipmentMonthInString+' )',
+            };
+            $.icsPicker(oPickerParam);
+            $('#btnOk').hide();
+        }
+        else {
+            alert(oMonthWiseRecaps[0].ErrorMessage);
+            return;
+        }
+    }
+
+    
+    function RefreshList(oRecapShipmentSummarys)
+    {
+        data=oRecapShipmentSummarys;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblRecapShipmentSummary').datagrid('loadData',data);
+    }
+
+    function formatlabel(value)
+    {
+        var values=value.split("~");
+        var ShipmentCount=values[0];
+        var TempID=values[1];
+        var s = '<a  href="javascript:void(0)" onclick = "ViewMonthWiseOrderReap('+TempID+')"">'+ShipmentCount+'</a>';
+        return s;
+    }
+
+    function RefreshControlLayout(oAuthorizationRolesMapping)
+    {
+        $('#btnPreView,#btnAPrintList').hide();
+        if(PermissionChecker('Preview','RecapShipmentSummary',oAuthorizationRolesMapping)){$("#btnPreView").show();}
+        if(PermissionChecker('PrintList','RecapShipmentSummary',oAuthorizationRolesMapping)){$("#btnAPrintList").show();}
+    }
+
+
+
+    function LoadYear()
+    {
+        $('#cboYear').empty();
+        var listYears= "<option value='"+0+"'>" +"--Select year--" + "</option>";
+        var dCurrentDate = new Date();
+        var nCurrentYear = dCurrentDate.getFullYear();
+        var nCurrentYear=nCurrentYear-5;
+        var nTotalYear=nCurrentYear+10;
+
+        for (var i = nCurrentYear; i<nTotalYear; i++)
+        {
+            listYears+= "<option value='" +i.toFixed()+ "'>" + i.toFixed()+ "</option>";
+        }
+        $("#cboYear").html(listYears);
+    }
+
+    function GetsMonthWiseRecaps(TempID)
+    {
+        ////debugger;
+        var oRecapShipmentSummarys = $('#divRS').data('RecapShipmentSummarys');
+        var oTempList = [];
+        for(var i = 0;i<oRecapShipmentSummarys.length;i++)
+        {
+            if(parseInt(oRecapShipmentSummarys[i].TempID) == parseInt(TempID))
+            {
+                return oRecapShipmentSummarys[i].RecapShipmentSummarys;
+            }
+        }
+        return oTempList;
+    }
+
+    function numberformat(val) {
+        if (val == null) {
+            val = 0;
+        }
+        val = parseFloat(val);
+        var test = val.toFixed();
+        var tests = addComma(test);
+        return tests;
+    }
+
+    function addComma(nStr) {
+        nStr += '';
+        x = nStr.split('.');
+        x1 = x[0];
+        x2 = x.length > 1 ? '.' + x[1] : '';
+        var process = /(\d+)(\d{3})/;
+        while (process.test(x1)) {
+            x1 = x1.replace(process, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    }
+</script>

@@ -1,0 +1,504 @@
+USE [ESimSol_ERP]
+IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name= N'DepartmentID' AND Object_ID = Object_ID(N'PurchaseRequisition'))
+BEGIN
+   ALTER TABLE PurchaseRequisition ADD DepartmentID  int NULL 
+END
+GO
+IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name= N'RequiredFor' AND Object_ID = Object_ID(N'PurchaseRequisitionDetail'))
+BEGIN
+   ALTER TABLE PurchaseRequisitionDetail ADD RequiredFor  varchar(512) NULL 
+END
+GO
+/****** Object:  View [dbo].[View_PurchaseRequisitionDetail]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP VIEW [dbo].[View_PurchaseRequisitionDetail]
+GO
+/****** Object:  View [dbo].[View_PurchaseRequisition]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP VIEW [dbo].[View_PurchaseRequisition]
+GO
+/****** Object:  Table [dbo].[PQTermsAndCondition]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP TABLE [dbo].[PQTermsAndCondition]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PurchaseRequisitionDetail]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP PROCEDURE [dbo].[SP_IUD_PurchaseRequisitionDetail]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PurchaseRequisition]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP PROCEDURE [dbo].[SP_IUD_PurchaseRequisition]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PQTermsAndCondition]    Script Date: 7/25/2017 2:43:21 PM ******/
+DROP PROCEDURE [dbo].[SP_IUD_PQTermsAndCondition]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PQTermsAndCondition]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+/* =============================================
+ SP Name : SP_IUD_PQTermsAndCondition
+ Author: Asadullah Sarker
+ Create date: 18 July 2017,
+Description:	
+ =============================================*/
+
+CREATE PROCEDURE [dbo].[SP_IUD_PQTermsAndCondition]
+(	
+	@Param_PQTermsAndConditionID  as int,
+	@Param_PurchaseQuotationID  as int,
+	@Param_TermsAndCondition as Varchar(MAX),
+	@Param_DBUserID  as int,
+	@Param_DBOperation as smallint,
+	@Param_PQTermsAndConditionIDs as varchar(MAX)
+	--%n,%n,%s,%n,%n,%s
+)
+AS
+BEGIN TRAN
+
+
+DECLARE 
+@PV_DBServerDateTime as datetime,
+@PV_OrderType as smallint
+SET @PV_DBServerDateTime=Getdate()	
+
+IF(@Param_DBOperation=1)
+BEGIN
+			
+
+		
+		SET @Param_PQTermsAndConditionID= (SELECT ISNULL(MAX(PQTermsAndConditionID),0)+1 FROM PQTermsAndCondition)	
+		
+		INSERT INTO PQTermsAndCondition         (PQTermsAndConditionID,				PurchaseQuotationID,						TermsAndCondition,					DBUserID,				DBServerDateTime)
+		
+											VALUES    (@Param_PQTermsAndConditionID,		@Param_PurchaseQuotationID,				@Param_TermsAndCondition,			@Param_DBUserID,		@PV_DBServerDateTime)
+										
+		
+		SELECT * FROM PQTermsAndCondition  WHERE PQTermsAndConditionID=@Param_PQTermsAndConditionID
+END
+
+IF(@Param_DBOperation=2)
+BEGIN
+
+IF (@Param_PQTermsAndConditionID<0) 
+	BEGIN
+		ROLLBACK
+			RAISERROR (N' Selected Master LC Terms and Condition are Invalid Please try again!!',16,1);	
+		RETURN
+	END
+	UPDATE PQTermsAndCondition SET	PurchaseQuotationID = @Param_PurchaseQuotationID,				TermsAndCondition =@Param_TermsAndCondition,	DBUserID =@Param_DBUserID,	DBServerDateTime =@PV_DBServerDateTime WHERE PQTermsAndConditionID = @Param_PQTermsAndConditionID
+	SELECT * FROM PQTermsAndCondition  WHERE PQTermsAndConditionID=@Param_PQTermsAndConditionID
+	
+END
+
+IF(@Param_DBOperation=3)
+BEGIN
+	DELETE FROM PQTermsAndCondition WHERE PurchaseQuotationID=@Param_PurchaseQuotationID AND PQTermsAndConditionID NOT IN (SELECT * FROM dbo.SplitInToDataSet(@Param_PQTermsAndConditionIDs,','))
+END
+COMMIT TRAN
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PurchaseRequisition]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[SP_IUD_PurchaseRequisition]
+(
+	@PRID int,
+    @PRNo varchar(512),
+    @PRDate datetime,
+	@RequirementDate datetime,
+    @Note varchar(512),
+    @ApproveBy int,
+	@BUID  as int,
+	@DepartmentID as int,
+	@DBUserID	as int,
+	@DBOperation as smallint
+	--%n, %s, %d, %d, %s, %n, %n,  %n, %n
+)	
+AS
+BEGIN TRAN
+DECLARE 
+@DBServerDateTime as datetime,
+
+@sMessage as varchar(100),
+@PV_TempPONo as varchar(100),
+@Month varchar(200),
+@Year varchar(200),
+@Lenth int
+SET @DBServerDateTime=Getdate()
+IF(@DBOperation=1)
+BEGIN
+
+IF(@BUID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected a Business unit !!~',16,1);	
+		RETURN
+	END	
+
+	SET @PRID=(SELECT ISNULL(MAX(PRID),0)+1 FROM PurchaseRequisition)	
+
+
+
+
+	    SET @Year=(SELECT RIGHT(CONVERT(VARCHAR, GETDATE(), 106), 2))
+		SET @PV_TempPONo=(SELECT Top(1)(PurchaseRequisition.PRNo) FROM PurchaseRequisition   WHERE   YEAR(PurchaseRequisition.PRDate)=YEAR(GETDATE()) order by PurchaseRequisition.PRID DESC ) 
+		set @Lenth= LEN(@PV_TempPONo)
+		if(@Lenth>=3)
+		BEGIN
+		set @PV_TempPONo=  Left(@PV_TempPONo, LEN(@PV_TempPONo)-3)
+		END
+	
+
+		set @PV_TempPONo=Convert(int,isnull(@PV_TempPONo,0))+1
+
+		SET @PV_TempPONo=(SELECT REPLICATE('0',4-DATALENGTH(@PV_TempPONo))+@PV_TempPONo)
+		SET @PRNo=RIGHT('0000' + @PV_TempPONo, 4)		
+		set @PRNo=@PRNo+'/'+@Year
+	
+	INSERT INTO	PurchaseRequisition	([PRID],	[PRNo],	[PRDate], RequirementDate,	[Note],	[RequisitionBy],	[BUID],	  	[DBUserID],	[DBServerDateTime], [Status],	LastUpdateBy,	LastUpdateDateTime,  [DepartmentID])
+    		VALUES					(@PRID ,	@PRNo ,  @PRDate, @RequirementDate,	@Note,  @DBUserID ,			@BUID,		@DBUserID,	@DBServerDateTime,		0,		 @DBUserID,		@DBServerDateTime,   @DepartmentID)    				
+    SELECT  * FROM View_PurchaseRequisition WHERE PRID= @PRID
+END
+
+IF(@DBOperation=2)
+BEGIN
+	IF(@PRID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected PurchaseRequisition Is Invalid Please Refresh and try again!!~',16,1);	
+		RETURN
+	END	
+	IF exists(Select top(1)* from  PurchaseRequisition where isnull(PurchaseRequisition.ApproveBy,0)<>0 and  PurchaseRequisition.PRID=@PRID )
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Already Approved!!~',16,1);	
+		RETURN
+	END	
+
+
+	Update PurchaseRequisition  
+	SET		PRDate=@PRDate
+			, RequirementDate=@RequirementDate
+			, Note=@Note
+			, BUID=@BUID 
+			, LastUpdateBy=@DBUserID
+			, LastUpdateDateTime=@DBServerDateTime
+			, DepartmentID = @DepartmentID 
+	WHERE PRID=@PRID
+	SELECT  * FROM View_PurchaseRequisition WHERE PRID=@PRID
+END
+---Approved
+IF(@DBOperation=5)
+BEGIN
+	IF(@PRID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected PurchaseRequisition Is Invalid Please Refresh and try again!!~',16,1);	
+		RETURN
+	END	
+	IF exists(Select top(1)* from  PurchaseRequisition where isnull(PurchaseRequisition.ApproveBy,0)<>0 and  PurchaseRequisition.PRID=@PRID )
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Already Approved!!~',16,1);	
+		RETURN
+	END	
+
+	Update PurchaseRequisition  SET  [Status]=1, ApproveBy=@DBUserID, ApproveDate=@DBServerDateTime WHERE PRID=@PRID
+	SELECT  * FROM View_PurchaseRequisition WHERE PRID=@PRID
+
+	
+END
+
+IF(@DBOperation=3)
+BEGIN
+	IF(@PRID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected PurchaseRequisition Is Invalid Please Refresh and try again!!~',16,1);	
+		RETURN
+	END			
+	IF exists(Select top(1)* from  PurchaseRequisition where isnull(PurchaseRequisition.ApproveBy,0)<>0 and  PurchaseRequisition.PRID=@PRID )
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Already Approved!!~',16,1);	
+		RETURN
+	END	
+	DELETE FROM PurchaseRequisitionDetail WHERE PRID=@PRID
+	DELETE FROM PurchaseRequisition WHERE PRID=@PRID
+END
+COMMIT TRAN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  StoredProcedure [dbo].[SP_IUD_PurchaseRequisitionDetail]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+CREATE PROCEDURE [dbo].[SP_IUD_PurchaseRequisitionDetail]
+(	
+	        @PRDetailID int
+           ,@PRID int
+		   ,@OrderRecapID int
+           ,@ProductID int
+           ,@Qty decimal(30,17)
+           ,@Note varchar(512)
+           ,@MUnitID int
+           ,@DBUserID as int
+		   ,@DBOperation as smallint
+		   ,@PRDetailIDs AS VARCHAR(512)
+		   ,@RequiredFor as varchar(512)
+	--%n, %n,%n, %n, %n, %s, %n, %n, %n, %s
+)	
+AS
+BEGIN TRAN
+Declare 
+@DBServerDateTime as DateTime
+
+SET @DBServerDateTime = GETDATE()
+
+	
+
+IF(@DBOperation=1)
+BEGIN			
+	
+	SET @PRDetailID=(SELECT ISNULL(MAX(PRDetailID),0)+1 FROM PurchaseRequisitionDetail)		
+
+	INSERT INTO PurchaseRequisitionDetail	(PRDetailID,  PRID,		OrderRecapID,	ProductID,	Qty,	Note,  MUnitID,		DBUserID,	DBServerDateTime,	LastUpdateBy,	LastUpdateDateTime, RequiredFor)
+    				              VALUES	(@PRDetailID  ,@PRID ,	@OrderRecapID,	@ProductID  ,@Qty   ,@Note ,@MUnitID ,	@DBUserID,	@DBServerDateTime,	@DBUserID,		@DBServerDateTime,  @RequiredFor)			
+	SELECT * FROM View_PurchaseRequisitionDetail WHERE PRDetailID=@PRDetailID
+END
+IF(@DBOperation=2)
+BEGIN	
+	IF(@PRDetailID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Invalid PurchaseRequisition. Please try again!!~',16,1);	
+		RETURN
+	END	
+	
+	
+
+	UPDATE PurchaseRequisitionDetail SET  PRDetailID=@PRDetailID  ,PRID=@PRID  ,	OrderRecapID = @OrderRecapID,	ProductID=@ProductID    ,Qty=@Qty      ,MUnitID=@MUnitID ,Note=@Note,LastUpdateBy=@DBUserID, 		LastUpdateDateTime=@DBServerDateTime , RequiredFor = @RequiredFor
+	WHERE  PRDetailID=@PRDetailID		
+	SELECT * FROM View_PurchaseRequisitionDetail WHERE PRDetailID=@PRDetailID
+END
+IF(@DBOperation=3)
+BEGIN
+	IF(@PRID<=0)
+	BEGIN
+		ROLLBACK
+			RAISERROR (N'Your Selected PurchaseRequisition Is Invalid Please Refresh and try again!!~',16,1);	
+		RETURN
+	END		
+
+
+	DELETE FROM PurchaseRequisitionDetail WHERE PRID=@PRID AND PRDetailID NOT IN (SELECT * FROM dbo.SplitInToDataSet(@PRDetailIDs,','))		
+END
+COMMIT TRAN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  Table [dbo].[PQTermsAndCondition]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[PQTermsAndCondition](
+	[PQTermsAndConditionID] [int] NOT NULL,
+	[PurchaseQuotationID] [int] NULL,
+	[TermsAndCondition] [varchar](512) NULL,
+	[DBUserID] [int] NULL,
+	[DBServerDateTime] [datetime] NULL,
+ CONSTRAINT [PK_PQTermsAndCondition] PRIMARY KEY CLUSTERED 
+(
+	[PQTermsAndConditionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  View [dbo].[View_PurchaseRequisition]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/*
+View Name :  View_PurchaseRequisition
+Author : Md. Mahabub  Alam
+Date : 10 Sep  2015
+*/
+
+
+CREATE VIEW [dbo].[View_PurchaseRequisition]
+AS
+SELECT		  PR.PRID
+			, PR.PRNo
+			, PR.PRDate
+			, PR.Note
+			, PR.RequisitionBy
+			, PR.ApproveBy
+			, PR.ApproveDate
+			, PR.BUID
+			, PR.DBUserID
+			, PR.DBServerDateTime
+			, PR.LastUpdateBy
+			, PR.LastUpdateDateTime
+			, PR.[Status]
+			 ,PR.RequirementDate
+			 ,PR.DepartmentID
+			, Department.Name as DepartmentName
+			, ApprovedUser.UserName AS ApprovedByName
+			, PreparedUser.UserName AS PrepareByName
+			, BusinessUnit.Code AS BUCode
+			, BusinessUnit.Name as BUName
+			,(SELECT UserName FROM Users WHERE UserID = PR.RequisitionBy) aS RequisitionByName
+			,(SELECT Code FROM Employee WHERE EmployeeID =  (SELECT EmployeeID FROM Users WHERE UserID = PR.RequisitionBy)) aS RequisitionByCode
+			,(SELECT EmployeeDesignationType FROM Employee WHERE EmployeeID =  (SELECT EmployeeID FROM Users WHERE UserID = PR.RequisitionBy)) aS EmployeeDesignationType
+			,(Select COUNT(*) from PurchaseRequisitionDetail where PRID=PR.PRID) as TotalDetail
+			,(Select COUNT(*) from PurchaseRequisitionDetail where  PRID=PR.PRID) as TotalConfirm
+
+
+FROM            PurchaseRequisition AS PR
+LEFT OUTER JOIN Users as PreparedUser ON  PR.RequisitionBy =  PreparedUser.UserID 
+LEFT OUTER JOIN Users AS ApprovedUser ON  PR.ApproveBy = ApprovedUser.UserID 
+LEFT OUTER JOIN BusinessUnit ON PR.BUID =  BusinessUnit.BusinessUnitID 
+LEFT OUTER JOIN Department ON PR.DepartmentID =  Department.DepartmentID 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[View_PurchaseRequisitionDetail]    Script Date: 7/25/2017 2:43:21 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+/*
+View Name :  View_PurchaseRequisitionDetail
+Author : Md. Mahabub Alam
+Date : 20 July 2016
+*/
+
+
+CREATE VIEW [dbo].[View_PurchaseRequisitionDetail]
+AS
+SELECT	PRD.PRDetailID
+		, PRD.PRID
+		, PRD.ProductID
+		, PRD.MUnitID
+		, PRD.Qty
+		, PRD.UnitPrice
+		, PRD.Note
+		, PRD.DBUserID
+		, PRD.DBServerDateTime
+		,PRD.OrderRecapID
+		, PRD.LastUpdateBy
+		, PRD.LastUpdateDateTime
+		,PRD.RequiredFor
+		, View_Product.ProductCode
+		, View_Product.GroupName
+		, View_Product.ProductName
+		, View_Product.ShortName as ProductSpec
+		, MeasurementUnit.Symbol as UnitSymbol
+		, MeasurementUnit.UnitName as UnitName
+		,PurchaseRequisition.PRNo
+		,PurchaseRequisition.BUID
+		,PurchaseRequisition.RequirementDate
+		,PurchaseRequisition.PrepareByName
+		,OrderRecap.BuyerName
+		,OrderRecap.OrderRecapNo
+		,OrderRecap.StyleNo
+		,(SELECT top 1 Balance FROM Lot WHERE ProductID = PRD.ProductID AND  BUID = PurchaseRequisition.BUID ORder By LotID DESC)AS PresentStock
+		,(SELECT Symbol FROM MeasurementUnit WHERE MeasurementUnitID = (SELECT top 1 MUnitID FROM Lot WHERE ProductID = PRD.ProductID AND  BUID = PurchaseRequisition.BUID ORder By LotID DESC))AS PresentStockUnitName
+		, (SELECT top 1 [DateTime] FROM ITransaction WHERE ProductID = PRD.ProductID AND TriggerParentType = 103 AND LotID IN (SELECT LotID FROM Lot WHERE BUID = PurchaseRequisition.BUID) ORDER BY ITransactionID DESC) AS LastSupplyDate
+		, (SELECT top 1 Qty FROM ITransaction WHERE ProductID = PRD.ProductID AND TriggerParentType = 103 AND LotID IN (SELECT LotID FROM Lot WHERE BUID = PurchaseRequisition.BUID) ORDER BY ITransactionID DESC) AS LastSupplyQty
+		,(SELECT Symbol FROM MeasurementUnit WHERE MeasurementUnitID =  (SELECT top 1 MUnitID FROM ITransaction WHERE ProductID = PRD.ProductID AND TriggerParentType = 103 AND LotID IN (SELECT LotID FROM Lot WHERE BUID = PurchaseRequisition.BUID) ORDER BY ITransactionID DESC)) AS LastSupplyUnitName
+		, (SELECT ISNULL(SUM(L.Balance),0) FROM View_Lot AS L WHERE L.ProductID=PRD.ProductID) AS StockInQty
+		, (SELECT ApproveBy FROM PurchaseRequisition WHERE PRID = PRD.PRID) AS ApproveBy
+
+FROM             PurchaseRequisitionDetail AS PRD
+LEFT JOIN view_Product ON  PRD.ProductID =  view_Product.ProductID
+LEFT JOIN MeasurementUnit ON  PRD.MUnitID =  MeasurementUnit.MeasurementUnitID
+LEFT JOIN View_PurchaseRequisition as PurchaseRequisition  ON  PurchaseRequisition.PRID =  PRD.PRID
+LEFT JOIN View_OrderRecap AS OrderRecap ON OrderRecap.OrderRecapID = PRD.OrderRecapID
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GO

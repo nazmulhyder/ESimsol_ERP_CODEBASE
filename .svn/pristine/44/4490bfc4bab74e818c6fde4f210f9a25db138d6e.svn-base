@@ -1,0 +1,476 @@
+﻿
+@model ESimSol.BusinessObjects.TrialBalanceGroup
+@{
+    ViewBag.Title = "Trial Balance";
+}
+
+<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>
+<div style="margin-left:0px; height:100%">
+    <div >
+        <table border="0" cellpadding="2" cellspacing="2" style="width:100%;height:100%">
+            <tr>
+                <td style="text-align: left; font-size: 12px">
+                    <table border="0" style="font-size: 12px;">
+                        <tr>
+                            <td style="font-size: 12px; text-align: left;">
+                                Date :
+                                <select id="cboDateSearch" style="width:83px;font-size:12px;" class="_select_changeA"></select>
+                                <input id="txtStartDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                To
+                                <input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                <select id="cboAccountType"></select>
+                                <input type="text" id="txtAccountHeadName" placeholder="Type part of ledger then press enter" style="width:325px" />
+                                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print Trial Balance</a>
+                                @*<a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>*@
+                                <a id="btnTBGConfig" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Configuration</a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>  
+    <table id="tblTrialBalanceGroup" title="Trial Balance" class="easyui-datagrid" style="width:100%;height:95%"></table>
+   
+</div>
+<style>
+    #progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }
+</style>
+<script type="text/javascript">
+    var _oTrialBalanceGroups=[];
+    var _oTrialBalanceGroup=null;
+    var _sBaseAddress="";
+    var _oCompany=null;
+    var _nAccountHeadID=0;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oTrialBalanceGroup=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oCompany=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Company));
+        //   RefreshList(_oTrialBalanceGroup)
+        debugger;
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+    
+        RefreshDateSearch();
+        var listAccountTypeObjs = _oTrialBalanceGroup.AccountTypeObjs;
+        LoadAccountTypes(listAccountTypeObjs);
+        $('#txtEndDate').datebox({disabled: true});
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+    function LoadAccountTypes(Items)
+    {
+        var listItems="";
+        for (i = 0; i < Items.length; i++)
+        {
+            if(Items[i].Id !=0)
+            {
+                listItems += "<option value='" + Items[i].Id+"'>" + Items[i].Value+"</option>";
+            }
+        }
+        $("#cboAccountType").html(listItems);
+        $("#cboAccountType").val(2);
+    }
+   
+   
+    function RefreshDateSearch()
+    {
+        //document.getElementById("tdSearchStartDate").style.display = 'none';
+        //document.getElementById("tdSearchEndDate").style.display = 'none';
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        $('#cboDateSearch').empty();
+        var listDates = "<option value='"+1+"'>" + "EqualTo" + "</option>";
+        listDates+= "<option value='"+5+"'>" + "Between" + "</option>";
+        $("#cboDateSearch").html(listDates);
+
+        $('#cboContractorType').empty();
+        var listDates= "<option value='"+2+"'>" +"Buyer" + "</option>";
+        listDates+= "<option value='"+1+"'>" + "Suplier" + "</option>";
+        $("#cboContractorType").html(listDates);
+    }
+
+    $('._select_changeA').change(function () {
+        var DateTypes = document.getElementById("cboDateSearch");
+        var DateType=DateTypes.options[DateTypes.selectedIndex].text;
+        if (DateType == "EqualTo") {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "None" )
+        {
+            $('#txtStartDate').datebox({disabled: true});
+            $('#txtEndDate').datebox({disabled: true});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+        if (DateType == "Between" ||DateType == "NotBetween"  )
+        {
+            $('#txtStartDate').datebox({disabled: false});
+            $('#txtEndDate').datebox({disabled: false});
+            $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+        }
+    });
+
+    function updateProgress() {   
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 15);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    $("#btnRefresh").click(function(){
+        if(!ValidateInput())return;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+
+        if (_nAccountHeadID==null || _nAccountHeadID<=0) 
+        {
+            alert("Please select a Account head!!");
+            $('#txtAccountHeadName').focus();
+            return ;
+        }
+        if (nAccountType==null || nAccountType<=0) 
+        {
+            alert("Please select a Account Type!!");
+            $('#cboAccountType').focus();
+            return ;
+        }
+
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var oTrialBalanceGroup= {
+            DateType:         dDateType,
+            AccountTypeInInt :parseInt(nAccountType),
+            AccountHeadID:    _nAccountHeadID,
+            StartDate:        $('#txtStartDate').datebox('getValue'),
+            EndDate:          $('#txtEndDate').datebox('getValue')
+        }
+        var intervalID = setInterval(updateProgress, 250);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/TrialBalanceGroup/GetsTrailBalByDateRange",
+            traditional: true,
+            data:  JSON.stringify(oTrialBalanceGroup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oTrialBalanceGroups = jQuery.parseJSON(data);
+                $('#progressbar').progressbar('setValue', 100);
+                clearInterval(intervalID);
+                if (oTrialBalanceGroups.length > 0) {
+                    RefreshList(oTrialBalanceGroups);
+                }
+                else {
+                    oTrialBalanceGroups=[];
+                    RefreshList(oTrialBalanceGroups);
+                    alert(oTrialBalanceGroup.ErrorMessage);
+                }
+                setTimeout(hideShow, 1000);
+            },
+            error: function (xhr, status, error) {
+                setTimeout(hideShow, 1000);
+                alert(error);
+            }
+        });
+    });
+
+    function ValidateInput()
+    {
+        if ( $('#txtStartDate').datebox('getValue')=="") {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+
+        if ( $('#txtEndDate').datebox('getValue')=="") {
+            alert("Please select end date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshList(oTrialBalanceGroups)
+    {
+        debugger;
+        var Datas=[];
+        var oTBGdata = { };
+        var nAccountHeadID=0;
+     // Create Column and make a object/////////////////
+        var tblColums=[];
+        var oColumn=null;
+        oColumn= { field :"SLNo", title:"SL No", width:"107"}; 
+        tblColums.push(oColumn);    
+        oColumn= { field :"AccountHeadName", title:"Particulars", width:"130", align: "left"}; 
+        tblColums.push(oColumn);    
+     
+        oTBGdata["SLNo"] ="";
+        oTBGdata["AccountHeadName"] ="";
+     
+        for (var i = 0; i < oTrialBalanceGroups.length; i++ )
+        { 
+            if(oTrialBalanceGroups[i].AccountHeadID== nAccountHeadID || nAccountHeadID==0)
+            {
+                oColumn= {
+                    field:"Opening"+oTrialBalanceGroups[i].ColNo,
+                    title: "\nOpening",
+                    width: 150,
+                    align: "right"
+                }; 
+                tblColums.push(oColumn);
+                oTBGdata["Opening"+oTrialBalanceGroups[i].ColNo] =oTrialBalanceGroups[i].StartDateSt;
+                
+
+                oColumn= {
+                    field:"DR"+oTrialBalanceGroups[i].ColNo,
+                    title: "DR",
+                    width: 100,
+                    align: "right"
+                }; 
+                tblColums.push(oColumn);
+                oTBGdata["DR"+oTrialBalanceGroups[i].ColNo] ="";
+
+                oColumn= {
+                    field:"CR"+oTrialBalanceGroups[i].ColNo,
+                    title: "CR",
+                    width: 100,
+                    align: "right"
+                }; 
+                tblColums.push(oColumn);
+                oTBGdata["CR"+oTrialBalanceGroups[i].ColNo] ="";
+                oColumn= {
+                    field:"Closing"+oTrialBalanceGroups[i].ColNo,
+                    title: "Closing",
+                    width: 150,
+                    align: "right"
+                }; 
+                tblColums.push(oColumn);
+                oTBGdata["Closing"+oTrialBalanceGroups[i].ColNo] =oTrialBalanceGroups[i].EndDateSt;
+            }
+            else
+            {
+                break;
+            }
+
+            nAccountHeadID=oTrialBalanceGroups[i].AccountHeadID;
+        }
+        Datas.push(oTBGdata);
+    
+
+        /// Make Object as like Coloumn
+        nAccountHeadID=0;
+        oTBGdata = { };
+        var nCount=0;
+     
+        $('#tblTrialBalanceGroup').datagrid({ columns:[tblColums]});
+        debugger;
+   
+        for (var i = 0; i < oTrialBalanceGroups.length; i++ ) {
+          
+            if(nAccountHeadID!=oTrialBalanceGroups[i].AccountHeadID)
+            {
+                nCount++;
+                oTBGdata["SLNo"] =nCount.toString();
+                oTBGdata["AccountHeadName"] = oTrialBalanceGroups[i].AccountHeadName ;
+            }
+            oTBGdata["Opening"+oTrialBalanceGroups[i].ColNo] =oTrialBalanceGroups[i].OpeningBalanceSt;
+            oTBGdata["DR"+oTrialBalanceGroups[i].ColNo] =oTrialBalanceGroups[i].DebitAmountSt;
+            oTBGdata["CR"+oTrialBalanceGroups[i].ColNo] = oTrialBalanceGroups[i].CreditAmountSt;
+            oTBGdata["Closing"+oTrialBalanceGroups[i].ColNo] =oTrialBalanceGroups[i].ClosingBalanceSt;
+        
+            if(i<oTrialBalanceGroups.length-1)
+            {
+                if(oTrialBalanceGroups[i].AccountHeadID!=oTrialBalanceGroups[i+1].AccountHeadID)
+                {
+                    Datas.push(oTBGdata);
+                     oTBGdata = { };
+                }
+            }
+            else{
+                Datas.push(oTBGdata);
+                oTBGdata = { };
+    
+            }
+            nAccountHeadID=oTrialBalanceGroups[i].AccountHeadID;
+        }
+        debugger;
+
+        data= Datas;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTrialBalanceGroup').datagrid('loadData',data); 
+        //document.getElementById('lblPITotallbsQty').innerHTML = nTotalQtyInLBS.toFixed(2);
+        //document.getElementById('lblPITotalkgQty').innerHTML = nTotalQtyInKG.toFixed(2);
+        //document.getElementById('lblPITotalAmount').innerHTML = '$' + nTotalAmount.toFixed(2);
+    }
+
+
+    $("#btnPrint").click(function(){
+        
+        if(!ValidateInput())return;
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        // var dDateType = Date.options[Date.selectedIndex].innerHTML;
+        var dDateType = document.getElementById("cboDateSearch").value;
+     
+        var  sTempString = dDateType + '~' + dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + _nAccountHeadID;
+        window.open(_sBaseAddress + '/TrialBalanceGroup/PrintTrialBalanceGroup?sTempString='+sTempString, "_blank");
+    });
+
+ 
+
+    $("#btnPrintXL").click(function(){
+         
+        //$('#tblTrialBalanceGroup').treegrid('reload', 2);
+        if(!ValidateInput())return;
+        var sAccountType = "";
+        var selectedCbo =document.getElementById("cboAccountType");
+        var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+        var dStartDate=$('#txtStartDate').datebox('getValue');
+        var dEndDate=$('#txtEndDate').datebox('getValue')
+        var Date = document.getElementById("cboDateSearch");
+        var dDateType = document.getElementById("cboDateSearch").value;
+        var nAccountHeadID = 0;
+        var sTempString = dStartDate+ '~' + dEndDate+ '~' + parseInt(nAccountType)+'~' + parseInt(nAccountHeadID);
+        window.open(_sBaseAddress + '/TrialBalanceGroup/PrintTrialBalanceInXL?sTempString='+sTempString, "_blank");
+    });
+
+   
+
+   
+    
+    $('#txtAccountHeadName').keypress(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+
+            var selectedCbo =document.getElementById("cboAccountType");
+            var nAccountType = selectedCbo.options[selectedCbo.selectedIndex].value;
+            if(nAccountType ==null || nAccountType<=0)
+            {
+                alert("Please Select a Account Type!");
+                $('#cboAccountType').focus();
+                return false;
+            }
+
+            var txtAccountHead = document.getElementById('txtAccountHeadName').value;
+            if(txtAccountHead!="")
+            {
+               
+
+                var tsv=((new Date()).getTime())/1000;
+                _oAccountHead=null;
+                var oParameter = new Object();
+                oParameter.EnteredText=txtAccountHead;
+                var url =_sBaseAddress+ "/TrialBalanceGroup/ViewAccountsHead?sTemp="+txtAccountHead+"&nAID="+nAccountType+"&ts="+tsv;
+                _oCreditChartOfAccount = window.showModalDialog(url, oParameter, 'dialogHeight:470px;dialogWidth:385px;dialogLeft:520;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+                _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+                if(_oCreditChartOfAccount !=null)
+                {
+                    if(parseInt(_oCreditChartOfAccount.AccountHeadID)>0)
+                    {
+                        _nAccountHeadID=_oCreditChartOfAccount.AccountHeadID;
+                        var txttempAccountHead=document.getElementById("txtAccountHeadName");
+                        txttempAccountHead.value=_oCreditChartOfAccount.AccountHeadName;
+                        txttempAccountHead.style.color="blue";
+                        txttempAccountHead.style.fontWeight="bold";
+                    }
+                    else
+                    {
+                        _nAccountHeadID=0;
+                    }
+                }
+            }
+        }
+    });
+
+
+    $('#txtAccountHeadName').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 8) //backspace=8
+        {
+            var txtAccountHeadName=document.getElementById("txtAccountHeadName");
+            txtAccountHeadName.style.color="black";
+            txtAccountHeadName.style.fontWeight="normal";
+            _oCreditChartOfAccount.AccountHeadID = 0;
+            _nAccountHeadID=0;
+        }
+    });
+
+
+    
+    //for (var i = 0; i < oTrialBalanceGroups.length; i++ ) {
+    //    nCount++;
+    //    //nTotalQtyInLBS = nTotalQtyInLBS + oTrialBalanceGroups[oItem].Qty;
+    //    //nTotalQtyInKG = nTotalQtyInKG + oTrialBalanceGroups[oItem].QtyKG;
+    //    //nTotalAmount = nTotalAmount + oTrialBalanceGroups[oItem].TotalValue;
+    //    if(nAccountHeadID!=oTrialBalanceGroups[i].AccountHeadID)
+    //    {
+    //        sTempTableRow = sTempTableRow + '<tr>';
+    //        sTempTableRow = sTempTableRow + '<td style="width:30px; text-align:left; border:1px solid black;  font-size:11px; font-family:Tahoma">' + nCount.toString() + '</td>';
+    //        sTempTableRow = sTempTableRow + '<td style="width:330px; text-align:left; border:1px solid black; font-size:11px; font-family:Tahoma">' + oTrialBalanceGroups[i].AccountHeadName + '</td>';
+    //    }
+    //    sTempTableRow = sTempTableRow + '<td style="width:110px; text-align:right;  border:1px ; font-size:11px; font-family:Tahoma">' + oTrialBalanceGroups[i].OpenningBalance.toFixed(2) + '</td>';
+    //    sTempTableRow = sTempTableRow + '<td style="width:110px; text-align:right;  border:1px ; font-size:11px; font-family:Tahoma">' + oTrialBalanceGroups[i].DebitAmount.toFixed(2) + '</td>';
+    //    sTempTableRow = sTempTableRow + '<td style="width:110px; text-align:right;  border:1px ;  font-size:11px; font-family:Tahoma">' + oTrialBalanceGroups[i].CreditAmount.toFixed(2) + '</td>';
+    //    sTempTableRow = sTempTableRow + '<td style="width:110px; text-align:right;  border:1px ;  font-size:11px; font-family:Tahoma">' + oTrialBalanceGroups[i].ClosingBalance.toFixed(2) + '</td>';
+          
+    //    debugger;
+    //    nTotalAmount=i;
+    //    if(i<oTrialBalanceGroups.length-1)
+    //    {
+    //        if(oTrialBalanceGroups[i].AccountHeadID!=oTrialBalanceGroups[i+1].AccountHeadID)
+    //        {
+    //            sTempTableRow = sTempTableRow + '</tr>';
+    //            $('#tblTrialBalanceGroup').append(sTempTableRow);
+    //            sTempTableRow = '';
+    //        }
+    //    }
+    //    else{
+    //        sTempTableRow = sTempTableRow + '</tr>';
+    //        $('#tblTrialBalanceGroup').append(sTempTableRow);
+    //        sTempTableRow = '';
+    //    }
+    //    nAccountHeadID=oTrialBalanceGroups[i].AccountHeadID;
+    //    ////////
+    //}
+    
+    $("#btnTBGConfig").click(function(){
+        
+        debugger;
+        var oParameter = new Object();
+        oParameter.Name = "Trial Balance Config";
+        var tsv=((new Date()).getTime())/1000;
+        var url =_sBaseAddress+ "/TrialBalanceConfig/ViewTrialBalanceConfig?id=0&ts="+tsv;
+         window.showModalDialog(url, oParameter, 'dialogHeight:320px;dialogWidth:405px;dialogLeft:450;dialogTop:110;center:yes;resizable:no;status:no;scroll:no');
+    });
+</script>

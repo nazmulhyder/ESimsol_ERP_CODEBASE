@@ -1,0 +1,279 @@
+﻿@{
+    ViewBag.Title = "Approval Head Person";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ApprovalHeadPerson>
+
+    <div ng-app="mainApp1">
+        <div ng-controller="mainController1">
+                <div class="col-md-12">
+                    <div class="col-md-12">
+                        <h4 class="text-success">Person assign for : {{headFor}}</h4>
+                    </div>
+                    <div class="form-inline">
+                        <label>User Name: </label>
+                        <input class="form-control" type="text" placeholder="Enter User" ng-keydown="EntryUser($event)" ng-model="txtUserName" />
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>Pick</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="remove()"> <span class="glyphicon glyphicon-minus" aria-hidden="true"></span>Remove</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="active()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>Active/Inactive</button>
+
+                    </div>
+                    <div ui-grid="gridOption" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid ui-grid-selectable"></div>
+                    <div class="col-md-2 pull-right" style="margin-top:2px; margin-right:-15px;">
+                        <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>Close</button>
+                    </div>
+                </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 10px;
+        }
+
+        .grid {
+            height: 465px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oApprovalHeadPersons =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var nAHID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AHID));
+        var oHead =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Head));
+
+
+    debugger;
+    var  mainAppModule = angular.module('mainApp1', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    mainAppModule.controller('mainController1', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession, icsMethod) {
+        debugger;
+        $scope.headFor = oHead.Name;
+
+        $scope.gridOption ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            columnDefs: [
+                { field: 'UserName', name: 'User Name', width: '30%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'EmployeeName', name: 'Employee', width: '30%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'ActiveInactive', name: 'Active / Inactive', width: '20%',  cellClass: 'text-left',enableCellEdit:false   }
+
+            ],
+            data:oApprovalHeadPersons,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+
+            }
+        };
+        $scope.EntryUser = function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var Name = $.trim($scope.txtUserName);
+
+                $scope.Pick();
+            }
+            else if (code == 8) //backspace=8
+            {
+                $scope.UserID = '';
+            }
+        };
+        $scope.add = function(){
+            $scope.Pick();
+        }
+
+        $scope.UIDs = '';
+        $scope.Pick = function () {
+            var obj = {
+                UserName: $.trim($scope.txtUserName)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/User/GetUesrsByName', $.param(obj), config).then(
+                function (response) {
+                    debugger;
+                    var oColumns = [];
+                    var oColumn = { field: 'UserName', name: 'User Name', width: '90%', enableSorting: false }; oColumns.push(oColumn);
+
+                    var results = jQuery.parseJSON(response.data);
+                    var modalObj = {
+                        size: 'sm',
+                        modalcontroller: 'ModalCommonListCtrl',
+                        appcontroller: 'ApprovalHeadController',
+                        objs: results,
+                        multiSelect: true,
+                        pickertitle: 'User List',
+                        searchingbyfieldName: 'UserName',
+                        columns: oColumns
+                    }
+                    var modalInstance = msModal.Instance(modalObj);
+                    modalInstance.result.then(function (result) {
+                       
+                        //$scope.gridOption.data=(result);
+                        $scope.txtUserName = result.length > 1 ? result.length + "Item's Selected" : result[0].UserName;
+                       // $scope.UIDs = icsMethod.ICS_PropertyConcatation(result, 'UserID');
+
+                        var oAPHs = [];
+                        for(var i = 0 ; i < result.length; i++) 
+                        {
+                            var oAPH = {
+                                ApprovalHeadID : parseInt(nAHID),
+                                UserID :  parseInt(result[i].UserID)
+                            };
+                            oAPHs.push(oAPH);
+                        }
+
+                        debugger;
+
+                        var oApprovalHead = {
+                            ApprovalHeadID : parseInt(nAHID),
+                            ApprovalHeadPersons : oAPHs
+                        }
+                        debugger;
+                        var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                        $http.post(_sBaseAddress+'/ApprovalHead/ApprovalHeadPerson_IU',(oApprovalHead)).then(function (response){
+
+                            debugger;
+                            var result=jQuery.parseJSON(response.data);
+                            
+                            if( result.ErrorMessage == "")
+                            {
+                                debugger;
+                                alert("Approval Head Person Added");
+                                debugger;
+                                $scope.gridOption.data=(result.ApprovalHeadPersons);
+                                $scope.txtUserName = '';
+                            }
+                            else{
+                                msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                            }
+                        },
+                                         function (response) { alert(jQuery.parseJSON(response.data)[0].ErrorMessage);}
+                         );
+
+
+                    }, function () {
+                        $log.info('Modal dismissed at: ' + new Date());
+                    });
+                },
+                    function (response) { alert(jQuery.parseJSON(response.data).Message); }
+            );
+        };
+
+        $scope.remove = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post(_sBaseAddress+ '/ApprovalHead/ApprovalHeadPerson_Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOption.data,function(value,index){
+                                        if(value.ApprovalHeadPersonID==data[0].ApprovalHeadPersonID){
+                                            $scope.gridOption.data.splice(index,1);
+                                        }
+                                    },$scope.gridOption.data);
+                                    alert("Deleted Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+
+        };
+
+
+        
+
+        $scope.active = function () {
+            debugger;
+            $scope.flag = 1;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to Activate.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if(data[0].IsActive == true) {
+                $scope.flag = 0;
+                if (!confirm("Confirm to InActive?")) return false;
+            }
+            else{
+                if (!confirm("Confirm to Active?")) return false;
+            }
+
+            
+            if (data == null || data[0].ApprovalHeadPersonID <= 0) {
+                alert("Invalid Field!!! please select a valid Field!");
+                return false;
+            }
+
+            $http.post(_sBaseAddress+ '/ApprovalHead/ActivateApprovalHeadPerson',JSON.stringify(data[0])).then(
+                            function (response) 
+                            {
+                                debugger;
+                                var oApprovalHeadPerson=jQuery.parseJSON(response.data);
+                                if(oApprovalHeadPerson.ApprovalHeadPersonID>0)
+                                {
+                                    debugger;
+                                    angular.forEach($scope.gridOption.data,function(value,index)
+                                    {
+                                        if(value.ApprovalHeadPersonID==oApprovalHeadPerson.ApprovalHeadPersonID){
+                                            $scope.gridOption.data[index]=oApprovalHeadPerson;
+                                        }
+                                    },
+                                    $scope.gridOption.data);
+                                    if($scope.flag == 1)
+                                        alert("Active Successfully.");
+                                    else alert("InActive Successfully.");
+                                } 
+                                else
+                                {
+                                    alert("Failed To Activate!!");
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+        };
+
+        $scope.close = function() {
+            userSession.previousPage();
+        }
+
+
+
+    });
+
+
+    </script>
+
+
+
+

@@ -1,0 +1,425 @@
+﻿@{
+    ViewBag.Title = "Voucher Bill List";
+}
+@model ESimSol.BusinessObjects.VoucherBill
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblVoucherBill" title="Bill List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead data-options="frozen:true">
+            <tr>
+                <th field="BillNo" width="200" align="left">Bill No</th>
+                <th field="SubLedgerName" width="150" align="left">SubLedger Name</th>
+            </tr>
+        </thead>
+        <thead>
+            <tr>                
+                <th field="AccountHeadName" width="150" align="left">Account Head Name</th>
+                <th field="BillDateInString" width="80" align="center">Bill Date</th> 
+                <th field="DueDateInString" width="80" align="center">Due Date</th>
+                <th field="IsHoldBillSt" width="70">Bill Type</th>
+                <th field="CurrencyAmountWithSymbol" width="120" align="right">Amount</th>
+                <th field="RemainningBalanceCFormat" width="120" align="right">Remainning Balance</th>
+                <th field="OpeningBillAmountAndSymbol" width="120" align="right">Opening Bill Amount</th>
+                <th field="OpeningBillDateInString" width="100" align="right">Opening Bill Date</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <select id="cboBusinessUnit" style="width:150px;"></select>
+        <input type="text" id="txtSearchByBillNo" placeholder="Search by Bill No" style="width:100px" />
+        <input type="text" id="txtSearchByAccountHeadName" placeholder="Search by Account Head Name" style="width:120px;" />
+        <input type="text" id="txtSearchBySubLedger" placeholder="Search By Sub Ledger" style="width:120px;" />
+        <input type="checkbox" id="checkRemainningBalance" name="checkRemainningBalance" checked>Remainning Balance
+        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" >Search</a>
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" >Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" >View</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" >Delete</a>
+        <a id="btnBillTransactions" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Bill Transactions</a>
+        <a id="btnBillHold" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Bill Hold</a>
+        <a id="btnBillUnHold" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Bill Un-Hold</a>
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        <a id="btnExportToExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+    </div>
+</div>
+
+ <script type="text/javascript">
+    var _oVoucherBill = null;;    
+    var _oVoucherBills = [];
+    var _oAuthorizationRolesMapping =[];
+    $(document).ready(function () {        
+        var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oVoucherBill =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").data('BusinessUnits',oBusinessUnits);
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Business Unit--"});
+        $('#cboBusinessUnit').val(0);
+
+        var oVoucherBills =sessionStorage.getItem("VoucherBills");
+        if(oVoucherBills!=null)
+        {
+            oVoucherBills = jQuery.parseJSON(oVoucherBills);
+        }
+        else
+        {
+            oVoucherBills=_oVoucherBill.VoucherBills;
+        }
+
+        RefreshControlLayout(oAURolesMapping);
+        RefreshList(oVoucherBills);
+        $('#btnBillUnHold').hide();
+    });
+
+     function ValidateInput()
+     {
+         var nBUID  = parseInt($('#cboBusinessUnit').val());
+         var sBillNo = $.trim($('#txtSearchByBillNo').val());
+         var sAccountHeadName = $.trim($('#txtSearchByAccountHeadName').val());
+         var sSubLedgerName = $.trim($('#txtSearchBySubLedger').val());
+         
+         if(nBUID === 0 && sBillNo === "" && sAccountHeadName === "" && sSubLedgerName === "")
+         {
+             alert("Please select at least one searching criteria!");
+             return false;
+         }
+         return true;
+     }
+
+     $("#btnSearch").click(function(){
+        if(!ValidateInput())return;
+        var nRemainningBalance=0;
+        var checkRemainningBalance =document.getElementById("checkRemainningBalance");
+        if(checkRemainningBalance.checked)
+        {
+            nRemainningBalance=1;
+        }
+
+        var oVoucherBill =  {
+            BUID  : parseInt($('#cboBusinessUnit').val()),
+            BillNo : $('#txtSearchByBillNo').val(),
+            AccountHeadName:$('#txtSearchByAccountHeadName').val(),
+            SubLedgerName:$('#txtSearchBySubLedger').val(),
+            RemainningBalance : nRemainningBalance
+        };        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/GetsBills",
+            data:JSON.stringify(oVoucherBill),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oVoucherBills = data;
+                if(oVoucherBills!=null)
+                {
+                    RefreshList(oVoucherBills);                    
+                }
+                else
+                {
+                    alert("Invalid Operation!");
+                }                
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+     });
+
+     $("#btnPrint").click(function(){
+         if(!ValidateInput())return;
+
+         var bLandScape=true;
+         if (!confirm("Print With Landscape?"))
+         {
+             bLandScape= false;
+         }  
+
+
+         var nRemainningBalance=0;
+         var checkRemainningBalance =document.getElementById("checkRemainningBalance");
+         if(checkRemainningBalance.checked)
+         {
+             nRemainningBalance=1;
+         }
+
+         var oVoucherBill =  {
+             BUID  : parseInt($('#cboBusinessUnit').val()),
+             BillNo : $('#txtSearchByBillNo').val(),
+             AccountHeadName:$('#txtSearchByAccountHeadName').val(),
+             SubLedgerName:$('#txtSearchBySubLedger').val(),
+             RemainningBalance : nRemainningBalance
+         };
+         $.ajax({
+             type: "POST",
+             dataType: "json",
+             url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/SetSessionData",
+             data:JSON.stringify(oVoucherBill),
+             contentType: "application/json; charset=utf-8",
+             success: function (data) {
+                 var sFeedBackMessage = jQuery.parseJSON(data);
+                 if (sFeedBackMessage==="Successful") {
+                     window.open(sessionStorage.getItem("BaseAddress")+'/VoucherBill/VoucherBillRegister?blandscape=' +bLandScape, "_blank");
+                 }
+             },
+             error: function (xhr, status, error)
+             {
+                 alert(error);
+             }
+         });
+     });
+
+     $("#btnExportToExcel").click(function(){
+         if(!ValidateInput())return;
+
+         var nRemainningBalance=0;
+         var checkRemainningBalance =document.getElementById("checkRemainningBalance");
+         if(checkRemainningBalance.checked)
+         {
+             nRemainningBalance=1;
+         }
+
+         var oVoucherBill =  {
+             BUID  : parseInt($('#cboBusinessUnit').val()),
+             BillNo : $('#txtSearchByBillNo').val(),
+             AccountHeadName:$('#txtSearchByAccountHeadName').val(),
+             SubLedgerName:$('#txtSearchBySubLedger').val(),
+             RemainningBalance : nRemainningBalance
+         };
+         $.ajax({
+             type: "POST",
+             dataType: "json",
+             url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/SetSessionData",
+             data:JSON.stringify(oVoucherBill),
+             contentType: "application/json; charset=utf-8",
+             success: function (data) {
+                 var sFeedBackMessage = jQuery.parseJSON(data);
+                 if (sFeedBackMessage==="Successful") {
+                     window.open(sessionStorage.getItem("BaseAddress")+'/VoucherBill/ExportToXL', "_blank");
+                 }
+             },
+             error: function (xhr, status, error)
+             {
+                 alert(error);
+             }
+         });
+     });
+
+    function RefreshList(oVoucherBills)
+    {
+        var data=oVoucherBills;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVoucherBill').datagrid('loadData',data);
+        $('#tblVoucherBill').datagrid({ onClickRow: function(index,row){ ChnageIsHoldButton(row); } });
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblVoucherBill').datagrid('selectRow',nIndex);
+    }
+
+    function ChnageIsHoldButton(oVoucherBill)
+    {
+        $('#btnBillHold').hide();
+        $('#btnBillUnHold').hide();
+        if(oVoucherBill.IsHoldBill===true)
+        {
+            $('#btnBillUnHold').show();
+        }
+        else
+        {
+            $('#btnBillHold').show();
+        }
+    }
+
+    $("#btnBillHold").click(function(){
+        var oVoucherBill = $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill == null || parseInt(oVoucherBill.VoucherBillID)<=0)
+        {
+            alert("Please select a Bill!");
+            return;
+        }
+        oVoucherBill.IsHoldBill = true;
+        if (!confirm("Confirm to Bill Hold?")) return ;
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/HoldUnHold",
+            data:JSON.stringify(oVoucherBill),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oVoucherBill = jQuery.parseJSON(data);
+                if (oVoucherBill !=null && oVoucherBill.VoucherBillID>0)
+                {
+                    alert("Bill Hold Successfully");
+                    $('#tblVoucherBill').datagrid('updateRow',{index: SelectedRowIndex,	row: oVoucherBill });
+                    ChnageIsHoldButton(oVoucherBill);
+
+                }
+                else
+                {
+                    alert(oVoucherBill.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnBillUnHold").click(function(){
+        var oVoucherBill = $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill == null || parseInt(oVoucherBill.VoucherBillID)<=0)
+        {
+            alert("Please select a Bill!");
+            return;
+        }
+        oVoucherBill.IsHoldBill = false;
+        if (!confirm("Confirm to Bill Un-Hold?")) return ;
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/HoldUnHold",
+            data:JSON.stringify(oVoucherBill),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oVoucherBill = jQuery.parseJSON(data);
+                if (oVoucherBill !=null && oVoucherBill.VoucherBillID>0)
+                {
+                    alert("Bill Un-Hold Successfully");
+                    $('#tblVoucherBill').datagrid('updateRow',{index: SelectedRowIndex,	row: oVoucherBill });
+                    ChnageIsHoldButton(oVoucherBill);
+
+                }
+                else
+                {
+                    alert(oVoucherBill.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnAdd").click(function(){
+        var oVoucherBills= $('#tblVoucherBill').datagrid('getRows');
+        sessionStorage.setItem("VoucherBills", JSON.stringify(oVoucherBills));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("VoucherBillHeader", "Add Voucher Bill");
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/VoucherBill/ViewNewVoucherBillPiker?id=0&ts="+tsv;
+    });
+
+    $("#btnEdit").click(function(){
+        var oVoucherBill= $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill==null || parseInt(oVoucherBill.VoucherBillID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        var oVoucherBills= $('#tblVoucherBill').datagrid('getRows');
+        sessionStorage.setItem("VoucherBills", JSON.stringify(oVoucherBills));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("VoucherBillHeader", "Edit Voucher Bill");        
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/VoucherBill/ViewNewVoucherBillPiker?id="+parseInt(oVoucherBill.VoucherBillID)+"&ts="+tsv;
+    });
+
+    $("#btnView").click(function(){
+        var oVoucherBill= $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill==null || parseInt(oVoucherBill.VoucherBillID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        var oVoucherBills= $('#tblVoucherBill').datagrid('getRows');
+        sessionStorage.setItem("VoucherBills", JSON.stringify(oVoucherBills));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("VoucherBillHeader", "View Voucher Bill");        
+        sessionStorage.setItem("BackLink", window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/VoucherBill/ViewNewVoucherBillPiker?id="+parseInt(oVoucherBill.VoucherBillID)+"&ts="+tsv;
+    });
+     
+    $("#btnDelete").click(function(){
+        var oVoucherBill= $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill==null || oVoucherBill.VoucherBillID<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        if (oVoucherBill.VoucherBillID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/VoucherBill/Delete",
+                data: { id: oVoucherBill.VoucherBillID },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Delete Successful")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tblVoucherBill').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    $("#btnBillTransactions").click(function(){
+        var oVoucherBill= $('#tblVoucherBill').datagrid('getSelected');
+        if(oVoucherBill==null || parseInt(oVoucherBill.VoucherBillID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblVoucherBill').datagrid('getRowIndex',oVoucherBill);
+        var oVoucherBills= $('#tblVoucherBill').datagrid('getRows');
+        sessionStorage.setItem("VoucherBills", JSON.stringify(oVoucherBills));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);        
+        sessionStorage.setItem("BackLink", window.location.href);
+        var sTrunsactionHeader = "Bill No :" + oVoucherBill.BillNo + " & Party Name :"+ oVoucherBill.SubLedgerName;
+        sessionStorage.setItem("VoucherBillNo", sTrunsactionHeader);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/VoucherBill/ViewBillTransactions?id="+parseInt(oVoucherBill.VoucherBillID)+"&ts="+tsv;
+    });
+
+    function RefreshControlLayout(oAURolesMapping)
+    {        
+        $("#btnSearch").hide();
+        $("#btnAdd").hide();
+        $("#btnEdit").hide();    
+        $("#btnView").hide();
+        $("#btnDelete").hide();
+        $("#btnBillTransactions").hide();
+        
+        
+        if(PermissionChecker('AdvSearch','VoucherBill',oAURolesMapping)){$("#btnSearch").show();}
+        if(PermissionChecker('Add','VoucherBill',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','VoucherBill',oAURolesMapping)){$("#btnEdit").show();}
+        if(PermissionChecker('View','VoucherBill',oAURolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Delete','VoucherBill', oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('BillTransaction','VoucherBill',oAURolesMapping)){$("#btnBillTransactions").show();}
+    }
+</script>
+

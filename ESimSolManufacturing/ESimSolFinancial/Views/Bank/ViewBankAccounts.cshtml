@@ -1,0 +1,255 @@
+﻿<html>
+
+<body>
+
+@model ESimSol.BusinessObjects.BankBranch
+
+    <div id="divBankAccount" class="easyui-panel" title="Add Bank Branch" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblBankAccounts" class="easyui-datagrid" style="width:100%;height:100%"
+                   data-options="
+                singleSelect: true,
+                fitColumns:true,
+                rownumbers:true,
+                pagination:false,
+                autoRowHeight:false,
+                toolbar: '#toolbar'
+            ">
+                <thead>
+                    <tr>
+                        <th field="AccountNo" style="width:20%;" align="left">Account No</th>
+                        <th field="AccountName" style="width:20%;" align="left">Account Name</th>
+                        <th field="BusinessUnitNameCode" style="width:20%;" align="left">Business Unit</th>
+                        <th field="LimitAmount" style="width:15%;" align="right">LimitAmount</th>
+                        <th field="CurrentLimit" style="width:15%;" align="right">CurrentLimit</th>                        
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                <input type="text" id="txtSearchbyCode" placeholder="Search by Code" style="width:105px" />
+                <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:200px" />
+                <a id="btnAddBankAccounts" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+                <a id="btnAccountEffect" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Account Effect</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript"> 
+ var _oBankAccount;
+ var _oBankAccounts=[]; 
+ var _oSelectedBankBranch=null; 
+ var _sBaseAddress="";
+ $(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oSelectedBankBranch =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));         
+    _oBankAccounts=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BankAccounts));    
+    //var obj = window.dialogArguments;
+    //document.getElementById('lblHeaderName').innerHTML='Bank Accounts for :' +_oSelectedBankBranch.BranchName;            
+    RefreshList();
+       
+    _sBankHeader=sessionStorage.getItem("BankBranchHeader");
+    var nIndex =sessionStorage.getItem("SelectedRowIndex");
+    _sBankHeader=_sBankHeader+' ->Branch for :' +_oSelectedBankBranch.BranchName; 
+    $('#divBankAccount').panel({ title:_sBankHeader});
+  
+    if(nIndex!=null)
+    {
+        $('#tblBankAccounts').datagrid('selectRow', nIndex);
+    }
+ }); 
+
+    $('#btnAccountEffect').click(function(){
+        var oBankAccount= $('#tblBankAccounts').datagrid('getSelected'); 
+        if(oBankAccount==null || oBankAccount.BankAccountID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblBankAccounts').datagrid('getRowIndex',oBankAccount);
+        var oBankAccounts= $('#tblBankAccounts').datagrid('getRows');
+        sessionStorage.setItem("BankAccounts", JSON.stringify(oBankAccounts)); 
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+        sessionStorage.setItem("BackLink", window.location.href);
+        sessionStorage.setItem("AccountEffectHeader", "Account Effect For Bank Account : "+oBankAccount.AccountNo);// EnumModuleName :  BankAccount=159,
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/AccountEffect/ViewAccountEffect?mid="+oBankAccount.BankAccountID+"&mtype=159&ts="+tsv;
+    });
+     
+$('#txtSearchbyCode').keypress(function (e) {
+    var c = String.fromCharCode(e.which);
+    var txtSearchbyCode = document.getElementById('txtSearchbyCode').value;
+    txtSearchbyCode = txtSearchbyCode + c;
+    var bFlag=false;
+    var sTempCode="";
+    var rows = $('#tblBankAccounts').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempCode=rows[i]['AccountNo'].substring(0, txtSearchbyCode.length);
+        if(txtSearchbyCode.toUpperCase()==sTempCode.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblBankAccounts').datagrid('selectRow', i);
+    }
+});
+
+$('#txtSearchByName').keypress(function (e) {
+    var c = String.fromCharCode(e.which);
+    var txtSearchByName = document.getElementById('txtSearchByName').value;
+    txtSearchByName = txtSearchByName + c;
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblBankAccounts').datagrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['AccountName'].substring(0, txtSearchByName.length);
+        if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblBankAccounts').datagrid('selectRow', i);
+    }
+});
+
+$("#btnAddBankAccounts").click(function(){
+    var oBankAccounts= $('#tblBankAccounts').datagrid('getRows');
+    sessionStorage.setItem("BankAccounts", JSON.stringify(oBankAccounts)); 
+    sessionStorage.setItem("SelectedRowIndex", -1);   
+    sessionStorage.setItem("BankAccountHeader", "Add Bank Account");
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankAccount?id=0&nid="+_oSelectedBankBranch.BankBranchID;
+    
+    
+  
+});
+
+$("#btnEdit").click(function(){
+    var oBankAccount= $('#tblBankAccounts').datagrid('getSelected'); 
+    if(oBankAccount==null || oBankAccount.BankAccountID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBankAccounts').datagrid('getRowIndex',oBankAccount);
+   
+   
+    var oBankAccounts= $('#tblBankAccounts').datagrid('getRows');
+    sessionStorage.setItem("BankAccounts", JSON.stringify(oBankAccounts)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("BankAccountHeader", "Edit BankAccount");
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankAccount?id="+oBankAccount.BankAccountID+"&nid="+_oSelectedBankBranch.BankBranchID;
+    
+    
+});
+
+$("#btnView").click(function(){
+    var oBankAccount= $('#tblBankAccounts').datagrid('getSelected'); 
+    if(oBankAccount==null || oBankAccount.BankAccountID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblBankAccounts').datagrid('getRowIndex',oBankAccount);
+   
+   
+    var oBankAccounts= $('#tblBankAccounts').datagrid('getRows');
+    sessionStorage.setItem("BankAccounts", JSON.stringify(oBankAccounts)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("BankAccountHeader", "View BankAccount");
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+ "/Bank/ViewBankAccount?id="+oBankAccount.BankAccountID+"&nid="+_oSelectedBankBranch.BankBranchID;
+});
+
+$("#btnDelete").click(function(){
+    var oBankAccount= $('#tblBankAccounts').datagrid('getSelected');
+    if (!confirm("Confirm to Delete?")) return ;
+    if(oBankAccount==null || oBankAccount.BankAccountID<=0)
+    {
+        alert("Invalid Field!!! please select a valid Field!");                  
+        return false;
+    }
+    var SelectedRowIndex=$('#tblBankAccounts').datagrid('getRowIndex',oBankAccount);
+    if (oBankAccount.BankAccountID> 0) 
+    {
+        $.ajax
+        ({
+            type: "GET",
+            dataType: "json",                
+            url : _sBaseAddress+  "/BankAccount/Delete",
+            data: { id: oBankAccount.BankAccountID},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted") 
+                {
+                    alert("Delete sucessfully");                        
+                    $('#tblBankAccounts').datagrid('deleteRow',SelectedRowIndex);
+                          
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList()
+{    
+    var data=_oBankAccounts;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBankAccounts').datagrid('loadData',data); 
+}
+   
+$("#btnRefresh").click(function(){
+    var data=$('#tblBankAccounts').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblBankAccounts').datagrid('loadData',data); 
+});
+
+    
+$("#btnClose").click(function(){
+    var tsv=((new Date()).getTime())/1000;
+    window.location.href = _sBaseAddress+  "/Bank/ViewBankBranchs?id="+_oSelectedBankBranch.BankID+"&ts="+tsv;  
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+  "/Bank/ViewBankBranchs?id="+_oSelectedBankBranch.BankID+"&ts="+tsv;  
+    }
+});
+</script>

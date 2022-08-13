@@ -1,0 +1,473 @@
+﻿@{
+    ViewBag.Title = "Order Steps List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.OrderStep>
+                      <div id="winOrderStepSequence" class="easyui-window" title="View Step Sequence Configure" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+                          <table id="tblOrderStepSequence" class="easyui-datagrid" style="width:100%;height:245px" data-options="singleSelect: true,fitColumns:false, rownumbers:true, pagination:false, autoRowHeight:false, toolbar: '#toolbarMenuSequence' ">
+                              <thead>
+                                  <tr>
+                                      <th field="OrderStepName" width="180" align="left">Step Name</th>
+                                      <th field="SubStepName" width="130" align="left">Sub Step Name</th>
+                                      <th field="StepTypeString" width="140" align="left">Style Type</th>
+                                      <th field="StepTypeString" width="100" align="left">Step Type</th>
+                                      <th field="Sequence" width="70" align="left">Sequence</th>
+                                  </tr>
+                              </thead>
+                          </table>
+                          <div id="toolbarMenuSequence">
+                              <a href="javascript:void(0)" id="btnUp" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+                              <a href="javascript:void(0)" id="btnDown" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+                              <a href="javascript:void(0)" id="btnRefresh" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshMenuSequence()">Refresh</a>
+                          </div>
+                          <fieldset class="actionfieldsetstyle">
+                              <legend>Actions : </legend>
+                              <a id="btnSaveSequence" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="SaveSequence()">Save</a>
+                              <a id="btnCloseMenuSequence" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                          </fieldset>
+                      </div>
+                      <div class="menuMainCollectionTable">
+                          <table id="tblOrderSteps" title="Order Step List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                              <thead>
+                                  <tr>
+                                      <th field="OrderStepName" width="150">Step Name</th>
+                                      <th field="SubStepName" width="120">Sub Step Name</th>
+                                      <th field="StyleTypeString" width="100">Style Type</th>
+                                      <th field="StepTypeString" width="100">Step Type</th>
+                                      <th field="Sequence" align="center" width="100">Sequence</th>
+                                      <th field="IsActiveSt" width="60">Is-Active</th>
+                                      @*<th field="RequiredDataTypeInString" width="80">Data Type</th>*@
+                                      <th field="IsNotificationSendInString" width="120">Notification Send</th>
+                                      <th field="Note" width="130">Note</th>
+                                  </tr>
+                              </thead>
+                          </table>
+                          <div id="toolbar">
+                              <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+                              <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+                              <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+                              <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+                              <a id="btnNotificationConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="NotificationConfigure()">Notification Configure</a>
+                              <a id="btnIsActive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Active/In-Active</a>
+                              <a id="btnSequenceConfigure" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="SequenceConfigure()">Sequence Configure</a>
+                          </div>
+                      </div>
+
+
+<script type="text/javascript">
+    var _oOrderSteps = [];
+$(document).ready(function () {
+    //debugger;
+    var oOrderSteps =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));  
+    RefreshList(oOrderSteps);
+    RefreshControlLayout(oAuthorizationRolesMapping);
+});
+
+    $('#btnIsActive').click(function (e) {
+        var oTOrderStep= $('#tblOrderSteps').treegrid('getSelected');
+        if(oTOrderStep==null || parseInt(oTOrderStep.OrderStepID)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        if(oTOrderStep.IsActive==true)
+        {
+            if (!confirm("Confirm to In-Active?")) return ;
+            oTOrderStep.IsActive=false;
+        }
+        else
+        {
+            if (!confirm("Confirm to Active?")) return ;
+            oTOrderStep.IsActive=true;
+        }
+        var SelectedRowIndex=$('#tblOrderSteps').treegrid('getRowIndex',oTOrderStep);
+        $.ajax ({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/OrderStep/ActiveInActive",
+            data:  JSON.stringify(oTOrderStep),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                oOrderStep = jQuery.parseJSON(data);
+                if (oOrderStep.ErrorMessage==null || oOrderStep.ErrorMessage=="") {
+                    alert("Data Update successfully");
+                    $('#tblOrderSteps').treegrid('updateRow',{index: SelectedRowIndex,row: oOrderStep});            
+                }
+                else {
+                    alert(oOrderStep.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+    
+    function RefreshList(oOrderSteps)
+    {
+        var data=oOrderSteps;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblOrderSteps').datagrid('loadData',data);
+    }
+
+
+$('#txtRefNo').keypress(function (e) {
+//debugger;
+    var c = String.fromCharCode(e.which);
+    var txtRefNo = document.getElementById('txtRefNo').value;
+    txtRefNo = txtRefNo + c;
+    //if(txtSearchByName.length<3)return;
+
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblOrderSteps').treegrid('getRows');        
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['RefNo'].substring(0, txtRefNo.length);
+        if(txtRefNo.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblOrderSteps').treegrid('selectRow', i);
+    }
+});
+
+    //OrderStep Sequence start
+$("#btnSequenceConfigure").click(function () {
+    var oOrderStep = $('#tblOrderSteps').datagrid('getSelected');
+    if (oOrderStep == null || parseInt(oOrderStep.OrderStepID) <= 0) {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex = $('#tblOrderSteps').datagrid('getRowIndex', oOrderStep);
+    $("#winOrderStepSequence").icsWindow('open', "Selected Style type : " + oOrderStep.StyleTypeString+" AND Step Type :"+oOrderStep.StepTypeString);
+    $("#winOrderStepSequence input").val("");
+    $("#winOrderStepSequence select").val(0);
+    LoadOrderSteps(oOrderStep,'tblOrderStepSequence');
+
+
+});
+function LoadOrderSteps(oOrderStep,tblid) {
+    var oTempOrderStep= { StyleType: oOrderStep.StyleType, StepType:oOrderStep.StepType};
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : _sBaseAddress+"/OrderStep/GetOrderSteps",
+        traditional: true,
+        data:  JSON.stringify(oTempOrderStep),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            var  oOrderSteps = jQuery.parseJSON(data);
+            if (oOrderSteps.length>0)
+            {
+                if (oOrderSteps[0].ErrorMessage=="" || oOrderSteps[0].ErrorMessage==null)
+                {
+                    DynamicRefreshList(oOrderSteps, tblid);
+                }
+                else {
+                    alert(oOrderSteps[0].ErrorMessage);
+                }
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+
+}
+
+    
+function UP()
+{
+    debugger;
+    var oOrderStep = $('#tblOrderStepSequence').datagrid('getSelected');
+    if(oOrderStep==null)
+    {
+        alert("Please select Item");
+        return;
+    }
+    var SelectedRowIndex=$('#tblOrderStepSequence').datagrid('getRowIndex',oOrderStep);
+    if(SelectedRowIndex==0)return;
+    var oOrderSteps=$('#tblOrderStepSequence').datagrid('getRows');
+    _oOrderSteps = [];
+    for(var i=0; i<oOrderSteps.length; i++)
+    {
+        if(i==(SelectedRowIndex-1))
+        {
+            _oOrderSteps[i]=oOrderSteps[i+1];
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oOrderSteps[i]=oOrderSteps[i-1];
+        }
+        else
+        {
+            _oOrderSteps[i]=oOrderSteps[i];
+        }
+        _oOrderSteps[i].Sequence=i+1;
+    }
+    data = _oOrderSteps;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblOrderStepSequence').datagrid('loadData',data);
+    //    MakeMenu();
+    var newSelectedRowIndex=SelectedRowIndex-1;
+    $('#tblOrderStepSequence').datagrid('selectRow',newSelectedRowIndex);
+
+}
+
+function Down()
+{
+    debugger;
+    var oOrderStep = $('#tblOrderStepSequence').datagrid('getSelected');
+    if(oOrderStep==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblOrderStepSequence').datagrid('getRowIndex',oOrderStep);
+    if(SelectedRowIndex==(_oOrderSteps.length-1))return;
+    var oOrderSteps=$('#tblOrderStepSequence').datagrid('getRows');
+    _oOrderSteps=[];
+    for(var i=0; i<oOrderSteps.length; i++)
+    {
+        if(i==(SelectedRowIndex+1))
+        {
+            _oOrderSteps[i]=oOrderSteps[i-1];
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oOrderSteps[i]=oOrderSteps[i+1];
+        }
+        else
+        {
+            _oOrderSteps[i]=oOrderSteps[i];
+        }
+        _oOrderSteps[i].Sequence=i+1;
+    }
+    data = _oOrderSteps;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblOrderStepSequence').datagrid('loadData',data);
+
+    var newSelectedRowIndex=SelectedRowIndex+1;
+    $('#tblOrderStepSequence').datagrid('selectRow',newSelectedRowIndex);
+}
+
+function RefreshMenuSequence()
+{
+    var oOrderSteps = $('#tblOrderStepSequence').datagrid('getRows');
+    if(oOrderSteps.length>0)
+    {
+        for(var i = 0;i<oOrderSteps.length;i++)
+        {
+            oOrderSteps[i].Sequence = i+1;
+        }
+        RefreshListSequence(oOrderSteps);
+    }
+}
+
+function RefreshListSequence(oOrderSteps)
+{
+    data=oOrderSteps;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblOrderStepSequence').datagrid('loadData',data);
+}
+
+function SaveSequence()
+{
+    //debugger;
+    var oOrderStep= {
+        OrderSteps :$('#tblOrderStepSequence').datagrid('getRows')
+    };
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : _sBaseAddress+"/OrderStep/RefreshStepSequence",
+        traditional: true,
+        data:  JSON.stringify(oOrderStep),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            var  oOrderStep = jQuery.parseJSON(data);
+            if (oOrderStep.ErrorMessage=="" || oOrderStep.ErrorMessage==null)
+            {
+                alert("Data Saved sucessfully");
+                $("#winOrderStepSequence").icsWindow("close");
+                $("#winOrderStepSequence input").val("");
+                $("#winOrderStepSequence select").val(0);
+                window.location.href = window.location.href;
+            }
+            else {
+                alert(oOrderStep.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+}
+
+$("#btnCloseMenuSequence").click(function () {
+    $("#winOrderStepSequence").icsWindow("close");
+    $("#winOrderStepSequence input").val("");
+    $("#winOrderStepSequence select").val(0);
+});
+
+
+function NotificationConfigure()
+{
+    var oOrderStep = $('#tblOrderSteps').treegrid('getSelected'); 
+    if(oOrderStep==null || parseInt(oOrderStep.OrderStepID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    
+    sessionStorage.setItem("OrderStepID",oOrderStep.id);
+    window.location.href = sessionStorage.getItem('BaseAddress')+ "/OrderStep/ViewNotifications?id="+oOrderStep.OrderStepID+"&buid="+sessionStorage.getItem('BUID'); 
+    sessionStorage.setItem("NotificationBackLink", window.location.href);
+}
+function Add()
+{
+    //debugger;
+    var oOrderSteps= $('#tblOrderSteps').treegrid('getRows');
+    sessionStorage.setItem("OrderSteps", JSON.stringify(oOrderSteps)); 
+    sessionStorage.setItem("SelectedRowIndex", -1);   
+    sessionStorage.setItem("OrderStepHeader", "Add Order Step");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+ "/OrderStep/ViewOrderStep?id=0"; 
+} 
+
+function Edit()
+{
+    //debugger;
+    var oOrderStep = $('#tblOrderSteps').treegrid('getSelected'); 
+    if(oOrderStep==null || oOrderStep.OrderStepID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+   
+    var SelectedRowIndex=$('#tblOrderSteps').treegrid('getRowIndex',oOrderStep);
+    var oOrderSteps= $('#tblOrderSteps').treegrid('getRows');
+    sessionStorage.setItem("OrderSteps", JSON.stringify(oOrderSteps)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("OrderStepHeader", "Edit Order Step");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+ "/OrderStep/ViewOrderStep?id="+oOrderStep.OrderStepID; 
+} 
+
+function Details()
+{
+//debugger;
+    var oOrderStep = $('#tblOrderSteps').treegrid('getSelected'); 
+    if(oOrderStep==null || oOrderStep.OrderStepID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblOrderSteps').treegrid('getRowIndex',oOrderStep);
+    var oOrderSteps= $('#tblOrderSteps').treegrid('getRows');
+    sessionStorage.setItem("OrderSteps", JSON.stringify(oOrderSteps)); 
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);   
+    sessionStorage.setItem("OrderStepHeader", "View Order Step");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = sessionStorage.getItem('BaseAddress')+ "/OrderStep/ViewOrderStep?id="+oOrderStep.OrderStepID;           
+} 
+
+function Delete()
+{
+        //debugger;  
+        var oOrderStep= $('#tblOrderSteps').treegrid('getSelected');
+        if(oOrderStep==null || oOrderStep.OrderStepID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");                  
+            return false;
+        }
+        var SelectedRowIndex=$('#tblOrderSteps').datagrid('getRowIndex',oOrderStep);
+        if (!confirm("Confirm to Delete?")) return ;
+        if (oOrderStep.OrderStepID > 0) 
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",                
+                url : sessionStorage.getItem('BaseAddress')+"/OrderStep/Delete",
+                data: { id:oOrderStep.OrderStepID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully") 
+                    {
+                        alert("Delete sucessfully");                        
+                        $('#tblOrderSteps').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+                      
+            });
+        }
+}
+
+   
+function PrintList()
+{    
+    var oOrderSteps= $('#tblOrderSteps').treegrid('getRows'); 
+    var ids ="";
+    if(oOrderSteps.length>0)
+    {
+        for(var i =0;i<oOrderSteps.length;i++)
+        {
+            ids =ids+oOrderSteps[i].OrderStepID+",";
+        }
+        ids= ids.substring(0, parseInt(ids.length - 1));
+    }
+    if(ids =="" || ids==null)
+    {    
+        alert("Data not found ");
+        return;
+    }
+    window.open(sessionStorage.getItem('BaseAddress') + '/OrderStep/PrintOrderSteps?sParam='+ids);   
+    
+       
+}
+
+
+function Preview()
+{
+    var oOrderStep= $('#tblOrderSteps').treegrid('getSelected'); 
+    if(oOrderStep==null || oOrderStep.OrderStepID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    window.open(sessionStorage.getItem('BaseAddress') + '/OrderStep/OrderStepPreview?id='+oOrderStep.OrderStepID);        
+}
+
+
+function RefreshControlLayout(oAuthorizationRolesMapping)
+{
+
+    $('#btnAdd,#btnEdit,#btnDelete,#btnNotificationConfigure').hide();
+    if(PermissionChecker('Add','OrderStep',oAuthorizationRolesMapping)){ $("#btnAdd,#btnNotificationConfigure").show();}
+    if(PermissionChecker('Edit','OrderStep',oAuthorizationRolesMapping)){ $("#btnEdit").show();}
+    if(PermissionChecker('Delete','OrderStep',oAuthorizationRolesMapping)){ $("#btnDelete").show();}
+
+}
+
+</script>

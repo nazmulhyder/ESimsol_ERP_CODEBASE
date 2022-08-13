@@ -1,0 +1,520 @@
+@{
+    ViewBag.Title = "Twisting List";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.Twisting>
+    <script src="~/Views/Twisting/AdvSearchTwisting.js"></script>
+    <div ng-app="TwistingModule">   
+        <div ng-controller="TwistingController">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <input class="form-control" type="text" ng-model="txtReqNo" placeholder="Type ReqNo & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownRequest($event)" style="width:100px; height:24px;" required />
+                        <input class="form-control" type="text" ng-model="txtOrderNo" placeholder="Type OrderNo & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownOrder($event)" style="width:100px; height:24px;" required />
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()" ng-hide="btnAdvSearch"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Adv.Search</span></button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()" ng-hide="btnAdd"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()" ng-hide="btnView"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Approve()" ng-hide="btnApprove"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="UndoApprove()" ng-hide="btnUndoApprove"> <span class="glyphicon glyphicon-circle-arrow-down" aria-hidden="true"></span> Undo Approve</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Complete()" ng-hide="btnComplete"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Complete</button>
+                        @*<button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Receive()" ng-hide="btnReceive"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Receive</button>*@
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview</button>
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreviewV2()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview V2</button>
+
+                    </div>
+                </div>
+            </div>
+            <div class="row" style="margin:2px; padding:0;">
+                <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 450px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+
+    <script type="text/javascript">
+
+        var pager =[];
+        var _nBUID=0;
+        var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oTwistings =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oRequisitionTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RequisitionTypes));
+        _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        _nOptType =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OptType));
+
+        var oIssueStores =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.IssueStores));
+        var oReceiveStores =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReceivedStores));
+        var oTwistingOrderTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TwistingOrderTypes));
+        var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+        sessionStorage.setItem('BUID',_nBUID);
+        debugger;
+        var  TwistingModule = angular.module('TwistingModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service','Twisting.service']);
+        TwistingModule.controller('TwistingController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession,Twistingservice) {
+            debugger;
+            oTwistings= (userSession.getData('Twistings').length>0)? userSession.getData('Twistings'):oTwistings;
+            $scope.CompareOperators= oCompareOperators;
+            $scope.IssueStores=oIssueStores;
+            $scope.ReceiveStores=oReceiveStores;
+            $scope.RequisitionTypes=oRequisitionTypes;
+            $scope.BUID=_nBUID;
+            $scope.OptType=_nOptType;
+            $scope.OrderTypes=oTwistingOrderTypes;
+            $scope.OrderType =0;
+            $scope.btnAdd = $scope.btnEdit = $scope.btnDelete = $scope.btnApprove= $scope.btnComplete =$scope.btnReceive = $scope.btnUndoApprove =false;
+            $scope.gridOptions ={
+                enableSorting: true,
+                enableFullRowSelection: true,
+                //enableRowHeaderSelection: false,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+                columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'TWNo', name: 'Twisting No', width: '10%' },
+                    { field: 'TwistingOrderTypeSt', name: 'Ord. Type', width: '10%' },
+                    { field: 'DyeingOrderNo', name: 'Order No', width: '10%' },
+                    { field: 'ReceiveDateSt', name: 'Req. Date', width:'10%', enableCellEdit: false },
+                    { field: 'ContractorName', name: 'Buyer', width: '10%' },
+                    { field: 'ApproveByName', name: 'Approve By', width: '10%' },
+                    { field: 'CompletedByName', name: 'Compelte By', width: '10%' },
+                    { field: 'StatusSt', name: 'Status', width: '10%' },
+                ],
+
+                data:oTwistings,
+
+                onRegisterApi:function(gridApi)
+                {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+                    $scope.gridApi.core.refresh();
+                    debugger;
+                    if(oTwistings.length>0 && userSession.getRowIndex()>=0)
+                    {
+                        $scope.gridApi.grid.modifyRows(oTwistings);
+                        $scope.gridApi.selection.selectRow(oTwistings[userSession.getRowIndex()]);
+                        $scope.RowSelect(oTwistings[userSession.getRowIndex()]);
+                    }
+                    $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                        $scope.RowSelect(row.entity ); });
+                    userSession.clear();
+                }
+
+            };
+            $scope.RowSelect =  function (entity){
+                debugger;
+
+                if(entity.ApproveByID!=0 && entity.CompletedByID==0){//Approve_Only
+                    $scope.btnApprove=true;
+                    $scope.btnUndoApprove =false;
+                    $scope.btnComplete=false;
+                    $scope.btnEdit=true;
+                    $scope.btnDelete=true;
+                    $scope.btnReceive=true;
+                    CheckControll();
+                }
+                else if(entity.ApproveByID!=0 && entity.CompletedByID!=0){//Approve_&_Complete
+                    $scope.btnApprove=true;
+                    $scope.btnUndoApprove =true;
+                    $scope.btnComplete=true;
+                    $scope.btnEdit=true;
+                    $scope.btnDelete=true;
+                    $scope.btnReceive=true;
+                    CheckControll();
+                }
+                else if(entity.ApproveByID==0)//Not_Approve
+                {
+                    $scope.btnApprove=false;
+                    $scope.btnUndoApprove =true;
+                    $scope.btnComplete=true;
+                    $scope.btnEdit=false;
+                    $scope.btnDelete=false;
+                    $scope.btnReceive=true;
+                    CheckControll();
+                }
+                if(entity.StatusInt == 3){
+                    $scope.btnComplete=true;
+                    CheckControll();
+                }
+            }
+
+            $scope.singleFilter=function(renderableRows){
+
+                var matcherName = new RegExp(angular.uppercase($scope.Name));
+                var matcherOperationTypeST = new RegExp(angular.uppercase($scope.OperationTypeST));
+                renderableRows.forEach( function( row ) {
+                    debugger;
+                    var match = false;
+                    if (angular.uppercase(row.entity['Name']).match(matcherName) && angular.uppercase(row.entity['OperationTypeST']).match(matcherOperationTypeST)){
+                        match = true;
+                    }
+                    if ( !match ){
+                        row.visible = false;
+                    }
+                });
+                return renderableRows;
+            };
+
+            $scope.AdvanceSearch = function ()
+            {
+                debugger;
+                $scope.MRNo ="";
+                var modalObj={
+                    modalcontroller:'ModalTwistingAdvanceSearchCtrl',
+                    appcontroller:'TwistingController',
+                    CompareOperators:$scope.CompareOperators,
+                    RequisitionTypes:$scope.RequisitionTypes,
+                    IssueStores:$scope.IssueStores,
+                    ReceiveStores: $scope.ReceiveStores,
+                    OrderTypes: $scope.OrderTypes
+                }
+                var modalInstance=Twistingservice.Instance(modalObj);
+                modalInstance.result.then(function (result)
+                {
+                    debugger;
+                    $scope.gridOptions.data = result;
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            };
+
+            $scope.add = function () {
+
+                sessionStorage.setItem('BUID',_nBUID);
+                sessionStorage.setItem("Operation", "New");
+                sessionStorage.removeItem("SelectedRowIndex");
+                sessionStorage.setItem("SelectedRowIndex",-1);
+                sessionStorage.setItem("TwistingHeader", "Add Twisting");
+                sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                sessionStorage.setItem("Twisting", JSON.stringify([]));
+                sessionStorage.setItem("BackLink", window.location.href);
+
+                var tsv=((new Date()).getTime())/1000;
+                window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id=0&buid="+_nBUID;
+            };
+            $scope.edit = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0)
+                {
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(data[0].ApproveByID!=0)
+                {
+                    alert("Please Select 'Initiaziled' Requisition");  return;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "Edit");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "Edit Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.view = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "View");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "View Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.delete = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+
+                if(data[0].ApproveByID!=0)
+                {
+                    alert("Please Select 'Initiaziled' Requisition");  return;
+                }
+
+                if (!confirm("Confirm to Delete?")) return ;
+
+                $http.post(_sBaseAddress+ '/Twisting/Delete',JSON.stringify(data[0])).then(
+                                function (response) {
+                                    if(jQuery.parseJSON(response.data)=='Deleted'){
+                                        angular.forEach($scope.gridOptions.data,function(value,index){
+                                            if(value.TwistingID==data[0].TwistingID){
+                                                $scope.gridOptions.data.splice(index,1);
+                                            }
+                                        },$scope.gridOptions.data);
+                                        alert("Delete Successfully.");
+                                    }
+                                    else{
+                                        alert(jQuery.parseJSON(response.data));
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+
+            };
+
+            $scope.Approve = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(data[0].ApproveByID!=0)
+                {
+                    alert("Please Select 'Initiaziled' Requisition"); return;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "Approve");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "Approve Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.UndoApprove = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(data[0].ApproveByID==0 || data[0].CompletedByID!=0)
+                {
+                    alert("Requisition Yet Not Approved"); return;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "UndoApprove");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "UndoApprove Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.Complete = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(data[0].ApproveByID==0 && data[0].CompletedByID!=0)
+                {
+                    alert("Requisition Yet Not Approved");  return;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "Complete");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "Request Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.Receive = function () {
+                debugger;
+                var data=$scope.gridApi.selection.getSelectedRows();
+                if(data==null || data.length<=0){
+                    msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                    return false;
+                }
+                if(data[0].ApproveByID==0 || ( data[0].CompletedByID==0) || data[0].ReceiveByID!=0)
+                {
+                    alert("Requisition Yet Not Approved Completed");  return;
+                }
+                angular.forEach($scope.gridOptions.data,function(value,index){
+                    if(value.TwistingID==data[0].TwistingID){
+                        sessionStorage.setItem('BUID',_nBUID);
+                        sessionStorage.setItem("Operation", "Receive");
+                        sessionStorage.setItem("SelectedRowIndex", index);
+                        sessionStorage.setItem("TwistingHeader", "Request Twisting");
+                        sessionStorage.setItem("Twistings", JSON.stringify($scope.gridOptions.data));
+                        sessionStorage.setItem("Twisting", JSON.stringify($scope.gridOptions.data[index]));
+                        sessionStorage.setItem("BackLink", window.location.href);
+                        var tsv=((new Date()).getTime())/1000;
+                        window.location.href = _sBaseAddress+ "/Twisting/ViewTwisting?id="+data[0].TwistingID+"&buid="+_nBUID;
+                    }
+                },$scope.gridOptions.data);
+            };
+            $scope.PrintPreview = function ()
+            {
+                var data = $scope.gridApi.selection.getSelectedRows();
+                var oTwisting = data[0];
+                if(oTwisting==null || oTwisting.TwistingID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+                ///PrintDyeingOrder?nId=3363&bIsPrintHistory=false&nts=1541070416.979
+                window.open(_sBaseAddress + '/DyeingOrder/PrintDyeingOrder?nId='+oTwisting.DyeingOrderID+"&bIsPrintHistory=false&nts=1541070416.979");
+            };
+            $scope.PrintPreviewV2 = function ()
+            {
+                var data = $scope.gridApi.selection.getSelectedRows();
+                var oTwisting = data[0];
+                if(oTwisting==null || oTwisting.TwistingID<=0)
+                {
+                    alert("Please select a item from list!");
+                    return;
+                }
+                window.open(_sBaseAddress +'/Twisting/PrintTwistingPreview?nId='+oTwisting.DyeingOrderID+"&tId="+oTwisting.TwistingID+"&nts=1541070416.979");
+            };
+
+            //button hide
+            $scope.btnAdd = $scope.btnEdit = $scope.btnView = $scope.btnDelete = $scope.btnApprove= $scope.btnComplete =$scope.btnReceive = $scope.btnUndoApprove = $scope.btnAdvSearch = true ;
+            //button show
+            if(PermissionChecker('Add','Twisting',oAuthorizationRolesMapping)){$scope.btnAdd = false; }
+            if(PermissionChecker('Edit','Twisting',oAuthorizationRolesMapping)){$scope.btnEdit = false;}
+            if(PermissionChecker('View','Twisting',oAuthorizationRolesMapping)){$scope.btnView = false;}
+            if(PermissionChecker('Approved','Twisting',oAuthorizationRolesMapping)){$scope.btnApprove = false;}
+            if(PermissionChecker('Issued','Twisting',oAuthorizationRolesMapping)){$scope.btnComplete = false;}
+            if(PermissionChecker('Received','Twisting',oAuthorizationRolesMapping)){$scope.btnReceive = false;}
+            if(PermissionChecker('UndoRequest','Twisting',oAuthorizationRolesMapping)){$scope.btnUndoApprove = false;}
+            if(PermissionChecker('AdvSearch','Twisting',oAuthorizationRolesMapping)){$scope.btnAdvSearch = false;}
+
+            function CheckControll()
+            {
+                debugger;
+                if($scope.btnAdd == false  && !PermissionChecker('Add','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnAdd = true; }
+                if($scope.btnEdit == false && !PermissionChecker('Edit','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnEdit = true;}
+                if($scope.btnView == false && !PermissionChecker('View','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnView = true;}
+                if($scope.btnApprove == false && !PermissionChecker('Approved','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnApprove = true;}
+                if($scope.btnDelete == false && !PermissionChecker('Delete','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnDelete = true;}
+                if($scope.btnComplete == false && !PermissionChecker('Issued','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnComplete = true;}
+                if($scope.btnReceive == false && !PermissionChecker('Received','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnReceive = true;}
+                if($scope.btnUndoApprove == false && !PermissionChecker('UnApproved','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnUndoApprove = true;}
+                if($scope.btnAdvSearch == false && !PermissionChecker('AdvSearch','Twisting',oAuthorizationRolesMapping))
+                {$scope.btnAdvSearch = true;}
+            }
+
+            $scope.SearchKeyDownRequest = function (e){
+                debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var txtReqNo = $.trim($scope.txtReqNo);
+                    if(txtReqNo=="" || txtReqNo==null)
+                    {
+                        alert("Type Req No and Press Enter");
+                        return;
+                    }
+                    var oParam= {
+                        TWNo:($scope.txtReqNo == undefined ? "" : $scope.txtReqNo),
+                        DyeingOrderNo :''
+                    };
+
+                    $scope.SearchBy(oParam);
+                }
+            };
+            $scope.SearchKeyDownOrder = function (e){
+                debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var txtOrderNo = $.trim($scope.txtOrderNo);
+                    if(txtOrderNo=="" || txtOrderNo==null)
+                    {
+                        alert("Type Order No and Press Enter");
+                        return;
+                    }
+                    var oParam= {
+                        DyeingOrderNo:($scope.txtOrderNo == undefined ? "" : $scope.txtOrderNo),
+                        TWNo : ''
+                    };
+                    $scope.SearchBy(oParam);
+                }
+            };
+            $scope.SearchBy= function (oParams)
+            {
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/Twisting/GetsSearchByThreeParam',$.param(oParams), config).then(
+                        function (response)
+                        {
+                            var results = jQuery.parseJSON(response.data);
+                            $scope.gridOptions.data = results;
+                        },
+
+                        function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+            };
+
+        });
+
+    </script>
+
+
+
+

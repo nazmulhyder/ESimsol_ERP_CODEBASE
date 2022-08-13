@@ -1,0 +1,193 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+
+</head>
+<body style="width:500px; height:450px">
+@{
+    ViewBag.Title = "Cost Center Piker";  
+}
+@model ESimSol.BusinessObjects.CostCenter
+    <table border="0">
+            <tr>
+                <td>
+                    <table >
+                        <tr>
+                            <td style="width:500px">
+                               <center><h3>Cost Centers</h3></center> 
+                            </td>                            
+                        </tr>
+                        <tr>                            
+                            <td style="width:500px"> 
+                              
+                            </td> 
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr style="height:450px">
+                <td>
+                    <div style="height:350px; width:530px; font-family: Arial,Helvetica,sans-serif; overflow:auto; font-size:14px;">
+                        <div id="tvCostCenter" class="ygtv-checkbox">
+                        </div>  
+                   </div>
+                </td>
+            </tr>
+            <tr style="height:30px">
+                <td>
+                    <table>
+                        <tr>
+                            <td style ="width:300px; text-align:left"></td>
+                            <td style ="width:300px;text-align:right"><input type="button" value="Ok" id="btnOk" style="width:60px"/> </td>
+                            <td><input type="button" value="Close" /> </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
+
+
+<script type="text/javascript">
+
+    var tree;
+    var initialData;
+    var jtree; 
+    var oNode;
+    var oNodeID;
+    var obj; 
+    var ParentID=0;      
+    var _oSelectedCostCenters;
+    var _oParamCostCenters=null;
+    var oReturnObject = new Object();
+    oReturnObject.SelectedCostCenters=null;
+    oReturnObject.SelectedCostCenter = null;
+    oReturnObject.ReturnString = "";
+
+    $(document).ready(function () {
+   //debugger;      
+        initialData = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        treewithJavascript();
+         var obj = window.dialogArguments;
+         _oParamCostCenters = obj.COACC;
+         RefreshControl();
+    });
+
+    //Checked Selected Items
+    function RefreshControl()
+    {       
+        if(jtree.getNodesByProperty()!=null)
+        {
+            for(var n=0;n<jtree.getNodesByProperty().length;n++)
+            {
+                if(AlreadySelected(jtree.getNodesByProperty()[n].data.oNodeID))
+                {
+                    jtree.getNodesByProperty()[n].highlightState=1;
+
+                }
+            }
+        }    
+    }
+
+    //Check ItemAlreadySelected
+    function AlreadySelected(nCCID)
+    {
+    //debugger;
+        for(var j=0;j<_oParamCostCenters.length;j++)
+        {
+            if(_oParamCostCenters[j].CCID==nCCID)
+            {
+                return true;    
+            }
+        }
+        return false;
+    }
+
+
+  
+    function MakeTree(TempchildNodes, otempNode){
+    //debugger;
+         for(var item in TempchildNodes)
+         {                
+             obj = {
+                label:TempchildNodes[item].CCCodeNameType,
+                oNodeID: TempchildNodes[item].CCID,
+                IsLastLayer:TempchildNodes[item].IsLastLayer 
+            };
+             
+            var jNode = new YAHOO.widget.TextNode(obj, otempNode);          
+            if(TempchildNodes[item].ChildNodes !=null)
+            {
+                MakeTree(TempchildNodes[item].ChildNodes, jNode);
+            }
+         }
+    }
+
+
+    function treewithJavascript() {
+    //debugger;
+            jtree = new YAHOO.widget.TreeView("tvCostCenter");
+            var root = jtree.getRoot();
+
+                obj = {
+                label:initialData.CCCodeNameType,
+                oNodeID: initialData.CCID,
+                IsLastLayer:initialData.IsLastLayer 
+            };
+            var TempNode = new YAHOO.widget.TextNode(obj, root);
+           //debugger;
+            
+     
+            if(initialData.ChildNodes!=null)
+            {              
+                MakeTree(initialData.ChildNodes, TempNode);
+            }
+
+            // By default, trees with TextNodes will fire an event for when the label is clicked:
+            jtree.subscribe("labelClick", function (node) {
+            ParentID=node.data.oNodeID;
+            IsLastLayer=node.data.IsLastLayer;  
+                         
+            jtree.subscribe('clickEvent',jtree.onEventToggleHighlight);      
+            jtree.setNodesProperty('propagateHighlightUp',true); 
+            jtree.setNodesProperty('propagateHighlightDown',true);          
+//          alert(node.data.oNodeID + " label was clicked");
+
+            });
+            jtree.render();
+        }
+
+    $("#btnOk").click(function () {
+        
+        //debugger;    
+        _oSelectedCostCenters=null;    
+        _oSelectedCostCenters=jtree.getNodesByProperty('highlightState',1);
+        if(_oSelectedCostCenters==null)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+        oReturnObject=new Object();
+        oReturnObject.SelectedCostCenters=_oSelectedCostCenters;
+        oReturnObject.SelectedCostCenter = null;
+        oReturnObject.ReturnString = _oSelectedCostCenters.length + ' of ' + jtree.getNodesByProperty().length + ' Seleted';
+        window.returnValue = oReturnObject;
+        window.close();
+    })
+
+</script>
+
+
+
+
+

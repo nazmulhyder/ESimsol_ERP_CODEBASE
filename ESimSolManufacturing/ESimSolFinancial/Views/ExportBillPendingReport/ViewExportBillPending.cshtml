@@ -1,0 +1,139 @@
+﻿@{
+    ViewBag.Title = "Export Bill Pending";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ExportBillPending>
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblExportBillPendings" title="Export Bill Pending" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="BUTypeSt" width="8%">BU</th>
+                <th field="PINo" width="10%">PI No</th>
+                <th field="ExportLCNo" width="12%">LC No</th>
+                <th field="ExportLCTypeSt" width="8%">LC Type</th>
+                <th field="ApplicantName" width="20%">Applicant Name</th>
+                <th field="BankName" width="10%">Bank Name</th>                                
+                <th field="ProductName" width="10%">Product Name</th>
+                <th field="PIQtySt" width="10%" align="right">PI/LC Qty</th>
+                <th field="UnitPriceSt" width="10%" align="right">Unit Price</th>
+                <th field="PIAmountSt" width="10%" align="right">PI/LC Amount</th>
+                <th field="DeliveryQtySt" width="10%" align="right">Del Qty</th>
+                <th field="DeliveryAmountSt" width="10%" align="right">Del Amount</th>
+                <th field="BillQtySt" width="10%" align="right">Bill Qty</th>                
+                <th field="BillAmountSt" width="10%" align="right">Bill Amount</th>
+                <th field="BillPendingQtySt" width="10%" align="right">Pending Qty</th>
+                <th field="BillPendingAmountSt" width="10%" align="right">Pending Amount</th>
+                <th field="ShipmentDateSt" width="10%" align="center">Shipment</th>
+                <th field="LastDeliveryDateSt" width="10%" align="center">Last Delivery</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">        
+        <select id="cboReportLayout" style="width:120px;"></select>
+        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>        
+        <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print List</a>
+        <a id="btnLCStatement" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">LC Statement</a>
+    </div>
+</div>                      
+
+<script type="text/javascript">
+    var _sBaseAddress =null;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oExportBillPendings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oReportLayouts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ReportLayouts));
+        $("#cboReportLayout").icsLoadCombo({ List: oReportLayouts, OptionValue:"id", DisplayText:"Value"});
+        $("#cboReportLayout").val(7);//LC Wise
+        RefreshList(oExportBillPendings);
+        $('#tblExportBillPendings').datagrid('hideColumn','PINo');
+        $('#tblExportBillPendings').datagrid('hideColumn','ProductName');
+        $('#tblExportBillPendings').datagrid('hideColumn','UnitPriceSt');
+    });
+
+    $("#cboReportLayout").change(function(){
+        $('#tblExportBillPendings').datagrid('showColumn','PINo');
+        $('#tblExportBillPendings').datagrid('showColumn','ProductName');
+        $('#tblExportBillPendings').datagrid('showColumn','UnitPriceSt');
+        if(parseInt($("#cboReportLayout").val())==1)//PI wise
+        {
+            $('#tblExportBillPendings').datagrid('hideColumn','ProductName');
+            $('#tblExportBillPendings').datagrid('hideColumn','UnitPriceSt');
+        }else  if(parseInt($("#cboReportLayout").val())==7)//LC wise
+        {
+            $('#tblExportBillPendings').datagrid('hideColumn','PINo');
+            $('#tblExportBillPendings').datagrid('hideColumn','ProductName');
+            $('#tblExportBillPendings').datagrid('hideColumn','UnitPriceSt');
+        }
+    });
+
+
+
+    $("#btnSearch").click(function() {
+        if(parseInt($("#cboReportLayout").val())<=0)
+        {
+            alert("Pelase Select a Layout.");
+            return;
+        }
+        var oExportBillPending = {ReportLayoutInt:parseInt($("#cboReportLayout").val())};
+        
+        $.ajax
+   ({
+       type: "POST",
+       dataType: "json",
+       url : _sBaseAddress +"/ExportBillPendingReport/SearchExportBillPending",
+       data:  JSON.stringify(oExportBillPending),
+       contentType: "application/json; charset=utf-8",
+       success: function (data) {
+           debugger;
+           var oExportBillPendings = data;
+           if(oExportBillPendings.length>0 && (oExportBillPendings[0].ErrorMessage=="" || oExportBillPendings[0].ErrorMessage==null))
+           {
+               RefreshList(oExportBillPendings);
+           }else{
+               alert("Data Not found.");
+               RefreshList([]);
+           }
+       },
+       error: function (xhr, status, error)
+       {
+           alert(error);
+       }
+   });
+
+    });
+
+    function RefreshList(oExportBillPendings)
+    {
+        var data=oExportBillPendings;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblExportBillPendings').datagrid('loadData',data);
+    }
+
+
+    $("#btnPrintList").click(function() {
+        var oExportLCs = $("#tblExportBillPendings").datagrid('getRows');
+        if(oExportLCs==null || oExportLCs.length<=0)
+        {
+            alert("Sorry, There is No Item to Print");
+            return;
+        }
+        if(parseInt($("#cboReportLayout").val())<=0)
+        {
+            alert("Pelase Select a Layout.");
+            return;
+        }
+        var nts = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress + '/ExportBillPendingReport/PrintExportBill?nLayout='+parseInt($("#cboReportLayout").val())+'&nts='+ nts, "_blank");
+    });
+
+    $("#btnLCStatement").click(function() {
+        var oExportLC = $("#tblExportBillPendings").datagrid('getSelected');
+        if(oExportLC==null || parseInt(oExportLC.ExportLCID)<=0)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+        var nts = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress + '/ExportLC/PrintLCReceiving?nExportLCID=' + parseInt(oExportLC.ExportLCID)  + "&nts=" + nts, "_blank");
+    });
+
+</script>

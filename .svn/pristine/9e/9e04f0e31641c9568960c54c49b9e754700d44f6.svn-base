@@ -1,0 +1,247 @@
+﻿@{
+    ViewBag.Title = "ChequeSetup List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ChequeSetup>
+    <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblChequeSetups" title="ChequeSetup List" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ChequeSetupName" width="400">Print Setup Name</th>
+                    <th field="DateFormat" width="250">Date Format</th>
+                    <th field="Length" width="50">Length</th>
+                    <th field="Width" width="50">Width</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="text" placeholder="Search by Print Setup Name" id="txtName" style="width:200px" onclick="ClearNamefield()" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddChequeSetup()">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="EditChequeSetup()">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            <a id="btnCopy" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Copy()">Copy Setup</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+   var _sBaseAddress="";   
+   var _oChequeSetups=[];
+   var _oChequeSetup={ErrorMessage:''};
+   $(document).ready(function () {
+       debugger;
+       _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+       var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+       _oChequeSetups =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));       
+       var nIndex =sessionStorage.getItem("SelectedRowIndex");       
+       DynamicRefreshList(_oChequeSetups, 'tblChequeSetups');       
+       if(nIndex!=null)
+       {
+           $('#tblChequeSetups').datagrid('selectRow', nIndex);
+       }
+       RefreshControlLayout(oAURolesMapping);
+   });
+      
+        function RefreshArguments()
+        {
+            var txtName=$("#txtName").val();
+            if(txtName!=null)
+            {
+                _oChequeSetup.ErrorMessage='Arguments;'+txtName+'~';
+            }
+        }
+        function RefreshData()
+        {
+            RefreshArguments();
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ChequeSetup/Refresh",
+                traditional: true,
+                data:  JSON.stringify(_oChequeSetup),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    _oChequeSetups = jQuery.parseJSON(data);
+                    RefreshList(_oChequeSetups);
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+
+        
+        function ClearNamefield()
+        {
+            $("#txtName")[0].value='';
+        }
+
+        $('#txtName').keyup(function (e) {
+         debugger;
+         var c = String.fromCharCode(e.which);
+         var txtName = document.getElementById('txtName').value;
+
+         var oSearchedChequeSetups = [];  var sTempName="";
+         var oCurrentList = $('#tblChequeSetups').datagrid('getRows');
+         if (e.which == 8)
+         {
+             oCurrentList = _oChequeSetups;
+         }
+         for(i=0;i<oCurrentList.length;++i){
+             sTempName=oCurrentList[i].ChequeSetupName;
+             n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+             if(n!=-1)
+             {
+                 oSearchedChequeSetups.push(oCurrentList[i]);
+             }
+         }
+         RefreshList(oSearchedChequeSetups);
+     });
+
+     function RefreshList(oChequeSetups)
+     {
+         data = oChequeSetups;
+         data={"total":""+data.length+"","rows":data};
+         $('#tblChequeSetups').datagrid('loadData',data);
+     }
+
+     //function PrintChequeSetups()
+     //{
+     //    window.open(_sBaseAddress+'/ChequeSetup/PrintChequeSetups', "_blank");
+     //}
+
+    function AddChequeSetup()
+     {
+        var oChequeSetups= $('#tblChequeSetups').datagrid('getRows');
+        sessionStorage.setItem("ChequeSetups", JSON.stringify(oChequeSetups));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("ChequeSetupHeader", "Add ChequeSetup");
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/ChequeSetup/ViewChequeSetup?nid=0&sMsg=N/A&bcopy=false&bsub=false";
+
+
+    }
+
+    function EditChequeSetup()
+    {
+        debugger;
+
+        var oChequeSetup= $('#tblChequeSetups').datagrid('getSelected');
+        if(oChequeSetup==null || oChequeSetup.ChequeSetupID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var oChequeSetups= $('#tblChequeSetups').datagrid('getRows');
+        sessionStorage.setItem("ChequeSetups", JSON.stringify(oChequeSetups));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ChequeSetupHeader", "Edit ChequeSetup");
+        window.location.href = _sBaseAddress+  "/ChequeSetup/ViewChequeSetup?nid="+oChequeSetup.ChequeSetupID+"&sMsg=N/A&bcopy=false&bsub=false";
+
+    }
+
+    function Delete()
+    {
+        debugger;
+        var oChequeSetup= $('#tblChequeSetups').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+
+        if(oChequeSetup==null || oChequeSetup.ChequeSetupID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+
+        var tsv = ((new Date()).getTime()) / 1000;
+        if (oChequeSetup.ChequeSetupID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/ChequeSetup/Delete",
+                traditional: true,
+                data:{id:oChequeSetup.ChequeSetupID,ts:tsv},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully.")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblChequeSetups').datagrid('deleteRow',SelectedRowIndex);
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+    function Details()
+    {
+        //debugger;
+        var oChequeSetup= $('#tblChequeSetups').datagrid('getSelected');
+        if(oChequeSetup==null || oChequeSetup.ChequeSetupID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var oChequeSetups= $('#tblChequeSetups').datagrid('getRows');
+        sessionStorage.setItem("ChequeSetups", JSON.stringify(oChequeSetups));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ChequeSetupHeader", "View ChequeSetup");
+        window.location.href = _sBaseAddress+  "/ChequeSetup/ViewChequeSetup?nid="+oChequeSetup.ChequeSetupID+"&sMsg=N/A&bcopy=false&bsub=false";
+
+    }
+    
+    function Copy()
+    {
+        var oChequeSetup= $('#tblChequeSetups').datagrid('getSelected');
+        if(oChequeSetup==null || oChequeSetup.ChequeSetupID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblChequeSetups').datagrid('getRowIndex',oChequeSetup);
+        var oChequeSetups= $('#tblChequeSetups').datagrid('getRows');
+        sessionStorage.setItem("ChequeSetups", JSON.stringify(oChequeSetups));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ChequeSetupHeader", "Copy ChequeSetup");
+        window.location.href = _sBaseAddress+  "/ChequeSetup/ViewChequeSetup?nid="+oChequeSetup.ChequeSetupID+"&sMsg=N/A&bcopy=true&bsub=false";
+
+        
+    }
+
+    function RefreshControlLayout(oAURolesMapping)
+    {            
+        $("#btnAdd").hide();
+        $("#btnEdit").hide();        
+        $("#btnDelete").hide();
+        $("#btnView").hide();
+        $("#btnCopy").hide();        
+                            
+        if(PermissionChecker('Add','ChequeSetup',oAURolesMapping)){$("#btnAdd").show();}
+        if(PermissionChecker('Edit','ChequeSetup',oAURolesMapping)){$("#btnEdit").show();}        
+        if(PermissionChecker('Delete','ChequeSetup', oAURolesMapping)){$("#btnDelete").show();}
+        if(PermissionChecker('View','ChequeSetup',oAURolesMapping)){$("#btnView").show();}
+        if(PermissionChecker('Add','ChequeSetup',oAURolesMapping)){$("#btnCopy").show();}        
+    }
+    </script>

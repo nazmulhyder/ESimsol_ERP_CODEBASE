@@ -1,0 +1,253 @@
+﻿@{
+    ViewBag.Title = "ChequeBook Management";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ChequeBook>
+                      <div style="margin-left: 0px; height: 100%; width:100%">
+                          <table id="tblChequeBooks" title="ChequeBook List" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                              <thead>
+                                  <tr>
+                                      <th field="AccountNo" width="20%">Account No</th>
+                                      <th field="BookCode" width="10%">Book No</th>
+                                      <th field="PageCount" width="5%">Leaf Count</th>
+                                      <th field="BankName" width="20%">Bank Name</th>
+                                      <th field="BankBranchName" width="15%">Branch Name</th>
+                                      <th field="BusinessUnitName" width="10%">B.Unit</th>
+                                      <th field="ChequeSetupName" width="10%">Cheque Setup</th>
+                                      <th field="DBServerDateTimeInString" width="10%">Entry Date</th>
+                                      <th field="IsActiveInString" width="10%">Activity</th>
+                                  </tr>
+                              </thead>
+                          </table>
+                          <div id="toolbar">
+                              <input type="text" placeholder="Search By Account No" id="txtSearchByAccountNo" style="width:140px" />
+                              <input type="text" placeholder="Search By Bank" id="txtSearchByBankName" style="width:100px" />
+                              <input type="text" placeholder="Search By Company" id="txtSearchByCompanyName" style="width:130px" />
+                              <input type="text" placeholder="Search By Book No" id="txtSearchByBookCode" style="width:120px" />
+                              <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+                              <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="ViewChequeLeaves()">View Cheque Leaves</a>
+                              <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeBook()">Print List</a>
+                              <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeBookInXL()">Print in XL</a>
+                              
+                          </div>
+                      </div>                      
+
+    <script type="text/javascript">
+   var _sBaseAddress="";   
+   var _oChequeBooks=[];
+   var _oChequeBook={ErrorMessage:''};
+   $(document).ready(function () {
+       _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+       var oAURolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+       _oChequeBooks =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));       
+       RefreshList(_oChequeBooks);
+       RefreshControlLayout(oAURolesMapping);
+   });
+        function PrintChequeBook()
+        {
+            RefreshArguments();
+            window.open(_sBaseAddress+'/ChequeBook/PrintChequeBooks?arguments='+_oChequeBook.ErrorMessage, "_blank");
+        }
+        function PrintChequeBookInXL()
+        {
+            RefreshArguments();
+            window.open(_sBaseAddress+'/ChequeBook/PrintChequeBooksInXL?arguments='+_oChequeBook.ErrorMessage, "_blank");
+        }
+        function RefreshArguments()
+        {
+            var arg='Arguments;';
+            var txtSearchByAccountNo=$("#txtSearchByAccountNo").val();
+            var txtSearchByBankName=$("#txtSearchByBankName").val();
+            var txtSearchByCompanyName=$("#txtSearchByCompanyName").val();
+            var txtSearchByBookCode=$("#txtSearchByBookCode").val();
+            
+            if(txtSearchByAccountNo!=null)
+            {
+                arg=arg+txtSearchByAccountNo+'~';
+            }
+            if(txtSearchByBankName!=null)
+            {
+                arg=arg+txtSearchByBankName+'~';
+            }
+            if(txtSearchByCompanyName!=null)
+            {
+                arg=arg+txtSearchByCompanyName+'~';
+            }
+            if(txtSearchByBookCode!=null)
+            {
+                arg=arg+txtSearchByBookCode+'~';
+            }
+            var oCurrentList = $('#tblChequeBooks').datagrid('getRows'),sChequeBookIDs="";
+            if(oCurrentList!=null&&oCurrentList.length>0){
+                for(var i=0;i<oCurrentList.length;++i){
+                    sChequeBookIDs=sChequeBookIDs+oCurrentList[i].ChequeBookID+",";
+                }
+                //arg=arg+sChequeBookIDs.substr(0,sChequeBookIDs.length-1)+'~';
+                arg=arg+'~';
+            }
+            _oChequeBook.ErrorMessage=arg;
+        }
+        function RefreshData()
+        {
+            RefreshArguments();
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ChequeBook/Refresh",
+                traditional: true,
+                data:  JSON.stringify(_oChequeBook),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    _oChequeBooks = jQuery.parseJSON(data);
+                    RefreshList(_oChequeBooks);
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+
+        
+        $('#txtSearchByAccountNo').click(function (e){
+            $('#txtSearchByAccountNo')[0].value='';
+        });
+        $('#txtSearchByBankName').click(function (e){
+            $('#txtSearchByBankName')[0].value='';
+        });
+        $('#txtSearchByCompanyName').click(function (e){
+            $('#txtSearchByCompanyName')[0].value='';
+        });
+        $('#txtSearchByBookCode').click(function (e){
+            $('#txtSearchByBookCode')[0].value='';
+        });
+
+        $('#txtSearchByAccountNo').keypress(function (e) {
+         debugger;
+         var c = String.fromCharCode(e.which);
+         var txtName = document.getElementById('txtSearchByAccountNo').value;
+
+         var oSearchedChequeBooks = [];  var sTempName="";
+         var oCurrentList = $('#tblChequeBooks').datagrid('getRows');
+         if (e.which == 8)
+         {
+             oCurrentList = _oChequeBooks;
+         }
+         for(i=0;i<oCurrentList.length;++i){
+             sTempName=oCurrentList[i].AccountNo;
+             n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+             if(n!=-1)
+             {
+                 oSearchedChequeBooks.push(oCurrentList[i]);
+             }
+         }
+         RefreshList(oSearchedChequeBooks);
+        });
+        $('#txtSearchByBankName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByBankName').value;
+
+            var oSearchedChequeBooks = [];  var sTempName="";
+            var oCurrentList = $('#tblChequeBooks').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oChequeBooks;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].BankName;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedChequeBooks.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedChequeBooks);
+        });
+        $('#txtSearchByCompanyName').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByCompanyName').value;
+
+            var oSearchedChequeBooks = [];  var sTempName="";
+            var oCurrentList = $('#tblChequeBooks').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oChequeBooks;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].CompanyName;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedChequeBooks.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedChequeBooks);
+        });
+        $('#txtSearchByBookCode').keypress(function (e) {
+            debugger;
+            var c = String.fromCharCode(e.which);
+            var txtName = document.getElementById('txtSearchByBookCode').value;
+
+            var oSearchedChequeBooks = [];  var sTempName="";
+            var oCurrentList = $('#tblChequeBooks').datagrid('getRows');
+            if (e.which == 8)
+            {
+                oCurrentList = _oChequeBooks;
+            }
+            for(i=0;i<oCurrentList.length;++i){
+                sTempName=oCurrentList[i].BookCode;
+                n=sTempName.toUpperCase().indexOf(txtName.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedChequeBooks.push(oCurrentList[i]);
+                }
+            }
+            RefreshList(oSearchedChequeBooks);
+        });
+
+     function RefreshList(oChequeBooks)
+     {
+         data = oChequeBooks;
+         data={"total":""+data.length+"","rows":data};
+         $('#tblChequeBooks').datagrid('loadData',data);
+     }
+
+     //function PrintChequeBooks()
+     //{
+     //    window.open(_sBaseAddress+'/ChequeBook/PrintChequeBooks', "_blank");
+     //}
+
+    function ViewChequeLeaves()
+     {
+
+        var oChequeBook= $('#tblChequeBooks').datagrid('getSelected');
+        if(oChequeBook==null || oChequeBook.ChequeBookID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblChequeBooks').datagrid('getRowIndex',oChequeBook);
+        var tsv=((new Date()).getTime())/1000;
+        var SelectedRowIndex=$('#tblChequeBooks').datagrid('getRowIndex',oChequeBook);
+        var oChequeBooks= $('#tblChequeBooks').datagrid('getRows');
+        sessionStorage.setItem("ChequeBooks", JSON.stringify(oChequeBooks));
+        sessionStorage.setItem("PaymentID", 0); // if print from invoice payment
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("ChequesHeader", "Cheque List");
+        window.location.href = _sBaseAddress+  "/Cheque/ViewChequeMgt?nid="+oChequeBook.ChequeBookID+"&DocID=0";
+
+    }
+
+    
+    function RefreshControlLayout(oAURolesMapping)
+    { 
+        $("#btnView").hide();        
+        $("#btnPrintList").hide();        
+        $("#btnPrintXL").hide();        
+        
+        if(PermissionChecker('View','ChequeBook',oAURolesMapping)){$("#btnView").show();}        
+        if(PermissionChecker('PrintList','ChequeBook',oAURolesMapping)){$("#btnPrintList").show();}        
+        if(PermissionChecker('PrintList','ChequeBook',oAURolesMapping)){$("#btnPrintXL").show();}        
+    }   
+    </script>

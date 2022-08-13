@@ -1,0 +1,534 @@
+﻿@{
+    ViewBag.Title = "Recap Shipment Summery";
+}
+@model ESimSol.BusinessObjects.SessionWiseRecapSummary
+ <div class="menuMainCollectionTable" id="divSWRS">
+    <div class="easyui-tabs" data-options="tools:'#tab-tools'" style="width:100%;height:100%">
+        <div title="Graphical View">
+            <div style="height:543px;">
+                <div id="divGraphChart" style="width:90%;height:400px;margin:0 auto; margin-top:50px"></div>
+                <div id="divGraphName" style="width:90%;margin:0 auto; margin-top:10px; text-align:center; font-weight:bold; color:Blue"></div>
+            </div>
+        </div>
+
+        <div title="Table View">
+            <div style="height:543px">
+                <table id="tblSessionWiseRecapSummary" title="Session Wise Recap Summary" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                    <thead>
+                        <tr>
+                            <th field="BuyerName" width="150">Buyer </th>
+                            <th field="StyleCountInString" align="right" formatter="formatStyleCount" width="100">Style Count</th>
+                            <th field="OrderQtyInString" align="right" width="150">Order Qty</th>
+                            <th field="OrderValue" align="right" width="150">Order Value</th>
+                            <th field="ShipmentQty" align="right" width="150">Shipment Qty</th>
+                            <th field="ShipmentValue" align="right" width="150">Shipemt Value</th>
+                            <th field="EndosmentCommission" align="right" width="150">Endosment Commision</th>
+                            <th field="B2BCommisssion" align="right" width="150">B2B Commission</th>
+                            <th field="TotalCommission" align="right" width="150">Total Commission</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="tab-tools">
+        <input type="text" id="txtBuyerName" style="width:150px;" placeholder="Type Buyer Name and Press Enter" /> <input type="button" style="width:130px;text-align:center" id="btnBuyer" value="Pick Buyer's" />
+        <select id="cboSession" style="width:150px; height:25px"> </select>
+        <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+    </div>
+</div>
+    <script type="text/javascript">
+    var _sBaseAddress ="";
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oSessionWiseRecapSummary =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oBusinessSessions = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BusinessSessions));
+        var nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        sessionStorage.setItem("BUID",nBUID);
+        $("#cboSession").icsLoadCombo({ List: oBusinessSessions, OptionValue: "BusinessSessionID", DisplayText: "SessionName" });
+            $('#divSWRS').data('BusinessSession',0);
+            $('#divSWRS').data('BuyerIDs',"");
+            $('#divSWRS').data('somePlot',null);
+            $('#divSWRS').data('BuyerCount',0);
+        });
+
+
+        function SetPoint()
+        {
+            debugger;
+            var somePlot = $('#divSWRS').data('somePlot');
+            var ctx = somePlot.getCanvas().getContext("2d");
+            var ctx2 = somePlot.getCanvas().getContext("2d");
+
+            var data = somePlot.getData()[0].data;
+            var data2 =somePlot.getData()[1].data;
+
+            var xaxis =somePlot.getXAxes()[0];
+            var yaxis =somePlot.getYAxes()[0];
+
+            var offset =somePlot.getPlotOffset();
+            ctx.font = "13px 'Tahoma'";
+
+
+            for (var i = 0; i <data.length; i++){
+                ctx.fillStyle = "Blue";
+                var text = formatPrice(data[i][1]) + '';
+                var metrics = ctx.measureText(text);
+                var xPos = (xaxis.p2c(data[i][0])+offset.left) - metrics.width/2;
+                var yPos = yaxis.p2c(data[i][1]) + offset.top - 5;
+                ctx.fillText(text, xPos, yPos);
+
+                ctx2.fillStyle = "Green";
+                var text2 = formatPrice(data2[i][1]) + '';
+                var metrics2 = ctx2.measureText(text2);
+                var xPos = (xaxis.p2c(data2[i][0])+offset.left) - metrics2.width/2;
+                var yPos = yaxis.p2c(data2[i][1]) + offset.top - 5;
+                ctx2.fillText(text2, xPos, yPos);
+            }
+
+        }
+
+
+        function AdvanceSearch()
+        {
+            var cboSession=document.getElementById("cboSession");
+            var nSessionID=cboSession.options[cboSession.selectedIndex].value;
+            if(parseInt(nSessionID)==0)
+            {
+                alert("Please select Session!");
+                return;
+            }
+
+            if($('#divSWRS').data('BuyerIDs')=="")
+            {
+                alert("Please Pick Buyers!");
+                return;
+            }
+            if(parseInt($('#divSWRS').data('BuyerCount')).length>10)
+            {
+                alert("You can select maximum 10 Buyers!");
+                return;
+            }
+            var oContractor =  {
+                ContractorID : parseInt(nSessionID), // Pass Session ID with ContractorID Property please follow this sequence in Controller
+                Name: $('#divSWRS').data('BuyerIDs')  // Pass Buyer IDs with Contractor Name Property please follow this sequence in Controller
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/MISReport/GetSessionWiseRecapSummary",
+                data: JSON.stringify(oContractor),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    _oSessionWiseRecapSummaries = jQuery.parseJSON(data);
+                    if (_oSessionWiseRecapSummaries.length>0)
+                    {
+                        RefreshList(_oSessionWiseRecapSummaries);
+                        PrepareGraph(_oSessionWiseRecapSummaries);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+
+        function PrepareGraph(oSessionWiseRecapSummaries)
+        {
+            debugger;
+            var oGraphDataForQty=[];
+            var oGraphDataForValue=[];
+            var oGraphTicks=[];
+            var oDataPonint=[]; var x=0; var y=0;
+            var oTickPoint=[]; var xx=0; var yy="";
+
+            //// Set INtial value start
+            //         oDataPonint.push(0);
+            //         oDataPonint.push(0)
+            //        oGraphDataForQty.push(oDataPonint);
+            //
+            //        oDataPonint=[];
+            //        oDataPonint.push(0);
+            //        oDataPonint.push(0)
+            //        oGraphDataForValue.push(oDataPonint);
+
+            //        oTickPoint.push(0);
+            //        oTickPoint.push('');
+            //        oGraphTicks.push(oTickPoint);
+            //// Set INtial value End
+
+            for(var i=0; i<oSessionWiseRecapSummaries.length; i++)
+            {
+                oDataPonint=[];
+                x = oSessionWiseRecapSummaries[i].TempID;
+                y = oSessionWiseRecapSummaries[i].OrderQty;
+                oDataPonint.push(x);
+                oDataPonint.push(y)
+                oGraphDataForQty.push(oDataPonint);
+
+                oDataPonint=[];
+                x = oSessionWiseRecapSummaries[i].TempID;
+                y = oSessionWiseRecapSummaries[i].OrderValue;
+                oDataPonint.push(x);
+                oDataPonint.push(y)
+                oGraphDataForValue.push(oDataPonint);
+
+                oTickPoint=[];
+                xx = oSessionWiseRecapSummaries[i].TempID;
+                yy = oSessionWiseRecapSummaries[i].BuyerName;
+                oTickPoint.push(xx);
+                oTickPoint.push(yy);
+                oGraphTicks.push(oTickPoint);
+            }
+
+            var oGraphOptions = {
+                series: {
+                    bars: {
+                        show: true,
+                        barWidth: 0.2,
+                        order: 1,
+                        align: "center"
+                    }
+                },
+
+                xaxis: {
+                    axisLabel: "Buyers",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 0,
+                    ticks: oGraphTicks,
+                    tickLength: 0
+                },
+
+                yaxis: {
+                    axisLabel: "Order Qty & Value",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 3,
+                    tickFormatter: function (v, axis) {
+                        return numberformat(v);
+                    }
+                },
+
+                legend: {
+                    noColumns: 0,
+                    labelBoxBorderColor: "#000000",
+                    position: "right"
+                },
+
+                grid: {
+                    hoverable: true,
+                    borderWidth: 2,
+                    backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                    }
+                }
+            };
+
+
+            var previousPoint = null, previousLabel = null;
+            $.fn.UseTooltip = function () {
+                $(this).bind("plothover", function (event, pos, item) {
+                    if (item) {
+                        if ((previousLabel != item.series.label) || (previousPoint!= item.dataIndex)) {
+                            previousPoint = item.dataIndex;
+                            previousLabel = item.series.label;
+                            $("#tooltip").remove();
+
+                            var x = item.datapoint[0];
+                            var y = item.datapoint[1];
+
+                            var color = item.series.color;
+
+                            //console.log(item.series.xaxis.ticks[x].label);
+
+                            showTooltip(item.pageX,
+                                item.pageY,
+                                color,
+                                "<strong>" + item.series.label + "</strong><br>" + item.series.xaxis.ticks[x].label + " : <strong>" +numberformat(y) + "</strong>");
+                        }
+                    } else {
+                        $("#tooltip").remove();
+                        previousPoint = null;
+                    }
+                });
+            };
+
+
+            var cboSession=document.getElementById("cboSession");
+            var sSession=cboSession.options[cboSession.selectedIndex].text;
+
+            var oGraphDataSet = [
+                                { label: sSession+ " Order Qty Summery", data: oGraphDataForQty, color: "#5482FF" },
+                                { label: sSession+ " Order Value Summery", data: oGraphDataForValue, color: "#01DF01" }
+            ];
+
+            var somePlot = $.plot($("#divGraphChart"), oGraphDataSet, oGraphOptions);
+            $('#divSWRS').data('somePlot',somePlot);
+            $.plot($("#divGraphChart"), oGraphDataSet, oGraphOptions);
+            $("#divGraphChart").UseTooltip();
+            document.getElementById("divGraphName").innerHTML="Fig : "+ sSession+ " Order Summery (Buyer vs Qty & Value)"
+            SetPoint();
+        }
+
+        function gd(year, month, day) {
+            return new Date(year, month, day).getTime();
+        }
+
+
+        function showTooltip(x, y, color, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y - 40,
+                left: x - 120,
+                border: '2px solid ' + color,
+                padding: '3px',
+                'font-size': '9px',
+                'border-radius': '5px',
+                'background-color': '#fff',
+                'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+                opacity: 0.9
+            }).appendTo("body").fadeIn(200);
+        }
+
+
+        function formatStyleCount(value)
+        {
+            //debugger;
+            var values=value.split("~");
+            var nBuyerID=values[0];
+            $('#divSWRS').data('BusinessSession',values[1]);
+            var nStyleCount = values[2];
+            var s = '<a  href="javascript:void(0)" onclick = "ViewStyle('+nBuyerID+')">'+nStyleCount+'</a>';
+            return s;
+        }
+
+        function ViewStyle(BuyerID)
+        {
+            //debugger;
+            if( BuyerID == null || parseInt(BuyerID)<=0)
+            {
+                alert("Sorry Click Again");
+                return;
+            }
+            var oOrderRecap = {
+                BuyerID: BuyerID,
+                BUID:sessionStorage.getItem("BUID"),
+                BusinessSessionID:$("#cboSession").val()
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oOrderRecap,
+                ControllerName: "MISReport",
+                ActionName: "GetOrderRecapList",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        debugger;
+                        var tblColums = []; var oColumn = { field: "SLNo", title: "Recap No", width:100, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "SessionName", title: "Session", width:80, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "OrderRecapNo", title: "Order No", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "StyleNo", title: "Style", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "OrderRecapStatusInString", title: "Status", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "BuyerName", title: "Buyer", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "OrderDateForViewInString", title: "Order Date", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "MerchandiserName", title: "Merchandiser", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ApproveByName", title: "Approved By", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "TotalQuantity", title: "Qty", width: 90, align: "right" }; tblColums.push(oColumn);
+                        oColumn = { field: "Amount", title: "Amount", width: 90, align: "right" }; tblColums.push(oColumn);
+                        oColumn = { field: "IsActiveInString", title: "Is-Active", width:80, align: "center" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winRecap',
+                            winclass: 'clsRecap',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblRecaps',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'View Order Recap List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        $('#btnOk').hide();
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+                else{
+                    alert("Data Not Found.");
+                    return;
+                }
+            });
+
+     }
+
+
+        function RefreshList(oSessionWiseRecapSummarys)
+        {
+            data=oSessionWiseRecapSummarys;
+            data={"total":""+data.length+"","rows":data};
+            $('#tblSessionWiseRecapSummary').datagrid('loadData',data);
+        }
+
+        function numberformat(val) {
+            if (val == null) {
+                val = 0;
+            }
+            val = parseFloat(val);
+            var test = val.toFixed();
+            var tests = addComma(test);
+            return tests;
+        }
+
+        function addComma(nStr) {
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1)) {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+        // Search Buyer Start
+        $("#txtBuyerName").keydown(function (e) {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) // Enter Press
+            {
+                if($.trim($('#txtBuyerName').val())==null || $.trim($('#txtBuyerName').val())=="")
+                {
+                    alert("Type Buyer Name and Press Enter.");
+                    return;
+                }
+                GetBuyers();
+            }if (code == 8) //backspace=8
+            {
+                //debugger;
+                $("#txtBuyerName").removeClass('fontColorOfPickItem');
+                $('#divSWRS').data('BuyerIDS',"");
+                $('#divSWRS').data('BuyerCount',0);
+            }
+        });
+        $("#btnBuyer").click(function () {
+            GetBuyers();
+        });
+        function GetBuyers()
+        {
+            var oContractor = {
+                Params: '2' + '~' + $.trim($('#txtBuyerName').val())+'~'+sessionStorage.getItem("BUID")
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        debugger;
+                        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Address", title: "Address", width: 120, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Email", title: "Email", width: 90, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ShortName", title: "Short Name", width: 90, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBuyers',
+                            winclass: 'clsBuyer',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblBuyers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Buyer List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+                else{
+                    alert("Data Not Found.");
+                    return;
+                }
+            });
+        }
+
+        function IntializePickerbutton(oPickerobj) {
+            debugger;
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                debugger;
+                //for Single Select
+                SetPickerValueAssign(oPickerobj);
+            });
+            $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    SetPickerValueAssign(oPickerobj);
+                }
+            });
+        }
+
+        function SetPickerValueAssign(oPickerobj)
+        {
+            var oreturnObj = null, oreturnobjs = [];
+            if (oPickerobj.multiplereturn)
+            {
+                oreturnobjs = $('#'+oPickerobj.tableid).datagrid('getChecked');
+            } else {
+                oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+            }
+            $("#" + oPickerobj.winid).icsWindow("close");
+            $("#" + oPickerobj.winid).remove();
+
+            if (oPickerobj.winclass == 'clsBuyer')
+            {
+                var sBuyerIDs = "";
+                $('#divSWRS').data('BuyerCount',oreturnobjs.length);
+                if (oPickerobj.multiplereturn)
+                {
+                    var ncount = 0;
+                    for (var i = 0; i <oreturnobjs.length; i++)
+                    {
+                        var nBuyerID = oreturnobjs[i].ContractorID;
+                        sBuyerIDs = sBuyerIDs + nBuyerID + ',';
+                        ncount++;
+                    }
+                    if (ncount > 1)
+                    {
+                        $('#txtBuyerName').val("Select " + ncount + " Buyer's");
+                    } else
+                    {
+                        $('#txtBuyerName').val(oreturnobjs[0].Name);
+                    }
+                    sBuyerIDs = sBuyerIDs.substring(0, sBuyerIDs.length - 1);
+                } else
+                {
+                    $('#txtBuyerName').val(oreturnobj.Name);
+                    sBuyerIDs = "" + oreturnobj.ContractorID + "";
+                    $('#txtBuyerName').focus();
+                }
+                var txtBuyerName = document.getElementById("txtBuyerName");
+                txtBuyerName.style.color = "blue";
+                txtBuyerName.style.fontWeight = "bold";
+                $('#divSWRS').data('BuyerIDs',sBuyerIDs);
+            }
+        }
+
+    </script>

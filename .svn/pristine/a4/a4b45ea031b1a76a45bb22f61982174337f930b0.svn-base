@@ -1,0 +1,599 @@
+﻿@{
+    ViewBag.Title = "Weaving Production Approve";
+}
+@model IEnumerable<ESimSol.BusinessObjects.FabricBatchProductionBatchMan>
+
+
+<html>
+    <head>
+        <title>Ready beams for weaving</title>
+    </head>
+    <body>
+        <div class="menuMainCollectionTable">
+          
+            <table id="tblBeams" title="Loom Production List" class="easyui-datagrid" style="width:100%;" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="true" toolbar="#toolbarBeam" data-options="rowStyler: function(index,row){if (row.ApproveBy >0){return 'background-color:#6293BB;color:#fff;font-weight:bold;';}}">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        <th field="FEONo" width="8%">Dispo No</th>
+                        <th field="BuyerName" width="12%">Buyer Name</th>
+                        <th field="Construction" width="10%">Construction</th>
+                        <th field="Color" width="12%">Color</th>
+                        <th field="FinishDateInString" width="9%" align="center">Production Date</th>
+                        <th field="MachineCode" width="8%">Machine Code</th>
+                        <th field="BeamNo" width="8%">Beam No</th>
+                        <th field="ShiftName" width="8%">Shift Name</th>
+                        <th field="Qty" width="10%">Qty(Y)</th>
+                        <th field="QtyInM" width="10%">Qty(M)</th>
+                        <th field="Efficiency" width="10%">Efficiency</th>
+                        <th field="RPM" width="10%">RPM</th>
+                        @*<th field="ApproveName" width="15%">Approve By</th>
+                        <th field="ApproveDateStr" width="15%">Approve Date</th>*@
+
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarBeam">
+                <table class="ms-custom-control">
+                    <tr>
+                        <td class="form-inline">
+                            <div class="form-inline">
+                                <div class="input-group date date-container" style="width:120px">
+                                    <input type="text" id="dtProductionFrom" class="form-control"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                                </div>
+                                <span>To</span>
+                                <div class="input-group date date-container" style="width:120px">
+                                    <input type="text" id="dtProductionTo" class="form-control"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                                </div>
+                                <select id="cboTextileSubUnit" class="form-control" style="width:130px"></select>
+                                <select id="cboShift" class="form-control" style="width:130px;"></select>
+                                <input id="txtBuyer" type="text" class="form-control" placeholder="Type Buyer name & press enter" style="width:130px" />
+                                <input id="txtFEONo" type="text" class="form-control" placeholder="Type Dispo No & press enter" style="width:130px" />
+                                <input id="txtMachineNo" type="text" placeholder="Type machine & press enter" style="width:110px;" class="form-control" />
+                                <input id="txtBeamNo" type="text" placeholder="Type Beam & press enter" style="width:110px;" class="form-control" />
+                                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                                @*<a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Approve</a>*@
+                                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+                                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Delete</a>
+                            </div>
+
+                           
+                        </td>
+                    </tr>
+                    
+                </table>
+
+            </div>
+
+         
+        </div>
+
+        <div id="winEdirProduction" style="width:60%;" class="easyui-window" title="Fabric Batch" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+            <div id="divwinFabricBatch" tabindex="-1">
+                <fieldset>
+                    <table style="width:100%;">
+                        <tr>
+
+                            <td>
+                               
+                                Shift :
+                                <select id="cboShiftForProduction"></select>&nbsp;
+                                Date :
+
+                                <input id="txtFinishDate" style="width:120px" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />&nbsp;
+                                Finish Length :
+                                <input type="text" id="txtFinishLengthY" style="width:50px" class="number" disabled />&nbsp;(Y)&nbsp;
+                                <input type="text" id="txtFinishLengthM" style="width:50px" class="number" />&nbsp;(M)&nbsp;
+                                Efficiency:
+                                <input type="text" id="txtEff" style="width:50px" class="number" />&nbsp;
+                                RPM:
+                                <input type="text" id="txtFPBRPM" style="width:50px" class="number" />
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+                <fieldset>
+                    <legend>Actions</legend>
+                    <div style="float:right;">
+                        <a id="btnUpdateProduction" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="AddBatchMan()">Update</a>
+                        <a id="btnCLoseProduction" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </body>
+</html>
+<style>
+    #toolbarBeam .ms-custom-control .col-lg-5, .col-lg-7, .col-md-5, .col-md-7{
+        padding-left:0px;
+        padding-right:0px;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oFBPBs = [];
+    var _sBuyerIDs="";
+    var _oHRMShifts=[];
+    var _sFEOIDs ="";
+    var _sParams="";
+ 
+    $(document).ready(function () {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFBPBs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var MenuID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MenuID));
+        var sMessage =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Message));
+        var oTextileSubUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.TextileSubUnits));
+        _oHRMShifts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.HRMShifts));
+        $("#cboTextileSubUnit").icsLoadCombo({List: oTextileSubUnits,OptionValue: "TSUID", DisplayText: "Name", InitialValue:'--Select Shade--'});
+        $("#cboShift").icsLoadCombo({List: _oHRMShifts,OptionValue: "ShiftID", DisplayText: "Name", InitialValue:"--Select Sift--"});
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+
+        $('#dtProductionFrom,#dtProductionTo').val(icsdateformat(new Date()));
+     
+        DynamicRefreshListForMultipleSelection([], "tblBeams");
+     
+      
+    });
+
+
+    $("#txtBuyer").keydown(function (e) {
+        if (e.keyCode === 13) {
+            var oContractor = {
+                Params: 2 + '~' + $.trim($("#txtBuyer").val())
+            };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 400, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBuyers',
+                            winclass: 'clsBuyer',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblBuyers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Buyer List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else {
+                    alert("Sorry, No buyer found.");
+                }
+            });
+        }
+        else if (e.keyCode === 8) {
+            _sBuyerIDs = "";
+        }
+    });
+    $("#txtFEONo").keydown(function (e) {
+        if (e.keyCode === 13) {
+            var oFabricExecutionOrder = {
+                FEONo: $.trim($(this).val())
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oFabricExecutionOrder,
+                ControllerName: "FabricExecutionOrder",
+                ActionName: "GetsFEOrders",
+                IsWinClose: false
+            };
+            $.icsMaxDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].FEOID > 0) {
+                        var tblColums = []; var oColumn = { field: "OrderNo", title: "Dispo No", width: 200, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winFabricExecutionOrders',
+                            winclass: 'clsFabricExecutionOrder',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblFabricExecutionOrders',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Fabric ExecutionOrder List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else {
+                    alert("Sorry, No FEO found.");
+                }
+            });
+        }
+        else if (e.keyCode === 8) {
+            _sFEOIDs = "";
+        }
+    });
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnobjs = [];
+
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winBuyers') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                var sBuyerIDs = "";
+                $.map(oreturnObjs,function(obj){
+                    sBuyerIDs += obj.ContractorID + ","
+                });
+                _sBuyerIDs = sBuyerIDs.substring(0, sBuyerIDs.length - 1);
+                $('#txtBuyer').val(oreturnObjs.length + " buyer" + (oreturnObjs.length > 1 ? "s" : "") + " selected.").focus();
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        else if (oPickerobj.winid == 'winFabricExecutionOrders') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                $.map(oreturnObjs,function(obj){
+                    _sFEOIDs += obj.FEOID + ","
+                });
+                _sFEOIDs = _sFEOIDs.substring(0, _sFEOIDs.length - 1);
+                $('#txtFEONo').val(oreturnObjs.length + " Dispo(s) Selected").focus();
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+
+    function Validation(){
+        if(new Date($('#dtProductionFrom').val()) == 'Invalid Date'){
+            alert("Valid Date Required");
+            $('#dtProductionFrom').focus();
+            return false;
+        }
+        if(new Date($('#dtProductionTo').val()) == 'Invalid Date'){
+            alert("Valid Date Required");
+            $('#dtProductionTo').focus();
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function SearchProduction(){
+        if(!Validation())
+            return false;
+        var sParams=$('#dtProductionFrom').val()+'~'+ $("#cboTextileSubUnit").val()+'~'+ $("#cboShift").val()+'~'+ $('#dtProductionTo').val()+'~'+_sBuyerIDs +'~'+_sFEOIDs+'~'+$("#txtMachineNo").val()+'~'+ $("#txtBeamNo").val();
+        var oFBPBM = {
+            ErrorMessage:sParams
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFBPBM,
+            ControllerName: "FabricBatchProduction",
+            ActionName: "SearchFBPBM",
+            IsWinClose: false
+        };
+        $.icsMaxDataGets(obj, function (response) {
+            if (response.status && response.objs.length > 0) {
+                var results = JSON.parse(response.objs);
+                if (results.length > 0) {
+                    _sParams=sParams;
+                    DynamicRefreshListForMultipleSelection(results, "tblBeams");
+                }
+                else {
+                    alert("Sorry, No Data found.");
+                }
+            }
+            else {
+                alert("Sorry, No Data found.");
+            }
+        });
+    }
+    
+    $("#txtMachineNo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            if($.trim($(this).val()) == ""){
+                alert("Type machin no.");
+                return false;
+            }
+            SearchProduction();
+         
+        }
+        else if(e.keyCode === 8)
+        {
+            $("#txtMachineNo").val("");
+            //DynamicRefreshListForMultipleSelection(_oFBPBs, "tblBeams");
+        }
+    });
+    $("#txtBeamNo").keydown(function(e){
+        if(e.keyCode === 13)
+        {
+            if($.trim($(this).val()) == ""){
+                alert("Type Beam no.");
+                return false;
+            }
+            SearchProduction();
+         
+        }
+        else if(e.keyCode === 8)
+        {
+            //DynamicRefreshListForMultipleSelection(_oFBPBs, "tblBeams");
+            $("#txtBeamNo").val("");
+        }
+    });
+
+    $("#btnSearch").click(function(){
+       
+        SearchProduction();
+         
+      
+    });
+     
+    $("#btnDelete").click(function () {
+        var oFBPBMs = $("#tblBeams").datagrid("getChecked");
+        if (oFBPBMs.length <= 0) { alert("Please select an item from list!"); return; }
+        
+        if (!confirm("Confirm to Delete?")) return false;
+        //var nRowIndex = $("#tblFabrics").datagrid("getRowIndex", oFabric);
+
+        var sFBPBID="";
+    
+        $.map(oFBPBMs, function (c){
+         
+            if(c.ApproveBy == 0 ){
+                sFBPBID = c.FBPBID + "," + sFBPBID;
+            }
+        });
+        if($.trim(sFBPBID) == "")
+        {
+            alert("Your selected item(s) already received.");
+            return false;
+        }
+        sFBPBID=sFBPBID.substring(0,sFBPBID.length-1);
+        var oFBP={
+            FBPBIDs:sFBPBID,
+            ErrorMessage:_sParams
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricBatchProduction/DeleteFBPB",
+            traditional: true,
+            data: JSON.stringify(oFBP),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oFBPBS = jQuery.parseJSON(data);
+                if (oFBPBS[0].ErrorMessage == "") {
+                  
+                        alert("Delete Successful.");
+                        DynamicRefreshList(oFBPBS, "tblBeams");
+                   
+                }
+                else {
+                    alert(oFBPBS[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $("#btnApprove").click(function () {
+        var oFBPBMs = $("#tblBeams").datagrid("getChecked");
+        if (oFBPBMs.length <= 0) { alert("Please select an item from list!"); return; }
+        
+        if (!confirm("Confirm to Approve?")) return false;
+       
+        var sFBPBID="";
+    
+        $.map(oFBPBMs, function (c){
+         
+            if(c.ApproveBy == 0 ){
+                sFBPBID = c.FBPBID + "," + sFBPBID;
+            }
+        });
+        if($.trim(sFBPBID) == "")
+        {
+            alert("Your selected item(s) already Approved.");
+            return false;
+        }
+        sFBPBID=sFBPBID.substring(0,sFBPBID.length-1);
+        var oFBP={
+            FBPBIDs:sFBPBID,
+            ErrorMessage:_sParams
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/FabricBatchProduction/ApproveFBPB",
+            traditional: true,
+            data: JSON.stringify(oFBP),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oFBPBS = jQuery.parseJSON(data);
+              
+                if (oFBPBS[0].FBPBID > 0) {
+                        alert("Approve Successful.");
+                        DynamicRefreshList(oFBPBS, "tblBeams");
+                    }
+           
+                else {
+                    alert(oFBPBS[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $('#btnEdit').click(function(e){
+        var oFBPB = $("#tblBeams").datagrid("getSelected");
+        if(oFBPB == null || oFBPB.FBPBeamID <= 0)
+        {
+            alert("Select an item from list.");
+            return false;
+        }
+      
+        $("#cboShiftForProduction").icsLoadCombo({List: _oHRMShifts,OptionValue: "ShiftID",DisplayText: "ShiftWithDuration"});
+        $("#cboShiftForProduction").val(oFBPB.ShiftID);
+        $('#txtFinishDate').datebox('setValue',oFBPB.FinishDateInString);
+        $('#txtFPBRPM').val(oFBPB.RPM);
+        $('#txtEff').val(oFBPB.Efficiency);
+        $('#txtFinishLengthY').val(oFBPB.Qty);
+        $('#txtFinishLengthM').val(oFBPB.QtyInM);
+        $("#winEdirProduction").icsWindow("open");
+    });
+
+    $("#txtFinishLengthY").keyup(function (e) {
+        var nVal =  $(this).val();
+        $('#txtFinishLengthM').val(GetMeter(nVal,2));
+        if (nVal == "" || nVal == null) {
+            $(this).val(0);
+        }
+    });
+
+    $("#txtFinishLengthM").keyup(function (e) {
+        var nVal = $(this).val();
+        $('#txtFinishLengthY').val(GetYard(nVal,2));
+        if (nVal == "" || nVal == null) {
+            $(this).val(0);
+        }
+    });
+    $("#btnCLoseProduction").click(function () {
+        $("#winEdirProduction").icsWindow("close");
+
+    });
+
+    function AddBatchMan()
+    {
+       
+        if(parseInt($('#cboShiftForProduction').val())<=0)
+        {
+            alert("Select Shift !");
+            $('#cboShift').focus();
+            return false;
+        }
+
+        if(parseInt($('#txtFinishLengthY').val())<=0 || $('#txtFinishLengthY').val()=="")
+        {
+            alert("Give finish length");
+            $('#txtFinishLengthY').focus();
+            return false;
+        }
+        if(parseInt($('#txtFPBRPM').val())<=0 || $('#txtFPBRPM').val()=="")
+        {
+            alert("Give RPM");
+            $('#txtFinishLengthY').focus();
+            return false;
+        }
+        if(parseInt($('#txtEff').val())<=0 || $('#txtEff').val()=="")
+        {
+            alert("Give Efficiency");
+            $('#txtEff').focus();
+            return false;
+        }
+        var oFBPB = $("#tblBeams").datagrid("getSelected");
+        var nSelectedIndex = $("#tblBeams").datagrid("getRowIndex", oFBPB);
+      
+        var oFBPBatchMan = {
+            FBPBID:oFBPB.FBPBID,
+            FBPID:oFBPB.FBPID,
+            EmployeeID:1706,//$('#cboBatchMan').val(), 1706=Batchman-A
+            ShiftID:$('#cboShiftForProduction').val(),
+            Qty:$('#txtFinishLengthY').val(),
+            FinishDate:$('#txtFinishDate').datebox('getValue'),
+            Note:'',
+            Efficiency:$('#txtEff').val(),
+            RPM:$('#txtFPBRPM').val()
+        };
+       
+        SaveBatchMan(oFBPBatchMan,true, nSelectedIndex);
+    
+    }
+ 
+    function SaveBatchMan(oFBPBatchMan,bIsEdit, nSelectedIndex)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FabricBatchProduction/SaveFBPBatchMan",
+            traditional: true,
+            data:  JSON.stringify(oFBPBatchMan),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+               var _oFBPBatchMan = jQuery.parseJSON(data);
+                if (parseInt(_oFBPBatchMan.FBPBID)>0)
+                {
+                    if(bIsEdit)
+                    {
+                        $('#tblBeams').datagrid('updateRow', { index: nSelectedIndex, row: _oFBPBatchMan});
+                    }else{
+                        $("#tblBeams").datagrid("appendRow", _oFBPBatchMan);
+                    }
+
+                    $("#winEdirProduction").icsWindow("close");
+                }
+                else {
+                    alert(_oFBPBatchMan.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+
+
+    
+   
+
+
+  
+
+
+
+</script>

@@ -1,0 +1,141 @@
+﻿@{
+    ViewBag.Title = "Client Operation List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.COSImage>
+    <div class="menuMainCollectionTable">
+       <table id="tblCOSImages" title="Client Operation List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+           <thead>
+               <tr>
+                   <th field="OperationTypeInString" width="250">Operation Type</th>
+                   <th field="COSVFormatInString" width="100">Format Type</th>
+                   <th field="ImageTitle" width="100">Image Titel</th>
+               </tr>
+           </thead>
+       </table>
+
+       <div id="toolbar">
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    debugger;
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping=[];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var oCOSImages =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        debugger;
+        var oTempCOSImages =sessionStorage.getItem("COSImages");
+        if(oTempCOSImages !=null)
+        {
+            oTempCOSImages  = jQuery.parseJSON(oTempCOSImages );
+        }
+        else
+        {
+            oTempCOSImages =oCOSImages;
+        }
+        RefreshList(oTempCOSImages );
+    });
+
+  
+    $("#btnAdd").click(function(){
+        var oCOSImages= $('#tblCOSImages').datagrid('getRows');
+        sessionStorage.setItem("COSImages", JSON.stringify(oCOSImages));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("COSHeader", "Add");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+ "/ClientOperationSetting/ImageHelper?id=0&ms=''&sSavedMessag=''";
+    });
+
+    $("#btnEdit").click(function(){
+        var oCOSImage= $('#tblCOSImages').datagrid('getSelected');
+        if(oCOSImage==null || oCOSImage.COSImageID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblCOSImages').datagrid('getRowIndex',oCOSImage);
+        var oCOSImages= $('#tblCOSImages').datagrid('getRows');
+        sessionStorage.setItem("COSImages", JSON.stringify(oCOSImages));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("COSHeader", "Edit");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+"/ClientOperationSetting/ImageHelper?id="+oCOSImage.COSImageID+"&ms=''&sSavedMessag=''";
+    });
+
+    $("#btnView").click(function(){
+        var oCOSImage= $('#tblCOSImages').datagrid('getSelected');
+        if(oCOSImage==null || oCOSImage.COSImageID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        
+        var SelectedRowIndex=$('#tblCOSImages').datagrid('getRowIndex',oCOSImage);
+        var oCOSImages= $('#tblCOSImages').datagrid('getRows');
+        sessionStorage.setItem("COSImages", JSON.stringify(oCOSImages));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("COSHeader", "View");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = _sBaseAddress+"/ClientOperationSetting/ImageHelper?id="+oCOSImage.COSImageID+"&ms=''&sSavedMessag=''";
+    });
+    $("#btnDelete").click(function(){
+        var oCOSImage= $('#tblCOSImages').datagrid('getSelected');
+        if(oCOSImage==null || oCOSImage.COSImageID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+       
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblCOSImages').datagrid('getRowIndex',oCOSImage);
+        if (oCOSImage.COSImageID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/ClientOperationSetting/DeleteCOSImage",
+                data: { id: oCOSImage.COSImageID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCOSImages').datagrid('deleteRow',SelectedRowIndex);
+                        var oCOSImages= $('#tblCOSImages').datagrid('getRows');
+                        sessionStorage.setItem("COSImages", JSON.stringify(oCOSImages));
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+   
+   
+    function RefreshList(oCOSImages)
+    {
+        debugger;
+        var data=oCOSImages;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblCOSImages').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblCOSImages').datagrid('selectRow',nIndex);
+    }
+
+    </script>

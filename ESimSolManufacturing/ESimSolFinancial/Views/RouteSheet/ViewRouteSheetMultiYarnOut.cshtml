@@ -1,0 +1,1042 @@
+﻿@{
+    ViewBag.Title = "RouteSheet";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.RouteSheet>
+
+<script src="~/Views/RouteSheet/AdvSearchRS.js"></script>
+<body>
+    <div class="menuMainCollectionTable" ng-app="RouteSheetApp" style="height:100%; width:99.4%">
+        <div ng-controller="RouteSheetController" style="height:100%;">
+            <div style=" margin-bottom:2px; display:block" title="SoftWinding List" class="ui-grid-top-panel">
+            <input type="text" ng-model="txtSearchByNo" ng-keyup="SearchByNo($event)" placeholder="Search by {{RouteSheetSetup.RSShortName}}" style="width:160px" />
+            <input type="text" ng-model="txtSearchByOrderNo" ng-keyup="SearchByOrderNo($event)" placeholder="Search by Order No" style="width:160px" />
+            
+            <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="advanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true">Adv. Search</span></button>
+            <button type="button" id="btnAdd" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="OpenLotModal()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" id="btnYarnOut" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="YarnOut()"><span class="glyphicon glyphicon-th" aria-hidden="true"> Yarn Out</span></button>
+            @*<button type="button" id="btnDetails" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="ShowDetails()"><span class="glyphicon glyphicon-th" aria-hidden="true"> Show Detail</span></button>*@
+            <button type="button" id="btnPrint" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printView()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+            <button type="button" id="btnExcel" class="btn btn-primary btn-sm" aria-label="Left Align" ng-click="printExcel()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Export To Excel</span></button>
+        </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular" style="width:100%; height:90%"></div>
+        </div>
+
+        <script type="text/ng-template" id="RSLot.html">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modal-title">{{Header}}</h4>
+            </div>
+            <div class="modal-body form-horizontal regionExportUP ms-custom-control" id="modal-body">
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Order Product:</label></div>
+                        <div class="col-md-7 text-left">
+                            <input ng-model="RS.OrderProduct" class="form-control" disabled>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Shift:</label></div>
+                        <div class="col-md-7 text-left">
+                            <select id="cboShift" ng-model="RS.RSShiftID" ng-options="obj.RSShiftID as obj.Name for obj in RSShifts" ng-disabled="disabled" class="form-control">
+                                <option value="">--Select Shift--</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Store:</label></div>
+                        <div class="col-md-7 text-left">
+                            <select id="cboIssueStore" ng-model="RS.WorkingUnitID" ng-options="obj.WorkingUnitID as obj.OperationUnitName for obj in IssueStores" ng-change="cboIssueStoreChange()" ng-disabled="disabled" class="form-control">
+                                <option value="">--Select Store--</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="col-md-3 text-right"><label class="control-label">Product:</label></div>
+                        <div class="col-md-7 text-left">
+                            <div class="form-inline">
+                                <input class="form-control" type="text" ng-model="txtProductName" placeholder="Type Name & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownProduct($event)" style="width:80%;" required />
+                                <button type="button" class="btn btn-primary btn-sm" style="width:18%" aria-label="right Align" ng-click="PickProduct()" ng-disabled="disabled"><span aria-hidden="true"> Pick </span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row ui-grid-panel">
+                    <div class="col-md-12 ">
+                        <div class="col-md-2 text-right">
+                            <select id="cboOrder" ng-model="RS.DyeingOrderDetailID" ng-options="obj.DyeingOrderDetailID as obj.OrderNoFull for obj in RouteSheetDOs" ng-change="cboDO()" ng-disabled="disabled" class="form-control">
+                                <option value="">--Select Store--</option>
+                            </select>
+                          
+                        </div>
+                        <div class="col-md-2 text-left">
+                          
+                            <label class="control-label">Qty:{{RS.Qty_DO}}</label>
+                        </div>
+                        <div class="col-md-2 text-right"><label class="control-label">Lot No:</label></div>
+                        <div class="container col-md-4 text-left">
+                            <div class="form-inline">
+                                <input class="form-control" ng-model="txtLotNo" type="text" placeholder="Type Lot No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownLot($event)" style="width:80%;" required />
+                                <button type="button" style="width:18%" class="btn btn-primary btn-sm" aria-label="right Align" ng-click="PickLot(1)" ng-disabled="disabled"><span aria-hidden="true"> Add </span></button>
+                            </div>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-danger btn-sm" aria-label="right Align" ng-click="RemoveLot()" ng-disabled="disabled"><span aria-hidden="true"> Remove </span></button>
+                        </div>
+                    </div>
+                </div>
+                @*<div class="row ui-grid-panel">
+                    <div class="container col-md-12">
+                        <div class="form-inline" >
+                            <button type="button" style="float:left" class="btn btn-primary btn-sm" aria-label="right Align" ng-click="PickLot()" ng-disabled="disabled"><span aria-hidden="true"> Add Lot</span></button>
+                            <button type="button" style="float:right" class="btn btn-danger btn-sm" aria-label="right Align" ng-click="RemoveLot()" ng-disabled="disabled"><span aria-hidden="true"> Remove </span></button>
+                        </div>
+                    </div>
+                </div>*@
+                <div ui-grid="gridOptions_Lot" ui-grid-selection ui-grid-resize-columns ui-grid-edit class="grid-angular" style="width:100%; height:180px"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-success btn-sm" aria-label="Left Align" ng-click="SaveRSRawLot()" ng-disabled="disabled" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+                <button type="button" class="btn-danger btn-sm" aria-label="Left Align" ng-click="cancel()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel</button>
+            </div>
+        </script>
+    </div>
+</body>
+
+<style type="text/css">
+
+    .tbl-Win{
+        width:100%;
+    }
+    .td-styler input, select {
+        padding-left: 5px;
+    }
+    .txt-styler{
+        width:95%;
+    }
+    .txt-styler-picker{
+        width:65%;
+    }
+    .cbo-styler{
+        width:98%;
+    }
+    .txt-styler-Note{
+            width:97.5%;
+    }
+
+
+    .tbl-AdvSearch{
+        width:100%;
+    }
+    .td-AdvSearch-Level {
+        width: 25%;
+        text-align: right;
+        font-weight: bold;
+    }
+
+    .td-AdvSearch-Input {
+        width: 79%;
+    }
+
+    .td-AdvSearch-Input select {
+        width: 98%;
+    }
+
+    .td-AdvSearch-Input .textSearch {
+        width: 96%;
+    }
+
+    .td-AdvSearch-Input .pickersearch {
+        width: 74%;
+    }
+    .region-parent{
+    float:left; width:100%;
+    }
+    .region-child{
+        float:left; width:50%;
+    }
+    .cbo-styler{
+        width:98%;
+        }
+</style>
+
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oRouteSheets = [];
+    var _oRouteSheet = null;
+    var _nProductID=0;
+    var _nLotID=0;
+    var _sProductIDs="";
+    var _sLotIDs="";
+
+    _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oRouteSheets =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var o =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Employees));
+    var oWorkingUnits=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.WorkingUnits));
+    var oEmployees =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Employees));
+    var oCompareOperators=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.CompareOperators));
+    var oRouteSheetSetup=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.RouteSheetSetup));
+    var _nBUID=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.BUID));
+
+    @*//var _oDyeMachines=  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.CapitalResources));
+    //var _oDUPSchedules= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.DUPSchedules));
+    //ar _oDUOrderSetups = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUOrderSetups));*@
+    var oLocations=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Locations));
+    var oOrderType = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderType));
+    var oMachineTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MachineTypes));
+    var oProductionScheduleStatusList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ProductionScheduleStatus));
+    var oRSStates =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RSStates));
+    var oRSShifts =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.RSShifts));
+
+    $('.number').icsCurrencyBox();
+
+    debugger;
+    var CCapp= angular.module('RouteSheetApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ui.grid.resizeColumns','ms.service','RSM.service']);
+    CCapp.controller('RouteSheetController',function ($scope,$http,$uibModal,uiGridConstants,userSession,RSMservice)
+    {
+        oRouteSheets= (userSession.getData('RouteSheets').length>0)? userSession.getData('RouteSheets'):_oRouteSheets;
+        debugger;
+        $scope.RouteSheetSetup=oRouteSheetSetup;
+        $scope.RSShifts=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.RSShifts));
+
+        $scope.gridOptions= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            enableColumnResizing: true,
+            showColumnFooter: true,
+            columnDefs: [
+                { field: 'RouteSheetDateStr', name:'Batch Date', width:'8%' },
+                { field: 'RouteSheetNo', name: ($scope.RouteSheetSetup==null?'No':$scope.RouteSheetSetup.RSShortName), width:'10%' },
+                { field: 'OrderNoFull', name:'Order No', width:'10%' , enableSorting: false},
+                { field: 'RSStateStr', name:'Current State', width:'10%' , enableSorting: false},
+                { field: 'ContractorName', name:'Buyer Name', width:'10%', enableSorting: false},
+                { field: 'MachineName', name:'Machine', width:'10%', enableSorting: false},
+                { field: 'ProductName', name:'Product Name', width:'18%', enableSorting: false},
+                { field: 'LotNo', name:'Lot No', width:'10%', enableSorting: false},
+                { field: 'ColorName', name:'Color', width:'10%', enableSorting: false},
+                //{ field: 'WUName', name:'Store Name', width:'10%' , cellClass:'text-right',cellFilter:'number:2',enableSorting: false},
+                //{ field: 'LotNo', name:'Raw Lot No', width:'10%' },
+                //{ field: 'Qty', name:'Qty',cellClass:'text-right',cellFilter:'number:2', width:'8%' },
+                { field: 'Qty', name:'Qty',cellClass:'text-right',cellFilter:'number:2', width:'8%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'NoOfHanksConeWithType', name:'Cone/Hank',cellClass:'text-right', width:'6%' },                
+                { field: 'RSSateDateStr', name:'Yarn Out Time', width:'12%' , enableSorting: false},
+                { field: 'RecipeByName', name:'Yarn Out By', width:'12%' , enableSorting: false},
+                { field: 'PrepareByName', name:'Prepared By', width:'10%' , enableSorting: false},
+                { field: 'ApproveByName', name:'Send To Floor By', width:'13%' , enableSorting: false}
+            ],
+            data: oRouteSheets,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+
+                debugger;
+                if(oRouteSheets.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oRouteSheets);
+                    $scope.gridApi.selection.selectRow(oRouteSheets[userSession.getRowIndex()]);
+                    //$scope.RowSelect(oRouteSheets[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+        //sessionStorage.setItem("BUID",_nBUID);
+        $scope.BUID=0;
+        $scope.Note="";
+        $scope.SearchByNo = function(e)
+        {
+            debugger;
+
+            if(e.which==13){
+
+                var txtSearchByNo = $scope.txtSearchByNo;
+
+                if(txtSearchByNo==undefined || txtSearchByNo=='')
+                {
+                    alert("Please Type "+($scope.RouteSheetSetup==null?'No':$scope.RouteSheetSetup.RSShortName)+' And Press Enter!'); return;
+                }
+
+                var oRouteSheet = {
+                    RouteSheetNo:txtSearchByNo
+                };
+
+                //========================== SET SESSION CRITERIA ================================
+                sessionStorage.removeItem("sTempString");
+                $scope.cboDUPSDate = $scope.LocationID = $scope.MachineTypeID  = $scope.cboRSDate = $scope.RSShiftID = 0; 
+                $scope.StartTime = $scope.EndTime = $scope.StartTime_RS = $scope.EndTime_RS = icsdateformat(new Date());
+                $scope.MachineIDs =  $scope.RSStateIDs = $scope.BuyerIDs =  $scope.DODID ="";
+                
+                $scope.StatusIDs = ""; // 4;
+
+                var sTemp = $scope.cboDUPSDate + '~' + $scope.StartTime + '~' + $scope.EndTime 
+                                    + '~' + $scope.LocationID + '~' + $scope.MachineIDs + '~' + $scope.DODID + "~" + $scope.MachineTypeID + "~" + $scope.StatusIDs + "~" + $scope.RSStateIDs + "~" + $scope.cboRSDate + '~' + $scope.StartTime_RS + '~' + $scope.EndTime_RS 
+                                    + '~' + $scope.BuyerIDs + '~' + $scope.RSShiftID + '~' +false+'~'+false + '~' + txtSearchByNo + '~' ;
+                 
+                sessionStorage.setItem("sTempString", sTemp);
+                //================================================================================
+
+                $http.post(_sBaseAddress + '/RouteSheet/GetsRouteSheetByNo_All', oRouteSheet).then(
+                  function (response)
+                  {
+                      debugger;
+                      var result=jQuery.parseJSON(response.data);
+                      console.log(result);
+
+                      if(result.length==0)
+                      {
+                          alert("No Data Found!!"); return;
+                      }
+
+                      if(result[0].RouteSheetID>0 && result[0].ErrorMessage=='')
+                      {
+                          $scope.gridOptions.data=result;
+                      }
+                      else
+                      {
+                          alert(result[0].ErrorMessage); return;
+                      }
+                  },
+                  function (response) { alert(response.statusText);}
+              );
+            }
+        }
+        $scope.SearchByOrderNo = function(e)
+        {
+            debugger;
+
+            if(e.which==13){
+
+                var txtSearchByNo = $scope.txtSearchByOrderNo;
+
+                if(txtSearchByNo==undefined || txtSearchByNo=='')
+                {
+                    alert("Please Type Order No And Press Enter!"); return;
+                }
+
+                var oRouteSheet = {
+                    RouteSheetNo:"",
+                    OrderNo:txtSearchByNo
+                };
+    
+                //========================== SET SESSION CRITERIA ================================
+                sessionStorage.removeItem("sTempString");
+                $scope.cboDUPSDate = $scope.LocationID = $scope.MachineTypeID  = $scope.cboRSDate = $scope.RSShiftID = 0; 
+                $scope.StartTime = $scope.EndTime = $scope.StartTime_RS = $scope.EndTime_RS = icsdateformat(new Date());
+                $scope.MachineIDs =  $scope.RSStateIDs = $scope.BuyerIDs =  $scope.DODID ="";
+                
+                $scope.StatusIDs = ""; //4;
+
+                var sTemp = $scope.cboDUPSDate + '~' + $scope.StartTime + '~' + $scope.EndTime 
+                                    + '~' + $scope.LocationID + '~' + $scope.MachineIDs + '~' + $scope.DODID + "~" + $scope.MachineTypeID + "~" + $scope.StatusIDs + "~" + $scope.RSStateIDs + "~" + $scope.cboRSDate + '~' + $scope.StartTime_RS + '~' + $scope.EndTime_RS 
+                                    + '~' + $scope.BuyerIDs + '~' + $scope.RSShiftID +'~'+false+'~'+false + '~' + '~' + txtSearchByNo;
+                 
+                sessionStorage.setItem("sTempString", sTemp);
+                //================================================================================
+
+                $http.post(_sBaseAddress + '/RouteSheet/GetsRouteSheetByNo_All', oRouteSheet).then(
+                  function (response)
+                  {
+                      debugger;
+                      var result=jQuery.parseJSON(response.data);
+                      console.log(result);
+
+                      if(result.length==0)
+                      {
+                          alert("No Data Found!!"); return;
+                      }
+
+                      if(result[0].RouteSheetID>0 && result[0].ErrorMessage=='')
+                      {
+                          $scope.gridOptions.data=result;
+                      }
+                      else
+                      {
+                          alert(result[0].ErrorMessage); return;
+                      }
+                  },
+                  function (response) { alert(response.statusText);}
+              );
+            }
+        }
+        $scope.advanceSearch = function ()
+        {
+            debugger;
+            this.PINo="";
+            var modalObj={
+                modalcontroller:'ModalDUPSCtrl',
+                appcontroller:'DUPScheduleController',
+                OrderType: oOrderType,
+                CompareOperators:oCompareOperators,
+                Locations:oLocations,
+                MachineTypes:oMachineTypes,
+                ProductionScheduleStatusList:oProductionScheduleStatusList,
+                RSStates:oRSStates,
+                RSShifts:oRSShifts
+            }
+            sessionStorage.setItem('BaseAddress',_sBaseAddress);
+            var modalInstance=RSMservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                if (result.length > 0)
+                {
+                    if(result[0].ErrorMessage!=""){ alert(result[0].ErrorMessage); return;}
+
+                    $scope.gridOptions.data = result;
+                } else {
+                    msModal.Message({ headerTitle: '', bodyText: 'No Data Found !!', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                    // alert("Data Not Found.");
+                    return;
+                }
+
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.PrintList = function()
+        {
+            var oRouteSheets= $scope.gridOptions.data;
+            var ids ="";
+            if(oRouteSheets.length >0)
+            {
+                for(var i =0;i<oRouteSheets.length;i++)
+                {
+                    ids =ids+oRouteSheets[i].RouteSheetID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/RouteSheet/PrintList?sIDs='+ids);
+        }
+        $scope.ExportToExcel = function()
+        {
+            var oRouteSheets=  $scope.gridOptions.data;
+            var ids ="";
+            if(oRouteSheets.length >0)
+            {
+                for(var i =0;i<oRouteSheets.length;i++)
+                {
+                    ids =ids+oRouteSheets[i].RouteSheetID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/RouteSheet/RouteSheetExportToExcel?sIDs='+ids);
+        }
+
+        $scope.YarnOut = function () {
+            debugger;
+            //if(!$scope.Validation()) return;
+            var oRouteSheets=$scope.gridApi.selection.getSelectedRows();
+            if(oRouteSheets.length<=0)
+            {
+                alert("Select an item from list.");return;
+            }
+            if(oRouteSheets[0].RSState>3)
+            {
+                alert("Already Yarn Out. Please Try With Another.!");return;
+            }
+
+            if (!confirm("Confirm to Yarn Out?")) return ;
+
+            var SelectedIndex=$scope.gridOptions.data.indexOf(oRouteSheets[0]);
+
+            if(oRouteSheets!=null && oRouteSheets.length>0)
+            {
+                var oRouteSheetIDs=oRouteSheets[0].RouteSheetID;
+                for(var i=1;i<oRouteSheets.length;i++)
+                {
+                    oRouteSheetIDs+=","+oRouteSheets[i].RouteSheetID;
+                }
+                //alert("oRouteSheetIDs = "+oRouteSheetIDs);
+            }
+            console.log(oRouteSheetIDs);
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.get(_sBaseAddress + '/RouteSheet/RouteSheetYarnOut_Multi', { params: { sTemp: oRouteSheetIDs } }, config).then(
+                function (response) {
+                    var result=jQuery.parseJSON(response.data);
+                    console.log(result);
+                    if(result[0].RouteSheetID>0 && result[0].ErrorMessage=="")
+                    {
+                        debugger;
+                        alert("Yarn Out Successfully!!");
+                        $scope.gridOptions.data[SelectedIndex]=result[0];
+                    }
+                    else
+                    {
+                        alert(result[0].ErrorMessage);
+                    }
+
+                },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        );
+        };
+
+        $scope.ShowDetails= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oRouteSheet= data[0];//get selected index
+            if(oRouteSheet==null || oRouteSheet.RouteSheetID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oRouteSheet);
+            sessionStorage.setItem("RouteSheets", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("RouteSheetHeader", "Yarn Details");
+            sessionStorage.setItem("OperationType", "ShowYarnDetails");
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/RouteSheet/ViewRouteSheetYarnOut?id="+oRouteSheet.RouteSheetID;
+        }
+
+        $scope.printView = function()
+        {
+            var  sTemp = sessionStorage.getItem("sTempString");debugger;
+            if(sTemp==null)
+            {
+                $scope.cboDUPSDate = $scope.LocationID = $scope.MachineTypeID  = $scope.cboRSDate = $scope.RSShiftID = 0; 
+                $scope.StartTime = $scope.EndTime = $scope.StartTime_RS = $scope.EndTime_RS = icsdateformat(new Date());
+                $scope.MachineIDs =  $scope.RSStateIDs = $scope.BuyerIDs =  $scope.DODID ="";
+                
+                $scope.StatusIDs = ""; //4
+
+                var sTemp = 1 + '~' + $scope.StartTime + '~' + $scope.EndTime 
+                                   + '~' + $scope.LocationID + '~' + $scope.MachineIDs + '~' + $scope.DODID + "~" + $scope.MachineTypeID + "~" + $scope.StatusIDs + "~" + $scope.RSStateIDs + "~" + $scope.cboRSDate + '~' + $scope.StartTime_RS + '~' + $scope.EndTime_RS + '~' + $scope.BuyerIDs + '~' + $scope.RSShiftID+'~'+false+'~'+false;
+            }
+            window.open(_sBaseAddress + '/RouteSheet/Print_YarnOut_Multiple?sParams='+sTemp, "_blank");
+        };
+        $scope.printExcel = function()
+        {
+            var  sTemp = sessionStorage.getItem("sTempString");debugger;
+            if(sTemp==null)
+            {
+                $scope.cboDUPSDate = $scope.LocationID = $scope.MachineTypeID  = $scope.cboRSDate = $scope.RSShiftID = 0; 
+                $scope.StartTime = $scope.EndTime = $scope.StartTime_RS = $scope.EndTime_RS = icsdateformat(new Date());
+                $scope.MachineIDs =  $scope.RSStateIDs = $scope.BuyerIDs =  $scope.DODID ="";
+                
+                $scope.StatusIDs = ""; //4;
+
+                var sTemp = 1 + '~' + $scope.StartTime + '~' + $scope.EndTime 
+                                   + '~' + $scope.LocationID + '~' + $scope.MachineIDs + '~' + $scope.DODID + "~" + $scope.MachineTypeID + "~" + $scope.StatusIDs + "~" + $scope.RSStateIDs + "~" + $scope.cboRSDate + '~' + $scope.StartTime_RS + '~' + $scope.EndTime_RS + '~' + $scope.BuyerIDs + '~' + $scope.RSShiftID +'~'+false+'~'+false;
+            }
+            window.open(_sBaseAddress + '/RouteSheet/ExcelYarnOut_Multiple?sParams='+sTemp+"&nts="+00, "_blank");
+        };
+       
+        $scope.Modal = function (objSQ, operation) {
+            debugger;
+            var modalInstance = $uibModal.open({
+                ariaLabelledBy: 'modal-title',
+                ariaDescribedBy: 'modal-body',
+                size: 'lg',
+                templateUrl: 'RSLot.html',
+                controller: 'ModalInstanceCtrl',
+                controllerAs: 'RSLotCtrl',
+                resolve: {
+                    obj: function () {
+                        return { RS:objSQ, RSShifts: $scope.RSShifts, Operation: operation  };
+                    }
+                }
+            });
+
+            modalInstance.result.then(function (result) {
+                debugger;
+                if(result!=undefined && result[0].RSRawLotID>0)
+                {
+                    debugger;
+                    var oRouteSheet = $scope.gridApi.selection.getSelectedRows()[0];
+                    var index=$scope.gridOptions.data.indexOf(oRouteSheet);
+
+                    oRouteSheet.NoOfHanksCone=result.select('NumOfCone').sum();
+                    oRouteSheet.NoOfHanksConeWithType=oRouteSheet.NoOfHanksCone+" "+oRouteSheet.DyeingType;
+                    $scope.gridOptions.data[index]=oRouteSheet;
+                    $scope.gridApi.selection.selectRow($scope.gridOptions.data[index]);
+                    //$scope.RowSelect(oDURequisitions[userSession.getRowIndex()]);
+                }
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        //$scope.OrderQty=0.0;
+        $scope.OpenLotModal = function()
+        {
+            debugger;
+            var oRouteSheet = $scope.gridApi.selection.getSelectedRows()[0];
+
+            if(oRouteSheet==null)
+            {
+                alert("Please, Select An Item !");
+                return;
+            }
+            sessionStorage.setItem("SelectedLotIndex", $scope.gridOptions.data.indexOf(oRouteSheet));
+            oRouteSheet.WorkingUnits=oWorkingUnits;
+
+
+            $http.post(_sBaseAddress + '/RouteSheet/GetsRSRawLot', oRouteSheet).then(
+               function (response)
+               {
+                   debugger;
+                   var result=jQuery.parseJSON(response.data);
+                   console.log(result);
+                   if(result.RouteSheetID>0 && result.RSRawLots.length>0)
+                   {
+                       if(result.RSRawLots[0].ErrorMessage=="")
+                       {
+                           oRouteSheet.RSRawLots=result.RSRawLots;
+                       }
+                       else {
+                           alert(result.RSRawLots[0].ErrorMessage);return;
+                       }
+                       $scope.Note=result.RSRawLots[0].Param;
+                   }
+                   
+                   oRouteSheet.RouteSheetDOs=result.RouteSheetDOs;
+                   $scope.Modal( oRouteSheet, 'Edit');
+               },
+               function (response) { alert(response.statusText);}
+           );
+
+        }
+
+        //button hide unhide
+        //$('#btnAdd,#btnEdit,#btnView,#btnDelete,#btnPrintList').hide();
+        //if(PermissionChecker('Add','RouteSheet',oAuthorizationRolesMapping)){$("#btnAdd").show();}
+        //if(PermissionChecker('Edit','RouteSheet',oAuthorizationRolesMapping)){$("#btnEdit").show();}
+        //if(PermissionChecker('Edit','RouteSheet',oAuthorizationRolesMapping)){$("#btnYarnOut").show();}
+        //if(PermissionChecker('Edit','RouteSheet',oAuthorizationRolesMapping)){$("#btnDetails").show();}
+        //if(PermissionChecker('View','RouteSheet',oAuthorizationRolesMapping)){$("#btnView").show();}
+        //if(PermissionChecker('Delete','RouteSheet',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+        //if(PermissionChecker('Print','RouteSheet',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+        //if(PermissionChecker('Delete','RouteSheet',oAuthorizationRolesMapping)){$("#btnDelete").show();}
+        //if(PermissionChecker('PrintList','RouteSheet',oAuthorizationRolesMapping)){$("#btnPrintList").show();}
+    });
+
+    CCapp.controller('ModalInstanceCtrl', function ($scope, $filter,$http,$uibModal, $uibModalInstance, uiGridConstants, msModal, obj) {
+        debugger;
+        $scope.disabled= false;
+        $scope.Operation=obj.Operation;
+        $scope.RS=obj.RS;
+        $scope.IssueStores=obj.RS.WorkingUnits;
+        $scope.RS.WorkingUnitID= ($scope.IssueStores.length>0?$scope.IssueStores[0].WorkingUnitID : 0);
+        $scope.RS.OrderProduct=obj.RS.ProductName;
+        $scope.txtProductName=obj.RS.ProductName;
+        $scope.RS.LotProductID=obj.RS.ProductID;
+        $scope.RSShifts=obj.RSShifts;
+        $scope.RouteSheetDOs=obj.RS.RouteSheetDOs;
+
+        if($scope.RouteSheetDOs.length>1)
+        {
+            $scope.RS.DyeingOrderDetailID=0;     
+        }else  if($scope.RouteSheetDOs.length==1) 
+            $scope.RS.DyeingOrderDetailID=$scope.RouteSheetDOs[0].DyeingOrderDetailID;   
+
+        if($scope.RS)
+        { 
+            $scope.Header="Order No:"+$scope.RS.OrderNo+" || Dyeing Qty:"+$scope.RS.Qty;
+            
+            $scope.RS.Qty_DO = $scope.RS.Qty;
+        }
+
+        if(obj.RS.LotNo!="")
+            $scope.txtLotNo=obj.RS.LotNo ;//+" [BL"+obj.RSLot.LotQty+"]";
+        $scope.RS.LotProductID=obj.RS.ProductID;
+        debugger;
+        if(obj.RS.RSRawLots.length>0)
+        {
+            $scope.Header="Order No:"+$scope.RS.OrderNo+" || Dyeing Qty:"+$scope.RS.Qty+ " || "+$scope.RS.RSRawLots[0].Param;
+            //$scope.txtProductName=obj.RSLot.RSRawLots[0].ProductName;
+            //$scope.RSLot.LotProductID=obj.RSLot.RSRawLots[0].ProductID;
+            $scope.RS.WorkingUnitID=obj.RS.RSRawLots[0].WorkingUnitID;
+        }
+
+        $scope.cboDO = function()
+        {
+            $scope.RS.Qty_DO = $scope.RS.Qty;
+            if($scope.RS.DyeingOrderDetailID>0)
+            {
+                var oDOD = $filter('filter')($scope.RouteSheetDOs, { DyeingOrderDetailID: $scope.RS.DyeingOrderDetailID })[0];
+                $scope.RS.Qty_DO = oDOD.Qty_RS;
+            }
+        }
+        
+        $scope.GetcboDO = function()
+        {
+            debugger;
+            var oDOD={};
+            if($scope.RS.DyeingOrderDetailID>0)
+            {
+                oDOD = $filter('filter')($scope.RouteSheetDOs, { DyeingOrderDetailID: $scope.RS.DyeingOrderDetailID })[0];
+            }
+            return oDOD;
+        }
+        $scope.gridOptions_Lot= {
+            multiSelect: false,
+            enableFullRowSelection: true,
+            showColumnFooter: true,
+            columnDefs: [
+                { field: 'ProductName', name:'Product', width:'22%' ,enableCellEdit:false,cellClass:'text-left'},
+                { field: 'OperationUnitName', name:'Store', width:'18%' ,cellClass:'text-left', enableCellEdit:false,},
+                { field: 'LotNo', name:'Lot No', width:'15%' ,cellClass:'text-left',enableCellEdit:false},
+                { field: 'Qty', name:'Qty',cellClass:'text-right number',enableCellEdit:true, cellFilter:'number:2', width:'15%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                  { field: 'Balance', name:'Balance(Lot)', width:'15%' ,enableCellEdit:false,cellClass:'text-left'},
+                { field: 'NumOfCone', name:'Cone/Hank',cellClass:'text-right  number',enableCellEdit:true, cellFilter:'number:0', width:'12%', aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+            ],
+            data: $scope.RS.RSRawLots,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+
+                gridApi.edit.on.afterCellEdit($scope,
+                     function (rowEntity, colDef, newValue, oldValue)
+                     {
+                         debugger;
+                         if(rowEntity.Qty > rowEntity.Balance)
+                         {
+                             rowEntity.Qty=oldValue;
+                             alert("Requ. Qty Can Not Be Greater Than Balance Qty!!");
+                         }
+                         else if(rowEntity.Qty<=0 )
+                         {
+                             rowEntity.Qty=oldValue;
+                             alert("Requ. Qty Can Not Be Equal Or Less Then Zero!!");
+                         }
+                         else if(chkRSQty()>$scope.RS.Qty_DO)
+                         {
+                             rowEntity.Qty=oldValue;
+                             alert("Requ. Qty["+ chkRSQty() +"] Can Not Be Greater Then RS Qty ["+$scope.RS.Qty_DO+"] !!");
+                         }
+                         return rowEntity;
+                     });
+            }
+        };
+
+        function chkRSQty()
+        {
+            var nTotal=0;
+            for(var i=0; i<$scope.gridOptions_Lot.data.length;i++)
+            {
+                if($scope.gridOptions_Lot.data[i].DyeingOrderDetailID == $scope.RS.DyeingOrderDetailID)
+                    nTotal= parseFloat($scope.gridOptions_Lot.data[i].Qty) +parseFloat(nTotal);
+            }
+            return nTotal;
+        }
+
+        function NotExist(oRSRawLot)
+        {
+            for(var i=0; i<$scope.gridOptions_Lot.data.length;i++)
+            {
+                if($scope.gridOptions_Lot.data[i].LotID==oRSRawLot.LotID && $scope.gridOptions_Lot.data[i].DyeingOrderDetailID==oRSRawLot.DyeingOrderDetailID)
+                    return false
+            }
+            return true;
+        }
+        function GeBUID()
+        {
+            if($scope.RS.WorkingUnitID==undefined || $scope.RS.WorkingUnitID<=0){
+                alert("Please, Select A Store !!"); return 0;
+            }
+
+            for(var i=0; i<$scope.IssueStores.length;i++)
+            {
+                if($scope.IssueStores[i].WorkingUnitID==$scope.RS.WorkingUnitID)
+                    return $scope.IssueStores[i].BUID;
+            }
+            return 0;
+        }
+
+        $scope.PickLot= function (IsLotNo)
+        {
+            $scope.RS.LotID=0;
+            //if($scope.RSLot.LotProductID<=0)
+            //{
+            //    alert("Please Pick a Product And Try Again"); return;
+            //}
+            if($scope.RS.WorkingUnitID<=0)
+            {
+                alert("Please Select a Store And Try Again"); return;
+            }
+            if($scope.RS.DyeingOrderDetailID<=0)
+            {
+                alert("Please Select a Order first."); return;
+            }
+            if(IsLotNo==1)
+            {$scope.txtLotNo="";}
+
+            var oRouteSheet = {
+                RouteSheetID: ($scope.RS!=null && $scope.RS.RouteSheetID>0)? $scope.RS.RouteSheetID:0,
+                ProductID_Raw:$scope.RS.LotProductID,
+                RouteSheetDOs:$scope.GetcboDO(),
+                LotNo:($scope.txtLotNo==undefined?'':$.trim($scope.txtLotNo)),
+                Params:0+'~'+$scope.RS.DyeingOrderDetailID+'~'+3,
+                WorkingUnitID: $scope.RS.WorkingUnitID,
+                IsReDyeing:$scope.RS.IsReDyeing,
+                CopiedFrom:$scope.RS.CopiedFrom
+
+            };
+
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RouteSheet/GetsLot',$.param(oRouteSheet), config).then(
+                        function (response)
+                        {
+                            debugger;
+                            var oDetailColumns = [];
+                            var oColumn = { field: 'LotNo', name:'Lot No', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'StockValue', name:'Balance(Order) ', width:'12%',cellClass: 'text-left',enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'Balance', name:'Balance(Lot)', width:'12%',cellClass: 'text-left',enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn ={ field: 'MUName', name:'Unit', width:'8%',cellClass: 'text-left',enableCellEdit:false };oDetailColumns.push(oColumn);
+                            
+                            oColumn = { field: 'OrderRecapNo', name:'Order No', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductName', name:'Yarn Type', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductCode', name:'Code', width:'8%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'OperationUnitName', name:'Operation Unit', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'LocationName', name:'Location', width:'10%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            var results= JSON.parse(response.data);
+                            if(results.length<=0)
+                            {
+                                alert("No Data Found!!"); return;
+                            }
+
+                            $scope.txtLotNo ="";
+
+                            var modalObj={
+                                size:'lg',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:true,
+                                pickertitle:'Lot List',
+                                searchingbyfieldName:'LotNo',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                if(result[0].LotID>0)
+                                {
+                                    for(var i=0; i<result.length;i++)
+                                    {
+                                        var oLot=result[i];
+
+                                        var nQty=( ($scope.RS.Qty_DO-chkRSQty()) <= oLot.Balance?($scope.RS.Qty_DO-chkRSQty()):oLot.StockValue);
+
+                                        oLot.RouteSheetID=$scope.RS.RouteSheetID;
+                                        oLot.Qty=(nQty < 0 ? 0 : nQty);
+                                        oLot.RSRawLotID=0;
+                                        oLot.RSShiftID=$scope.RS.RSShiftID;
+                                        oLot.DyeingOrderDetailID=$scope.RS.DyeingOrderDetailID;
+                                        if(NotExist(oLot))
+                                            $scope.gridOptions_Lot.data.push(oLot);
+                                    }
+                                }
+                                else
+                                {
+                                    $scope.RS.LotID=0;
+                                    $scope.RS.LotNo="";
+                                    $scope.txtLotNo="";
+                                }
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(response.statusText);}
+                    );
+        };
+        $scope.SearchKeyDownLot = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var txtLotNo = $.trim($scope.txtLotNo);
+                if(txtLotNo=="" || txtLotNo==null)
+                {
+                    alert("Type Lot No and Press Enter");
+                    return;
+                }
+                $scope.PickLot(2);
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtPorductNo='';
+            }
+        };
+        $scope.RemoveLot= function ()
+        {
+            var oDetail = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDetail==null)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var SelectedRowIndex=$scope.gridOptions_Lot.data.indexOf(oDetail);
+            if (!confirm("Confirm to Remove?")) return ;
+
+            if(oDetail.RSRawLotID==0)
+                $scope.gridOptions_Lot.data.splice(SelectedRowIndex,1);
+            else {
+                $http.post(_sBaseAddress + '/RouteSheet/DeleteRSRawLot', oDetail).then(
+                   function (response)
+                   {
+                       var result=JSON.parse(response.data);
+                       if(result=="Deleted")
+                       {
+                           alert("Deleted Successfully!!");
+                           $scope.gridOptions_Lot.data.splice(SelectedRowIndex,1);
+                       }
+                       else
+                       {
+                           alert(result);
+                       }
+                   },
+                   function (response) { alert(response.statusText);}
+               );
+
+            }
+        }
+
+        $scope.PickProduct= function ()
+        {
+            debugger;
+            $scope.RS.LotProductID="";
+            $scope.RS.LotProductName="";
+            $scope.RS.LotID=0;
+            $scope.RS.LotNo="";
+            $scope.txtLotNo="";
+            var oPorduct= {
+                ProductName:($scope.txtProductName == undefined ? "" : $scope.txtProductName),
+                BUID:_nBUID//GeBUID()
+            };
+
+            if(oPorduct.BUID==0)
+                return;
+
+            debugger;
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/Product/SearchByProductBUWise',$.param(oPorduct), config).then(
+                        function (response)
+                        {
+                            debugger;
+                            var oDetailColumns = [];
+                            var   oColumn = { field: 'ProductCode', name:'Code', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductName', name:'Porduct', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            oColumn = { field: 'ProductCategoryName', name:'Category', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                            var results=(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Porduct List',
+                                searchingbyfieldName:'DestinationLotNo',
+                                columns:oDetailColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                if(result.ProductID>0)
+                                {
+                                    $scope.RS.LotProductID=result.ProductID;
+                                    $scope.RS.LotProductName=result.ProductName;
+                                    $scope.txtProductName=result.ProductName;
+                                }
+                                else
+                                {
+                                    $scope.RS.ProductID=0;
+                                    $scope.RS.ProductName="";
+                                    $scope.RS.MUnit="";
+                                    $scope.txtProductName="";
+                                }
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        };
+        $scope.SearchKeyDownProduct = function (e){
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var txtPorduct = $.trim($scope.txtProductName);
+                if(txtPorduct=="" || txtPorduct==null)
+                {
+                    alert("Type Product Name and Press Enter");
+                    return;
+                }
+
+                $scope.PickProduct();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                //$scope.txtPorductName='';
+                $scope.RS.LotProductID=0;
+            }
+        };
+
+        $scope.Validation=function()
+        {
+            if($scope.RS.Name == "" || $scope.RS.Name == undefined){
+                msModal.Message({headerTitle : '', bodyText:'Enter DyeingType Name.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            return  true;
+        };
+
+        $scope.SaveRSRawLot= function ()
+        {
+            var oRSLot= $scope.RS;
+            oRSLot.RSRawLots=$scope.gridOptions_Lot.data;
+
+            if(oRSLot.RSRawLots.length<=0)
+            {
+                alert("Please add Lot to save!");return;
+            }
+
+            $http.post(_sBaseAddress + '/RouteSheet/SaveRSRawLot', oRSLot).then(
+                function (response)
+                {
+                    var result=jQuery.parseJSON(response.data);
+                    console.log(result);
+                    if(result.RouteSheetID>0 && result.RSRawLots[0].RSRawLotID>0)
+                    {
+                        debugger;
+                        alert("Data Saved Successfully!!");
+                        $uibModalInstance.close(result.RSRawLots);
+                        //userSession.setData('RouteSheets',$scope.RouteSheet);
+                        //$scope.cancel();
+                    }
+                    else
+                    {
+                        alert(result.RSRawLots[0].ErrorMessage);
+                    }
+                },
+                function (response) { alert(response.statusText);}
+            );
+        };
+
+        $scope.cancel= function () {
+            $uibModalInstance.close();
+        };
+    });
+
+</script>

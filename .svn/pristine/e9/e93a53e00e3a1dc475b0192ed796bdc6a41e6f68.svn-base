@@ -1,0 +1,280 @@
+﻿<html>
+@{
+    ViewBag.Title = "Vehicle Order";
+}
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.VehicleOrder>
+<div class="menuMainCollectionTable" ng-app="VehicleOrderApp">
+    <div ng-controller="VehicleOrderController" title="Recycle Process">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionInvoice">
+            <input type="text" class="form-control" ng-model="RefNo" ng-keydown="searchByRefNo($event)" placeholder="Type Ref No & Press Enter">
+            <button type="button" ng-show="btnAdd" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Add()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEdit" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Edit()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnView" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="View()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnCopy" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Copy()"><span class="glyphicon glyphicon-copy" aria-hidden="true"> Copy</span></button>
+            <button type="button" ng-show="btnDelete" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Delete()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnImage" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="UpImage()"><span class="glyphicon glyphicon-save-file" aria-hidden="true"> Up Image</span></button>
+            <button type="button" ng-show="btnPrintList" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintList()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print List</span></button>
+            <button type="button" ng-show="btnPriview" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintPreview()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Priview</span></button>
+            <button type="button" id="btnPriviewXL" class="btn btn-default btn-xs" aria-label="Left Align" ng-click="PrintPreviewXL()"><span class="glyphicon glyphicon-print" aria-hidden="true"> XL</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection style=" width: 99%; height: 525px;"></div>
+    </div>
+</div>
+<style type="text/css">
+    .regionInvoice .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+  
+</style>
+
+ <script type="text/javascript">
+    var oVehicleOrderList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+    debugger;
+    
+    var CInvoiceapp= angular.module('VehicleOrderApp', ['ui.grid','ui.grid.selection', 'ms.service']);
+    CInvoiceapp.controller('VehicleOrderController',  function ($scope,$http,$log,uiGridConstants,userSession) {
+        oVehicleOrderList= (userSession.getData('VehicleOrderList').length>0)? userSession.getData('VehicleOrderList'):oVehicleOrderList;
+        debugger;
+        $scope.gridOptions = {
+            enableFullRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: false,
+            enableRowSelection: true,
+            columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'FileNo', name:'File No', width:'7%' },
+                { field: 'OrderStatusInString', name:'Status', width:'10%' },
+                { field: 'RefNo', name:'Code/Ref No', width:'8%' },
+                { field: 'IssueDateInString', name:'Issue Date', width:'7%' },
+                { field: 'ModelNo', name:'Model No', width:'10%' },
+                { field: 'ChassisNo', name:'Chassis No', width:'10%' },
+                { field: 'EngineNo', name:'Engine No', width:'10%' },
+                { field: 'InteriorColorName', name:'Interior Color', width:'15%' },
+                { field: 'ExteriorColorName', name:'Exterior Color', width:'15%' },
+                { field: 'ETAValueWithTypeInString', name:'E.T.A', width: '10%', enableSorting: false },
+                { field: 'Remarks', name: 'Remarks', width: '10%' }
+            ],
+            data: oVehicleOrderList,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.grid.modifyRows(oVehicleOrderList);
+                //$scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                $scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                userSession.clear();
+            }
+        };
+        
+        $scope.searchByRefNo = function(e)
+        {
+            debugger;
+            var RefNo = $scope.RefNo;
+            var oVehicleOrders = oVehicleOrderList;
+            var sTempName="";
+            var oSearchedList = [];  
+            var oCurrentList = $scope.gridOptions.data; 
+            if (e.which == 8)
+            {
+                oCurrentList = oVehicleOrders;
+            }     
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].RefNo;        
+                n=sTempName.toUpperCase().indexOf(RefNo.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]); 
+                }       
+            }
+            $scope.gridOptions= {data:oSearchedList};
+        }
+        $scope.Add  = function ()
+        {
+            debugger;
+            sessionStorage.setItem("VehicleOrderList", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("VehicleOrderHeader", "Add Vehicle Order");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleOrder/ViewVehicleOrder?id=0";
+        }
+        $scope.Edit =  function ()
+        {
+            debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.VehicleOrderID == oVehicleOrder.VehicleOrderID)
+                {
+
+                    sessionStorage.setItem("VehicleOrderList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("VehicleOrderHeader", "Edit Vehicle Order");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleOrder/ViewVehicleOrder?id="+oVehicleOrder.VehicleOrderID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.View =  function ()
+        {
+            //debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.VehicleOrderID == oVehicleOrder.VehicleOrderID)
+                {
+                    sessionStorage.setItem("VehicleOrderList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("VehicleOrderHeader", "View Vehicle Order");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleOrder/ViewVehicleOrder?id="+oVehicleOrder.VehicleOrderID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.Copy =  function ()
+        {
+            debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.VehicleOrderID == oVehicleOrder.VehicleOrderID)
+                {
+                    sessionStorage.setItem("VehicleOrderList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("VehicleOrderHeader", "Copy Vehicle Order");
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleOrder/ViewVehicleOrder?id="+oVehicleOrder.VehicleOrderID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.PrintPreview = function ()
+        {
+            debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/VehicleOrder/PrintVehicleOrderPreview?id='+oVehicleOrder.VehicleOrderID);
+        };
+        $scope.PrintPreviewXL = function ()
+        {
+            debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }        
+            //window.open(sessionStorage.getItem('BaseAddress') + '/VehicleOrder/PrintVehicleOrderPreview?id='+oVehicleOrder.VehicleOrderID);    
+            window.open(sessionStorage.getItem('BaseAddress') + '/VehicleOrder/PrintVehicleOrderXL?id='+oVehicleOrder.VehicleOrderID);            
+        };        
+        $scope.PrintList = function ()
+        {
+            var oVehicleOrders=  $scope.gridOptions.data;//$('#tblVehicleOrder').datagrid('getRows');
+            var ids ="";
+            if(oVehicleOrders.length >0)
+            {
+
+                for(var i =0;i<oVehicleOrders.length;i++)
+                {
+                    ids =ids+oVehicleOrders[i].VehicleOrderID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(sessionStorage.getItem('BaseAddress') + '/VehicleOrder/PrintList?sIDs='+ids);
+        };
+        $scope.Delete= function ()
+        {
+            debugger;
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/VehicleOrder/Delete', JSON.stringify(oVehicleOrder)).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted') {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.VehicleOrderID == oVehicleOrder.VehicleOrderID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        };
+        $scope.UpImage = function ()
+        {
+            var oVehicleOrder = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oVehicleOrder==null || oVehicleOrder.VehicleOrderID<=0)
+            {
+                alert("Please Select an item from list");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (value.VehicleOrderID == oVehicleOrder.VehicleOrderID)
+                {
+                    sessionStorage.setItem("VehicleOrderList", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ModelHeader", oVehicleOrder.RefNo);
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+"/VehicleOrder/ImageHelper?id="+oVehicleOrder.VehicleOrderID;
+                }
+            }, $scope.gridOptions.data);
+
+        }
+        $scope.close = function()
+        {
+            window.location.href =sessionStorage.getItem("BackLink");
+        }
+
+        //button hide
+        $scope.btnAdd = $scope.btnEdit =  $scope.btnCopy = $scope.btnDetails = $scope.btnDelete = $scope.btnImage=  $scope.btnPrintList= $scope.btnPriview = false;
+        //button show
+        if(PermissionChecker('Add','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnAdd =$scope.btnImage = true; }
+        if(PermissionChecker('Edit','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnEdit = true;}
+        if(PermissionChecker('View','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnView = true;}
+        if(PermissionChecker('Copy','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnCopy= true;}
+        if(PermissionChecker('Delete','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnDelete = true;}
+        if(PermissionChecker('Preview','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnPriview = true;}
+        if(PermissionChecker('Print','VehicleOrder',oAuthorizationRolesMapping)){$scope.btnPrintList = true;}
+
+    });
+</script>

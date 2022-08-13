@@ -1,0 +1,906 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.InventoryTraking>
+    @{
+        ViewBag.Title = "View Item Movement";
+    }
+
+    <body>
+        <div class="easyui-layout menuMainCollectionTable" style="margin-left: 0px;">
+            <div id="divInventoryTraking" title="Item Movements" style="height:100%; width:100%; overflow:hidden;">
+                <div style="width:100%; height:100%">
+                    <table id="tblInventoryTraking" style="width:100%; height:70%" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" showfooter="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar2">
+                        <thead>
+                            <tr>
+                                <th field="WorkingUnitName" width="13%" align="left">Store</th>
+                                <th field="ProductName" width="13%" align="left">Product</th>
+                                <th field="ColorName" width="13%" align="left">Color</th>
+                                <th field="Measurement" width="13%" align="left">Measurement</th>
+                                <th field="StyleNo" width="13%" align="left">Style No</th>
+                                <th field="LotNo" width="12%" align="left">Lot No</th>
+                                <th field="MCDia" width="8%" align="left">MC Dia</th>
+                                <th field="FinishDia" width="10%" align="left">Finish Dia</th>
+                                <th field="GSM" width="8%" align="left">GSM</th>
+                                <th field="MUnit" width="5%" align="left"><label id="lblUnit"></label>MU</th>
+                                <th field="OpeningQty" width="13%" align="right" formatter="formatPrice">Opening Balance</th>
+                                <th field="InQty" width="9%" align="right" formatter="formatPrice">In Qty</th>
+                                <th field="OutQty" width="9%" align="right" formatter="formatPrice">Out Qty</th>
+                                <th field="ClosingQty" width="13%" align="right" formatter="formatPrice">Closing Balance</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div id="toolbar2">
+                                Unit: <input id="txtBU" style="width:120px;" type="text" placeholder="Type BU & Press Enter" /><a id="btnPickBU" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                Store: <input id="txtWorkingUnit" style="width:130px;" type="text" placeholder="Type store & Press Enter" /><a id="btnPickWorkingUnit" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                                <select id="cboProductCategory" class="easyui-combotree" style="width:180px;"></select><input type="button" id="btnCleanPC" value="C" />
+                                Date:<input id="txtStartDate" type="text" style="width: 110px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />To
+                                <input id="txtEndDate" type="text" style="width: 110px;height:20px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                                <input type="text" id="txtSupplierName" placeholder="Search Supplier" style="width:80px" />
+                                <input type="text" id="txtStyleNo" placeholder="Search Style" style="width:80px" />
+                                <input type="text" style="width:110px" id="txtProduct" placeholder="Press enter with product name" />
+                                <input type="button" value="PIck" style="width:65px;" id="btnPickProduct" />
+                                <input type="text" id="txtITDescription" placeholder="Remarks/Style Qty" style="width:100px" />
+                                <input type="text" id="txtDiaOrGSM" placeholder="MC/Finish Dia /GSM" style="width:100px" />
+                                <input type="text" style="width:70px" id="txtLot" placeholder="Type Lot No" />
+                                <input type="text" style="width:60px" id="txtRate" placeholder="Type Unit Price" />
+                                Layout:<select style="width:100px;" onchange="cboLayoutChange()" id="cboReportLayout"><option value="-1">--Select One--</option> <option value="0">Product Wise</option><option value="1">Product & Store Wise</option><option value="2">Product & Color Wise</option><option value="3">Product & MEAS Wise</option> <option value="4">Lot/Style Wise</option></select>
+                                <input type="checkbox" id="chkTransectionOnly" /><label style="color:green">Transection Only</label>
+                                <a href="javascript:void(0)" id="btnSearchByDate" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                                <a id="btnViewProductWise" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" iconcls="icon-details" title="View GRN" plain="true">View</a>
+                                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print(PDF)</a>
+                                <a id="btnPrint_XL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">XL</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+</body>
+  
+
+    <script type="text/javascript">
+    var _oInventoryTrakings=[];
+    var _sBaseAddress="";
+    var _oInventoryTraking=null;
+    var _sBackLink="";
+    var _oTriggerParentTypes=[];
+    var _sLotNo = "";
+    var _nUnitPrice = 0;
+    var _oClientOperationSetting = null;
+    $(document).ready(function ()
+    {
+        debugger;
+        _oInventoryTrakings =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oTriggerParentTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.TriggerParentTypes));
+        _oClientOperationSetting =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.ClientOperationSetting));
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        var nBUID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        RefreshControlLayout(oAuthorizationRolesMapping);
+        $('#txtBU').data('BUIDs',"");
+        $('#txtWorkingUnit').data('WorkingUnitIDs',"");
+        $('#txtSupplierName').data('SupplierIDs',"");
+        $('#txtStyleNo').data("StyleIDs","");
+        $('#txtProduct').data('ProductIDs',"");
+        if(nBUID>0)
+        {
+            $("#txtBU").prop("disabled",true);
+        }
+        //_nID =parseInt(sessionStorage.getItem("SelectedRowIndex_WU"));
+        RefreshDateSearch();
+        cboLayoutChange();
+
+        RefreshProductCategory(0);
+    });
+
+
+    $("#btnCleanPC").click(function(){
+        debugger;
+        $('#cboProductCategory').combotree('loadData', []);
+        RefreshProductCategory(0);
+    });
+    function RefreshProductCategory(nPCID)
+    {
+        var oProductCategory ={  ProductCategoryID: 0 };
+        $.ajax
+        ({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ProductCategory/GetsProductCategoryForCombo",
+            data:  JSON.stringify(oProductCategory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oProductCategorys = jQuery.parseJSON(data);
+                if(oProductCategorys!=null)
+                {
+                    $('#cboProductCategory').combotree('loadData', oProductCategorys);
+                    $('#cboProductCategory').combotree('setValue', nPCID);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+
+    //tblInventoryTraking
+    function RefreshDateSearch()
+    {
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+    }
+    function cboBUChange()
+    {
+        sessionStorage.setItem('BUID_IT', parseInt($('#cboBUType').val()));
+    }
+    function cboLayoutChange()
+    {
+        
+        $('#tblInventoryTraking').datagrid('showColumn', 'ColorName');
+        $('#tblInventoryTraking').datagrid('showColumn', 'Measurement');
+        $('#tblInventoryTraking').datagrid('showColumn', 'WorkingUnitName');
+        $('#tblInventoryTraking').datagrid('showColumn', 'StyleNo');
+        $('#tblInventoryTraking').datagrid('showColumn', 'LotNo');
+        $('#tblInventoryTraking').datagrid('showColumn', 'MCDia');
+        $('#tblInventoryTraking').datagrid('showColumn', 'FinishDia');
+        $('#tblInventoryTraking').datagrid('showColumn', 'GSM');
+        //$('#tblInventoryTraking').datagrid('showColumn', 'UnitPriceSt');
+        $('#txtLot,#txtRate').hide();
+        LoadintoGrid([]);
+        if(parseInt($('#cboReportLayout').val())===4)//Lot/Style
+        {
+            //$('#tblInventoryTraking').datagrid('hideColumn', 'ProductName');
+            $('#tblInventoryTraking').datagrid('showColumn', 'StyleNo');
+            $('#tblInventoryTraking').datagrid('showColumn', 'LotNo');
+            if(_oClientOperationSetting!=null && _oClientOperationSetting.ValueInString=="Yes")//isProcurement with style No
+            {
+                $('#tblInventoryTraking').datagrid('showColumn', 'MCDia');
+                $('#tblInventoryTraking').datagrid('showColumn', 'FinishDia');
+                $('#tblInventoryTraking').datagrid('showColumn', 'GSM');
+            }else{
+                $('#tblInventoryTraking').datagrid('hideColumn', 'MCDia');
+                $('#tblInventoryTraking').datagrid('hideColumn', 'FinishDia');
+                $('#tblInventoryTraking').datagrid('hideColumn', 'GSM');
+            }
+            //$('#tblInventoryTraking').datagrid('showColumn', 'UnitPriceSt');
+            $('#txtLot,#txtRate').show();
+            _sLotNo = "";_nUnitPrice = 0;
+            $('#txtRate').icsCurrencyBox();
+            $('#txtLot').val('');$('#txtRate').val(0.00);
+        }
+        else if(parseInt($('#cboReportLayout').val())===3) //Product &Measurement
+        {
+
+            $('#tblInventoryTraking').datagrid('showColumn', 'Measurement');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'WorkingUnitName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'ColorName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'StyleNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'LotNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'MCDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'FinishDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'GSM');
+            //$('#tblInventoryTraking').datagrid('hideColumn', 'UnitPriceSt');
+        }
+        else if(parseInt($('#cboReportLayout').val())===2) //Product &Color
+        {
+
+            $('#tblInventoryTraking').datagrid('showColumn', 'ColorName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'WorkingUnitName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'StyleNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'LotNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'MCDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'FinishDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'GSM');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'Measurement');
+            
+            //$('#tblInventoryTraking').datagrid('hideColumn', 'UnitPriceSt');
+        }
+        else if(parseInt($('#cboReportLayout').val())===1) //Product &store
+        {
+
+            $('#tblInventoryTraking').datagrid('showColumn', 'WorkingUnitName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'ColorName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'StyleNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'LotNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'MCDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'FinishDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'GSM');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'Measurement');
+            //$('#tblInventoryTraking').datagrid('hideColumn', 'UnitPriceSt');
+        }
+        else if(parseInt($('#cboReportLayout').val())===0) //Product
+        {
+
+            $('#tblInventoryTraking').datagrid('hideColumn', 'WorkingUnitName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'ColorName');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'Measurement');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'StyleNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'LotNo');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'MCDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'FinishDia');
+            $('#tblInventoryTraking').datagrid('hideColumn', 'GSM');
+            //$('#tblInventoryTraking').datagrid('hideColumn', 'UnitPriceSt');
+        }
+        ReloadFooter();
+    }
+
+    function LoadintoGrid(oInventoryTrakings) {
+        //  $('#tblInventoryTraking').datagrid({ selectOnCheck: false, checkOnSelect: false });
+        data = oInventoryTrakings;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblInventoryTraking').datagrid('loadData', data);
+
+    }
+
+    $("#txtBU").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($('#txtBU').val()==null || $('#txtBU').val()=="")
+            {
+                alert("Please Type BU & Press Enter.");
+                return;
+            }
+        }else if(nkeyCode==8)
+        {
+            $("#txtBU").removeClass("fontColorOfPickItem");
+            $('#txtBU').data('BUIDs',"");
+        }
+    });
+    $('#btnPickBU').click(function(){
+        PickBU();
+    });
+    function PickBU()
+    {
+        var nBUID = parseInt(sessionStorage.getItem("BUID"));
+        var oBusinessUnit = {NameCode: $('#txtBU').val(),BusinessUnitID:nBUID};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oBusinessUnit,
+            ControllerName: "BusinessUnit",
+            ActionName: "GetsBUByCodeOrName",
+            IsWinClose: false
+        };
+        $.icsProgressBar(true);
+        $.icsDataGets(obj, function (response) {
+            $.icsProgressBar(false);
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].BusinessUnitID > 0) {
+                    var tblColums = []; var oColumn = { field: "Code", title: "Code", width: 60, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ShortName", title: "Short Name", width: 90, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winBusinessUnit',
+                        winclass: 'clsBusinessUnit',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblBusinessUnit',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'Name',
+                        windowTittle: 'Business Unit List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Fund");
+                return;
+            }
+        });
+    }
+
+    $("#txtWorkingUnit").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+            if(txtWorkingUnit==""){ alert("Type product name to search."); return false; }
+            GetWorkingUnits(txtWorkingUnit);
+        }
+        else if(nkeyCode==8){
+            $('#txtWorkingUnit').data("WorkingUnitIDs","");
+            $("#txtWorkingUnit").removeClass("fontColorOfPickItem");
+        }
+    });
+    $("#btnPickWorkingUnit").click(function () {
+        var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+        GetWorkingUnits(txtWorkingUnit);
+    });
+    function GetWorkingUnits(txtWorkingUnit){
+        var oWorkingUnit = {
+            BUID:parseInt(sessionStorage.getItem('BUID')),
+            BUIDs:parseInt(sessionStorage.getItem('BUID'))<=0?$('#txtBU').data('BUIDs'):"",
+            LocationName:txtWorkingUnit,
+        };
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oWorkingUnit,
+            ControllerName: "WorkingUnit",
+            ActionName: "GetsBUWiseWorkingUnit",
+            IsWinClose: false
+        };
+
+        if(parseInt($('#tblLots').data("BUID"))<=0)
+        {
+            oWorkingUnit = { LOUNameCode : txtWorkingUnit };
+            obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oWorkingUnit,
+                ControllerName: "WorkingUnit",
+                ActionName: "GetsWorkingUnit",
+                IsWinClose: false
+            };
+        }
+        $.icsProgressBar(true);
+        $.icsDataGets(obj, function (response) {
+            $.icsProgressBar(false);
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].WorkingUnitID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "WorkingUnitCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winWorkingUnitPicker',
+                        winclass:'clsWorkingUnitPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblWorkingUnit',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName:'WorkingUnitName',
+                        windowTittle: 'Store List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No Store found.");
+            }
+        });
+
+    }
+
+    //txtSupplierName
+    $("#txtSupplierName").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+
+            var oContractor = { Params: 1 + '~' + $.trim($('#txtSupplierName').val())+'~'+sessionStorage.getItem("BUID") };
+            var obj = {
+                BaseAddress: sessionStorage.getItem('BaseAddress'),
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+            var $This=$(this);
+            $.icsProgressBar(true);
+            $.icsDataGets(obj, function (response) {
+                $.icsProgressBar(false);
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "ContractorID", title: "Code", width: 50, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ContractorTypeInString", title: "Type", width: 80, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ShortName", title: "Short Name", width: 50, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winContractor',
+                            winclass:'clsContractor',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblContractors',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName:'Name',
+                            windowTittle: 'Contractor List',
+                            TextBox:$This
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+            });
+
+        }else if (code == 8) //backspace=8
+        {
+            $("#txtSupplierName").removeClass("fontColorOfPickItem");
+            $('#txtSupplierName').data("SupplierIDs","");
+        }
+    });
+    //start style picker
+    $("#txtStyleNo").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            var sStyleNumber = $.trim($('#txtStyleNo').val());
+            if(sStyleNumber=== null || sStyleNumber === "")
+            {
+                alert("Press Enter With Style Number!");
+                $('#txtStyleNo').focus();
+                return;
+            }
+            var oTechnicalSheet = { StyleNo: sStyleNumber, BUID:parseInt($('#tblLots').data("BUID"))};
+            var obj = {
+                BaseAddress: sessionStorage.getItem('BaseAddress'),
+                Object: oTechnicalSheet,
+                ControllerName: "TechnicalSheet",
+                ActionName: "StyleSearch",
+                IsWinClose: false
+            };
+            $.icsProgressBar(true);
+            $.icsDataGets(obj, function (response) {
+                $.icsProgressBar(false);
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].TechnicalSheetID > 0) {
+                        var tblColums = []; var oColumn = { field: "StyleNo", title: "Style No", width: 100, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "BuyerName", title: "Buyer Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "SessionName", title: "Business Session", width: 100, align: "left" }; tblColums.push(oColumn);
+
+                        var oPickerParam = {
+                            winid: 'winStylePicker',
+                            winclass: 'clsStylePicker',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblStylePicker',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'StyleNo',
+                            windowTittle: 'Style List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+
+                }else{
+                    alert("Data Not Found.");
+                }
+            });
+        }else  if (code == 8) //backspace=8
+        {
+            $("#txtStyleNo").removeClass("fontColorOfPickItem");
+            $('#tblLots').data("StyleIDs","");
+        }
+    });
+
+    function PickProduct()
+    {
+        var nBUID = parseInt(sessionStorage.getItem("BUID"));
+        var oProduct = {
+            BUID : nBUID,
+            ProductName : $.trim($('#txtProduct').val())
+        };
+        var obj = {
+            BaseAddress: sessionStorage.getItem("BaseAddress"),
+            Object: oProduct,
+            ControllerName: "Product",
+            ActionName: "Gets_ByName",
+            IsWinClose: false
+        };
+        $.icsProgressBar(true);
+        $.icsDataGets(obj, function (response) {
+            $.icsProgressBar(false);
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+                    var tblColums = [];
+                    var oColumn = { field: "ProductCode", title: "Product Code", width: 80, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Product Name", width: 300, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ShortName", title: "Short Name", width: 100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "ProductCategoryName", title: "Category", width: 100, align: "left" }; tblColums.push(oColumn)
+                    var oPickerParam = {
+                        winid: 'winProducts',
+                        winclass: 'clsProducts',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblProducts',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'ProductName',
+                        windowTittle: 'Product List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    $("#txtProduct").keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtProduct').val())===null || $.trim($('#txtProduct').val())==="")
+            {
+                alert("Press enter with product name");
+                return;
+            }
+            PickProduct();
+        }else  if (code == 8) //backspace=8
+        {
+            $("#txtProduct").removeClass("fontColorOfPickItem");
+            $('#txtProduct').data('ProductIDs', null);
+        }
+    });
+    $("#btnPickProduct").click(function () {
+        $('#txtProduct').val('');
+        PickProduct();
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+    function SetPickerValueAssign(oPickerobj)
+    {
+        debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winContractor')//Contractor region
+        {
+            if (oreturnobjs != null && oreturnobjs.length> 0)
+            {
+                if(oreturnobjs.length>1)
+                {
+                    $('#txtSupplierName').val(oreturnobjs.length+"'s Item Selected");
+                }else{
+                    $('#txtSupplierName').val(oreturnobjs[0].Name);
+                }
+
+                $('#txtSupplierName').addClass('fontColorOfPickItem');
+                $('#txtSupplierName').data("SupplierIDs",ICS_PropertyConcatation(oreturnobjs,'ContractorID'));
+                $('#txtSupplierName').focus();
+            }
+        }else   if (oPickerobj.winid === 'winStylePicker')
+        {
+            if (oreturnobjs != null && oreturnobjs.length > 0) {
+                $('#txtStyleNo').val(oreturnobjs.length+"'s Styles seleted");
+                $('#txtStyleNo').addClass('fontColorOfPickItem');
+                $('#txtStyleNo').data("StyleIDs",ICS_PropertyConcatation(oreturnobjs,'TechnicalSheetID'));
+                $('#txtStyleNo').focus();
+            }
+        }else if (oPickerobj.winid == 'winWorkingUnitPicker')
+        {
+            debugger;
+            if (oreturnobjs != null && oreturnobjs.length> 0)
+            {
+                var sMessage='';
+                sMessage=(oreturnobjs.length>1)? oreturnobjs.length +" store Selected" : oreturnobjs[0].WorkingUnitName;
+                $('#txtWorkingUnit').val(sMessage);
+                $("#txtWorkingUnit").addClass("fontColorOfPickItem");
+                $('#txtWorkingUnit').data("WorkingUnitIDs",ICS_PropertyConcatation(oreturnobjs,'WorkingUnitID'));
+            }
+
+        }else if (oPickerobj.winid === 'winProducts')
+        {
+            if (oreturnobjs != null && oreturnobjs.length > 0)
+            {
+                $('#txtProduct').val(oreturnobjs.length+"'s Products selected");
+                $('#txtProduct').addClass('fontColorOfPickItem');
+                $('#txtProduct').data("ProductIDs",ICS_PropertyConcatation(oreturnobjs,'ProductID'));
+                $('#txtProduct').focus();
+            }
+        } else if (oPickerobj.winid == 'winBusinessUnit') {
+            if (oreturnobjs != null && oreturnobjs.length > 0)
+            {
+                $('#txtBU').val(oreturnobjs.length+"'s BU selected");
+                $('#txtBU').addClass('fontColorOfPickItem');
+                $('#txtBU').data("BUIDs",ICS_PropertyConcatation(oreturnobjs,'BusinessUnitID'));
+            }
+        }
+    }
+    function ValidateInput()
+    {
+        if(parseInt($('#cboReportLayout').val())===-1)
+        {
+            alert("please select Report Layout.");
+            $('#cboReportLayout').focus();
+            return false;
+        }
+        if ($('#txtStartDate').datebox('getValue')=="")
+        {
+            alert("please select start date!");
+            $('#txtStartDate').focus();
+            return false;
+        }
+        if ( $('#txtEndDate').datebox('getValue')=="") {alert("Please select end date!!");$('#txtEndDate').focus();return false;}
+
+        var sStartDate=$('#txtStartDate').datebox('getValue');
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dStartDate = new Date(sStartDate);
+        var dEndDate = new Date(sEndDate);
+        if(dEndDate < dStartDate)
+        {
+            alert("End date must be grater then start date!!");
+            $('#txtEndDate').focus();
+            return false;
+        }
+        return true;
+    }
+    $("#btnSearchByDate").click(function () {
+
+        if(!ValidateInput())return;
+        $.icsProgressBar(true);
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        var nPCID=0;
+        var nCategoryID = $('#cboProductCategory').combotree('getValue');
+        if(nCategoryID !=null)
+        {
+            nPCID=nCategoryID;
+        }
+        if(parseInt($('#cboReportLayout').val())==4)//Lot/Style wise
+        {
+            _sLotNo = $('#txtLot').val();
+            _nUnitPrice =  $('#txtRate').val();
+        }
+        var oInventoryTraking={
+            BUID:sessionStorage.getItem('BUID'),
+            StartDate:date1,
+            EndDate: date2,
+            IsTransectionOnly: $('#chkTransectionOnly').prop('checked'),
+            Param: $('#cboReportLayout').val()+'~'+$('#txtBU').data('BUIDs')+'~'+$('#txtWorkingUnit').data('WorkingUnitIDs')+'~'+ $('#txtSupplierName').data('SupplierIDs')+'~'+$('#txtStyleNo').data("StyleIDs")+'~'+$('#txtProduct').data('ProductIDs')+'~'+nPCID+'~'+_sLotNo+'~'+_nUnitPrice+'~'+$('#txtITDescription').val()+'~'+$('#txtDiaOrGSM').val()
+        };
+        $.ajax
+     ({
+         type: "POST",
+         dataType: "json",
+         url : _sBaseAddress+"/ItemMovement/SearchByDate",
+         traditional: true,
+         data:  JSON.stringify(oInventoryTraking),
+         contentType: "application/json; charset=utf-8",
+         success: function (data) {
+             debugger;
+             var oInventoryTrakings = data;
+             $.icsProgressBar(false);
+             if (oInventoryTrakings.length>0)
+             {
+                 LoadintoGrid(oInventoryTrakings);
+                 ReloadFooter();
+
+             }
+             else
+             {
+                 oInventoryTrakings=[];
+                 LoadintoGrid(oInventoryTrakings);
+                 alert("Data Not found");
+             }
+             //setTimeout(hideShow, 1000);
+         },
+         error: function (xhr, status, error)
+         {
+             setTimeout(hideShow, 1000);
+             alert(error);
+         }
+     });
+
+    });
+
+    function ReloadFooter()
+    {
+        var oRows = $('#tblInventoryTraking').datagrid('getRows');
+        var nOpeningQty = 0;
+        var nInQty = 0;
+        var nOutQty = 0;
+        var nClosingQty = 0;
+        if(oRows.length>0)
+        {
+
+            for(var i=0;i<oRows.length;i++)
+            {
+                nOpeningQty = parseFloat(nOpeningQty)+parseFloat(oRows[i].OpeningQty);
+                nInQty = parseFloat(nInQty)+parseFloat(oRows[i].InQty );
+                nOutQty = parseFloat(nOutQty)+parseFloat(oRows[i].OutQty);
+                nClosingQty = parseFloat(nClosingQty)+parseFloat(oRows[i].ClosingQty);
+            }
+        }
+        var oRow =
+         {
+             //WorkingUnitName : '',
+             //ProductName:'',
+             //StyleNo:'',
+             OpeningQty : nOpeningQty,
+             InQty:nInQty,
+             OutQty : nOutQty,
+             ClosingQty : nClosingQty
+         }
+        if(parseInt($('#cboReportLayout').val())==1 ) //Store wise
+        {
+            oRow["WorkingUnitName"] = 'Total';
+        }else if(parseInt($('#cboReportLayout').val())==2 || parseInt($('#cboReportLayout').val())==3|| parseInt($('#cboReportLayout').val())==4)//Color wise /lot wise
+        {
+
+            oRow["ColorName"] = 'Total';
+        }
+        else if(parseInt($('#cboReportLayout').val())==0)//Product
+        {
+
+            oRow["ProductName"] = 'Total';
+        }
+        $('#tblInventoryTraking').datagrid('reloadFooter',[oRow]);
+
+    }
+
+    $("#btnViewProductWise").click(function(){
+        debugger;
+        var oInventoryTraking= $('#tblInventoryTraking').datagrid('getSelected');
+        if(oInventoryTraking==null)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        oInventoryTraking.Measurement = "'"+oInventoryTraking.Measurement+"'";
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ItemMovement/SetSessionSearchCriteria",
+            traditional: true,
+            data:  JSON.stringify(oInventoryTraking),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    
+                    var date1=$('#txtStartDate').datebox('getValue');
+                    var date2= $('#txtEndDate').datebox('getValue');
+                    var nProductID= oInventoryTraking.ProductID;
+                    var nWorkingUnitID  = oInventoryTraking.WorkingUnitID;
+                    var nColorID =  oInventoryTraking.ColorID;
+                    var nLotID  = oInventoryTraking.LotID;
+                    var sMeasurement = oInventoryTraking.Measurement;
+                    var nBUID = sessionStorage.getItem('BUID');
+                    var sBUIDs = $('#txtBU').data('BUIDs');
+                    var sParam = $('#cboReportLayout').val()+'~'+date1+'~'+date2;
+                    var sTitle = '';
+                    if(parseInt($('#cboReportLayout').val())==0){sTitle='Product Name : '+oInventoryTraking.ProductName}
+                    if(parseInt($('#cboReportLayout').val())==1){sTitle='Store Name : '+oInventoryTraking.WorkingUnitName+' | Product Name : '+oInventoryTraking.ProductName}
+                    if(parseInt($('#cboReportLayout').val())==2){sTitle='Product Name : '+oInventoryTraking.ProductName+' | Color Name :'+oInventoryTraking.ColorName;}
+                    if(parseInt($('#cboReportLayout').val())==3){sTitle='Product Name : '+oInventoryTraking.ProductName+' | Measurement:'+oInventoryTraking.Measurement;}
+                    if(parseInt($('#cboReportLayout').val())==4){sTitle='Lot No : '+oInventoryTraking.LotNo;}
+                    sessionStorage.setItem('MovementItemDetailHeader',sTitle);
+                    window.open(_sBaseAddress+'/ItemMovement/ViewItemMovementDetails?ProductID='+nProductID+'&WorkingUnitID='+nWorkingUnitID+'&ColorID='+nColorID+'&LotID='+nLotID+'&BUID='+nBUID+'&BUIDs='+sBUIDs+'&sParam='+sParam,"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+       
+
+    });
+
+    $("#btnPrint").click(function () {
+        //debugger;
+        if(!ValidateInput())return;
+        //$.icsProgressBar(true);
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        var nPCID=0;
+        var nCategoryID = $('#cboProductCategory').combotree('getValue');
+        if(nCategoryID !=null)
+        {
+            nPCID=nCategoryID;
+        }
+        if(parseInt($('#cboReportLayout').val())==4)//Lot/Style wise
+        {
+            _sLotNo = $('#txtLot').val();
+            _nUnitPrice =  $('#txtRate').val();
+        }
+        var oInventoryTraking={
+            BUID:sessionStorage.getItem('BUID'),
+            StartDate:date1,
+            EndDate: date2,
+            Param: $('#cboReportLayout').val()+'~'+$('#txtBU').data('BUIDs')+'~'+$('#txtWorkingUnit').data('WorkingUnitIDs')+'~'+ $('#txtSupplierName').data('SupplierIDs')+'~'+$('#txtStyleNo').data("StyleIDs")+'~'+$('#txtProduct').data('ProductIDs')+'~'+nPCID+'~'+_sLotNo+'~'+_nUnitPrice+'~'+$('#txtITDescription').val()+'~'+$('#txtDiaOrGSM').val()
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ItemMovement/SetSessionSearchCriteria",
+            traditional: true,
+            data:  JSON.stringify(oInventoryTraking),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv=((new Date()).getTime())/1000;
+                    window.open(_sBaseAddress+'/ItemMovement/PrintItemMovements?ts='+tsv,"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $("#btnPrint_XL").click(function () {
+
+        //debugger;
+        if(!ValidateInput())return;
+        //$.icsProgressBar(true);
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        var nPCID=0;
+        var nCategoryID = $('#cboProductCategory').combotree('getValue');
+        if(nCategoryID !=null)
+        {
+            nPCID=nCategoryID;
+        }
+        if(parseInt($('#cboReportLayout').val())==4)//Lot/Style wise
+        {
+            _sLotNo = $('#txtLot').val();
+            _nUnitPrice =  $('#txtRate').val();
+        }
+        var oInventoryTraking={
+            BUID:sessionStorage.getItem('BUID'),
+            StartDate:date1,
+            EndDate: date2,
+            Param: $('#cboReportLayout').val()+'~'+$('#txtBU').data('BUIDs')+'~'+$('#txtWorkingUnit').data('WorkingUnitIDs')+'~'+ $('#txtSupplierName').data('SupplierIDs')+'~'+$('#txtStyleNo').data("StyleIDs")+'~'+$('#txtProduct').data('ProductIDs')+'~'+nPCID+'~'+_sLotNo+'~'+_nUnitPrice+'~'+$('#txtITDescription').val()+'~'+$('#txtDiaOrGSM').val()
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ItemMovement/SetSessionSearchCriteria",
+            traditional: true,
+            data:  JSON.stringify(oInventoryTraking),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    var tsv=((new Date()).getTime())/1000;
+                    window.open(_sBaseAddress+'/ItemMovement/PrintItemMovementsExcel?ts='+tsv,"_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshControlLayout(oAuthorizationRolesMapping)
+    {
+        debugger;
+
+        $("#cboValueType").hide();
+        if (PermissionChecker('RateView', 'InventoryTracking',oAuthorizationRolesMapping))
+        {
+            $("#cboValueType").show();
+        }
+
+    }
+    </script>
+
+

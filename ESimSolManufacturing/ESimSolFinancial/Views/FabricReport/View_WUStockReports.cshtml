@@ -1,0 +1,256 @@
+﻿@{
+    ViewBag.Title = "Stock Report";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ReportingObject.WUStockReport>
+<html>
+    <head>
+        <title>Current Weaving Stock Report</title>
+    </head>
+    <body class="menuMainCollectionTable">
+        <div id="p" class="easyui-panel" title="Stock Report" style="width:100%;height:100%;background:#fafafa;" data-options="closable:false, collapsible:false, minimizable:false, maximizable:false">
+            <fieldset>
+                <legend>Current Weaving Stock</legend>
+                <table id="tbl">
+                    <tr>
+                        <td>Type : </td>
+                        <td style="text-align:left;">
+                            <input type="radio" id="rdCurrentStock" name="StockType" />
+                            <span style="padding-right:15px">Current Stock</span>
+                            <input type="radio" id="rdAllStock" name="StockType" />
+                            <span style="padding-right:15px">All Exe</span>
+                           
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Order type : </td>
+                        <td>
+                            <select id="cboOrderType"></select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Process type : </td>
+                        <td>
+                            <select id="cboProcessType"></select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Buyer : </td>
+                        <td>
+                            <input type="text" id="txtBuyer" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>FEO no : </td>
+                        <td>
+                            <input type="text" id="txtFEONo" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <a id="btnExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true" style="float:right;">Excel</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </body>
+</html>
+<style type="text/css">
+    #tbl {
+        width:520px;
+    }
+    #tbl tr td:first-child {
+        text-align:right;
+    }
+    #tbl tr td {
+        width:50%;
+    }
+    #tbl input[type='text']{
+        width:100%;
+    }
+     #tbl select {
+        width:100%;
+    }
+</style>
+<script type="text/javascript">
+    var _sBaseAddress = "";
+    var _oOrderTypes=[];
+    var _oFabricProcesss=[];
+    var _sBuyerIDs="";
+    var _sFEOIDs="";
+    $(document).ready(function () {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oOrderTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.OrderTypes));
+        _oFabricProcesss = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricProcesss));
+        $('#rdCurrentStock').prop('checked',true);
+        LoadComboboxes();
+    });
+
+
+
+    function LoadComboboxes()
+    {
+        $("#cboOrderType").icsLoadCombo({
+            List: _oOrderTypes,
+            OptionValue: "Value",
+            DisplayText: "Text"
+        });
+
+        $("#cboProcessType").icsLoadCombo({
+            List: _oFabricProcesss,
+            OptionValue: "FabricProcessID",
+            DisplayText: "Name"
+        });
+    }
+
+    $("#txtBuyer").keydown(function (e) {
+        if (e.keyCode === 13) {
+            var oContractor = {
+                Params: 2 + '~' + $.trim($("#txtBuyer").val())
+            };
+
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oContractor,
+                ControllerName: "Contractor",
+                ActionName: "ContractorSearchByNameType",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].ContractorID > 0) {
+                        var tblColums = []; var oColumn = { field: "Name", title: "Name", width: 400, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winBuyers',
+                            winclass: 'clsBuyer',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblBuyers',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Buyer List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else {
+                    alert("Sorry, No Buyer Found.");
+                }
+            });
+        }
+        else if (e.keyCode === 8) {
+            _sBuyerIDs = "";
+            $(this).val("");
+        }
+    });
+
+    $("#txtFEONo").keydown(function (e) {
+        if (e.keyCode === 13) {
+            var oFabricExecutionOrder = {
+                FEONo: $.trim($(this).val())
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oFabricExecutionOrder,
+                ControllerName: "FabricExecutionOrder",
+                ActionName: "GetsFEOrders",
+                IsWinClose: false
+            };
+            $.icsMaxDataGets(obj, function (response) {
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].FEOID > 0) {
+                        var tblColums = []; var oColumn = { field: "OrderNo", title: "Order No", width: 200, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winFabricExecutionOrders',
+                            winclass: 'clsFabricExecutionOrder',
+                            winwidth: 400,
+                            winheight: 460,
+                            tableid: 'tblFabricExecutionOrders',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: true,
+                            searchingbyfieldName: 'Name',
+                            windowTittle: 'Fabric ExecutionOrder List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else {
+                        alert(response.objs[0].ErrorMessage);
+                    }
+                }
+                else {
+                    alert("Sorry, No FEO found.");
+                }
+            });
+        }
+        else if (e.keyCode === 8) {
+            _sFEOIDs = "";
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winBuyers') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                var sBuyerIDs = "";
+                for (var i = 0; i < oreturnObjs.length; i++) {
+                    sBuyerIDs += oreturnObjs[i].ContractorID + ","
+                }
+                _sBuyerIDs = sBuyerIDs.substring(0, sBuyerIDs.length - 1);
+                $('#txtBuyer').val(oreturnObjs.length + " buyer" + (oreturnObjs.length > 1 ? "s" : "") + " selected.");
+                $('#txtBuyer').focus();
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        else if (oPickerobj.winid == 'winFabricExecutionOrders') {
+            if (oreturnObjs != null && oreturnObjs.length > 0) {
+                $.map(oreturnObjs,function(obj){
+                    _sFEOIDs += obj.FEOID + ","
+                });
+                _sFEOIDs = _sFEOIDs.substring(0, _sFEOIDs.length - 1);
+                $('#txtFEONo').val(oreturnObjs.length + " Order(s) Selected").focus();
+            }
+            else {
+                alert("Select item(s) from list.");
+                return false;
+            }
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    $("#btnExcel").click(function () {
+        var nOrderType=$("#cboOrderType").val();
+        var nProcessType=$("#cboProcessType").val();
+        var param = nOrderType +'~'+ nProcessType +'~'+ _sBuyerIDs + '~'+ _sFEOIDs+'~'+$('#rdCurrentStock').is(':checked');
+        window.open(_sBaseAddress + '/FabricReport/ExcelWUStockReport?param='+ param, "_blank");
+    });
+</script>

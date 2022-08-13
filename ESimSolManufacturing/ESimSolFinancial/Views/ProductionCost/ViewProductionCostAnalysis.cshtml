@@ -1,0 +1,355 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ReportingObject.RptProductionCostAnalysis>
+    @{
+        ViewBag.Title = "Production Cost";
+    }
+    <div class="menuMainCollectionTable" style="margin-left: 0px; height: 565px">
+        <table id="tblProductionReport" title="Production Report" class="easyui-datagrid"
+               style="width: 100%; height: 565px" fitcolumns="false" rownumbers="true" pagination="false"
+               singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="MachineName" width="120" align="left">
+                        Machine Name
+                    </th>
+                    <th field="UsesWeight" width="80" align="center">
+                        Capacity (KG)
+                    </th>
+                    <th field="BuyerName" width="120" align="left">
+                        Buyer Name
+                    </th>
+                    <th field="Shade" width="120" align="left">
+                        Shade
+                    </th>
+                    <th field="ProductName" width="100" align="Left">
+                        Yarn Count
+                    </th>
+                    <th field="BatchNo" width="110" align="left">
+                        Batch
+                    </th>
+                    <th field="ProductionQty" width="100" align="center">
+                        Weight (KG)
+                    </th>
+                    <th field="Loading" width="100" align="center">
+                        Loading(%)
+                    </th>
+                    <th field="TotalShadePercentage" width="70" align="right">
+                        Shade(%)
+                    </th>
+                    <th field="DurationHHMMInString" width="100" align="center">
+                        Duration
+                    </th>
+                    <th field="PRRemarks" width="130" align="left">
+                        Remarks
+                    </th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height: auto">
+            <table>
+                <tr>
+                    <td>
+                        <span> <input type="text" id="txtMachineName" placeholder="Select Machine" style=" width:120px; font-size:11px; " /> <input type="button" value="P" id="btnPickMachine" style="width:25px; font-size:11px;" /><input type="button" value="R" id="btnReset" style="width:25px; font-size:11px;" /> </span>
+                        <span> <input type="checkbox" id="chkBoxDateSelect" /> <span>Issue Date</span> </span>
+                        <span>
+                            <input id="txtStartDate" type="text" style="width:105px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                            <span>to</span>
+                            <input id="txtEndDate" type="text" style="width: 105px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                        </span>
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a> 
+                        @*<a id="btnPrintProductionAnalysisShade" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                        <a id="btnPrintProductionSummaryWithCostAnalysis" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">With Cost</a>*@
+                        <a id="btnPrintProductionWithCostAnalysis" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Summary</a>
+                        <a id="btnPrintProAnalysisWithSummary" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Summary Analysis</a>
+                        <a id="btnPrintProductionSummaryByMachine" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Machine Summary</a>
+                        @*<a id="btnAddReportComments" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Remark</a>*@
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <script type="text/javascript">
+
+        var _sBaseAddress="";
+        var _nMachineID=0;
+        var _nLocationID=0;
+        var _IsDateSelected=false;
+        var _nBUID=0;
+        $(document).ready(function ()
+        {
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            document.getElementById('chkBoxDateSelect').checked=false;
+            $('#txtStartDate').datebox({readonly:true});
+            $('#txtEndDate').datebox({readonly:true});
+            $('#txtStartDate').datebox('setValue',icsdateformat(new Date()));
+            $('#txtEndDate').datebox('setValue',icsdateformat(new Date()));
+        });
+
+        $('#btnAddReportComments').click(function(e)
+        {  
+            //debugger;
+            var nts=(new Date()).getTime()/1000;
+            var oParameter = new Object();       
+            var url = _sBaseAddress +"/ProductionCost/ViewReportRemark";
+            var nLeft=(window.screen.width/2)-(365/2);
+            var nHeight=(window.screen.height/2)-(440/2);
+            window.open(url,oParameter,'position:absolute;dialogHeight:290px;dialogWidth:465px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes',window.dialogParent,window.dialogCount); 
+        });
+        $('#chkBoxDateSelect').click(function(e)
+        {
+            if(document.getElementById('chkBoxDateSelect').checked==true)
+            {
+                _IsDateSelected=true;
+                $('#txtStartDate').datebox({readonly:false});
+                $('#txtEndDate').datebox({readonly:false});
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+            }
+            else
+            {
+                _IsDateSelected=false;
+                $('#txtStartDate').datebox({readonly:true});
+                $('#txtEndDate').datebox({readonly:true});
+                $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+                $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));
+
+            }
+        });
+
+        $('#btnPickMachine_OFF').click(function(e)
+        {
+            var oParameter = new Object();
+
+            oParameter.Name = "Add New Machine";
+            var url =_sBaseAddress+ "/ProductionSchedule/ViewMachine";
+            var oMachineLocation=window.showModalDialog(url, oParameter,'dialogHeight:400px;dialogWidth:600px;dialogLeft:450;dialogTop:150;center:yes;resizable:no;status:no;scroll:yes');
+            if(oMachineLocation!=null)
+            {
+                _nMachineID = oMachineLocation.DyeMachines.MachineID;
+                _nLocationID = oMachineLocation.LocationID;
+                document.getElementById("txtMachineName").value=oMachineLocation.DyeMachines.MachineName;
+            }
+        });
+        function SetMachine(oMachineLocation)
+        {
+            if(oMachineLocation!=null)
+            {
+                _nMachineID = oMachineLocation.MachineID;
+                _nLocationID = oMachineLocation.LocationID;
+                document.getElementById("txtMachineName").value=oMachineLocation.Name;
+            }
+        }
+
+        function GetMachines(sMachineName)
+        {
+            var oMachine = {
+                BUID:_nBUID,
+                //ResourcesTypeInInt:2,
+                Name:sMachineName
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oMachine,
+                ControllerName: "DUPSchedule",
+                ActionName: "GetsMachine",
+                IsWinClose: false
+            };
+
+            
+            debugger;
+            var tblColums=[];
+            var oColumn = { field: "Code", title: "Code", width: 100, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "Name", title: "Machine Name", width: 150, align: "left" };tblColums.push(oColumn);
+            oColumn = { field: "Capacity", title: "Capacity", width: 90, align: "left" };tblColums.push(oColumn);
+
+            var oPickerParam = {
+                winid: 'winProducts',
+                winclass: 'clsProduct',
+                winwidth: 600,
+                winheight: 460,
+                tableid: 'tblProducts',
+                tablecolumns: tblColums,
+                multiplereturn: false,
+                searchingbyfieldName: 'Name',
+                windowTittle: 'Machine List',
+                paramObj:obj,
+                pkID:'MachineID',
+                callBack:SetMachine
+            };
+
+            $.icsDynamicPicker(oPickerParam);
+        }
+        $("#btnPickMachine").click(function () {
+            var sName=document.getElementById("txtMachineName").value;
+            GetMachines($.trim(sName));
+        });
+        $('#txtMachineName').keypress(function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            var sName=document.getElementById("txtMachineName").value;
+
+            if (code == 13)//Enter key-13
+            {
+
+                if($.trim(sName)!="")
+                {
+                    GetMachines($.trim(sName));
+                }
+                else
+                {
+                    alert("Please enter somethig to seach machine.");
+                    Reset();
+                }
+            }
+
+        });
+
+        $('#btnReset').click(function(e)
+        {
+            Reset();
+        });
+
+        function Reset()
+        {
+            _nMachineID=0;
+            _nLocationID=0;
+            $("#txtMachineName")[0].value="";
+        }
+
+        function RefreshList(oRPCAs)
+        {
+            data = oRPCAs;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblProductionReport').datagrid('loadData', data);
+        }
+        $('#btnSearch').click(function (e)
+        {
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+            var nts=(new Date()).getTime()/1000;
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress+ "/ProductionCost/SearchProductionCostAnalysis",
+                data:JSON.stringify({ sValue: sTempString,nts:nts }),
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    debugger;
+                    var oRPCAs=[];
+                    oRPCAs = jQuery.parseJSON(data);
+
+                    if(oRPCAs.length>0 && oRPCAs[0].ErrorMessage=="")
+                    {
+                        RefreshList(oRPCAs);
+                    }
+                    else
+                    {
+                        alert(oRPCAs[0].ErrorMessage);
+                        RefreshList([]);
+                    }
+
+                },
+            });
+        });
+        $('#btnPrintProductionAnalysisShade').click(function (e)
+        {
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionCost/PrintProductionAnalysisShade?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+        $('#btnPrintProductionSummaryWithCostAnalysis').click(function (e)
+        {
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionCost/PrintProductionSummaryWithCostAnalysis?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+        $('#btnPrintProductionWithCostAnalysis').click(function (e)
+        {
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionCost/PrintProductionWithCostAnalysis?sValue="+sTempString+"&nts="+nts, "_blank");
+
+        });
+        $('#btnPrintProAnalysisWithSummary').click(function (e)
+        {
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var EndDate= $('#txtEndDate').datebox('getValue');
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress + "/ProductionCost/PrintProductionAnalysisWithSummary?sValue="+sTempString+"&nts="+nts, "_blank");
+
+
+        });
+        $('#btnPrintProductionSummaryByMachine').click(function (e)
+        {
+
+            if(_nMachineID>0)
+            {
+                if(!_IsDateSelected)
+                {
+                    alert("Please select Issue Date.");
+                    return;
+                }
+
+                var StartDate= $('#txtStartDate').datebox('getValue');
+                var EndDate= $('#txtEndDate').datebox('getValue');
+                var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+StartDate+'~'+EndDate;
+                var nts=(new Date()).getTime()/1000;
+                window.open(_sBaseAddress + "/ProductionCost/PrintProductionSummaryByMachine?sValue="+sTempString+"&nts="+nts, "_blank");
+
+            }
+            else
+            {
+                alert("Please select a machine.");
+            }
+
+        });
+    </script>

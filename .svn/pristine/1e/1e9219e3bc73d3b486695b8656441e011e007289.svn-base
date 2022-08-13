@@ -1,0 +1,199 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.VProduct>
+@{
+    ViewBag.Title = "Product List";
+}
+
+
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblVProducts" title="Product List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th data-options="field:'ProductCode',width:80">Code</th>
+                <th data-options="field:'ProductName',width:300">Name</th>
+                <th data-options="field:'Remarks',width:100">Remarks</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+        <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:120px" />
+        <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:120px" />
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" >Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" >Delete</a>
+        <a id="btnImport" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up" plain="true">Import</a>
+        
+    </div>
+</div>
+
+
+
+
+
+<script type="text/javascript">
+    var _oVProduct=null;
+    var _oVProducts=null;
+    var _nID =null;
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        //
+        debugger;
+        _oVProducts=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        var oVProducts =sessionStorage.getItem("VProducts");
+        if(oVProducts!=null)
+        {
+            oVProducts = jQuery.parseJSON(oVProducts)===null?_oVProducts:jQuery.parseJSON(oVProducts);
+        }
+        else
+        {
+            oVProducts=_oVProducts;
+        }
+
+        DynamicRefreshList(oVProducts, 'tblVProducts');
+        if(_nID!=-1)
+        {
+            $('#tblVProducts').datagrid('selectRow', _nID);
+        }
+    });
+
+    $("#btnImport").click(function(){
+        var sURL=window.location.href;
+        sessionStorage.setItem("VProductBackTo", sURL);
+        sessionStorage.setItem("VProducts", JSON.stringify(null));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("VProductHeader", "Import Product");
+        window.location.href = _sBaseAddress+ "/VProduct/ImportFromExcel";
+    });
+    
+
+    $('#txtSearchByCode').keyup(function (e) {debugger;$('#txtSearchByCode').icsSearchByText({ Event: e,SearchProperty: "ProductCode",GlobalObjectList: _oVProducts,TableId: "tblVProducts"});});
+
+    $('#txtSearchByName').keyup(function (e) {debugger;$('#txtSearchByName').icsSearchByText({ Event: e,SearchProperty: "ProductName",GlobalObjectList: _oVProducts,TableId: "tblVProducts"});});
+    function RefreshArguments(){
+        var sErrorMessage='Arguments;';
+        
+        var txtSearchbyCode=$("#txtSearchByCode").val();
+        if(txtSearchbyCode!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchbyCode+'~';
+        }
+        var txtSearchByName=$("#txtSearchByName").val();
+        if(txtSearchByName!=null)
+        {
+            sErrorMessage=sErrorMessage+txtSearchByName+'~';
+        }
+
+        return {ErrorMessage:sErrorMessage};
+    }
+    $('#btnRefresh').click(function(){
+        var oVProduct=RefreshArguments();
+        $.icsDataGets({
+            BaseAddress: _sBaseAddress,
+            Object: oVProduct,
+            ControllerName: "VProduct",
+            ActionName: "Gets",
+            IsWinClose: false
+        },function (response){
+            if(response.status && response.objs!=null){
+                if(response.objs.length>0){
+                    var oVProducts=response.objs;
+                    DynamicRefreshList(oVProducts, 'tblVProducts');
+                }
+            }
+        });
+    });
+
+    $('#btnEdit').click( function ()
+    {
+        debugger;
+        var oVProduct= $('#tblVProducts').datagrid('getSelected');
+        if(oVProduct==null || oVProduct.VProductID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+
+
+        var oVProducts=$('#tblVProducts').datagrid('getRows');
+        var SelectedRowIndex=$('#tblVProducts').datagrid('getRowIndex',oVProduct);
+        sessionStorage.setItem("VProducts", JSON.stringify(oVProducts));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("VProductHeader", "Edit Voucher Product");
+
+
+
+
+        window.location.href = _sBaseAddress+ "/VProduct/ViewVProduct?id="+oVProduct.VProductID;
+    });
+
+    $('#btnView').click( function ()
+    {
+        debugger;
+        var oVProduct= $('#tblVProducts').datagrid('getSelected');
+        if(oVProduct==null || oVProduct.VProductID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+
+
+        var oVProducts=$('#tblVProducts').datagrid('getRows');
+        var SelectedRowIndex=$('#tblVProducts').datagrid('getRowIndex',oVProduct);
+        sessionStorage.setItem("VProducts", JSON.stringify(oVProducts));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("VProductHeader", "View Voucher Product");
+
+
+
+
+        window.location.href = _sBaseAddress+ "/VProduct/ViewVProduct?id="+oVProduct.VProductID;
+    });
+
+
+    $('#btnAdd').click( function ()
+    {
+        debugger;
+        var oVProducts= $('#tblVProducts').datagrid('getRows');
+        sessionStorage.setItem("VProducts", JSON.stringify(oVProducts)); 
+        sessionStorage.setItem("SelectedRowIndex", -1);   
+        sessionStorage.setItem("VProductHeader", "Add Voucher Product");
+        //var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/VProduct/ViewVProduct?id=0";
+    });
+
+
+    
+
+    $('#btnDelete').click( function ()
+    {
+
+        var oVProduct= $('#tblVProducts').datagrid('getSelected');
+        if(oVProduct==null || oVProduct.VProductID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return false;
+        var SelectedRowIndex=$('#tblVProducts').datagrid('getRowIndex',oVProduct);
+
+        if (oVProduct.VProductID > 0)
+        {
+            $.icsDelete({
+                BaseAddress: _sBaseAddress,
+                Object: oVProduct,
+                ControllerName: "VProduct",
+                ActionName: "Delete",
+                TableId: "tblVProducts",
+                IsWinClose: false
+            });
+        }
+    });
+    
+</script>

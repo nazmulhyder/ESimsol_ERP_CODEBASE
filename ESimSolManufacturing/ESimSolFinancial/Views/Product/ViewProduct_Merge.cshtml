@@ -1,0 +1,399 @@
+﻿@{
+    ViewBag.Title = "Product Merge";
+}
+@model IEnumerable <ESimSol.BusinessObjects.Product>
+<div ng-app="ProductMergeApp" class="form-horizontal regionProducts " style="padding-top:5px">
+    <div ng-controller="ProductMergeCntrl">
+        <div class="col-md-12" style="padding-top:5px">
+            <div class="row ui-grid-top-panel">
+                <div class="container">
+                    <div class="form-inline">
+                        <select class="form-control" ng-model="BusinessUnitID" ng-options="item.BusinessUnitID as item.Name for item in BusinessUnits"></select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-md-12" style="padding-top:5px">
+            <div class="regionGrid">
+                <fieldset>
+                    <legend style="color:blue;">Inactive Product</legend>
+                    <div class="ui-grid-top-panel">
+                        <div class="row col-md-12">
+                            <div class="col-md-5 text-right"> <label class="control-label">Product Name</label> </div>
+                            <div class="col-md-7 text-left">
+                                <input ng-model="OldProductName" ng-keyup="searchOldProductKeyUp($event)" class="form-control" placeholder="Type Product Name & Enter" required />
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="row col-md-12">
+                        <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid-angular ui-grid-selectable"></div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div class="regionEntry">
+                <fieldset>
+                    <legend style="color:blue;">Pick Product To replace</legend>
+                    <div class="col-sm-12">
+                        <div class="col-sm-4 text-right"><label class="control-label">Product Name</label></div>
+                        <div class="col-sm-7 text-left">
+                            <input ng-model="NewProductName" ng-keyup="searchNewProductKeyUp($event)" class="form-control" placeholder="Type Product Name & Enter" required />
+                        </div>
+
+                    </div>
+                </fieldset>
+            </div>
+
+
+        </div>
+
+
+        <div class=" col-md-12" style="padding-top:110px">
+            <fieldset>
+                <legend>Action</legend>
+                <div class="row col-md-12 text-right">
+                    <div class=" col-md-6 text-left">
+                        <label style="color:red">If Commit ,then You Can't Rollback Again</label>
+
+                    </div>
+                    <div class=" col-md-6 text-right">
+                        <button type="button" class="btn btn-sm  btn-primary" aria-label="Left Align" ng-click="Commit()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Commit</span> </button>
+
+                    </div>
+                 </div>
+            </fieldset>
+        </div>
+    </div>
+</div>
+           
+
+
+
+<style type="text/css">
+    .regionProducts .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .grid-angular {
+        height: 300px;
+        width: 100%;
+    }
+
+    .regionProducts .btn-sm {
+        padding: 3px 10px;
+    }
+      .regionGrid{
+        width:50%;
+        height:350px;
+        float:left;
+    }
+    
+       
+    .regionEntry{
+        width:40%;
+        height:350px;
+        float:right;
+    }
+
+
+      .regionEntry .col-sm-7 {
+        width:63%;
+        padding-right:1px;
+        padding-left:0px;
+    }
+    
+     .regionEntry .col-sm-4 {
+        width:27%;
+        padding-right:2px;
+        padding-left:2px;
+    }
+     
+</style>
+
+ <script type="text/javascript">
+
+  var  _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oProducts =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+    var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    sessionStorage.setItem('BUID',nBUID);
+
+    var  ProductMergeApp = angular.module('ProductMergeApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+
+    ProductMergeApp.controller('ProductMergeCntrl', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod)
+    {
+      
+        $scope.BusinessUnits= oBusinessUnits;
+        $scope.BusinessUnitID = $scope.BusinessUnits[0].BusinessUnitID;
+        $scope.gridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            showColumnFooter: true,
+            enableGridMenu: true,
+            columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'ProductCode', name: 'Product Code', width:'30%', enableCellEdit: false },
+                { field: 'ProductName', name: 'Product Name', width: '30%', enableCellEdit: false },
+                { field: 'ActivityInString', name: 'Activity',  cellClass: 'text-left', width: '15%'  },
+                 {name: 'Remove',width:'20%' ,cellTemplate: '<div style="padding-left:3px; padding-right:3px;padding-bottom:2px;" ><button class="btn btn-sm btn-danger" ng-click="grid.appScope.Remove();$event.stopPropagation();" ng-disabled="colDef.enableCellEdit"><span class="glyphicon glyphicon-floppy-disk" aria-hidden="true">Remove</span></button></div>', enableSorting:false, enableColumnResizing:false, enableColumnMenu:false,enableCellEdit:false},
+            ],
+            data:oProducts,
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+              
+               
+            } 
+        };
+        $scope.OldProductName ="";
+        $scope.ProductsIDs ="";
+        
+        $scope.searchOldProductKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                debugger;
+                $scope.SearchOldProductByNameKeyUp();
+            }
+           
+        };
+         
+         $scope.SearchOldProductByNameKeyUp = function () {
+            debugger;
+            var oProduct = {
+                ProductName: $scope.OldProductName,
+                BUID : sessionStorage.getItem('BUID'),
+                Activity: false
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress + '/Product/Gets_ByNameForProductMerge', $.param(oProduct), config).then(
+                                function (response) {
+                                    debugger;
+                                    var oColumns = [];
+                                    var oColumn = { field: 'ProductCode', name: 'Product Code', width: '20%' }; oColumns.push(oColumn);
+                                    oColumn = { field: 'ProductName', name: 'Product Name', width: '50%', enableSorting: false }; oColumns.push(oColumn);
+                                   
+                                    var results = jQuery.parseJSON(response.data);
+                                    var modalObj = {
+                                        size: 'md',
+                                        modalcontroller: 'ModalCommonListCtrl',
+                                        appcontroller: 'ProductMergeCntrl',
+                                        objs: results,
+                                        multiSelect: true,
+                                        pickertitle: 'Product List',
+                                        searchingbyfieldName: 'ProductName',
+                                        columns: oColumns
+                                    }
+                                    var modalInstance = msModal.Instance(modalObj);
+                                    sessionStorage.setItem('BaseAddress',_sBaseAddress);
+                                    modalInstance.result.then(function (result) {
+                                        debugger;
+                                        $scope.OldProductName = result.length > 1 ? result.length + "Item's Selected" : result[0].ProductName;
+                                        //$scope.ProductsIDs = icsMethod.ICS_PropertyConcatation(result, 'ProductID');
+                                        if(result.length ==1 && $scope.gridOptions.data == null){
+                                           
+                                            $scope.gridOptions.data.push(result[0]);
+                                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                                        }
+                                        else{
+                                            debugger;
+                                            $scope.CheckIsExists(result);
+                                        }
+                                       
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                            );
+         };
+
+         $scope.CheckIsExists = function (res)
+         {
+             debugger;
+             var gridData = $scope.gridOptions.data ;
+             var list =[];
+                if(gridData!=null)
+                {
+                for(var j =0 ;j<res.length ;j++)
+                {
+                    var check = false;
+                    for(var i =0; i<gridData.length ;i++){
+                 
+                            if(gridData[i].ProductID == res[j].ProductID)
+                            {
+                            check = true;
+                            }
+
+                    }
+                    if(!check)
+                    {
+                    gridData.push(res[j]); 
+
+                    }
+                }
+                $scope.gridOptions.data = [];
+          
+                $scope.gridOptions.data = gridData;
+            }
+             else
+             {
+                 $scope.gridOptions.data = res;
+             }
+           
+         };
+         $scope.NewProductName ="";
+         $scope.ProductID =0;
+
+         $scope.searchNewProductKeyUp=function(keyEvent){
+             if(keyEvent.which==13 ||keyEvent.which ==8){
+                 debugger;
+                 $scope.SearchNewProductNameByKeyUp();
+             }
+         };
+
+         $scope.SearchNewProductNameByKeyUp = function () {
+             var oProduct = {
+                 ProductName: $scope.NewProductName,
+                 BUID : sessionStorage.getItem('BUID'),
+                 Activity: true
+             };
+       
+           
+             var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+             $http.post(_sBaseAddress + '/Product/Gets_ByNameForProductMerge', $.param(oProduct), config).then(
+                                 function (response) {
+                                     debugger;
+                                     var oColumns = [];
+                                     var oColumn = { field: 'ProductCode', name: 'Product Code', width: '20%' }; oColumns.push(oColumn);
+                                     oColumn = { field: 'ProductName', name: 'Product Name', width: '50%', enableSorting: false }; oColumns.push(oColumn);
+                                   
+                                     var results = jQuery.parseJSON(response.data);
+                                     var modalObj = {
+                                         size: 'md',
+                                         modalcontroller: 'ModalCommonListCtrl',
+                                         appcontroller: 'ProductMergeCntrl',
+                                         objs: results,
+                                         multiSelect: false,
+                                         pickertitle: 'Product List',
+                                         columns: oColumns
+                                         
+                                     }
+                                     sessionStorage.setItem('BaseAddress',_sBaseAddress);
+                                     var modalInstance = msModal.Instance(modalObj);
+                                     modalInstance.result.then(function (result) {
+                                         debugger;
+                                         $scope.NewProductName = (result!= null )? result.ProductName : "";
+                                         $scope.ProductID =(result!= null )? result.ProductID : 0 ;
+                                     }, function () {
+                                         $log.info('Modal dismissed at: ' + new Date());
+                                     });
+                                 },
+                                   function (response) { alert(jQuery.parseJSON(response.data).Message); }
+                             );
+         };
+
+         $scope.Commit =function()
+         {
+             if( !$scope.Validation())
+                 return false;
+             var oProduct = {
+                 ProductName:  $scope.getProductIDS()  ,
+                 ProductID :  $scope.ProductID
+             };
+            
+             msModal.Message({headerTitle : '', bodyText:'Are you sure to Commit?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                 if(result){
+             $http.post(_sBaseAddress+'/Product/ProductMarge', JSON.stringify(oProduct)).then(
+                             function (response) {
+                                 var result=jQuery.parseJSON(response.data);
+                               
+                                 if(result.ErrorMessage == '' || result.ErrorMessage == null)
+                                 {
+                                     msModal.Message({headerTitle : '', bodyText:"Commited Successfully!", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                 }
+
+                                 else{
+
+                                     msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                 }
+                             },
+                             function (response) {
+                                 msModal.Message({headerTitle : '', bodyText:(response.data).ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});}
+                          );
+                 }
+             });
+         }
+
+         $scope.Validation= function()
+         {
+           
+             if($scope.getProductIDS() == ""){
+                 msModal.Message({headerTitle : '', bodyText:"Pick Inactive Product!", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                 return false;
+             }
+             else if( $scope.ProductID<=0){
+                 msModal.Message({headerTitle : '', bodyText:"Pick Product to replace!", sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                 return false;
+             }
+            
+             return true;
+         };
+
+         $scope.Remove =function ()
+         {
+             debugger;
+             var objs =$scope.gridApi.selection.getSelectedRows();;
+             if(objs==null || objs.length<=0)
+             {
+                 msModal.Message({headerTitle : '', bodyText:'Select At least One item !', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                 return false;
+             }
+            angular.forEach($scope.gridOptions.data, function (value, index)
+             {
+                if (value.ProductID == objs[0].ProductID)
+                 {
+                     $scope.gridOptions.data.splice(index, 1);
+                 }
+                       
+             }, $scope.gridOptions.data);
+              
+         };
+
+         $scope.getProductIDS =function (){
+             var objs = $scope.gridOptions.data ;
+
+             if(objs !=null){
+                 $scope.ProductsIDs = ICS_PropertyConcatation(objs, 'ProductID');
+             }
+             else{
+                 $scope.ProductsIDs ="";
+             }
+
+             return $scope.ProductsIDs;
+         }
+        
+            
+        
+
+
+       
+      
+      
+
+       
+
+        
+    
+        
+
+
+    });
+  </script>
+

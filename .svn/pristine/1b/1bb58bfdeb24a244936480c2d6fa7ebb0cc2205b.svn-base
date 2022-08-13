@@ -1,0 +1,655 @@
+﻿@{
+    ViewBag.Title = "Weaving Yarn Requisition List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.WYRequisition>
+
+    <div class="menuMainCollectionTable" ng-app="WYRequisitionApp" style="height:520px; width:100%;overflow:hidden;">
+        <div ng-controller="WYRequisitionController">
+            <div title="WYRequisition List" class="ui-grid-top-panel" >
+                    <div class="form-inline">
+                        
+                        <input type="text" ng-model="txtSearchByDispo" ng-keyup="SearchByDispo($event)" placeholder="Search by Dispo No" style="width:100px"/>
+                        <input type="text" ng-model="txtSearchByRequisition" ng-keyup="SearchByRequisition($event)" placeholder="Search by Requisition" style="width:100px" />
+                        <button type="button" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="AdvanceSearch()"><span class="glyphicon glyphicon-search" aria-hidden="true"> Advance Search</span></button>
+
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Edit()" ng-hide="btnEdit"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Delete()" ng-hide="btnDelete"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="View()" ng-hide="btnView"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Approve()"  ng-hide="btnApprove"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="UndoApprove()" ng-hide="btnUndoApprove"> <span class="glyphicon glyphicon-circle-arrow-left" aria-hidden="true"></span> Undo Approve</button>
+                       
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Disburse()" ng-hide="btnDisburse"> <span class="glyphicon glyphicon-minus-sign" aria-hidden="true"></span> Disburse</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="UndoDisburse()" ng-hide="btnUndoDisburse"> <span class="glyphicon glyphicon-circle-arrow-left" aria-hidden="true"></span>Undo Disburse</button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="Receive()" ng-hide="btnReceive"> <span class="glyphicon glyphicon-adjust" aria-hidden="true"></span> Receive</button>
+                        
+                        
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="WYRequisitionPreview()" ng-hide="btnPreview"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview</button>@*(LayoutType!=2)*@
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PrintList()" ng-hide="btnTFReport"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> TF Report </button>
+                        <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="PrintList_Weft()" ng-hide="btnPreviewWeft"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Preview (Weft)</button>
+                    </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns class="grid-angular" style="width:100%"></div>
+        </div>
+    </div>
+<style type="text/css">
+    .grid-angular {
+        width: 100%;
+        height:510px;
+    }
+</style>
+<script type="text/javascript">
+    debugger;
+    var oWYRequisitions =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var _nLayoutType =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.LayoutType));
+    var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+    var oWYarnTypes =  @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WYarnTypes));
+    var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+
+    debugger;
+    var CCapp= angular.module('WYRequisitionApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.resizeColumns', 'ui.grid.cellNav','ms.service','ui.grid.pinning']);
+    CCapp.controller('WYRequisitionController',function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession,advanceSearch)
+    {
+        oWYRequisitions= (userSession.getData('WYRequisitions').length>0)? userSession.getData('WYRequisitions'):oWYRequisitions;
+        $scope.BUID = sessionStorage.getItem('BUID');
+        $scope.LayoutType =_nLayoutType;
+        $scope.WarpWeftTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WarpWeftTypes));
+
+        $scope.btnAdd = $scope.btnEdit = $scope.btnDelete = $scope.btnApprove= $scope.btnDisburse =$scope.btnReceive = $scope.btnUndoApprove =false;
+
+
+        debugger;
+        $scope.MakeGrid = function()
+        {
+            $scope.gridOptions=
+           {
+               multiSelect: false,
+               enableFullRowSelection: true,
+               columnDefs: [
+                 {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                 { field: 'RequisitionNo', name:'Requisition No', width:'12%' },
+                 { field: 'IssueDateSt', name:'Date', width:'10%' },
+                 { field: 'IssueStoreName', name:'Issue store', width:'10%' },
+                 { field: 'RequisitionTypeSt', name:'RequisitionType', width:'10%' },
+                 { field: 'ReceiveStoreName', name:'Receive Store', width:'15%' },
+                 { field: 'ApprovedByName', name:'Approve By', width:'15%' },
+                 { field: 'DisburseByName', name:'Disburse By', width:'15%' },
+                 { field: 'ReceivedByName', name:'Receive By', width:'15%' }
+               ],
+               data: oWYRequisitions,
+               onRegisterApi : function(gridApi)
+               {
+                   debugger;
+                   //$scope.gridApi = gridApi;
+                   //$scope.gridApi.selection.clearSelectedRows();
+                   //$scope.gridApi.selection.selectRow($scope.gridOptions.data[userSession.getRowIndex()]);
+                   //userSession.clear();
+
+                   $scope.gridApi = gridApi;
+                   $scope.gridApi.selection.clearSelectedRows();
+                   $scope.gridApi.core.refresh();
+                   debugger;
+                   if(oWYRequisitions.length>0 && userSession.getRowIndex()>=0)
+                   {
+                       $scope.gridApi.grid.modifyRows(oWYRequisitions);
+                       $scope.gridApi.selection.selectRow(oWYRequisitions[userSession.getRowIndex()]);
+                       $scope.RowSelect(oWYRequisitions[userSession.getRowIndex()]);
+                   }
+                   $scope.gridApi.selection.on.rowSelectionChanged($scope, function (row) {
+                       $scope.RowSelect(row.entity ); });
+                   userSession.clear();
+               }
+           };
+
+        }
+        $scope.MakeGrid();
+
+        $scope.SearchByRequisition = function(e)
+        {
+            debugger;
+            var txtSearchByRequisition = $scope.txtSearchByRequisition;
+            var rows = $scope.gridOptions.data;
+            var sTempName="";
+            var oSearchedList = [];
+            var oCurrentList = $scope.gridOptions.data;
+            if (e.which == 8)
+            {
+                oCurrentList = oWYRequisitions;
+            }
+            for(i=0;i<oCurrentList.length;++i)
+            {
+                sTempName=oCurrentList[i].RequisitionNo;
+                n=sTempName.toUpperCase().indexOf(txtSearchByRequisition.toUpperCase())
+                if(n!=-1)
+                {
+                    oSearchedList.push(oCurrentList[i]);
+                }
+            }
+            $scope.gridOptions= {data: oSearchedList};
+        }
+
+
+        $scope.AdvanceSearch=function()
+        {
+            var oColumns = [];
+            var oColumn = { field: 'ModelNo', name: 'ModelNo',width: '30%'  };oColumns.push(oColumn);
+            oColumn = { field: 'CategoryName', name: 'CategoryName',width: '40%', enableSorting: false  };oColumns.push(oColumn);
+
+            //var paramObj_Model={
+            //    obj:{ModelNo: '@@VehicleModelID'},
+            //    objName:'ModelNo',
+            //    url:_sBaseAddress+'/VehicleModel/GetVehicleModels',
+            //    title:'Model List',
+            //    multiSelect:true,
+            //    columns:oColumns
+            //}
+
+            //oColumns = [];
+            //var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            //oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            //var paramObj_Contractor={
+            //    obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+            //    objName:'Params',
+            //    url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+            //    title:'Contractor List',
+            //    multiSelect:true,
+            //    columns:oColumns
+            //}
+
+            var oElementList = [];
+            var oElement = { DisplayName: "Dispo No",           BOField: "DispoNo",          InputType: 'text' }; oElementList.push(oElement);
+
+            if(_nLayoutType==0)
+            {
+                oElement = { DisplayName: "Yarn Type",      BOField: "WYarnType",     InputType: 'select', OptionList:oWYarnTypes}; oElementList.push(oElement);
+            }
+            oElement = { DisplayName: "Date",    BOField: "SearchStringDate",   InputType: 'date' }; oElementList.push(oElement);
+
+            if(_nLayoutType!=0)
+            {
+                oElement = { BOField: "WYarnType",      Value: _nLayoutType, InputType: 'hidden' }; oElementList.push(oElement);
+            }
+
+            //{ DisplayName: "Model No",          BOField: "VehicleModelID",  InputType: 'picker', PickerObject:paramObj_Model },
+            //{ DisplayName: "Customer ",         BOField: "ContractorID",    InputType: 'picker', PickerObject:paramObj_Contractor }
+            //{ DisplayName: ["Yet To Forward (HO)","Yet To Forward (Buyer)"],  BOField: ["YetToHO","YetToBuyer"],   InputType: 'bool'},
+            oElement = { DisplayName: "Warp/Weft",    BOField: "WarpWeftType",       InputType: 'select', OptionList: $scope.WarpWeftTypes }; oElementList.push(oElement);
+
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                url:_sBaseAddress+'/Home/AdvanceSearch',
+                CompareOperators:oCompareOperators,
+                HtmlElements:oElementList,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/WYRequisition/AdvSearch'
+            }
+
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+        $scope.SearchByDispo = function(e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                debugger;
+                var oWYRequisition = {
+                    DispoNo: $scope.txtSearchByDispo,
+                    SearchStringDate:'',
+                    IsDyed: _nLayoutType
+                };
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress + '/WYRequisition/AdvSearch',$.param(oWYRequisition), config).then(
+                                    function (response)
+                                    {
+                                        debugger;
+                                        sessionStorage.setItem('AdvSearchObject',JSON.stringify(oWYRequisition));
+                                        $scope.gridOptions.data=[];
+                                        result=response.data;
+                                        $scope.gridOptions.data=(response.data);
+                                    }, function () {
+                                        $log.info('GetServiceOrder Dismissed at: ' + new Date());
+                                    });
+            }
+        }
+
+        $scope.Add=function()
+        {
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("WYRequisitionHeader", "Add WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+ "/WYRequisition/ViewWYRequisition?id=0&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.Edit= function ()
+        {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(parseInt(oWYRequisition.ApprovedBy)!=0)
+            {
+                alert("Already Approved.");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYRequisitionHeader", "Edit WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYRequisition/ViewWYRequisition?id="+oWYRequisition.WYRequisitionID+"&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.View= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYRequisitionHeader", "View WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYRequisition/ViewWYRequisition?id="+oWYRequisition.WYRequisitionID+"&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.Approve= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oWYRequisition.ApprovedBy!=0)
+            {
+                alert("Already Approved.");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYRequisitionHeader", "Approve WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYRequisition/ViewWYRequisition?id="+oWYRequisition.WYRequisitionID+"&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.Disburse= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oWYRequisition.ApprovedBy==0)
+            {
+                alert("Pelase Select Only Approved Item .");
+                return;
+            }
+            if(parseInt(oWYRequisition.DisburseBy)!=0)
+            {
+                alert("Sorry, Already Disbursed.");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYRequisitionHeader", "Disburse WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYRequisition/ViewWYRequisition?id="+oWYRequisition.WYRequisitionID+"&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.UndoApprove= function ()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oWYRequisition.ApprovedBy==0)
+            {
+                alert("Pelase Select Only Approved Item .");
+                return;
+            }
+            var nIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+
+            if (!confirm("Confirm to unapprove?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/UndoApprove',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Successfully Unapproved!!");
+                                $scope.gridOptions.data[nIndex]=oWYRequisition;
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.UndoDisburse= function ()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(parseInt(oWYRequisition.DisburseBy)==0)
+            {
+                alert("Pelase Select Only Disburse Item .");
+                return;
+            }
+
+            var nIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+
+            if (!confirm("Confirm to Undo disburse?")) return ;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/WYRequisition/UndoDisburse',oWYRequisition).then(
+                        function (response)
+                        {
+                            var oWYRequisition= jQuery.parseJSON(response.data);
+                            if (oWYRequisition.ErrorMessage=="" || oWYRequisition.ErrorMessage==null)
+                            {
+                                alert("Disburse Is Successfully Undone!!");
+                                $scope.gridOptions.data[nIndex]=oWYRequisition;
+                            }
+                            else
+                            {
+                                alert(oWYRequisition.ErrorMessage);
+                            }
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.Receive= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(parseInt(oWYRequisition.DisburseBy)==0)
+            {
+                alert("Pelase Select Only Disburse Item .");
+                return;
+            }
+
+            if(parseInt(oWYRequisition.ReceivedBy)!=0)
+            {
+                alert("Alrady Received.");
+                return;
+            }
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            sessionStorage.setItem("WYRequisitions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+            sessionStorage.setItem("WYRequisitionHeader", "Receive WYRequisition");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href = _sBaseAddress+  "/WYRequisition/ViewWYRequisition?id="+oWYRequisition.WYRequisitionID+"&buid="+$scope.BUID+"&nLayoutType="+_nLayoutType;
+        }
+        $scope.Delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oWYRequisition);
+            if (oWYRequisition.WYRequisitionID > 0)
+            {
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/WYRequisition/Delete",
+                    data: { id: oWYRequisition.WYRequisitionID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+
+        $scope.WYRequisitionPreview= function ()
+        {
+            //debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+
+            window.open(_sBaseAddress+'/WYRequisition/WYRequisitionPreview?nWYRequisitionID='+oWYRequisition.WYRequisitionID+'&nBUID='+$scope.BUID);
+        }
+
+
+        $scope.PrintList = function()
+        {
+            debugger;
+
+            var oWYRequisitions= $scope.gridOptions.data;
+            if(oWYRequisitions.length<=0){ alert("Data not found "); return; }
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            oFOYR = oWYRequisition;
+
+            //var oFOYR = sessionStorage.getItem('AdvSearchObject');
+            //if(oFOYR ==null || oFOYR.length<=0)
+            //{
+            //    alert("No Search Criteria Found To Print!");
+            //}
+
+            $http.post(_sBaseAddress+'/WYRequisition/SetSessionSearchCriteria',oFOYR).then(
+                             function (response)
+                             {
+                                 window.open(_sBaseAddress+'/WYRequisition/PrintWYRequisitions?buid='+$scope.BUID);
+                             },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                       );
+        }
+
+        $scope.PrintList_Weft = function()
+        {
+            var oWYRequisitions= $scope.gridOptions.data;
+            if(oWYRequisitions.length<=0){ alert("Data not found "); return; }
+
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oWYRequisition= data[0];//get selected index
+            if(oWYRequisition==null || oWYRequisition.WYRequisitionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            oFOYR = oWYRequisition;
+
+            //var oFOYR = sessionStorage.getItem('AdvSearchObject');
+            //if(oFOYR ==null || oFOYR.length<=0)
+            //{
+            //    alert("No Search Criteria Found To Print!");
+            //}
+
+
+            $http.post(_sBaseAddress+'/WYRequisition/SetSessionSearchCriteria',oFOYR).then(
+                             function (response)
+                             {
+                                 window.open(_sBaseAddress+'/WYRequisition/PrintWYRequisitions_WeftYarn?buid='+$scope.BUID);
+                             },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                       );
+        }
+
+        $scope.ExportToExcel = function()
+        {
+            var oWYRequisitions= $scope.gridOptions.data;
+            if(oWYRequisitions.length<=0){ alert("Data not found "); return; }
+
+            var oFOYR = sessionStorage.getItem('AdvSearchingObject');
+            if(oFOYR ==null || oFOYR.length<=0){ alert("Data not found "); return; }
+
+            $http.post(_sBaseAddress+'/WYRequisition/SetSessionSearchCriteria',JSON.stringify(oFOYR)).then(
+                             function (response)
+                             {
+                                 window.open(_sBaseAddress+'/WYRequisition/WYRequisitionExportToExcel?buid='+$scope.BUID);
+                             },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                       );
+            //window.open(_sBaseAddress + '/WYRequisition/WYRequisitionExportToExcel?sIDs='+ids);
+        }
+
+        //button hide
+        $scope.btnAdd = $scope.btnEdit = $scope.btnView = $scope.btnDelete = $scope.btnApprove= $scope.btnDisburse =$scope.btnUndoDisburse =$scope.btnReceive = $scope.btnUndoApprove = $scope.btnAdvSearch = $scope.btnPreview = $scope.btnTFReport = $scope.btnPreviewWeft = true ;
+            
+        $scope.CheckControll = function()
+        {
+           //button show
+            if(PermissionChecker('Add','WYRequisition',oAuthorizationRolesMapping))         {   $scope.btnAdd  =$scope.btnAdd;} else $scope.btnAdd =true;
+            if(PermissionChecker('Edit','WYRequisition',oAuthorizationRolesMapping))        {   $scope.btnEdit =$scope.btnEdit;} else $scope.btnEdit =true;
+            if(PermissionChecker('View','WYRequisition',oAuthorizationRolesMapping))        {   $scope.btnView =$scope.btnView;} else $scope.btnView =true;
+            if(PermissionChecker('Delete','WYRequisition',oAuthorizationRolesMapping))      {   $scope.btnDelete =$scope.btnDelete;} else $scope.btnDelete =true;
+            if(PermissionChecker('Approved','WYRequisition',oAuthorizationRolesMapping))    {   $scope.btnApprove =$scope.btnApprove;} else $scope.btnApprove =true;
+            if(PermissionChecker('Disburse','WYRequisition',oAuthorizationRolesMapping))    {   $scope.btnDisburse =$scope.btnDisburse;} else $scope.btnDisburse =true;
+            if(PermissionChecker('Disburse','WYRequisition',oAuthorizationRolesMapping))    {   $scope.btnUndoDisburse =$scope.btnUndoDisburse;} else $scope.btnUndoDisburse =true;
+            if(PermissionChecker('Received','WYRequisition',oAuthorizationRolesMapping))    {   $scope.btnReceive =$scope.btnReceive;} else $scope.btnReceive =true;
+            if(PermissionChecker('UnApproved','WYRequisition',oAuthorizationRolesMapping))  {   $scope.btnUndoApprove =$scope.btnUndoApprove;} else $scope.btnUndoApprove =true;
+            if(PermissionChecker('AdvSearch','WYRequisition',oAuthorizationRolesMapping))   {   $scope.btnAdvSearch =$scope.btnAdvSearch;} else $scope.btnAdvSearch =true;
+        }
+
+        $scope.CheckControll();
+
+        $scope.RowSelect =  function (entity)
+        {
+            debugger;
+            //ApprovedBy =0;
+            //DisburseBy = 0;
+            //ReceivedBy = 0;
+            if(entity.ApprovedBy!=0 && entity.DisburseBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnApprove=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnReceive=true;
+
+                $scope.btnDisburse=false;
+                $scope.btnUndoApprove =false;
+                $scope.CheckControll();
+            }
+            else if(entity.ApprovedBy!=0 && entity.DisburseBy!=0 && entity.ReceivedBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=false;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnReceive=false;
+                $scope.CheckControll();
+            }
+            else if(entity.ApprovedBy!=0 && entity.DisburseBy!=0 && entity.ReceivedBy!=0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=true;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnEdit=true;
+                $scope.btnDelete=true;
+                $scope.btnReceive=true;
+                $scope.CheckControll();
+            }
+            else if(entity.ApprovedBy==0)
+            {
+                //$scope.CheckControll();
+                $scope.btnApprove=false;
+                $scope.btnUndoApprove =true;
+                $scope.btnDisburse=true;
+                $scope.btnUndoDisburse=true;
+                $scope.btnEdit=false;
+                $scope.btnDelete=false;
+                $scope.btnReceive=true;
+                $scope.CheckControll();
+            }
+            
+            if(entity.WYarnTypeInt==2)
+            {
+                //$scope.CheckControll();
+                $scope.btnPreview=false;
+                $scope.btnTFReport=true;
+                $scope.btnPreviewWeft=true;                
+            }
+            else if(entity.WYarnTypeInt==1)
+            {
+                $scope.btnPreview=true;
+                $scope.btnTFReport=false;
+                $scope.btnPreviewWeft=false;                
+            }
+            else{
+                $scope.btnPreview=true;
+                $scope.btnTFReport=true;
+                $scope.btnPreviewWeft=true;  
+            }
+        }
+
+    });
+
+
+</script>

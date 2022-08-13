@@ -1,0 +1,739 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title> PayRoll DashBoard</title>
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.EmployeeOfficial>
+    <div class="menuMainCollectionTable">
+        <div class="regionSeparator">
+
+            <table class="tblChartView">
+                  <tr>
+                      <td class="td-col-1 tr-title"></td>
+                      <td class="td-col-2 tr-title">
+                          <div><u>Department Wise Employee</u> </div>
+                      </td>
+                      <td class="td-col-3 tr-title">
+                          <div><u>Payroll Break Down</u> </div>
+                      </td>
+                      <td class="td-col-4 tr-title">
+                          <div><u>Department Wise Salary</u> </div>
+                      </td>
+                </tr>
+              
+                <tr>
+                    <td class="td-col-1">
+                        <canvas id="cirEmployee" class="circular-shape"></canvas>
+                        <br /> <label class="lbl-circular-Identify">Employee</label>
+                        <canvas id="cirDepartment" class="circular-shape"></canvas>
+                        <br /> <label class="lbl-circular-Identify">Department</label>
+                    </td>
+                    <td class="td-col-2">
+                        <div class="emp-history">
+                            <div id="div-Column">
+                                <div id="div-Columnchart">
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="td-col-3">
+                        <div id="PayrollBreakDownPieChart"></div>
+                        <div id="PayrollBreakDownPieChartSliceInfo"></div>
+
+                    </td>
+                    <td class="td-col-4">
+                        <div id="regionDeptWiseSalary"></div>
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+        <div class="regionSeparator">
+           
+            <table id="tblSalarySummary" title="Salary Summary" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarNotice">
+    
+            </table>
+            <div id="toolbarNotice">
+                <span>Payroll Process Date:</span>
+                <input id="dtDateFrom" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <span>to</span>
+                <input id="dtDateTo" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <span>Location:</span>
+                <select id="cboLocation"></select>
+
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+
+                <span style="padding-left:5%;">
+                    <label id="lblSalaryDate"></label>
+                </span>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
+
+<style type="text/css">
+
+     .regionSeparator{
+        margin:2px;
+        border:1px solid black;
+        float:left;
+        width:99.6%;
+        height:49.5%;
+    }
+    .tblChartView{
+        margin-bottom:10%;
+         width:100%;
+         height:100%;
+         border:1px solid gray;
+     }
+
+     .td-col-1{
+         margin:1%;
+         width:15%;
+         height:100%;
+         text-align:center;
+     }
+     .td-col-2,.td-col-4{
+         margin:1%;
+         width:35%;
+         text-align:center;
+     }
+      .td-col-3{
+         margin:1%;
+         width:20%;
+         height:100%;
+         text-align:center;
+     }
+      .td-col-4{
+         margin:1%;
+         width:30%;
+         height:100%;
+         text-align:center;
+     }
+
+     .tblChartView .tr-title{
+         height:5%;
+     }
+     .circular-shape{
+         margin-top:0%;
+         width:100%;
+         height:25%;
+     }
+    .td-col-2 .emp-history{
+        height:80%;
+        width:360px;
+        font-size:11px;
+    }
+    #div-Column{
+        float: left; 
+        width: 100%;
+        height: 100%; 
+        overflow-x: scroll;
+        overflow-y: hidden
+    }
+
+    #div-Columnchart{
+        float: left;  
+        height: 80%; 
+        width:80%;
+    }
+    
+    #PayrollBreakDownPieChart{
+        width:100%;
+        height:80%;
+        margin-left:8%;
+    }
+     #PayrollBreakDownPieChartSliceInfo{
+        width:100%;
+        margin-right:5%;
+        margin-left:2.5%;
+        font-size:11px;
+        text-align:center;
+    }
+     #regionDeptWiseSalary{
+        width:100%;
+        margin-right:2%;
+        font-size:11px;
+        text-align:center;
+        overflow-x:hidden;
+        overflow-y:scroll;
+     }
+
+     #cboLoaction{
+         margin-top:5px;
+         width:20%;
+     }
+</style>
+
+<script type="text/javascript">
+
+    var _sBaseAddress="";
+    var _oEmployeeOfficials = [];
+    var _oDepartments=[];
+    var _oLocations=[];
+    var _oSalaryBreakDowns=[];
+    var _oSalarySummarys=[];
+    var _nPayRollAmount=0;
+    $(document).ready(function()
+    {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oEmployeeOfficials = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oDepartments=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Departments));
+        _oLocations=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Locations));
+        _oSalaryBreakDowns= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.SalaryBreakDowns));
+        _oSalarySummarys= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.SalarySummarys));
+        var sSalaryDate= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.SalaryDate));
+        $.icsProgressBar(true);
+        
+        GetEmployeeOfficial();
+        $('#lblSalaryDate').html(sSalaryDate);
+    });
+
+    $(document).keydown(function (e) { if (e.keyCode == 27) { $('#div').icsWindow('close'); } });
+
+
+    /*------------ Search Summary ----------------------*/
+
+    $("#btnSearch").click(function (e) {
+
+        var oPayrollSummary = {
+                Params: $('#dtDateFrom').datebox("getValue")+'~'+$('#dtDateTo').datebox("getValue")+'~'+$('#cboLocation').val()
+            };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oPayrollSummary,
+                ControllerName: "Dashboard",
+                ActionName: "GetPayrollSummary",
+                IsWinClose: false
+            };
+
+            $.icsDataGet(obj, function (response) {
+                debugger;
+                if (response.status && response.obj.SalaryBreakDowns.length>0 && response.obj.SalaryBreakDowns[0].DepartmentID>0) {
+                    _oSalaryBreakDowns= response.obj.SalaryBreakDowns;
+                    _oSalarySummarys= response.obj.SalarySummarys;
+                    BulidPayrollBreakdownPieChart();
+                    BulidDeptWiseSalaryBarChart();
+                    GenerateDeptWiseSalarySummary();
+                    $('#lblSalaryDate').html(response.obj.SalaryDate);
+                }
+                else{
+                    alert(response.obj.ErrorMessage);
+                }
+            });
+    });
+    function GetEmployeeOfficial()
+    {
+        debugger;
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: _oEmployeeOfficials,
+            ControllerName: "Dashboard",
+            ActionName: "GetsForData",
+            IsWinClose: false
+        };
+
+        $.icsMaxDataGets(obj, function (response) {
+            debugger;
+            _oEmployeeOfficials = response.objs;
+            debugger;
+            if (_oEmployeeOfficials.length>0) {
+                $('#dtDateFrom, #dtDateTo').datebox("setValue", icsdateformat(new Date()));
+                DrawCircle('cirEmployee','#E0ECF8',2,'#EAB60A', _oEmployeeOfficials.length);
+                DrawCircle('cirDepartment','#E0ECF8',2,'green',_oDepartments.length);
+                BulidDepartmentColumnChart();
+                BulidPayrollBreakdownPieChart();
+                BulidDeptWiseSalaryBarChart();
+                GenerateDeptWiseSalarySummary();
+                $("#cboLocation").icsLoadCombo({
+                    List: _oLocations,
+                    OptionValue: "LocationID",
+                    DisplayText: "Name",
+                    InitialValue:"All"
+                });
+                BulidPayrollBreakdownPieChart();
+                $.icsProgressBar(false);
+            }
+            else{
+                alert("Mo data Found");
+            }
+        });
+    }
+
+
+    /*------------ Circle Drawing ----------------------*/
+
+    function DrawCircle(canvasId,forsecolor,nlineWidth,bordercolor,stext){
+        stext=stext.toString();
+        var canvas = document.getElementById(canvasId);
+        var centerX = canvas.width / 2;
+        var centerY = canvas.height / 2;
+        var radius = centerY-2; //(centerX - ((30/2)*stext.length)/2)+10;
+
+        var ctx=canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(centerX,centerY,radius,2*Math.PI,false);
+        ctx.fillStyle=forsecolor;
+        ctx.fill();
+        ctx.lineWidth=nlineWidth;
+        ctx.strokeStyle=bordercolor;
+        ctx.stroke();
+
+        ctx.closePath();
+        ctx.fillStyle = bordercolor;
+        ctx.font = "30px Tahoma";
+        ctx.fillText(stext, centerX - ((30/2)*stext.length)/2 , centerY+10);
+        ctx.stroke();
+    }
+    function ColorCode(){
+
+        var oColors=[];
+        oColors.push('#800000'); // Maroon
+        oColors.push('#9ACD32'); // YellowGreen
+        oColors.push('#008080'); // Teal
+        oColors.push('#6A5ACD'); // SlateBlue
+        oColors.push('#800080'); // Purple
+        oColors.push('#4169E1'); // RoyalBlue
+        oColors.push('#808000'); // Olive
+        oColors.push('#8A2BE2'); // BlueViolet
+        oColors.push('#A52A2A'); // Brown
+        oColors.push('#5F9EA0'); // CadetBlue
+        oColors.push('#6495ED'); // CornflowerBlue
+        oColors.push('#00008B'); // DarkBlue
+        oColors.push('#008B8B'); // DarkCyan
+        oColors.push('#B8860B'); // DarkGoldenRod
+        oColors.push('#8B008B'); // DarkMagenta
+        oColors.push('#556B2F'); // DarkOliveGreen
+        oColors.push('#8FBC8F'); // DarkSeaGreen
+        oColors.push('#00CED1'); // DarkTurquoise
+        oColors.push('#00BFFF'); // DeepSkyBlue
+        oColors.push('#228B22'); // ForestGreen
+        oColors.push('#DAA520'); // GoldenRod
+        oColors.push('#4B0082'); // Indigo
+        oColors.push('#ADD8E6'); // LightBlue
+        oColors.push('#87CEFA'); // LightSkyBlue
+        oColors.push('#32CD32'); // LimeGreen
+        oColors.push('#FF00FF'); // Magenta
+
+        return oColors;
+    }
+    /*------------ Region Column Chart ----------------------*/
+
+    function BulidDepartmentColumnChart(){
+
+        var oDepts= GenerateDepartmentWiseEmployee();
+        if(oDepts.length>7){
+            $("#div-Columnchart").width(parseFloat(oDepts.length)*50);
+        }
+        else{ $("#div-Column").css("cssText", "overflow-x: hidden !important;"); };
+
+
+        var oGraphData=[];
+        var oGraphTicks=[];
+
+        var oDataPonint=[];
+        var oTickPonint=[];
+
+        var oDeptEmployees=[];
+        for(var i=0; i<oDepts.length; i++)
+        {
+            oDataPonint=[];
+            oDataPonint.push(i);
+            oDataPonint.push(oDepts[i].NumberOfEmployee);
+            oDeptEmployees.push(oDataPonint);
+
+            oTickPonint=[];
+            oTickPonint.push(i);
+            oTickPonint.push("<center>"+oDepts[i].DepartmentName+"</center>");
+            oGraphTicks.push(oTickPonint);
+        }
+
+
+
+        var oGraphOptions = {
+            series: {
+                bars: {
+                    show: true,
+                    barWidth: .2,
+                    order: 1,
+                    align: "center",
+                    horizontal: false,
+                    number:function(v, bar) {return  v ;}
+                }
+            },
+
+            points:{show:true},
+            valueLabels: { show: true },
+
+            xaxis: {
+                axisLabel: 'Department',
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 10,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 10,
+                tickLength: 0,
+                tickSize: 0,
+                ticks: oGraphTicks,
+
+            },
+
+            yaxis: {
+                axisLabel: "Employee",
+                axisLabelUseCanvas: true,
+                axisLabelFontSizePixels: 12,
+                axisLabelFontFamily: 'Verdana, Arial',
+                axisLabelPadding: 0,
+                max:(oDepts.length<=0)?0:GenerateMaxYAxisValue(oDepts),
+                labelWidth:25,
+                tickFormatter: function (v, axis) {return v;}
+            },
+
+
+            legend: {
+                noColumns: 1,
+                labelBoxBorderColor: "#000000",
+                position: "nw"
+            },
+
+            grid: {
+                hoverable: true,
+                borderWidth: 0,
+                backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                }
+            }
+        };
+        //var oGraphDataSets=[];
+        //var oColors=ColorCode();
+        //var j=0;
+        //for(var i=0;i<oDeptEmployees.length;i++){
+        //    if(j>=oColors.length){j=0;}
+        //    oGraphDataSets.push({ label: '', data: [oDeptEmployees[i]], color:  oColors[j] });
+        //    j++;
+        //}
+        oGraphDataSets = [ { label: '', data: oDeptEmployees, color: "#CFB53B" }];
+        var oColumnChartPolt=$.plot($("#div-Columnchart"), oGraphDataSets, oGraphOptions);
+        $.plot($("#div-Columnchart"), oGraphDataSets, oGraphOptions);
+        $("#div-Columnchart").UseTooltip();
+    }
+
+    var previousPoint = null, previousLabel = null;
+
+    $.fn.UseTooltip = function () {
+        $(this).bind("plothover", function (event, pos, item) {
+            if (item) {
+                if ((previousLabel != item.series.label) || (previousPoint != item.dataIndex)) {
+                    previousPoint = item.dataIndex;
+                    previousLabel = item.series.label;
+                    $("#tooltip").remove();
+                    debugger;
+
+                    var x = item.datapoint[0];
+                    var y = item.datapoint[1];
+                    var sColor = item.series.color;
+                    ShowTooltip(item.pageX,
+                        item.pageY,
+                        sColor,
+                        "<strong>"+ y.toString()  + "</strong>"); // item.series.label
+                }
+            } else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+        });
+    };
+
+    function ShowTooltip(x, y, color, contents) {
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y - 20,
+            left: x - 20,
+            border: '1px solid ' + color,
+            padding: '3px',
+            'font-size': '8px',
+            'border-radius': '5px',
+            'background-color': '#fff',
+            'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+            opacity: 0.9
+        }).appendTo("body").fadeIn(200);
+    }
+
+    function GenerateDepartmentWiseEmployee(){
+        var oDept=null;
+        var oDepts=[];
+        var nEmployee=0;
+        for(var i=0;i<_oDepartments.length;i++){
+            oDept=null; nEmployee=0;
+            for(var j=0;j<_oEmployeeOfficials.length;j++){
+                if(_oDepartments[i].DepartmentID==_oEmployeeOfficials[j].DepartmentID){
+                    nEmployee++;
+                }
+            }
+            oDept={
+                DepartmentName: _oDepartments[i].Name,
+                NumberOfEmployee: parseInt(nEmployee),
+            };
+            oDepts.push(oDept);
+        }
+        return oDepts;
+    }
+
+    function GenerateMaxYAxisValue(oDepts){
+        var nEmp=(oDepts[0].NumberOfEmployee<50)? 25 : oDepts[0].NumberOfEmployee;
+        for(var i=1;i<oDepts.length;i++){
+            if(oDepts[i].NumberOfEmployee>nEmp){
+                nEmp=oDepts[i].NumberOfEmployee;
+            }
+        }
+        if(nEmp>25){
+            if(nEmp%25!=0){ nEmp=nEmp+ (25-(nEmp%25));}
+        }
+        else{
+            if(nEmp%5!=0){ nEmp=nEmp+ (5-(nEmp%5));}
+        }
+        return nEmp;
+    }
+
+
+    /*------------ Region Pie Chart ----------------------*/
+
+    function BulidPayrollBreakdownPieChart(){
+
+        var oPBD=GetPayRollBreakDown();
+        _nPayRollAmount=parseFloat(oPBD.Salary)+parseFloat(oPBD.Allowance)+parseFloat(oPBD.Overtime);
+
+        $("#PayrollBreakDownPieChartSliceInfo").html("Total Salary: "+ formatPrice(_nPayRollAmount));
+
+        var dataSet = [
+            {label: "Salary", data: oPBD.Salary, color: "#005CDE" },
+            { label: "Allowance", data: oPBD.Allowance, color: "#00A36A" },
+            { label: "Overtime", data: oPBD.Overtime, color: "#7D0096" }
+        ];
+        var options = {
+            series: {
+                pie: {
+                    show: true,
+                    innerRadius: 0.3,
+                    label: {
+                        show: true
+                    }
+                }
+            },
+
+            legend: {
+                show: false
+            },
+            grid: {
+                hoverable: true
+            }
+        };
+
+
+        $.plot($("#PayrollBreakDownPieChart"), dataSet, options);
+        $("#PayrollBreakDownPieChart").showMemo();
+    }
+
+    $.fn.showMemo = function () {
+
+        $(this).bind("plothover", function (event, pos, item) {
+            if (!item) { $("#PayrollBreakDownPieChartSliceInfo").html("Total Salary: "+ formatPrice(_nPayRollAmount)); return; }
+            var html = [];
+            var percent = parseFloat(item.series.percent).toFixed(2);
+            html.push("<div style=\"border:1px solid grey;background-color:",
+                 item.series.color,
+                 "\">",
+                 "<span style=\"color:white\">",
+                 item.series.label,
+                 " : ",
+                 formatPrice(item.series.data[0][1]),
+                 " (", percent, "%)",
+                 "</span>",
+                 "</div>");
+            $("#PayrollBreakDownPieChartSliceInfo").html(html.join(''));
+        });
+    }
+
+    function GetPayRollBreakDown(){
+        debugger;
+        var oPRBD=null;
+        var nSalary=0, nAllowance=0, nOvertime=0;
+        if(_oSalaryBreakDowns.length>0){
+            for(var i=0;i<_oSalaryBreakDowns.length;i++){
+                nSalary=parseFloat(nSalary) + parseFloat(_oSalaryBreakDowns[i].Salary);
+                nAllowance=parseFloat(nAllowance) + parseFloat(_oSalaryBreakDowns[i].Allowance);
+                nOvertime=parseFloat(nOvertime) + parseFloat(_oSalaryBreakDowns[i].Overtime);
+            }
+        }
+        oPRBD={
+            Salary:nSalary,
+            Allowance:nAllowance,
+            Overtime:nOvertime
+        }
+        return oPRBD;
+
+    }
+
+
+    /*------------ Region Dept Wise Salary ----------------------*/
+
+    function BulidDeptWiseSalaryBarChart(){
+        debugger;
+        var oColors=ColorCode();
+        var oDepWiseSalarys=DepartmentWiseSalary();
+        if(oDepWiseSalarys.length<=8){$("#regionDeptWiseSalary").css("cssText", "overflow-y: hidden !important;");}
+        var nTotalSalary=0;
+        for(var i=0; i<oDepWiseSalarys.length;i++){
+            nTotalSalary=parseFloat(nTotalSalary)+parseFloat(oDepWiseSalarys[i].Salary);
+        }
+        var j=0, nWidth=0;
+        var sHtml='';
+        sHtml = '<table cellspacing="0" cellpadding="1" style="width:100%;height:100%">';
+
+        sHtml += '<thead>';
+        sHtml += '<tr>';
+        sHtml += '<th style="width:40%;font-size:11px">Department</th>';
+        sHtml += '<th style="width:20%;font-size:11px"></th>';
+        sHtml += '<th style="width:40%;font-size:11px; text-align:right;">Net Salary</th>';
+        sHtml += '</tr>';
+        sHtml += '</thead>';
+
+        for(var i=0; i<oDepWiseSalarys.length;i++){
+            if(j>=oColors.length){j=0;}
+            nWidth=parseInt((parseInt(oDepWiseSalarys[i].Salary)*100)/nTotalSalary);
+            sHtml += '<tr>';
+            sHtml += '<td style="width:40%;font-size:11px">';
+            sHtml += '<label>'+oDepWiseSalarys[i].Name+'</label>';
+            sHtml += '</td>';
+
+            sHtml += '<td style="width:20%;">';
+            sHtml += '<div style="width:'+ nWidth +'%; height:11px; display:block; border:1px solid '+oColors[i]+' ;background-color:'+oColors[i]+'"></div>';
+            sHtml += '</td>';
+
+            sHtml += '<td style="width:40%;font-size:11px; text-align:right;">';
+            sHtml += '<label style="text-align:right;">'+ formatPrice(oDepWiseSalarys[i].Salary)+'</label>';
+            sHtml += '</td>';
+            sHtml += '</tr>';
+            j++;
+        }
+        sHtml += '<tr>';
+        sHtml += '<td style="width:40%;font-size:11px; border-top:1px solid grey">';
+        sHtml += '';
+        sHtml += '</td>';
+
+        sHtml += '<td style="width:20%; border-top:1px solid grey ">';
+        sHtml += '<label>Total</label>';
+        sHtml += '</td>';
+
+        sHtml += '<td style="width:40%;font-size:11px; text-align:right;border-top:1px solid grey">';
+        sHtml += '<label style="text-align:right;">'+ formatPrice(nTotalSalary)+'</label>';
+        sHtml += '</td>';
+        sHtml += '</tr>';
+        sHtml +='</table>'
+        $("#regionDeptWiseSalary").html('');
+        $("#regionDeptWiseSalary").append(sHtml);
+    }
+
+    function DepartmentWiseSalary(){
+        var oDWS=null;
+        var oDWSs=[];
+        if(_oSalaryBreakDowns.length>0){
+            for(var i=0;i<_oSalaryBreakDowns.length;i++){
+                oDWS={
+                    Name:_oSalaryBreakDowns[i].DepartmentName,
+                    Salary:parseFloat(_oSalaryBreakDowns[i].Salary)+parseFloat(_oSalaryBreakDowns[i].Allowance)+parseFloat(_oSalaryBreakDowns[i].Overtime)
+                };
+                oDWSs.push(oDWS);
+            }
+        }
+        else{ oDWSs=[{Name:'',Salary:0}]; }
+
+        return oDWSs;
+
+    }
+
+    /*------------ Dept Wise Salary Summary ----------------------*/
+    function GenerateDeptWiseSalarySummary() {
+        if(_oSalarySummarys.length<=0){ DynamicRefreshList([], "tblSalarySummary"); return; }
+
+        var tblfrozenColumns = [{ rowspan:2, field:'DepartmentName', title:"Department", width:"15%", align:"left"}];
+        var tblColums = [];
+        var oColumn = null;
+
+        var nEarningColspan= GetColumnSpanValue("Earnings");
+        var nDeductionColspan= GetColumnSpanValue("Deductions");
+
+        tblColums=[
+            { rowspan:2, field:'GrossSalary', title:"Gross Salary", width:"12%", align: "right",formatter:formatPrice},
+            { colspan:nEarningColspan, title:"Earnings", width:"30%",align: "center"},
+            { rowspan:2, field:'GrossEarning', title:"Gross Earning", width:"12%", align: "right",formatter:formatPrice},
+            { colspan:nDeductionColspan, title:"Deductions", width:"30%",align: "center"},
+            { rowspan:2, field:'NetSalary', title:"Net Salary", width:"12%", align: "right",formatter:formatPrice},
+        ];
+
+        var tblColums1=[];
+        for (var i = 2; i < _oSalarySummarys[0].length; i++) {
+            if (_oSalarySummarys[0][i].Key!='GrossEarning' && _oSalarySummarys[0][i].Key!='NetSalary' && _oSalarySummarys[0][i].Key!='EarningsSpan'  && _oSalarySummarys[0][i].Key!='DeductionSpan') {
+                oColumn = {
+                    field: _oSalarySummarys[0][i].Key,
+                    title: _oSalarySummarys[0][i].Key,
+                    width: "12%",
+                    align: "right",
+                    formatter:formatPrice
+                };
+                tblColums1.push(oColumn);
+            }
+        }
+        $('#tblSalarySummary').datagrid({ frozenColumns: [tblfrozenColumns,[]], columns: [tblColums,tblColums1] });
+
+        var oDeptSalarySummarys = [];
+        for (var i = 0; i < _oSalarySummarys.length; i++) {
+            var nCount = 0;
+            var oDeptSalarySummary = {} ;
+            while (_oSalarySummarys[i].length > nCount) {
+                oDeptSalarySummary[_oSalarySummarys[i][nCount].Key] = _oSalarySummarys[i][nCount].Value;
+                nCount++;
+            }
+            oDeptSalarySummarys.push(oDeptSalarySummary);
+        }
+
+        debugger;
+        if(oDeptSalarySummarys.length>1){
+            oDeptSalarySummary = {};
+            oDeptSalarySummary[_oSalarySummarys[0][0].Key]="<b>Total</b>";
+            for(var i=0;i<oDeptSalarySummarys.length;i++){
+                for(var j=1;j<_oSalarySummarys[0].length;j++){
+                    oDeptSalarySummary[_oSalarySummarys[0][j].Key] = (i>0)? (parseFloat(oDeptSalarySummary[_oSalarySummarys[i-1][j].Key]) + parseFloat(_oSalarySummarys[i][j].Value)) : _oSalarySummarys[i][j].Value
+                }
+            }
+            oDeptSalarySummarys.push(oDeptSalarySummary);
+        }
+
+
+        DynamicRefreshList(oDeptSalarySummarys, "tblSalarySummary");
+    }
+
+    function GetColumnSpanValue(sColSpanFor){
+
+        var nSpan=0;
+        if(sColSpanFor=='Earnings'){
+            for (var i = 2; i < _oSalarySummarys[0].length; i++){
+                if(_oSalarySummarys[0][i].Key=='EarningsSpan'){
+                    nSpan=_oSalarySummarys[0][i].Value;
+                    break;
+                }
+            }
+
+        }else if(sColSpanFor=='Deductions'){
+            for (var i = 2; i < _oSalarySummarys[0].length; i++){
+                if(_oSalarySummarys[0][i].Key=='DeductionSpan'){
+                    nSpan=_oSalarySummarys[0][i].Value;
+                    break;
+                }
+            }
+        }
+        return nSpan;
+    }
+</script>

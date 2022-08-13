@@ -1,0 +1,310 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.PerformanceIncentive>
+@{
+    ViewBag.Title = "Performance Incentive";
+}
+
+<div style="margin-left:0px;width:100%; height:100%">
+    <table id="tblPerformanceIncentives" title="Performance Incentive List" class="easyui-datagrid" style="width:100%; height:100%" fitcolumns="false" rownumbers="true" pagination="fasle" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="Code" width="75" align="left">Code</th>
+                <th field="Name" width="150" align="left">Name</th>
+                <th field="Description" width="250" align="left">Description</th>
+                <th field="SalaryHeadName" width="150" align="left">Salary Head Name</th>
+                <th field="InactiveByName" width="200" align="left">InActive By</th>
+                <th field="ApproveByName" width="200" align="left">Approve By</th>
+            </tr>
+        </thead>
+    </table>
+
+    <div id="toolbar">
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddPerformanceIncentive()">New</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="EditPerformanceIncentive()">Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="ViewPerformanceIncentive()">View</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="CheckMembers()">InActive</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="Approve()">Approve</a>
+    </div>
+
+    <div id="winPIScheme" class="easyui-window winstyle" title="PI Scheme" style="width:350px;" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+        <div style="font-family:Tahoma">
+            <fieldset>
+                <div style="overflow:auto">
+                    <select id="cboPIScheme" style="width:310px;"></select>
+                </div>
+            </fieldset>
+                <fieldset>
+                    <legend style="font-weight:bold"> Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                        <tr>
+                            <td style="width:250px; text-align:right"></td>
+
+                            <td style="width:50px">
+                                <a id="btnPISchemeTransferOk" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Ok</a>
+                            </td>
+                            <td style="width:50px">
+                                <a id="btnPISchemeClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+
+    var _oPerformanceIncentives=[];
+    var _sBaseAddress="";
+    var _sPerformanceIncentiveHeader="";
+    var _nPIID = 0;
+    $(document).ready(function () {
+
+        _oPerformanceIncentives =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        
+        var oPerformanceIncentives =sessionStorage.getItem("PerformanceIncentives");
+        _sPerformanceIncentiveHeader=sessionStorage.getItem("PerformanceIncentiveHeader");
+
+        if(oPerformanceIncentives!=null)
+        {
+            oPerformanceIncentives = jQuery.parseJSON(oPerformanceIncentives);
+        }
+        else
+        {
+            oPerformanceIncentives=_oPerformanceIncentives;
+        }
+        //alert(oPerformanceIncentives.length)
+        RefreshList(oPerformanceIncentives);
+
+        if(_sPerformanceIncentiveHeader == "New PerformanceIncentive") {
+            var oPerformanceIncentives = $('#tblPerformanceIncentives').datagrid('getRows');
+            var nIndex = oPerformanceIncentives.length-1;
+            $('#tblPerformanceIncentives').datagrid('selectRow', nIndex);
+        }
+        else if(_sPerformanceIncentiveHeader == "Edit PerformanceIncentive" || _sPerformanceIncentiveHeader == "View PerformanceIncentive") {
+            var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+            $('#tblPerformanceIncentives').datagrid('selectRow', nIndex);
+        }
+        
+        sessionStorage.clear();
+    });
+
+    function LoadPI()
+    {
+        var oList=[];
+        for(var i=0;i<_oPerformanceIncentives.length;i++)
+        {
+            if(_oPerformanceIncentives[i].InactiveBy===0 && _oPerformanceIncentives[i].PIID!=_nPIID)
+            {
+                oList.push(_oPerformanceIncentives[i]);
+            }
+        }
+
+        if(oList != null && oList.length>0)
+        {
+            $("#cboPIScheme").icsLoadCombo({
+                List: oList,
+                OptionValue: "PIID",
+                DisplayText: "Name",
+                InitialValue:"--PI Scheme--"
+            });
+        }
+        else
+        {
+            alert("There is no active PI Scheme");
+            return false;
+        }
+        return true;
+    }
+
+    function AddPerformanceIncentive()
+    {
+        var oPerformanceIncentives= $('#tblPerformanceIncentives').datagrid('getRows');
+        sessionStorage.setItem("PerformanceIncentives", JSON.stringify(oPerformanceIncentives));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("PerformanceIncentiveHeader", "New PerformanceIncentive");
+        window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_PerformanceIncentive?sid=0&sMsg=N/A";
+    }
+
+    function RefreshList(oPerformanceIncentives) {
+        data = oPerformanceIncentives;
+        data = { "total": "" + data.length + "", "rows": data };
+        $('#tblPerformanceIncentives').datagrid('loadData', data);
+    }
+   
+    function EditPerformanceIncentive()
+    {
+        var oPerformanceIncentive = $('#tblPerformanceIncentives').datagrid('getSelected');
+        if (oPerformanceIncentive == null || oPerformanceIncentive.PerformanceIncentiveID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblPerformanceIncentives').datagrid('getRowIndex', oPerformanceIncentive);
+        var oPerformanceIncentives= $('#tblPerformanceIncentives').datagrid('getRows');
+        sessionStorage.setItem("PerformanceIncentives", JSON.stringify(oPerformanceIncentives));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PerformanceIncentiveHeader", "Edit PerformanceIncentive");
+        window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_PerformanceIncentive?sid="+oPerformanceIncentive.EncryptPIID+"&sMsg=N/A";
+    }
+
+    function Delete() {
+        var oPerformanceIncentive = $('#tblPerformanceIncentives').datagrid('getSelected');
+
+        if (oPerformanceIncentive == null || oPerformanceIncentive.PIID <= 0) {
+            alert("Invalid Field!!! please select a valid Field!");
+            return ;
+        }
+        if (oPerformanceIncentive.ApproveBy> 0) {
+            alert("Approve Item can not be deleted!");
+            return ;
+        }
+        if (!confirm("Confirm to Delete?")) return;
+        var SelectedRowIndex = $('#tblPerformanceIncentives').datagrid('getRowIndex', oPerformanceIncentive);
+
+        if ( oPerformanceIncentive.PIID > 0) {
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oPerformanceIncentive,
+                ControllerName: "PerformanceIncentive",
+                ActionName: "PI_Delete",
+                TableId: "tblPerformanceIncentives",
+                IsWinClose: false
+            };
+            $.icsDelete(obj);
+        }
+    }
+
+    function ViewPerformanceIncentive()
+    {
+        var oPerformanceIncentive = $('#tblPerformanceIncentives').datagrid('getSelected');
+        if (oPerformanceIncentive == null || oPerformanceIncentive.PIID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        var SelectedRowIndex = $('#tblPerformanceIncentives').datagrid('getRowIndex', oPerformanceIncentive);
+        var oPerformanceIncentives= $('#tblPerformanceIncentives').datagrid('getRows');
+        sessionStorage.setItem("PerformanceIncentives", JSON.stringify(oPerformanceIncentives));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("PerformanceIncentiveHeader", "View PerformanceIncentive");
+        window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_PerformanceIncentive?sid="+oPerformanceIncentive.EncryptPIID+"&sMsg=N/A";
+    }
+
+    function CheckMembers() {
+        var oPerformanceIncentive = $('#tblPerformanceIncentives').datagrid('getSelected');
+        if (oPerformanceIncentive == null || oPerformanceIncentive.PIID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        if (oPerformanceIncentive.InactiveBy > 0) {
+            alert("Already Inactive !");
+            return;
+        }
+        var SelectedRowIndex = $('#tblPerformanceIncentives').datagrid('getRowIndex', oPerformanceIncentive);
+        _nPIID=0;
+        _nPIID = oPerformanceIncentive.PIID;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/PerformanceIncentive/CheckMembers",
+            traditional: true,
+            data: JSON.stringify(oPerformanceIncentive),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                var oPerformanceIncentive = jQuery.parseJSON(data);
+                if (oPerformanceIncentive.PIID>0) 
+                {
+                    alert("Inactivate sucessfully");
+                    $('#tblPerformanceIncentives').datagrid('updateRow', { index: SelectedRowIndex, row: oPerformanceIncentive });
+                } 
+                else if(oPerformanceIncentive.PerformanceIncentiveMembers.length>0)
+                {
+                    if(LoadPI()) $("#winPIScheme").icsWindow("open");
+                }
+                else if(oPerformanceIncentive.ErrorMessage!="")
+                {
+                    alert(oPerformanceIncentive.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+    }
+
+    $('#btnPISchemeTransferOk').click(function () {
+        var PreviousPIID=_nPIID;
+        var PresentPIID = $('#cboPIScheme').val();
+        if(PresentPIID<=0)
+        {
+            alert("Please select a PI.");
+            return;
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/PerformanceIncentive/PerformanceIncentive_Transfer",
+            traditional: true,
+            data: JSON.stringify({PreviousPIID:PreviousPIID,PresentPIID:PresentPIID}),
+            contentType: "application/json; charset=utf-8",
+            success: function(data) {
+                oPerformanceIncentive = jQuery.parseJSON(data);
+                if (oPerformanceIncentive.ErrorMessage=="") 
+                {
+                    alert("Data Saved sucessfully");
+                } 
+                else
+                {
+                    alert(oPerformanceIncentive.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    $('#btnPISchemeClose').click(function () {
+        $("#winPIScheme").icsWindow("close");
+    });
+
+    function Approve() {
+        var oPerformanceIncentive = $('#tblPerformanceIncentives').datagrid('getSelected');
+        if (oPerformanceIncentive == null || oPerformanceIncentive.PIID <= 0) {
+            alert("Please select an item from list!");
+            return;
+        }
+        if (oPerformanceIncentive.ApproveBy > 0) {
+            alert("Already Approved !");
+            return;
+        }
+        var SelectedRowIndex = $('#tblPerformanceIncentives').datagrid('getRowIndex', oPerformanceIncentive);
+ 
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/PerformanceIncentive/PerformanceIncentive_Approve",
+            traditional: true,
+            data: JSON.stringify(oPerformanceIncentive),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                debugger;
+                oPerformanceIncentive = jQuery.parseJSON(data);
+                if (oPerformanceIncentive.PIID > 0) {
+                    alert("Data Saved sucessfully");
+                    $('#tblPerformanceIncentives').datagrid('updateRow', { index: SelectedRowIndex, row: oPerformanceIncentive });
+
+                } else {
+                    alert(oPerformanceIncentive.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+</script>

@@ -1,0 +1,302 @@
+﻿@{
+    ViewBag.Title = "Comprehensive Income Statement Setup List";
+}
+@model ESimSol.BusinessObjects.CIStatementSetup
+    <body>
+        <div class="menuMainCollectionTable" style="margin-left: 0px; height: 100%; width:100%">
+            <table id="tblCIStatementSetups" title="Comprehensive Income Statement Setup List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbarCIStatementSetup">
+                <thead>
+                    <tr>
+                        <th field="CIHeadTypeInString" width="150">Type</th>
+                        <th field="AccountCode" width="80" align="center">Account Code</th>
+                        <th field="AccountHeadName" width="150">Account Head Name</th>
+                        <th field="DisplayCaption" width="150">Display Caption</th>                        
+                        <th field="ComponentTypeSt" width="100">Component Type</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarCIStatementSetup">
+                <select id="cboCIHeadType" style="width:300px;"></select>
+                <input type="text" id="txtAccountHeadName" style="width:200px;" placeholder="Press Enter" />
+                <input type="text" id="txtDisplayCaption" style="width:200px;" placeholder="Display Caption" />
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+        </div>
+    </body>
+                      
+
+      
+   <script type="text/javascript">
+    var _oCIStatementSetup = null;
+    var _oCIStatementSetups = [];
+    var _oCISSetupObjs = [];
+    var _sBaseAddress = "";
+    var _oAuthorizationRolesMapping = [];
+    var _oCOAs = [];
+    $(document).ready(function() {
+        _oCIStatementSetups = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.CIStatementSetups));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCISSetupObjs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.CISSetupObjs));
+        debugger;
+        $('#cboCIHeadType').icsLoadCombo({ List:_oCISSetupObjs, OptionValue:"id", DisplayText:"Value" });
+        RefreshList(_oCIStatementSetups);
+        //RefreshControlLayout()
+
+    });
+
+        
+    function RefreshList(oCIStatementSetups)
+    {
+        var data = oCIStatementSetups;
+        data = { "total": "" + data.length + "", "rows": data };
+        $("#tblCIStatementSetups").datagrid("loadData", data);
+    }
+
+    $("#btnAdd").click(function(){
+        debugger;
+        if(parseInt($('#cboCIHeadType').val())<=0)
+        {
+            alert("Please select CI Type");
+            $('#cboCIHeadType').focus();
+            return;
+        }
+
+        if(_oCOAs==null)
+        {
+            alert("Please pick A/C Head Name");
+            $('#txtAccountHeadName').focus();
+            return;
+        }
+
+        if(_oCOAs.length==0)
+        {
+            alert("Please pick A/C Head Name");
+            $('#txtAccountHeadName').focus();
+            return;
+        }
+
+        if($('#txtDisplayCaption').val()==null || $('#txtDisplayCaption').val() =="")
+        {
+            alert("Please Enter Display Caption!");
+            $('#txtDisplayCaption').focus();
+            return;
+        }
+
+        _oCIStatementSetups = [];//Reset
+        for(var i = 0;i<_oCOAs.length;i++)
+        {
+            var oCIStatementSetup = {
+                CIStatementSetupID : 0,
+                CIHeadType: $('#cboCIHeadType').val(),
+                AccountHeadID :_oCOAs[i].AccountHeadID,
+                DisplayCaption : $('#txtDisplayCaption').val()
+            };
+            _oCIStatementSetups.push(oCIStatementSetup);
+        }
+        var oCIStatementSetup = {CIStatementSetups:_oCIStatementSetups};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/IncomeStatement/Save",
+            traditional: true,
+            data:  JSON.stringify(oCIStatementSetup),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oCIStatementSetups = jQuery.parseJSON(data);
+                debugger;
+                if (_oCIStatementSetups[0].CIStatementSetupID>0) {
+                    alert("Data Saved sucessfully");
+                    //                    $('#tblCIStatementSetups').datagrid('appendRow',oCIStatementSetup);
+                    RefreshList(_oCIStatementSetups);
+                    $('#txtAccountHeadName').val("");
+                    $('#txtDisplayCaption').val("");
+                    $("#txtAccountHeadName").removeClass('fontColorOfPickItem');
+                    $('#cboCIHeadType').val(0);
+                }
+                else {
+                    alert(_oCIStatementSetups[0].ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+
+    $("#btnDelete").click(function(){
+        var oCIStatementSetup= $('#tblCIStatementSetups').datagrid('getSelected');
+        if(oCIStatementSetup==null || oCIStatementSetup.CIStatementSetupID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblCIStatementSetups').datagrid('getRowIndex',oCIStatementSetup);
+        if (oCIStatementSetup.CIStatementSetupID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/IncomeStatement/Delete",
+                data: { id: oCIStatementSetup.CIStatementSetupID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Deleted")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCIStatementSetups').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    $("#txtAccountHeadName").keydown(function (e) {
+        debugger;
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if(parseInt($('#cboCIHeadType').val())<=0)
+            {
+                alert("Please select CI Type");
+                $('#cboCIHeadType').focus();
+                return;
+            }
+
+            var oChartsOfAccount = { PathName: $('#cboCIHeadType').val() };
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oChartsOfAccount,
+                ControllerName: "ChartsOfAccount",
+                ActionName: "GetChartsOfAccountsByCISSetup",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+                debugger;
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].AccountHeadID> 0) {
+                        debugger;
+                        var tblColums = []; var oColumn = { field: "AccountHeadCodeName", title: "AccountHead", width:250, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "ComponentType", title: "ComponentType", width: 120, align: "left" }; tblColums.push(oColumn);
+                        oColumn = { field: "AccountTypeInString", title: "Account Type", width: 120, align: "left" }; tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winCOAs',
+                            winclass: 'clsCOA',
+                            winwidth: 600,
+                            winheight: 460,
+                            tableid: 'tblCOAs',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: false,
+                            searchingbyfieldName: 'AccountHeadCodeName',
+                            windowTittle: 'COA List'
+                        };
+                        $.icsPicker(oPickerParam);
+                        IntializePickerbutton(oPickerParam);
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }else{
+                    alert("Data Not Fund");
+                    return;
+                }
+            });
+        }
+        if (code == 8|| code == 46) //backspace=8,delete=46
+        {
+            $("#txtAccountHeadName").val('');
+            $("#txtAccountHeadName").removeClass('fontColorOfPickItem');
+            //debugger;
+            _oCOAs = [];
+        }
+    });
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winCOAs') {
+            if (oreturnObj != null && parseInt(oreturnObj.AccountHeadID) > 0) {
+                $("#txtAccountHeadName").val(oreturnObj.AccountHeadName);
+                $("#txtDisplayCaption").val(oreturnObj.AccountHeadName);
+                $("#txtAccountHeadName").addClass('fontColorOfPickItem');
+                _oCOAs = [oreturnObj];
+                $("#txtAccountHeadName").focus();
+            }
+        
+        }
+
+    }
+
+
+    function RefreshControlLayout() {
+        //CIStatementSetup
+        $("#btnAdd").hide();
+        $("#btnDelete").hide();
+                
+        if (HavePermission('Add', 'CIStatementSetup')) {
+            $("#btnAdd").show();
+        }
+
+
+        if (HavePermission('Delete', 'CIStatementSetup')) {
+            $("#btnDelete").show();
+        }
+
+
+
+    }
+
+    function HavePermission(sOperationType,sDbObject) {
+        var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nUserId === -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString === sOperationType && _oAuthorizationRolesMapping[i].DBObjectName === sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+
+        </script>

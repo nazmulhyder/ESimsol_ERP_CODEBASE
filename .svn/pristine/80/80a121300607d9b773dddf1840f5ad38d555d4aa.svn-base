@@ -1,0 +1,317 @@
+﻿@{
+    ViewBag.Title = "Import Claim List";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ImportClaim>
+
+<div ng-app="ImportClaimModule">
+    <div ng-controller="ImportClaimController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"> Adv.Search</span></button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Request()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Request</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PrintPreview()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Preview</button>
+
+                </div>
+            </div>
+        </div>
+        <div class="row" style="margin:2px; padding:0;">
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+        
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+<script src="~/Views/ImportClaim/AdvSearchImportClaim.js"></script>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oImportClaims =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oClaimTypes =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ClaimTypes));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    var oCompareOperators = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));
+
+
+    debugger;
+    var  ImportClaimModule = angular.module('ImportClaimModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service','importClaim.service']);
+    ImportClaimModule.controller('ImportClaimController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession,importClaimservice) {
+        debugger;
+        oImportClaims= (userSession.getData('ImportClaims').length>0)? userSession.getData('ImportClaims'):oImportClaims;
+        $scope.CompareOperators= oCompareOperators;
+        $scope.ClaimTypes=oClaimTypes;
+        $scope.BUID=_nBUID;
+
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'ClaimNo', name: 'Claim No', width: '10%' },
+                { field: 'ImportInvoiceNo', name: 'Invoice No', width:'10%', enableCellEdit: false },
+                { field: 'ImportInvoiceDateST', name: 'Invoice Date', width: '10%' },
+                { field: 'ImportLCNo', name: 'LC No', width: '8%' },
+                { field: 'ImportLCDateST', name: 'LC Date', width: '10%' },
+                { field: 'ImportClaimStatus', name: 'Status', width: '10%' },
+                { field: 'ContractorName', name: 'Supplier', width: '60%' }
+            ],
+
+            data:oImportClaims,
+
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.grid.registerRowsProcessor($scope.singleFilter, 200);
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oImportClaims.length>0 && userSession.getRowIndex()>=0){
+                    $scope.gridApi.grid.modifyRows(oImportClaims);
+                    $scope.gridApi.selection.selectRow(oImportClaims[userSession.getRowIndex()]);
+                    $scope.RowSelect(oImportClaims[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+
+        };
+
+        $scope.singleFilter=function(renderableRows){
+
+            var matcherName = new RegExp(angular.uppercase($scope.Name));
+            var matcherOperationTypeST = new RegExp(angular.uppercase($scope.OperationTypeST));
+            renderableRows.forEach( function( row ) {
+                debugger;
+                var match = false;
+                if (angular.uppercase(row.entity['Name']).match(matcherName) && angular.uppercase(row.entity['OperationTypeST']).match(matcherOperationTypeST)){
+                    match = true;
+                }
+                if ( !match ){
+                    row.visible = false;
+                }
+            });
+            return renderableRows;
+        };
+
+        $scope.AdvanceSearch = function ()
+        {
+            debugger;
+            $scope.MRNo ="";
+
+            var modalObj={
+                modalcontroller:'ModalImportClaimAdvanceSearchCtrl',
+                appcontroller:'ImportClaimController',
+                CompareOperators:$scope.CompareOperators,
+                ClaimTypes:$scope.ClaimTypes
+
+            }
+            var modalInstance=importClaimservice.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                debugger;
+                $scope.gridOptions.data = result;
+            }, function () {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("ImportClaimHeader", "Add ImportClaim");
+            sessionStorage.setItem("ImportClaims", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("ImportClaim", JSON.stringify([]));
+            sessionStorage.setItem("BackLink", window.location.href);
+
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ImportClaim/ViewImportClaim?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if((data[0].RequestBy!=0 || data[0].ApproveBy!=0) && data[0].ImportClaimStatus=="Approved")
+            {
+                alert("Please Select 'Initiaziled' Claim");  return;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportClaimID==data[0].ImportClaimID){
+
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportClaimHeader", "Edit ImportClaim");
+                    sessionStorage.setItem("ImportClaims", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ImportClaim", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportClaim/ViewImportClaim?nId="+value.ImportClaimID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            if(data[0].RequestBy!=0 && data[0].ImportClaimStatus!="Initiaziled")
+            {
+                alert("Please Select 'Initiaziled' Claim");  return;
+            }
+
+            if (!confirm("Confirm to Delete?")) return ;
+
+            $http.post(_sBaseAddress+ '/ImportClaim/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.ImportClaimID==data[0].ImportClaimID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                }
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.Request = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].RequestBy!=0 && data[0].ImportClaimStatus!="Initiaziled")
+            {
+                alert("Please Select 'Initiaziled' Claim For Requesting Approval");  return;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportClaimID==data[0].ImportClaimID){
+                    sessionStorage.setItem("Operation", "Request");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportClaimHeader", "Request ImportClaim");
+                    sessionStorage.setItem("ImportClaims", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ImportClaim", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportClaim/ViewImportClaim?nId="+value.ImportClaimID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.Approve = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            if(data[0].RequestBy==0 && data[0].ImportClaimStatus!="Req. For Approval")
+            {
+                alert("Not Yet Requested For Approval"); return;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportClaimID==data[0].ImportClaimID){
+                    sessionStorage.setItem("Operation", "Approve");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportClaimHeader", "Approve ImportClaim");
+                    sessionStorage.setItem("ImportClaims", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ImportClaim", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportClaim/ViewImportClaim?nId="+value.ImportClaimID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ImportClaimID==data[0].ImportClaimID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ImportClaimHeader", "View ImportClaim");
+                    sessionStorage.setItem("ImportClaims", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ImportClaim", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ImportClaim/ViewImportClaim?nId="+value.ImportClaimID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oImportClaim = data[0];
+            if(oImportClaim==null || oImportClaim.ImportClaimID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/ImportClaim/LetterPrint?nImportClaimID='+oImportClaim.ImportClaimID+"&nBUID="+$scope.BUID);
+        };
+    });
+
+
+</script>
+                       
+
+
+              

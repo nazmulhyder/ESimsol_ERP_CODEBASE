@@ -1,0 +1,297 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Ledger Configure";
+    }
+    @model IEnumerable<ESimSol.BusinessObjects.HeadDisplayConfigure>
+    <div class="menuMainCollectionTable" id="divHeadDisplayConfigure">
+            <div style="width:100%; height:87%; text-align:center">
+                <table id="tblHeadDisplayConfigure" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                    <thead>
+                        <tr>
+                            <th field="AccountHeadCodeName" width="525" align="left">Sub Group Name</th>
+                            <th field="IsDebitInString" width="100" align="left">Debit/credit</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div style="text-align:left" id="toolbar">
+                    Sub Group : <input type="text" placeholder="Type Sub Group Name & Press Enter" id="txtSubGroupName" style="width:350px;" /><a id="btnPickSubGroup" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Pick</a>&nbsp;&nbsp;
+                    Is Debit : <select id="cboIsDebit" style="width:180px;"><option value="0">Credit</option> <option value="1" selected>Debit</option> </select>
+                    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                    <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+                </div>
+            </div>
+            <div style="width:100%; height:10%">
+                <fieldset>
+                    <legend style="font-weight: bold">Action : </legend>
+                    <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                        <tr>
+                            <td style="width:80%; text-align:right"></td>
+                            <td style="width: 10%"></td>
+                            <td style="width: 10%">
+                                <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </div>
+        </div>
+               
+</body>
+</html>
+
+
+<script type="text/javascript">    
+    $(document).ready(function () {
+      var oHeadDisplayConfigures =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oVoucherType = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.VoucherType));
+        $('#tblHeadDisplayConfigure').datagrid({ title: ('Ledger Configure for Voucher : ' +oVoucherType.VoucherName)});
+        RefreshList(oHeadDisplayConfigures);
+        $('#txtSubGroupName').data('AccountHeadIDs',"");
+        $('#divHeadDisplayConfigure').data('VoucherType',oVoucherType);
+        
+ });
+
+
+    $("#txtSubGroupName").keydown(function (e){
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtSubGroupName').val())===null || $.trim($('#txtSubGroupName').val())==="")
+            {
+                alert("Type SubGroup Name and Press Enter");
+                return;
+            }
+            GetsChartOfAccount($.trim($('#txtSubGroupName').val()));
+        }
+    });
+    $("#btnPickSubGroup").click(function () {
+        GetsChartOfAccount("");
+    });
+    $('#txtSubGroupName').keydown(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 8) //backspace=8
+        {            
+            $("#txtSubGroupName").removeClass("fontColorOfPickItem");
+        }
+    });
+
+    function GetsChartOfAccount(sHeadName)
+    {
+        var oChartsOfAccount = { AccountHeadName : sHeadName };
+        var obj = {
+            BaseAddress: sessionStorage.getItem('BaseAddress'),
+            Object: oChartsOfAccount,
+            ControllerName: "HeadDisplayConfigure",
+            ActionName: "GetChartOfAccounts",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) 
+        {
+            if (response.status && response.objs.length > 0) 
+            {
+                if (response.objs[0].AccountHeadID > 0) {
+                    var tblColums = []; var oColumn = { field: "AccountCode", title: "AccountCode", width:100, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "AccountHeadName", title: "AccountHeadName", width:150, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winChartsOfAccounts',
+                        winclass: 'clsChartsOfAccount',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblChartsOfAccounts',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'AccountHeadName',
+                        windowTittle: 'Sub Group List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }else{
+                alert("Data Not Found.");
+            }
+        });
+
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {        
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if (oPickerobj.winid == 'winChartsOfAccounts')
+        {
+            if (oreturnobjs.length>0&& oreturnobjs[0].AccountHeadID > 0) 
+            {
+                if(oreturnobjs.length>1)
+                {
+                    $('#txtSubGroupName').val(oreturnobjs.length+" Item's Selected");
+                }else{
+                    $('#txtSubGroupName').val(oreturnobjs[0].AccountHeadCodeName);
+                }
+                var sAccountHeadIDs = ICS_PropertyConcatation(oreturnobjs,'AccountHeadID');
+                $('#txtSubGroupName').addClass('fontColorOfPickItem');
+                $('#txtSubGroupName').data('AccountHeadIDs',sAccountHeadIDs);
+                $('#txtSubGroupName').focus();
+            }
+        }
+       
+    }
+
+
+
+
+
+ function ValidateInput()
+ {
+     if(parseInt($('#divHeadDisplayConfigure').data('VoucherType').VoucherTypeID)<=0)
+     {
+         alert("Sorry there is no Voucher Type.");
+         return false;
+     }
+     
+     if($('#txtSubGroupName').data('AccountHeadIDs')=="")
+     {
+         alert("Please Pick SubGroup.");
+         return false;
+     }  
+    
+    return true;
+ }
+
+
+function RefreshObject()
+ {
+    var oHeadDisplayConfigures = [];
+    var sAccountIDs = $('#txtSubGroupName').data('AccountHeadIDs').split(',');
+    for(var i = 0;i<sAccountIDs.length;i++)
+    {
+        var oHeadDisplayConfigure=   {
+            HeadDisplayConfigureID:0,
+            VoucherTypeID:$('#divHeadDisplayConfigure').data('VoucherType').VoucherTypeID,
+            IsDebit:$('#cboIsDebit').val()==0?false:true,
+            SubGroupID:sAccountIDs[i]
+        };
+        oHeadDisplayConfigures.push(oHeadDisplayConfigure);
+    }
+    var oHeadDisplayConfigure = {VoucherTypeID:$('#divHeadDisplayConfigure').data('VoucherType').VoucherTypeID, HeadDisplayConfigures:oHeadDisplayConfigures};
+
+    return oHeadDisplayConfigure;
+}
+
+$("#btnAdd").click(function(){
+    if(!ValidateInput()) return;
+    var oHeadDisplayConfigure=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/HeadDisplayConfigure/Save",
+        traditional: true,
+        data:  JSON.stringify(oHeadDisplayConfigure),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oHeadDisplayConfigure = jQuery.parseJSON(data);
+            if(parseInt(oHeadDisplayConfigure.HeadDisplayConfigures.length)>0)
+            {
+                alert("Data Saved sucessfully");
+                RefreshList(oHeadDisplayConfigure.HeadDisplayConfigures);
+                $('#txtSubGroupName').val('');
+                $('#txtSubGroupName').removeClass('fontColorOfPickItem');
+                $('#txtSubGroupName').data('AccountHeadIDs',"");
+                $("#cboIsDebit").val(1);
+            }
+            else {
+                alert(oHeadDisplayConfigure.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oHeadDisplayConfigure = $('#tblHeadDisplayConfigure').datagrid('getSelected');
+    if(oHeadDisplayConfigure==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex=$('#tblHeadDisplayConfigure').datagrid('getRowIndex',oHeadDisplayConfigure);
+    if (parseInt(oHeadDisplayConfigure.HeadDisplayConfigureID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/HeadDisplayConfigure/Delete",
+            traditional: true,
+            data:  JSON.stringify(oHeadDisplayConfigure),
+            contentType: "application/json; charset=utf-8",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblHeadDisplayConfigure').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList(oHeadDisplayConfigures)
+{
+    var data=oHeadDisplayConfigures;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblHeadDisplayConfigure').datagrid('loadData',data);
+}
+
+$("#btnRefresh").click(function(){
+    var data=$('#tblHeadDisplayConfigure').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblHeadDisplayConfigure').datagrid('loadData',data);
+});
+
+
+$("#btnClose").click(function(){
+    window.location.href = sessionStorage.getItem("BackLink");
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>

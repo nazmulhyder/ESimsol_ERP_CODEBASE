@@ -1,0 +1,494 @@
+﻿@{
+    ViewBag.Title = "LC Transfer Mgt.";
+}
+@model IEnumerable<ESimSol.BusinessObjects.LCTransfer>
+<div class="menuMainCollectionTable" ng-app="LCTransferApp">
+    <div ng-controller="LCTransferController" title="LC Transfer(s)">
+        <div style="margin-bottom:2px; display:block" class="form-inline ui-grid-top-panel regionTransfer">
+            <button type="button" ng-show="btnAddLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="AddLCTranfer()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Add</span></button>
+            <button type="button" ng-show="btnEditLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="EditLCTransfer()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Edit</span></button>
+            <button type="button" ng-show="btnViewLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="ViewtLCTransfer()"><span class="glyphicon glyphicon-th" aria-hidden="true"> View</span></button>
+            <button type="button" ng-show="btnDeleteLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="DeleteLCTransfer()"><span class="glyphicon glyphicon-send" aria-hidden="true"> Delete</span></button>
+            <button type="button" ng-show="btnUpdateTransferNo" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="UpdateTransferNoDate()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Up Transfer No & Date</span></button>
+            <button type="button" ng-show="btnApproveLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="ApproveLCTransfer()"><span class="glyphicon glyphicon-ok" aria-hidden="true"> Approved</span></button>
+            <button type="button" ng-show="btncommecialInvoice" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="CommercialInvoice()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Commercial Invoice</span></button>
+            <button type="button" ng-show="btnPayment" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="Payment()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Payment</span></button>
+            <button type="button" ng-show="btnPreveiewLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PreviewLCTransfer()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Preview</span></button>
+            <button type="button" ng-show="btnPreveiewForwarder" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PreviewForwarder()"><span class="glyphicon glyphicon-plus" aria-hidden="true"> Forwarder</span></button>
+            <button type="button" ng-show="btnPrintListLCTransfer" class="btn btn-default btn-sm" aria-label="Left Align" ng-click="PrintListLCTransfer()"><span class="glyphicon glyphicon-print" aria-hidden="true"> Print</span></button>
+        </div>
+        <div ui-grid="gridOptions" ui-grid-selection style="width: 100%;height: 530px;"></div>
+    </div>
+</div>
+
+<style type="text/css">
+    .regionTransfer .form-control {
+        height: 26px;
+        width: 15%;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+</style>
+
+
+    <script type="text/javascript">
+    var oLCTransfers =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oMasterLC = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MasterLC));
+    var oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+
+    var LCTransferApp= angular.module('LCTransferApp', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection', 'ms.service']);
+    LCTransferApp.controller('LCTransferController',  function ($scope,$http, $uibModal,$log,msModal,icsMethod, uiGridConstants,userSession) {
+        oLCTransfers= (userSession.getData('LCTransfers').length>0)? userSession.getData('LCTransfers'):oLCTransfers;
+        debugger;
+        $scope.gridOptions = {
+            enableRowSelection: true,
+            enableSelectAll: true,
+            multiSelect: false,
+            enableRowSelection: true,
+            columnDefs: [
+              { field: 'RefNo', name:'Ref. No', width:'10%' },
+              { field: 'TransferIssueDateInString', name:'Issue Date', width:'10%' },
+              { field: 'ProductionFactoryName', name: 'Prod. Factory', width: '7%', enableSorting: false },
+              { field: 'TransferNo', name: 'Transfer No', width: '8%', enableSorting: false },
+              { field: 'TransferDateInString', name: 'Transper Date', width: '10%' },
+              { field: 'ApprovedByName', name: 'Approve By', width: '8%', enableSorting: false },
+              { field: 'TransferAmount', name: 'Total Amount', width: '8%', enableSorting: false },
+              { field: 'LCValue', name: 'LC Value', width: '8%', enableSorting: false },
+              { field: 'CommissionAmount', name: 'Comm. Amount', width: '8%', enableSorting: false },
+              { field: 'ActualTransferAmount', name: 'Transfer Amount', width: '10%', enableSorting: false }
+            ],
+            data: oLCTransfers,
+            onRegisterApi : function(gridApi)
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.grid.modifyRows(oLCTransfers);
+                $scope.gridApi.selection.selectRow(oLCTransfers[userSession.getRowIndex()]);
+            }
+        };
+
+        $scope.MasterLC = oMasterLC;
+
+        $scope.AddLCTranfer =  function ()
+        {
+            //debugger;
+            if($scope.MasterLC.LCStatus<3 || $scope.MasterLC.LCStatus>4)
+            {
+                alert("Without Approved Master LC, Can't Add LC Transfer");
+                return;
+            }
+            sessionStorage.setItem("LCTransfers", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("LCTransferHeader", "Add LC Transfer");
+            sessionStorage.setItem("BackLink", window.location.href);
+            window.location.href =sessionStorage.getItem('BaseAddress')+"/LCTransfer/ViewLCTransfer?nMasterLCID="+$scope.MasterLC.MasterLCID+"&nLCTransferID="+0;
+           
+        };
+        $scope.EditLCTransfer =  function ()
+        {
+            debugger;
+            var oLCTransfer = $scope.gridApi.selection.getSelectedRows()[0];
+            if(parseInt(oLCTransfer.LCTransferID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oLCTransfer.ApprovedBy!=0 )
+            {
+                alert("Wothout Initialized Item can't Update!");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (parseInt(value.LCTransferID)== parseInt(oLCTransfer.LCTransferID))
+                {
+                    sessionStorage.setItem("LCTransfers", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("LCTransferHeader", "Edit LC Transfer");
+                    sessionStorage.setItem("BackLinkLT", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+  "/LCTransfer/ViewLCTransfer?nMasterLCID=0&nLCTransferID="+oLCTransfer.LCTransferID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.ViewtLCTransfer =  function ()
+        {
+            debugger;
+            var oLCTransfer = $scope.gridApi.selection.getSelectedRows()[0];
+            if(parseInt(oLCTransfer.LCTransferID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            angular.forEach($scope.gridOptions.data, function (value, index) {
+                if (parseInt(value.LCTransferID)== parseInt(oLCTransfer.LCTransferID))
+                {
+                    sessionStorage.setItem("LCTransfers", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("LCTransferHeader", "View LC Transfer");
+                    sessionStorage.setItem("BackLinkLT", window.location.href);
+                    window.location.href =sessionStorage.getItem('BaseAddress')+  "/LCTransfer/ViewLCTransfer?nMasterLCID=0&nLCTransferID="+oLCTransfer.LCTransferID;
+                }
+            }, $scope.gridOptions.data);
+        }
+        $scope.DeleteLCTransfer =  function ()
+        {
+            debugger;
+            var oLCTransfer = $scope.gridApi.selection.getSelectedRows()[0];
+            if(parseInt(oLCTransfer.LCTransferID)<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oLCTransfer.ApprovedBy!=0 )
+            {
+                alert("Wothout Initialized Item can't Update!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post('/LCTransfer/Delete', JSON.stringify(oLCTransfer)).then(
+                            function (response) {
+                                if (jQuery.parseJSON(response.data) == 'Deleted')
+                                {
+                                    angular.forEach($scope.gridOptions.data, function (value, index)
+                                    {
+                                        if (value.MasterLCID == oLCTransfer.MasterLCID)
+                                        {
+                                            alert("Successfully Deleted.");
+                                            $scope.gridOptions.data.splice(index, 1);
+                                        }
+                                    }, $scope.gridOptions.data);
+                                }
+                                else {
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) { alert(jQuery.parseJSON(response.data)); }
+                        );
+
+        }
+   
+        $scope.ApproveLCTransfer =function()
+        {
+            var oLCTransfer = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oLCTransfer.ApprovedBy!=0 )
+            {
+                alert("Without Initialized Item can't Approve!");
+                return;
+            }
+            if (!confirm("Confirm to Approve?")) return ;
+            oLCTransfer.ActionTypeExtra="Approve";
+            oLCTransfer.LCTransferStatusInInt = 2;
+
+            $http.post('/LCTransfer/ChangeStatus', JSON.stringify(oLCTransfer)).then(
+            function (response)
+            {
+                var oLCTransfer= jQuery.parseJSON(response.data);
+                if (oLCTransfer.ErrorMessage=="" || oLCTransfer.ErrorMessage == null)
+                {
+                    angular.forEach($scope.gridOptions.data, function (value, index)
+                    {
+                        if (value.MasterLCID == oLCTransfer.MasterLCID)
+                        {
+                            alert("Successfully Approved.");
+                            $scope.gridOptions.data[index]=oLCTransfer;
+                            $scope.gridApi.grid.modifyRows($scope.gridOptions.data);
+                            $scope.gridApi.selection.selectRow(oLCTransfer);
+                        }
+                    }, $scope.gridOptions.data);
+                }
+                else {
+                    alert(oLCTransfer.ErrorMessage);
+                }
+            },
+            function (response) { alert(jQuery.parseJSON(response.data)); }
+        );
+
+        };
+
+
+        $('#btncommecialInvoice').click(function (e) {
+            //debugger;
+            var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+            if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if(oLCTransfer.ApprovedBy==0 )
+            {
+                alert("Without Approve LC Transfer can't add Commercial Invoice !");
+                return;
+            }
+            var SelectedRowIndex=$('#tblLCTransfer').datagrid('getRowIndex',oLCTransfer);
+            var oParameter = new Object();
+            oParameter.Name = "Edit LC Transfer";
+            var url = _sBaseAddress+"/CommercialInvoice/ViewLCWiseCommercialInvoices?id="+oLCTransfer.LCTransferID;
+            var oCommercialInvoice = window.showModalDialog(url, oParameter,  'dialogHeight:575px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+
+        });
+
+
+        function PreviewLCTransfer()
+        {
+            var oLCTransfer= $('#tblLCTransfer').datagrid('getSelected');
+            if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/LCTransfer/PrintLCTransferPreview?id='+oLCTransfer.LCTransferID);
+            window.close();
+        }
+
+        function PreviewForwarder()
+        {
+            var oLCTransfer= $('#tblLCTransfer').datagrid('getSelected');
+            if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/LCTransfer/PrintLCTransferForwarder?id='+oLCTransfer.LCTransferID);
+            window.close();
+        }
+
+        function PrintListLCTransfer()
+        {
+
+            var oLCTranfers= $('#tblLCTransfer').datagrid('getRows');
+            var ids ="";
+            if(oLCTranfers.length >0)
+            {
+                for(var i =0;i<oLCTranfers.length;i++)
+                {
+                    ids =ids+oLCTranfers[i].LCTransferID+",";
+                }
+                ids= ids.substring(0, ids.length - 1);
+            }
+            else
+            {
+                alert("Data not found ");
+                return;
+            }
+            window.open(_sBaseAddress + '/LCTransfer/PrintLCTransferList?sIDs='+ids);
+            window.close();
+
+        }
+
+        //button hide
+        $scope.btnAddLCTransfer = $scope.btnEditLCTransfer= $scope.btnViewLCTransfer= false;
+
+        //button show
+        if(PermissionChecker('Add','LCTransfer',oAuthorizationRolesMapping)){$scope.btnAddLCTransfer =  true; }
+        if(PermissionChecker('Edit','LCTransfer',oAuthorizationRolesMapping)){$scope.btnEditLCTransfer = true;}
+        if(PermissionChecker('View','LCTransfer',oAuthorizationRolesMapping)){$scope.btnViewLCTransfer = true;}
+
+
+    });
+
+
+
+
+    //function AddLCTranfer()
+    //{
+
+    //    if(_oMasterLC.LCStatus<3 || _oMasterLC.LCStatus>4)
+    //    {
+    //        alert("Without Approved Master LC, Can't Add LC Transfer");
+    //        return;
+    //    }
+    //    var oParameter = new Object();
+    //    oParameter.Name = "Add Master LC Transfer";
+    //    var tsv=((new Date()).getTime())/1000;
+    //    var url = _sBaseAddress+"/LCTransfer/ViewLCTransfer?nMasterLCID="+_oMasterLC.MasterLCID+"&nLCTransferID="+0+"&ts="+tsv;
+    //    var oLCTransfer = window.showModalDialog(url, oParameter, 'dialogHeight:600px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+    //    ////debugger;
+    //    if(oLCTransfer!=null)
+    //    {
+    //        //debugger;
+
+    //        var rows = $('#tblLCTransfer').datagrid('getRows');
+    //        var nIndex=rows.length;
+    //        $('#tblLCTransfer').datagrid('appendRow',oLCTransfer);
+    //        var rows = $('#tblLCTransfer').datagrid('getRows');
+    //        $('#tblLCTransfer').datagrid('selectRow',nIndex);
+    //    }
+    //}
+
+    //function EditLCTransfer()
+
+    //{
+
+    //    var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+    //    if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+    //    {
+    //        alert("Please select a item from list!");
+    //        return;
+    //    }
+    //    if(oLCTransfer.ApprovedBy!=0 )
+    //    {
+    //        alert("Wothout Initialized Item can't Update!");
+    //        return;
+    //    }
+    //    var SelectedRowIndex=$('#tblLCTransfer').datagrid('getRowIndex',oLCTransfer);
+    //    var oParameter = new Object();
+    //    oParameter.Name = "Edit LC Transfer";
+    //    var tsv=((new Date()).getTime())/1000;
+    //    var url = _sBaseAddress+"/LCTransfer/ViewLCTransfer?nMasterLCID="+0+"&nLCTransferID="+oLCTransfer.LCTransferID+"&ts="+tsv;
+    //    var oLCTransfer = window.showModalDialog(url, oParameter,  'dialogHeight:600px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+    //    // //debugger;
+    //    if(oLCTransfer!=null)
+    //    {
+    //        if(oLCTransfer.LCTransferID>0)
+    //        {
+    //            $('#tblLCTransfer').datagrid('updateRow',{index: SelectedRowIndex,	row: oLCTransfer});
+    //        }
+    //    }
+
+    //}
+
+    //function DeleteLCTransfer(){
+
+    //    ////debugger;
+    //    var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+    //    if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+    //    {
+    //        alert("Please select a item from list!");
+    //        return;
+    //    }
+    //    if(oLCTransfer.ApprovedBy!=0 )
+    //    {
+    //        alert("Wothout Initialized Item can't Delete!");
+    //        return;
+    //    }
+    //    if (!confirm("Confirm to Delete?")) return ;
+    //    var SelectedRowIndex=$('#tblLCTransfer').datagrid('getRowIndex',oLCTransfer);
+    //    if (oLCTransfer.LCTransferID> 0)
+    //    {
+    //        $.ajax
+    //        ({
+    //            type: "GET",
+    //            dataType: "json",
+    //            url : _sBaseAddress+  "/LCTransfer/Delete",
+    //            data: { id:oLCTransfer.LCTransferID},
+    //            contentType: "application/json; charset=utf-8",
+    //            success: function (data) {
+    //                //debugger;
+    //                feedbackmessage = jQuery.parseJSON(data);
+    //                if (feedbackmessage == "Delete sucessfully")
+    //                {
+    //                    alert("Delete sucessfully");
+    //                    $('#tblLCTransfer').datagrid('deleteRow',SelectedRowIndex);
+
+    //                }
+    //                else
+    //                {
+    //                    alert(feedbackmessage);
+    //                }
+    //            },
+    //            error: function (xhr, status, error)
+    //            {
+    //                alert(error);
+    //            }
+
+    //        });
+    //    }
+    //}
+
+    //function ViewtLCTransfer()
+
+    //{
+
+    //    var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+    //    if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+    //    {
+    //        alert("Please select a item from list!");
+    //        return;
+    //    }
+
+    //    var oParameter = new Object();
+    //    oParameter.Name = "View LC Transfer";
+    //    var tsv=((new Date()).getTime())/1000;
+    //    var url = _sBaseAddress+"/LCTransfer/ViewLCTransfer?nMasterLCID="+0+"&nLCTransferID="+oLCTransfer.LCTransferID+"&ts="+tsv;
+    //    var oLCTransfer = window.showModalDialog(url, oParameter,  'dialogHeight:600px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+
+    //}
+
+    //function UpdateTransferNoDate()
+    //{
+    //    var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+    //    if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+    //    {
+    //        alert("Please select a item from list!");
+    //        return;
+    //    }
+    //    var SelectedRowIndex=$('#tblLCTransfer').datagrid('getRowIndex',oLCTransfer);
+    //    var oParameter = new Object();
+    //    oParameter.Name = "Update LC Transfer No and Date";
+    //    var tsv=((new Date()).getTime())/1000;
+    //    var url = _sBaseAddress+"/LCTransfer/UpdateLCTransferNoDate?nLCTransferID="+oLCTransfer.LCTransferID+"&ts="+tsv;
+    //    var oLCTransfer = window.showModalDialog(url, oParameter,  'dialogHeight:600px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+    //    // //debugger;
+    //    if(oLCTransfer!=null)
+    //    {
+    //        if(oLCTransfer.LCTransferID>0)
+    //        {
+    //            $('#tblLCTransfer').datagrid('updateRow',{index: SelectedRowIndex,	row: oLCTransfer});
+    //        }
+    //    }
+
+    //}
+
+    //function ApproveLCTransfer()
+    //{
+    //    var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+    //    if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+    //    {
+    //        alert("Please select a item from list!");
+    //        return;
+    //    }
+    //    if(oLCTransfer.ApprovedBy!=0 )
+    //    {
+    //        alert("Without Initialized Item can't Approve!");
+    //        return;
+    //    }
+    //    var SelectedRowIndex=$('#tblLCTransfer').datagrid('getRowIndex',oLCTransfer);
+    //    if (!confirm("Confirm to Approve?")) return ;
+    //    oLCTransfer.ActionTypeExtra="Approve";
+    //    oLCTransfer.LCTransferStatusInInt = 2;
+    //    $.ajax({
+    //        type: "POST",
+    //        dataType: "json",
+    //        url : _sBaseAddress+"/LCTransfer/ChangeStatus",
+    //        traditional: true,
+    //        data:  JSON.stringify(oLCTransfer),
+    //        contentType: "application/json; charset=utf-8",
+    //        success: function (data) {
+    //            //debugger;
+    //            var oLCTransfer= jQuery.parseJSON(data);
+    //            if (oLCTransfer.ErrorMessage=="" || oLCTransfer.ErrorMessage == null)
+    //            {
+    //                alert("Successfully Approved!");
+    //                $('#tblLCTransfer').datagrid('updateRow',{index: SelectedRowIndex,	row: oLCTransfer});
+    //            }else
+    //            {
+    //                alert(oLCTransfer.ErrorMessage);
+    //            }
+    //        },
+    //        error: function (xhr, status, error)
+    //        {
+    //            alert(error);
+    //        }
+    //    });
+
+    //}
+
+    
+
+    
+
+    </script>

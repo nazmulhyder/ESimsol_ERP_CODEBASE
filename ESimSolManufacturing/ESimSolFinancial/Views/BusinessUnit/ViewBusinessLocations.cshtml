@@ -1,0 +1,349 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.TBusinessLocation>
+@{
+    ViewBag.Title = "Business Location List";
+}
+
+
+<div style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblBusinessLocation" title="BusinessLocation List" class="easyui-treegrid" fit="true" fitcolumns="true" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th field="text" style="width:100%;">Name</th>
+                
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        @*<input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:120px" onclick="Clearfield()" />
+    <input type="text" id="txtSearchByName" placeholder="Search by name" style="width:150px" onclick="ClearNamefield()" />
+    <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+    <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+    <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>*@
+        
+        
+    </div>
+</div>
+
+
+
+
+
+<script type="text/javascript">
+    var _oTBusinessLocation=null;
+    var _oTBusinessLocations=null;
+    var _oTChildrenBusinessLocations=null;
+    var nID =null;
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        // 
+        debugger;
+        _oTBusinessLocation=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+        _oTBusinessLocations =sessionStorage.getItem("BusinessLocations");
+        _oTChildrenBusinessLocations =sessionStorage.getItem("ChildrenBusinessLocations");
+        _nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        _oTChildrenBusinessLocations=_oTChildrenBusinessLocations!=null?jQuery.parseJSON(_oTChildrenBusinessLocations):[];
+        _oTBusinessLocations=_oTBusinessLocations!=null?jQuery.parseJSON(_oTBusinessLocations):[];
+
+        if(_oTBusinessLocations!=null && _oTBusinessLocations.length>0)
+        {
+            
+            if(_nID>0 && _oTChildrenBusinessLocations!=null && _oTChildrenBusinessLocations.length>0)
+            {
+                _oTBusinessLocations=  ChildrenReset(_oTBusinessLocations);
+                _oTBusinessLocation=_oTBusinessLocations;
+            }
+        }
+        else
+        {
+            _oTBusinessLocations=_oTBusinessLocation;
+        }
+        RefreshList(_oTBusinessLocations);
+        if(nID>0)
+        {
+            $('#tblBusinessLocation').treegrid('select', nID);
+        }
+        sessionStorage.setItem("ChildrenBusinessLocations",null);
+    });
+
+    function ChildrenReset(oChildren){
+        debugger;
+        for(var i=0;i<oChildren.length;i++){
+            if(_nID===oChildren[i].id){
+                oChildren[i].children=[];
+                oChildren[i].children=_oTChildrenBusinessLocations;
+                //break;
+            }
+            else{
+                if(oChildren[i].children!=null){
+                    ChildrenReset(oChildren[i].children);
+                }
+            }
+        }
+        return oChildren;
+    }
+
+    $('#txtSearchByCode').keypress(function (e) {
+        // 
+        var c = String.fromCharCode(e.which);
+        var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+        txtSearchByCode = txtSearchByCode + c;
+
+        var bFlag=false;
+        var sAccountHeadCode="";
+        var rows = $('#tblBusinessLocation').treegrid('getChildren',1);
+        for(i=0;i<rows.length;++i){
+            sAccountHeadCode=rows[i]['code'].substring(0, txtSearchByCode.length);
+            if(txtSearchByCode.toUpperCase()==sAccountHeadCode.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblBusinessLocation').treegrid('select',id);
+                break;
+            }
+        }
+    });
+
+    $('#txtSearchByName').keypress(function (e) {
+        // 
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+
+        var bFlag=false;
+        var sAccountHeadName="";
+        var rows = $('#tblBusinessLocation').treegrid('getChildren',1);
+        for(i=0;i<rows.length;++i){
+            sAccountHeadName=rows[i]['text'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sAccountHeadName.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblBusinessLocation').treegrid('select',id);
+                break;
+            }
+        }
+    });
+
+
+
+
+    
+
+
+
+
+
+    function Refresh()
+    {
+        // 
+        $('#tblBusinessLocation').treegrid('reload');	// reload the all rows
+    }
+
+
+
+
+
+    function Edit()
+    {
+        debugger;
+        var oBusinessLocation= $('#tblBusinessLocation').treegrid('getSelected'); 
+        if(oBusinessLocation==null || oBusinessLocation.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+      
+        
+        var oBusinessLocations=$('#tblBusinessLocation').treegrid('getData');
+        sessionStorage.setItem("BusinessLocations", JSON.stringify(oBusinessLocations));        
+        sessionStorage.setItem("SelectedRowIndex", oBusinessLocation.id);   
+        sessionStorage.setItem("BusinessLocationHeader", "Edit BusinessLocation");
+
+
+       
+
+        window.location.href = _sBaseAddress+ "/BusinessLocation/EditBusinessLocation?id="+oBusinessLocation.id;
+    }
+
+
+    $('#btnAdd').click( function ()
+    {
+        debugger;
+        var oBusinessLocation= $('#tblBusinessLocation').treegrid('getSelected'); 
+        if(oBusinessLocation==null || oBusinessLocation.id<=0)
+        {
+            alert("Please select an item from list!");
+            return false;
+        }
+        if(oBusinessLocation.BusinessLocationType===3){
+            alert('Cannot add Children to Site!');
+            return false;
+        }
+
+      
+        
+        
+        var oBusinessLocations=$('#tblBusinessLocation').treegrid('getData');
+        var oTempChildren=$('#tblBusinessLocation').treegrid('getChildren',oBusinessLocation.id);
+        var oChildren=[];
+        if(oTempChildren!=null && oTempChildren.length>0){
+            for(var i=0;i<oTempChildren.length;i++){
+                if(oTempChildren[i].parentid===oBusinessLocation.id){
+                    oChildren.push(oTempChildren[i]);
+                }
+            }
+        }
+
+        sessionStorage.setItem("BusinessLocations", JSON.stringify(oBusinessLocations));
+        sessionStorage.setItem("ChildrenBusinessLocations", JSON.stringify(oChildren));
+        sessionStorage.setItem("SelectedRowIndex", oBusinessLocation.id);   
+        sessionStorage.setItem("BusinessLocationHeader", "Add BusinessLocation");
+               
+        window.location.href = _sBaseAddress+ "/BusinessLocation/ViewBusinessLocation?id="+oBusinessLocation.id;
+
+        
+    });
+
+
+    function IsExists(nparentid, id)
+    {
+        var oChildNodes= $('#tblBusinessLocation').treegrid('getChildren',nparentid);
+        for(var j=0;j<oChildNodes.length;j++)
+        {
+            if(oChildNodes[j].id==id)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    function ReloadChildData(nparentid)
+    {
+        $.ajax({
+            type: "GET",
+            dataType: "json",
+            url : _sBaseAddress+  "/BusinessLocation/getchildren",
+            traditional: true,
+            data: {parentid:nparentid},
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                 
+                var oTBusinessLocations= jQuery.parseJSON(data);
+                if(oTBusinessLocations!=null)
+                {
+                    if (oTBusinessLocations.length>0) {
+                        for(i=0; i<oTBusinessLocations.length; i++)
+                        {
+                            $('#tblBusinessLocation').treegrid('append',{ parent: nparentid, data: [oTBusinessLocations[i]] });
+                        }
+                        $('#tblBusinessLocation').treegrid('select',nparentid);
+                        $('#tblBusinessLocation').treegrid('expand',nparentid);
+                    }
+                }
+                else {
+                    //alert('Data not found!!');
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+    function RefreshList(oTBusinessLocation)
+    {
+        data= oTBusinessLocation;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblBusinessLocation').treegrid('loadData',data);
+    }
+
+    function Delete()
+    {
+         
+        var oBusinessLocation= $('#tblBusinessLocation').datagrid('getSelected');
+        if(oBusinessLocation==null || oBusinessLocation.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oBusinessLocation.parentid==0 )
+        {
+            alert("Root BusinessLocation not deletable");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblBusinessLocation').datagrid('getRowIndex',oBusinessLocation);
+
+        if (oBusinessLocation.id > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/BusinessLocation/Delete",
+                data: JSON.stringify({ BusinessLocationID: oBusinessLocation.id }),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage === "Deleted")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tblBusinessLocation').treegrid('remove',oBusinessLocation.id);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    @*function Activity()
+    {
+        var oBusinessLocation = $('#tblBusinessLocation').datagrid('getSelected');
+        if(oBusinessLocation==null || oBusinessLocation.id<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to " + (oBusinessLocation.IsActive==true?" Inactive ?":" Active ?" ))) return ;
+        var SelectedRowIndex=$('#tblBusinessLocation').datagrid('getRowIndex',oBusinessLocation);
+
+        if (oBusinessLocation.id > 0)
+        {
+            debugger;
+
+            $.ajax
+               ({
+                   type: "POST",
+                   dataType: "json",
+                   url: '@Url.Action("ActiveInactive", "BusinessLocation")',
+                   data:  JSON.stringify(oBusinessLocation),
+                   contentType: "application/json; charset=utf-8",
+                   success: function (data)
+                   {
+                       var oBusinessLocation = jQuery.parseJSON(data);
+                       $('#tblBusinessLocation').datagrid('updateRow',{index: SelectedRowIndex,	row: oBusinessLocation});
+                       alert("Updated sucessfully");
+
+                   },
+                   error: function (xhr, status, error)
+                   {
+                       alert(error);
+                   }
+               });
+        }
+    }*@
+
+
+</script>

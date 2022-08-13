@@ -1,0 +1,831 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.SalesReport>
+    @{
+        ViewBag.Title = "Sales Report";
+    }
+    <div class="menuMainCollectionTable" style="margin-left: 0px; height: 565px">
+        <div style="height: auto;">
+            <table>
+                <tr>
+                    <td>
+                        <span><input type="text" id="txtSelectQuery" placeholder="Select Report type " style=" width:120px; font-size:11px;" /> <input type="button" value="Pick" id="btnPickSelectQuery" style="width:40px; font-size:11px;" /><input type="button" value="Clear" id="btnResetSelectQuery" style="width:40px; font-size:11px;" /> </span>
+                        <span><input type="text" id="txtMktPerson" placeholder="Select Mkt Group" style=" width:120px; font-size:11px;" /> <input type="button" value="Pick" id="btnPickMktPerson" style="width:40px; font-size:11px;" /><input type="button" value="Clear" id="btnResetMktPerson" style="width:40px; font-size:11px;" /> </span>
+                        <span>
+                            ReportType:<select id="cboReportType" style="width:112px;">
+                                <option value="0"> --Select One--</option>
+                                <option value="2" selected>Month Wise</option>
+                                <option value="3">Year Wise</option>
+                            </select>
+                        </span>     
+                        <span>
+                            <select id="cboMonths" style="width:100px">
+                                <option value="12">Select</option>
+                                <option value="0">January</option>
+                                <option value="1">February</option>
+                                <option value="2">March</option>
+                                <option value="3">April</option>
+                                <option value="4">May</option>
+                                <option value="5">June</option>
+                                <option value="6">July</option>
+                                <option value="7">August</option>
+                                <option value="8">September</option>
+                                <option value="9">October</option>
+                                <option value="10">November</option>
+                                <option value="11">December</option>
+                            </select>
+                        </span>                  
+                        <span>Year:<input type="text" id="txtYear" style="width:50px;" /></span>
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                        <a id="btnReportPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+                        <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="AdvanceSearch()">Graph View</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="div1st">
+            <table id="tblSalesReportPrint" title="Sales Report Report" class="easyui-datagrid"
+                   style="height: 540px" fitcolumns="true" fit="false" rownumbers="true" pagination="false"
+                   singleselect="true" autorowheight="false">
+
+            </table>
+        </div>
+
+        <div id="div2nd" style="height:543px;">
+            <div id="flot-placeholder" style="width:90%;height:400px;margin:0 auto; margin-top:50px"></div>
+            <div id="divGraphName" style="width:90%;margin:0 auto; margin-top:10px; text-align:center; font-weight:bold; color:Blue">Sales Report</div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var _sPrintName = "";
+        var _sBaseAddress="";
+        var _nBUID=0;
+        var _nSalesReport = [];
+        var _nSalesReport_Dist = [];
+        var _results = [];
+        var _somePlot = null;
+        var month = new Array();
+        month[0] = "January";
+        month[1] = "February";
+        month[2] = "March";
+        month[3] = "April";
+        month[4] = "May";
+        month[5] = "June";
+        month[6] = "July";
+        month[7] = "August";
+        month[8] = "September";
+        month[9] = "October";
+        month[10] = "November";
+        month[11] = "December";
+        $(document).ready(function ()
+        {
+            debugger;
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+            sessionStorage.setItem('BUID',_nBUID);
+            $('#txtYear').val("2020");
+            $('#txtYear').datepicker({
+                autoclose: true,
+                format: "yyyy",
+                viewMode: "years",
+                minViewMode: "years",
+                startDate: '2000',
+                endDate: new Date()
+            });
+
+            $('#div1st').hide();
+            $('#div2nd').hide();
+        });
+
+        $('#cboReportType').change(function() {
+            debugger;
+            $('#cboMonths').show();
+            var nReportType = $('#cboReportType').val();
+            if(nReportType==3)
+            {
+                $('#cboMonths').hide();
+            }
+            else
+            {
+                $('#cboMonths').show();
+            }
+            
+        });
+        //Query Picker
+        $('#btnPickSelectQuery').click(function(){
+            GetQuery("");
+        })
+        $('#btnResetSelectQuery').click(function(){
+            $('#txtSelectQuery').val("");
+            $('#txtSelectQuery').data('SalesReportID', '');
+        })
+
+        $("#txtSelectQuery").keydown( function(e)
+        {
+            var sQuery = $("#txtSelectQuery").val();
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) //enter
+            {  if(sQuery!=""){GetQuery(sQuery);}
+            else{GetQuery("");}
+            }
+            else if(code == 8) // backspace
+            {
+                $('#txtSelectQuery').data('SalesReportID', '');
+            }
+        });
+        function  GetQuery(sQuery)
+        {
+            var oQuery = {Name:sQuery,BUID:parseInt(sessionStorage.getItem('BUID'))};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oQuery,
+                ControllerName: "SalesReport",
+                ActionName: "GetAllReportTypeQuery",
+                IsWinClose: false
+            };
+
+            debugger;
+            var tblColums = [];
+            var oColumn = { field:"Name", title: "Name", width: 300, align: "left" }; tblColums.push(oColumn);
+            oColumn = { field: "PrintName", title: "Print Name", width: 200, align: "left" }; tblColums.push(oColumn);
+
+            var oPickerReprotQuery = {
+                winid: 'winReprotQuery',
+                winclass: 'clsReprotQuery',
+                winwidth: 600,
+                winheight: 460,
+                tableid: 'tblReprotQuery',
+                tablecolumns: tblColums,
+                multiplereturn: false,
+                searchingbyfieldName: 'Name',
+                windowTittle: 'Reprot Query List',
+                paramObj: obj,
+                pkID: 'SalesReportID',
+                callBack: SetReprotQuery
+            };
+            $.icsDynamicPicker(oPickerReprotQuery);
+        }
+        function SetReprotQuery(oResult)
+        {
+            debugger;
+            if(oResult.SalesReportID>0){
+                $('#txtSelectQuery').val(oResult.Name);
+                $('#txtSelectQuery').data('SalesReportID', oResult.SalesReportID);
+                $('#txtSelectQuery').data('IsDouble', parseInt(oResult.IsDouble));
+                $('#txtSelectQuery').addClass('fontColorOfPickItem');
+                _sPrintName = oResult.PrintName;
+            }
+            else{
+                $('#txtSelectQuery').val('');
+                $('#txtSelectQuery').data('SalesReportID', '');
+                $('#txtSelectQuery').removeClass('fontColorOfPickItem');
+            }
+        }
+
+
+
+        //Mkt Person Picker
+        $('#btnPickMktPerson').click(function(){
+            GetMktPerson("");
+        })
+        $('#btnResetMktPerson').click(function(){
+            $('#txtMktPerson').val("");
+            $('#txtMktPerson').data('MarketingAccountID', '');
+        })
+        $("#txtMktPerson").keydown( function(e)
+        {
+            var sRefName = $("#txtMktPerson").val();
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) //enter
+            {  if(sRefName!=""){GetMktPerson(sRefName);}
+            else{GetMktPerson("");}
+            }
+            else if(code == 8) // backspace
+            {
+                $('#txtMktPerson').data('MarketingAccountID', '');
+            }
+        });
+        function  GetMktPerson(RefName)
+        {
+            $('#txtMktPerson').data('MarketingAccountID', '');
+            var oMktPerson = {Name:RefName,BUID:_nBUID};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oMktPerson,
+                ControllerName: "SalesReport",
+                ActionName: "GetsAllMktPerson",
+                IsWinClose: false
+            };
+
+            debugger;
+            var tblColums = [];
+            var oColumn = { field:"Name", title: "Group Name", width: 180, align: "left" }; tblColums.push(oColumn);
+
+            var oPickeMktPerson = {
+                winid: 'winMktPerson',
+                winclass: 'clsMktPerson',
+                winwidth: 340,
+                winheight: 460,
+                tableid: 'tblMktPerson',
+                tablecolumns: tblColums,
+                multiplereturn: true,
+                searchingbyfieldName: 'Name',
+                windowTittle: 'Marketing Groups',
+                paramObj: obj,
+                pkID: 'MarketingAccountID',
+                callBack: SetMktPerson
+            };
+            $.icsDynamicPicker(oPickeMktPerson);
+        }
+        function SetMktPerson(oResults)
+        {
+            debugger;
+            if(oResults!=null && oResults.length>0)
+            {
+                var sMktPersonIDs = ICS_PropertyConcatation(oResults, 'MarketingAccountID');
+                $('#txtMktPerson').data('MarketingAccountID', sMktPersonIDs);
+                $('#txtMktPerson').val(oResults.length+" Item(s) Selected.");
+                $('#txtMktPerson').addClass('fontColorOfPickItem');
+            }
+            else
+            {
+                $('#txtMktPerson').val('');
+                $('#txtMktPerson').data('MarketingAccountID', '');
+                $('#txtMktPerson').removeClass('fontColorOfPickItem');
+            }
+        }
+
+        function RefreshList(oRPCAs)
+        {
+            data = oRPCAs;
+            data = { "total": "" + data.length + "", "rows": data };
+            $('#tblSalesReportPrint').datagrid('loadData', data);
+        }
+
+        $('#btnProductionListInExcel').click(function (e)
+        {
+            debugger;
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+
+            //start datetime start
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var nhr=$('#txtStartTime').timespinner('getHours');
+            var nmin=$('#txtStartTime').timespinner('getMinutes');
+            var oStartDate=new Date(StartDate);
+            oStartDate.setHours(oStartDate.getHours()+nhr);
+            oStartDate.setMinutes(oStartDate.getMinutes()+nmin);
+            oStartDate = icsdatetimeformat(oStartDate);
+
+            //end datetime start
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var nhr=$('#txtEndTime').timespinner('getHours');
+            var nmin=$('#txtEndTime').timespinner('getMinutes');
+            var oEndDate=new Date(EndDate);
+            oEndDate.setHours(oEndDate.getHours()+nhr);
+            oEndDate.setMinutes(oEndDate.getMinutes()+nmin);
+            oEndDate = icsdatetimeformat(oEndDate);
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+oStartDate+'~'+oEndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress+"/ProductionCost/PrintExcelDUProductionRFT?sValue="+sTempString+"&nts="+nts);
+        });
+
+        $('#btnSummaryReport').click(function (e)
+        {
+            debugger;
+            if(!_IsDateSelected)
+            {
+                alert("Please select Issue Date.");
+                return;
+            }
+            //start datetime start
+            var StartDate= $('#txtStartDate').datebox('getValue');
+            var nhr=$('#txtStartTime').timespinner('getHours');
+            var nmin=$('#txtStartTime').timespinner('getMinutes');
+            var oStartDate=new Date(StartDate);
+            oStartDate.setHours(oStartDate.getHours()+nhr);
+            oStartDate.setMinutes(oStartDate.getMinutes()+nmin);
+            oStartDate = icsdatetimeformat(oStartDate);
+
+            //end datetime start
+            var EndDate= $('#txtEndDate').datebox('getValue');
+            var nhr=$('#txtEndTime').timespinner('getHours');
+            var nmin=$('#txtEndTime').timespinner('getMinutes');
+            var oEndDate=new Date(EndDate);
+            oEndDate.setHours(oEndDate.getHours()+nhr);
+            oEndDate.setMinutes(oEndDate.getMinutes()+nmin);
+            oEndDate = icsdatetimeformat(oEndDate);
+
+            var sTempString=_nMachineID+'~'+_IsDateSelected+'~'+oStartDate+'~'+oEndDate;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress+"/ProductionCost/PrintProductionRFTSummary?sValue="+sTempString+"&nts="+nts);
+        });
+        $('#btnSearch').click(function (e)
+        {
+            debugger;
+            var nReportType = parseInt($( "#cboReportType" ).val());
+            var dateYear = $("#txtYear").val();
+            var nMonth = parseInt($('#cboMonths').val());
+            nMonth = (nMonth==12?0+1:nMonth+1);
+
+            if($("#txtSelectQuery" ).val() == ""){
+                alert("Please Select Report Type!");
+                return;
+            }
+            if(nReportType==null || nReportType==0)
+            {
+                alert("Please Select Day/Month/Year And Try Again!!");
+                return;
+            }
+
+            oParams = {
+                Year : dateYear,
+                Month : nMonth,
+                ReportType : nReportType,
+                BUID : _nBUID,
+                Query : $('#txtSelectQuery').data('Query'),
+                ErrorMessage : $('#txtMktPerson').data('MarketingAccountID'),
+                SalesReportID : $('#txtSelectQuery').data('SalesReportID'),
+                ViewType : nReportType
+            }
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress+ "/SalesReport/SearchSalesReport",
+                data:JSON.stringify(oParams),
+                contentType: "application/json; charset=utf-8",
+                success: function (data)
+                {
+                    debugger;
+                    _results = data;
+                    _nSalesReport = _results.Item1;
+                    _nSalesReport_Dist = _results.Item2;
+                    var Note = "";
+                    if(_nSalesReport_Dist.length>0){
+                        Note = _nSalesReport_Dist[0].Note;
+                    }
+                    else{
+                        Note = "";
+                    }
+                   
+                    if(_nSalesReport.length>0)
+                    {
+                        GetDynamicColumn(Note);
+                        GetDynamicColumnData('RefID');
+                    }
+                    else
+                    {
+                        alert("No Data Found!");
+                        DynamicRefreshList([], "tblSalesReportPrint");
+                       
+                    }
+                },
+            });
+            $('#div1st').show();
+            $('#div2nd').hide();
+        });
+        function GetDynamicColumn(Note)
+        {
+          
+            var oDetailColumns = [];
+            var oColumn = "";
+            oColumn =  { field:'GroupName', title: 'Group', width:'15%',  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+            oColumn =  { field:'RefName', title: 'Name', width:'15%',  cellClass: 'text-left' };oDetailColumns.push(oColumn);
+            var nReportType = parseInt($("#cboReportType").val());
+            if(nReportType==2)//MonthWise
+            {
+                nStartMonth = parseInt($('#cboMonths').val());
+                var sYear=$("#txtYear").val()+"";
+                if(nStartMonth==12)
+                {
+                    for(var i=0; i<12;i++)
+                    {
+                        //oColumn = { field: month[i], title: month[i]+" "+sYear.substring(2, 4),align:'right', width: '10%',formatter:formatPrice};oDetailColumns.push(oColumn);
+                        oColumn = { field: month[i], title: month[i]+" "+sYear.substring(2, 4),align:'right', width: '10%'};oDetailColumns.push(oColumn);
+                    }
+                }
+                else
+                {
+                    var j = 0;                  
+                    nEndMonth = nStartMonth+12;
+                    for(var i=nStartMonth;i<nEndMonth;i++)
+                    {
+                        if(i<12)
+                        {
+                           // oColumn = { field: month[i], title: month[i]+" "+sYear.substring(2, 4),align:'right', width: '10%',formatter:formatPrice};oDetailColumns.push(oColumn);
+                            oColumn = { field: month[i], title: month[i]+" "+sYear.substring(2, 4),align:'right', width: '10%'};oDetailColumns.push(oColumn);
+                        }
+                        else
+                        {
+                            if(j<12){
+                                sYear = parseInt($("#txtYear").val())+1+"";
+                                //oColumn = { field: month[j], title: month[j]+" "+sYear.substring(2, 4),align:'right', width:'10%',formatter:formatPrice};oDetailColumns.push(oColumn);
+                                oColumn = { field: month[j], title: month[j]+" "+sYear.substring(2, 4),align:'right', width:'10%'};oDetailColumns.push(oColumn);
+                            }                                            
+                            j++;
+                        }
+                    
+                    }
+                }
+                
+            }
+            if(nReportType == 3)//YearWise
+            {
+                var sYear=$("#txtYear").val()+"";
+                for(var i=11; i>=0;i--)
+                {
+                    oColumn = { field: (parseInt(sYear)-i).toString(), title: ((sYear)-i),align:'right', width: '10%',formatter:formatPrice};oDetailColumns.push(oColumn);
+                }
+            }
+            oColumn = { field: 'TotalST', title: 'Total', width: '10%',align:'right'};oDetailColumns.push(oColumn);
+            //oColumn = { field: 'Total', title: 'Total', width: '10%',align:'right',formatter:formatPrice};oDetailColumns.push(oColumn);
+
+            var thirdColumn = [];
+            oColumn = { title:Note, width: '100%',align:'left',colspan:15};thirdColumn.push(oColumn);
+
+            $('#tblSalesReportPrint').datagrid({
+                columns:[thirdColumn,oDetailColumns]
+            });
+        }
+        function GetDynamicColumnData(nRef)
+        {
+            debugger;
+            var nReportType = parseInt($("#cboReportType").val());
+            var nRefID=0; var oSalesReports=[];
+            _nSalesReport=_results.Item1;
+            _nSalesReport_Dist=_results.Item2;
+
+            if(_nSalesReport_Dist==null)
+            {
+                alert("No Data Found!!"); return;
+            }
+            for(var i=0; i<_nSalesReport_Dist.length ;i++ )
+            {
+                var nTotal=0.00;
+                //var oSalesReport= new Object();
+                
+                var oSalesReport={
+                    January : 0,
+                    February : 0,
+                    March : 0,
+                    April : 0,
+                    May : 0,
+                    June : 0,
+                    July : 0,
+                    August : 0,
+                    September : 0,
+                    October : 0,
+                    November : 0,
+                    December : 0
+                }
+                oSalesReport.RefName=_nSalesReport_Dist[i].RefName;
+                oSalesReport.RefID=_nSalesReport_Dist[i].RefID;
+                oSalesReport.GroupName=_nSalesReport_Dist[i].GroupName;
+                for(var k=0; k<_nSalesReport.length;k++)
+                {
+                    if(_nSalesReport[k][nRef]==_nSalesReport_Dist[i][nRef])
+                    {
+                        nTotal+=_nSalesReport[k].Value;
+                        if(nReportType == 2)
+                        {
+                            if(isNaN(oSalesReport[month[_nSalesReport[k].Month-1]])){
+                                oSalesReport[month[_nSalesReport[k].Month-1]] = 0;
+                            }
+                            oSalesReport[month[_nSalesReport[k].Month-1]]+=_nSalesReport[k].Value;
+                        }
+                        else{
+                            if(isNaN(oSalesReport[_nSalesReport[k].Year]))
+                                oSalesReport[_nSalesReport[k].Year] = 0;
+                            oSalesReport[_nSalesReport[k].Year]+=_nSalesReport[k].Value;
+                        }
+
+                    }
+                }
+
+               // oSalesReport.Total=nTotal;
+                oSalesReport.TotalST=(_nSalesReport_Dist[0].Symbol+TempAddComma(nTotal.toFixed(2)));
+                debugger; //section for adding symbol
+                oSalesReport.January = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.January.toFixed(2));
+                oSalesReport.February = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.February.toFixed(2));
+                oSalesReport.March = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.March.toFixed(2));
+                oSalesReport.April = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.April.toFixed(2));
+                oSalesReport.May = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.May.toFixed(2));
+                oSalesReport.June = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.June.toFixed(2));
+                oSalesReport.July = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.July.toFixed(2));
+                oSalesReport.August = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.August.toFixed(2));
+                oSalesReport.September = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.September.toFixed(2));
+                oSalesReport.October = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.October.toFixed(2));
+                oSalesReport.November = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.November.toFixed(2));
+                oSalesReport.December = _nSalesReport_Dist[0].Symbol+TempAddComma(oSalesReport.December.toFixed(2));
+                //End
+                oSalesReports.push(oSalesReport);
+            }
+            debugger;
+            $('#tblSalesReportPrint').datagrid('loadData', oSalesReports);
+        }
+        $('#btnReportPrint').click(function (e)
+        {
+            debugger;
+            var dateYear = $("#txtYear").val();
+            var nMonth = parseInt($('#cboMonths').val());
+            var SaleOrderID = $('#txtSelectQuery').data('SalesReportID');
+            var MktPersonIDs = $('#txtMktPerson').data('MarketingAccountID');
+            var IsDouble =$('#txtSelectQuery').data('IsDouble');
+            var nReportType = parseInt($( "#cboReportType" ).val());
+            nMonth = (nMonth==12?0+1:nMonth+1);
+            if($("#txtSelectQuery" ).val() == ""){
+                alert("Please Select Report Type!");
+                return;
+            }         
+            if(nReportType==null || nReportType==0)
+            {
+                alert("Please Select Day/Month/Year And Try Again!!");
+                return;
+            }
+            if(MktPersonIDs==undefined){MktPersonIDs="";}
+            var sTempString=dateYear+'~'+SaleOrderID+'~'+MktPersonIDs+'~'+nReportType+'~'+IsDouble+'~'+nMonth;
+            var nts=(new Date()).getTime()/1000;
+            window.open(_sBaseAddress+"/SalesReport/SalesReportPreview?sValue="+sTempString+"&nts="+nts);
+        });
+
+        function AdvanceSearch()
+        {
+            debugger;
+            if($("#txtSelectQuery" ).val() == ""){
+                alert("Please Select Report Type!");
+                return;
+            }
+
+            var nReportType = parseInt($( "#cboReportType" ).val());
+            var dateYear = $("#txtYear").val();
+            if(nReportType==null || nReportType==0)
+            {
+                alert("Please Select Day/Month/Year And Try Again!!");
+                return;
+            }
+
+            var nMonth = parseInt($('#cboMonths').val());
+            nMonth = (nMonth==12?0+1:nMonth+1);
+
+            oParams = {
+                Year : dateYear,
+                Month:nMonth,
+                ReportType : nReportType,
+                BUID : _nBUID,
+                ErrorMessage : $('#txtMktPerson').data('MarketingAccountID'),
+                SalesReportID : $('#txtSelectQuery').data('SalesReportID'),
+                ViewType : nReportType
+            }
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/SalesReport/GetsForGraph",
+                traditional: true,
+                data: JSON.stringify(oParams),
+                contentType: "application/json; charset=utf-8",
+
+                success: function (data) {
+                    debugger
+                    var oSalesReport = jQuery.parseJSON(data);
+                    if (oSalesReport.ErrorMessage == "" && oSalesReport != null)
+                    {
+
+                        _nSalesReport=[];
+                        _nSalesReport_Dist = [];
+                        //_oImportInvoiceIBPs = oImportInvoiceIBP.ImportInvoiceIBPs;
+                        _nSalesReport_Dist = oSalesReport._oSalesReports;
+                        PrepareGraph(_nSalesReport_Dist);
+                    }
+                    else
+                    {
+                        alert(oSalesReport.ErrorMessage);
+                        oSalesReport = null;
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+            $('#div1st').hide();
+            $('#div2nd').show();
+        }
+        function PrepareGraph(oMonthWiseSummery)
+        {
+            debugger;
+            var nReportType = $('#cboReportType').val();
+            _oGraphData=[];
+            _oGraphTicks=[];
+            var oDataPonint=[]; var x=0; var y=0;
+            var oTickPonint=[]; var xx=0; var yy="";
+
+            oDataPonint.push(0); //SEt Intital Y Axis
+            oDataPonint.push(0)
+            _oGraphData.push(oDataPonint);
+
+            oTickPonint.push(0); //SEt Intital X Axis
+            oTickPonint.push('')
+            _oGraphTicks.push(oTickPonint);
+           
+            for(var i=0; i<oMonthWiseSummery.length; i++)
+            {
+                oDataPonint=[];
+                x = i+1;
+                y = oMonthWiseSummery[i].Value;
+                oDataPonint.push(x);
+                oDataPonint.push(y)
+                _oGraphData.push(oDataPonint);
+
+                oTickPonint=[];
+                xx = i+1;
+                yy = month[i].substring(0,3);
+                oTickPonint.push(xx);
+                oTickPonint.push(yy)
+                _oGraphTicks.push(oTickPonint);
+            }           
+           
+            var oGraphOptions = {
+                series: {
+                    bars: {
+                        show: true
+                    }
+                },
+
+                bars: {
+                    align: "center",
+                    barWidth: 0.5
+                },
+
+                xaxis: {
+                    axisLabel: "Month",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 10,
+                    ticks: _oGraphTicks
+
+                },
+
+                yaxis: {
+                    axisLabel: "Value",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 3,
+                    tickFormatter: function (v, axis) {
+                        return numberformat(v);
+                    }
+                },
+
+                legend: {
+                    noColumns: 0,
+                    labelBoxBorderColor: "#000000",
+                    position: "nw"
+                },
+
+                grid: {
+                    hoverable: true,
+                    borderWidth: 2,
+                    backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                    }
+                }
+            };
+
+            var sYear=$('#txtYear').val();
+
+            //var cboBank=document.getElementById("cboBank");
+            //var sBankName = "";
+
+            //if(document.getElementById("cboBank").selectedIndex !=0)
+            //{
+            //    sBankName="/"+cboBank.options[cboBank.selectedIndex].text;
+            //}
+
+            _oGraphDataSet = [ { label: sYear+ " Sales Report Summary", data: _oGraphData, color: "#5482FF" }];
+            _somePlot = $.plot($("#flot-placeholder"), _oGraphDataSet, oGraphOptions);
+
+            $.plot($("#flot-placeholder"), _oGraphDataSet, oGraphOptions);
+            $("#flot-placeholder").UseTooltip();
+            document.getElementById("divGraphName").innerHTML="Fig :"+_sPrintName+" "+ sYear
+            SetPoint();
+        }
+        function SetPoint()
+        {
+            debugger;
+            var ctx = _somePlot.getCanvas().getContext("2d");
+            var data = _somePlot.getData()[0].data;
+            var xaxis = _somePlot.getXAxes()[0];
+            var yaxis = _somePlot.getYAxes()[0];
+            var offset = _somePlot.getPlotOffset();
+            ctx.font = "13px 'Tahoma'";
+            ctx.fillStyle = "Blue";
+
+            for (var i = 0; i <data.length; i++){
+                var text = formatPrice(data[i][1])+ '';
+                var metrics = ctx.measureText(text);
+                var xPos = (xaxis.p2c(data[i][0])+offset.left) - metrics.width/2;
+                var yPos = yaxis.p2c(data[i][1]) + offset.top - 5;
+                ctx.fillText(text, xPos, yPos);
+
+            }
+        }
+        function gd(year, month, day) {
+            return new Date(year, month, day).getTime();
+        }
+        var previousPoint = null, previousLabel = null;
+        $.fn.UseTooltip = function () {
+            $(this).bind("plothover", function (event, pos, item) {
+                if (item) {
+                    if ((previousLabel != item.series.label) || (previousPoint != item.dataIndex)) {
+                        previousPoint = item.dataIndex;
+                        previousLabel = item.series.label;
+                        $("#tooltip").remove();
+
+                        var x = item.datapoint[0];
+                        var y = item.datapoint[1];
+
+                        var color = item.series.color;
+
+                        //console.log(item.series.xaxis.ticks[x].label);
+
+                        showTooltip(item.pageX,
+                            item.pageY,
+                            color,
+                            "<strong>" + item.series.label + "</strong><br>" + item.series.xaxis.ticks[x].label + " : <strong>" + numberformat(y) + "</strong>");
+                    }
+                } else {
+                    $("#tooltip").remove();
+                    previousPoint = null;
+                }
+            });
+        };
+        function showTooltip(x, y, color, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y - 40,
+                left: x - 120,
+                border: '2px solid ' + color,
+                padding: '3px',
+                'font-size': '9px',
+                'border-radius': '5px',
+                'background-color': '#fff',
+                'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+                opacity: 0.9
+            }).appendTo("body").fadeIn(200);
+        }
+        function numberformat(val) {
+            if (val == null) {
+                val = 0;
+            }
+            val = parseFloat(val);
+            var test = val.toFixed();
+            var tests = addComma(test);
+            return tests;
+        }
+        function addComma(nStr) {
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1)) {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+        $('#tblSalesReportPrint').datagrid({
+            onDblClickRow: function(index,row){
+                debugger;
+                var SelectedRowIndex=$('#tblSalesReportPrint').datagrid('getRowIndex',index);
+                var oSalesReportPrints= $('#tblSalesReportPrint').datagrid('getRows');
+                sessionStorage.setItem("SalesReportPrints", JSON.stringify(oSalesReportPrints));
+                sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+                sessionStorage.setItem("BackLink", window.location.href);
+                var nViewType = parseInt($( "#cboReportType" ).val());
+                var dateYear = $("#txtYear").val();
+                var SalesReportID = $('#txtSelectQuery').data('SalesReportID');
+                var sValue = row.RefID+'~'+nViewType+'~'+dateYear+'~'+SalesReportID+'~'+row.RefName;
+                window.open(_sBaseAddress+"/SalesReport/ViewSalesReportDetails?sValue="+sValue,"_blank");
+            }
+        });
+        function TempAddComma(nStr) {
+            debugger;
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1)) {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+    </script>

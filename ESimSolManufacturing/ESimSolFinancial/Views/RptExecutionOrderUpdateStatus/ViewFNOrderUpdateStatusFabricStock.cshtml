@@ -1,0 +1,298 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Stock Report";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.FNOrderUpdateStatus>
+    <div ng-app="FNOrderUpdateStatusAPP" class="form-horizontal regionFNOrderUpdateStatus menuMainCollectionTable">
+        <div ng-controller="FNOrderUpdateStatusCtrl" style="width:100%">
+            <div class=" ui-grid-top-panel" style="margin:5px;">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="AdvanceSearch()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span> Adv. Search</button>
+                    <button type="button" class="btn btn-sm btn-success" aria-label="Left Align" ng-click="ExportToExcel()"> <span class="glyphicon glyphicon-list" aria-hidden="true"></span> Stock Report(Excel)</button>
+                    <button type="button" class="btn btn-sm btn-info" aria-label="Left Align" ng-click="PrintPDF()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Delivery Report</button>
+                    <button type="button" class="btn btn-sm btn-warning" aria-label="Left Align" ng-click="PrintStockposition()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Godown Stock Report</button>
+                    <button type="button" class="btn btn-sm btn-warning" aria-label="Left Align" ng-click="PrintPreviewStatement()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span>Preview(Dispo wise)</button>
+                </div>
+            </div>
+            <div ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid-angular ui-grid-selectable" style="width:99%; height:510px"></div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .regionFNOrderUpdateStatus .form-horizontal .control-label {
+            padding-top: 3px;
+        }
+
+        .regionFNOrderUpdateStatus .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-12 {
+            width: 70%;
+            padding-right: 5px;
+            padding-left: 5px;
+            margin-bottom: 5px;
+            margin-left: 90px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-1 {
+            width: 4%;
+            padding-right: 2px;
+            padding-left: 2px;
+            padding-top: 3px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-2 {
+            width: 22%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-3 {
+            width: 24%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-4 {
+            width: 28%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-5 {
+            width: 40%;
+            padding-right: 5px;
+            padding-left: 0px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-6 {
+            width: 54.5%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-10 {
+            width: 88%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-7 {
+            width: 54.6%;
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-8 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+
+        .regionFNOrderUpdateStatus .col-md-9 {
+            width: 69%;
+            padding-right: 0px;
+            padding-left: 0px;
+        }
+
+        .regionFNOrderUpdateStatus .btn-sm {
+            padding: 3px 10px;
+        }
+
+        .regionFNOrderUpdateStatus .input-group-addon {
+            padding: 4px 8px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var oFNOrderUpdateStatuss =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    @*//var oCompareOperators =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CompareOperators));*@
+    var  oSalesStatusList =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.WorkingUnits));
+    var nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+    var oCompareOperators = [
+        {id:1,Value:"Current Stock"},
+        {id:2,Value:"Delivery Issue"},
+        {id:3,Value:"Stock Receive"}
+    ]
+    var _txtOrderNo = "";
+    debugger;
+    var date=new Date();
+    $('.date-container').datepicker({
+        format: "dd M yyyy",
+        calendarWeeks: true,
+        autoclose: true,
+        todayHighlight: true,
+    });
+    var FNOrderUpdateStatusModule = angular.module('FNOrderUpdateStatusAPP', ['ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.selection', 'ui.grid.edit','ui.grid.resizeColumns','ui.grid.cellNav','ms.service']);
+    FNOrderUpdateStatusModule.controller('FNOrderUpdateStatusCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal,icsMethod, userSession,msGridControl,userSession,advanceSearch,uiGridConstants) {
+        debugger;
+        var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        sessionStorage.setItem('BaseAddress',_sBaseAddress)
+        var viewType = sessionStorage.getItem("Operation");
+
+        $scope.gridOptions= {
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            multiSelect: false,
+            showColumnFooter: true,
+            enableColumnResizing: true,
+
+            columnDefs: [
+                    {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                    { field: 'PINo',                name:'PINo',               width:'15%' },
+                    { field: 'ExeNo',               name:'Dispo No',           width:'15%' },
+                    { field: 'BuyerName',           name:'BuyerName',          width:'25%' },
+                    { field: 'ContractorName',      name:'ContractorName',     width:'25%' },
+                    { field: 'Construction',        name:'Construction',       width:'20%' },
+                    { field: 'WeaveName',           name:'WeaveName',          width:'12%' },
+                    { field: 'FabricWidth',         name:'Width',              width:'10%' },
+                    { field: 'Color',               name:'Color',              width:'12%' },
+
+                    { field: 'OrderQty',            name:'OrderQty',           width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'QtyOpen',             name:'Opening',            width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,   aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'QtyIn',               name:'Received',           width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,   aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'QtyOut',              name:'Issued',        width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'DeliveryQty',         name:'Total Delivery',     width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,   aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'YetToDelivery',       name:'YetToDelivery',      width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+
+                    { field: 'ReadyStock',       name:'StockBalance',        width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'RollNo',             name:'Stock Roll',          width:'12%',     cellClass: 'text-right',  cellFilter: 'number:2'    ,  aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true,  type: 'number', enableCellEdit:true,footerCellClass: 'text-right' ,footerCellFilter: 'number:0'},
+                    { field: 'Location',           name:'Location',            width:'15%',  },
+                    //{ field: 'Location',       name:'ReceiveDateSt',      width:'12%',  }
+            ],
+            data: oFNOrderUpdateStatuss,
+            onRegisterApi : function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                if(oFNOrderUpdateStatuss.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFNOrderUpdateStatuss);
+                    $scope.gridApi.selection.selectRow(oFNOrderUpdateStatuss[userSession.getRowIndex()]);
+                }
+            }
+        };
+        $scope.ExportToExcel = function ()
+        {
+            debugger;
+
+            var sParams = sessionStorage.getItem('AdvSearchString');
+            if(sParams==null || sParams == undefined)
+            {
+                alert("Nothing To Print!");
+                return;
+            }
+            window.open(_sBaseAddress+ '/RptExecutionOrderUpdateStatus/ExportToExcel?sParams=' + sParams);
+        }
+        $scope.PrintPDF = function ()
+        {
+            var sParams = sessionStorage.getItem('AdvSearchString');
+            if(sParams==null || sParams == undefined)
+            {
+                alert("Nothing To Print!");
+                return;
+            }
+            window.open(_sBaseAddress+ '/RptExecutionOrderUpdateStatus/PrintPDF?sParams=' + sParams);
+        }
+        $scope.PrintStockposition = function ()
+        {
+            var sParams = sessionStorage.getItem('AdvSearchString');
+            if(sParams==null || sParams == undefined)
+            {
+                alert("Nothing To Print!");
+                return;
+            }
+            window.open(_sBaseAddress+ '/RptExecutionOrderUpdateStatus/PrintStockPosition?sParams=' + sParams);
+        }
+        $scope.PrintPreviewStatement = function ()
+        {
+            debugger;
+            var oRPT_Dispo = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oRPT_Dispo==null || oRPT_Dispo.FSCDetailID<=0)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            
+            var nts = ((new Date()).getTime()) / 1000;
+            window.open(_sBaseAddress+ "/RptExecutionOrderUpdateStatus/PrintStockLedger?nID="+oRPT_Dispo.FSCDetailID+"&nBUID="+sessionStorage.getItem('BUID'), "_blank");
+        };
+
+        $scope.AdvanceSearch=function()
+        {
+            _txtOrderNo = "";
+            //var oColumns = [];
+            //var oColumn = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumns.push(oColumn);
+            //oColumn = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumns.push(oColumn);
+
+            //var paramObj_Contractor={
+            //    obj:{Params: '2' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+            //    objName:'Params',
+            //    objField:'ContractorID',
+            //    url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+            //    title:'Buyer List',
+            //    multiSelect:true,
+            //    columns:oColumns
+            //}
+            //var oColumnsGarments = [];
+            //var oColumnGarments = { field: 'Name', name: 'Applicant Name',width: '70%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+            //oColumnGarments = { field: 'Address', name: 'Address',width: '30%', enableSorting: false  };oColumnsGarments.push(oColumnGarments);
+
+            //var paramObj_Garments={
+            //    obj:{Params: '3' + '~' +'@@ContractorID'+'~'+sessionStorage.getItem('BUID')},
+            //    objName:'Params',
+            //    objField:'ContractorID',
+            //    url:_sBaseAddress+'/Contractor/ContractorSearchByNameType',
+            //    title:'Garments List',
+            //    multiSelect:true,
+            //    columns:oColumnsGarments
+            //}
+
+            var oFNOrderUpdateStatus = [
+                                //{ DisplayName: "Buyer Name",               BOField: "ContractorName",      InputType: 'picker',   PickerObject:paramObj_Contractor },
+                                { DisplayName: "Date Range",              BOField: "DateRange",             InputType: 'date' },
+                                { DisplayName: "Store",      BOField: "WorkingUnitID",     InputType: 'select', OptionList:oSalesStatusList, OptionValue:{id:'WorkingUnitID', Value:'WorkingUnitName'} },
+           
+            ];
+            var modalObj={
+                size:'md',
+                title:"Advance Search",
+                CompareOperators:oCompareOperators,
+                HtmlElements:oFNOrderUpdateStatus,
+                isAdvanceSearch:true, // if TRUE: 'urlAdvanceSearch' should be define
+                urlAdvanceSearch:_sBaseAddress + '/RptExecutionOrderUpdateStatus/AdvSearch'
+            }
+            var modalInstance=advanceSearch.Instance(modalObj);
+            modalInstance.result.then(function (result)
+            {
+                console.log(result);
+                $scope.gridOptions.data=result;
+            }, function ()
+            {
+                $log.info('Modal dismissed at: ' + new Date());
+            });
+        };
+    });
+    </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

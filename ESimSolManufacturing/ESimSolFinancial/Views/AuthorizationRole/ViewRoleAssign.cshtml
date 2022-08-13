@@ -1,0 +1,212 @@
+﻿@{
+    ViewBag.Title = "Authorization Role List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.AuthorizationRole>
+<div id="divRoleAssign" class="easyui-panel" title="Role Assign" style="font-family:Tahoma; height:100%; width:100%">
+    <div style="width:100%; height:87%; text-align:left; padding-top:2px">
+        <table id="tblAuthorizationRole" title="" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="fales" singleselect="false" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th data-options="field:'Selected',checkbox:true"></th>
+                    <th field="RoleNo" width="80">Role No</th>
+                    <th field="RoleName" width="250">Roll Name</th>
+                    <th field="ModuleNameST" width="150">Module Name</th>
+                    <th field="OperationTypeST" width="100">Operation</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="text" id="txtSearchRollName" placeholder="Search by Role Name" style="width:200px" />
+            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        </div>
+    </div>
+    <div style="width:100%; height:10%">
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:80%; text-align:right"></td>
+                    <td style="width: 10%">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                    </td>
+                    <td style="width: 10%">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</div>
+
+
+<script type="text/javascript">  
+    $(document).ready(function () {        
+        var oAuthorizationRoles = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oSelectedUser =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.SelectedUser));
+        var oAssignedRoles =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AuthorizationRoleMappings));
+
+        $('#tblAuthorizationRole').data('SelectedRoles', []);  
+        $('#tblAuthorizationRole').data('SelectedUser', oSelectedUser);
+        $('#tblAuthorizationRole').data('AssignedRoles', oAssignedRoles);
+        $('#tblAuthorizationRole').data('AuthorizationRoles', oAuthorizationRoles);
+        $('#divRoleAssign').panel('setTitle', 'Role Assign for : '+oSelectedUser.UserName+ ' (Log-In ID : '+ oSelectedUser.LogInID+')');
+
+        RefreshList(oAuthorizationRoles);
+        if(oAssignedRoles.length>0)
+        {
+            SetAuthorizationRole();
+        }
+    });
+ 
+    function RefreshList(oAuthorizationRoles)
+    {
+        data=oAuthorizationRoles;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblAuthorizationRole').datagrid('loadData',data);
+    }
+
+    function SetAuthorizationRole()
+    {
+        var oAssignedRoles= $('#tblAuthorizationRole').data('AssignedRoles');
+        var oAuthorizationRoles = $('#tblAuthorizationRole').datagrid('getRows'); 
+        for(var i =0;i<oAssignedRoles.length;i++)
+        {
+            for(var j =0;j<oAuthorizationRoles.length;j++)
+            {
+                if(parseInt(oAssignedRoles[i].AuthorizationRoleID) ===  parseInt(oAuthorizationRoles[j].AuthorizationRoleID))
+                {
+                    $('#tblAuthorizationRole').datagrid('checkRow', j);   
+                    break;
+                }
+            }
+        }
+    }
+
+    function ValidateInput()
+    {  
+        var oAuthorizationRoles = $('#tblAuthorizationRole').datagrid('getChecked'); 
+        if(oAuthorizationRoles.length<=0)
+        {
+            alert("Please select at least one Role!");
+            return false;
+        }
+
+        var oSelectedUser = $('#tblAuthorizationRole').data('SelectedUser');
+        if(oSelectedUser === null || parseInt(oSelectedUser.UserID)===0)
+        {
+            alert("Invalid Users!");
+            return false;
+        }
+        return true;
+    }
+ 
+    function RefreshObjects()
+    {  
+        var oSelectedUser = $('#tblAuthorizationRole').data('SelectedUser');
+        var oAuthorizationRoles = $('#tblAuthorizationRole').datagrid('getChecked'); 
+        var oAuthorizationRoleMappings =[];
+        for(var i =0; i<oAuthorizationRoles.length; i++)
+        {
+            var oAuthorizationRoleMapping= { 
+                AuthorizationRoleMappingID : parseInt(GetARMappingID(oAuthorizationRoles[i].AuthorizationRoleID)),
+                AuthorizationRoleID : parseInt(oAuthorizationRoles[i].AuthorizationRoleID),
+                UserID : parseInt(oSelectedUser.UserID)
+            };
+            oAuthorizationRoleMappings.push(oAuthorizationRoleMapping);
+        }
+        return oAuthorizationRoleMappings;
+    } 
+
+    function GetARMappingID(nAuthorizationRoleID)
+    {
+        var oAssignedRoles = $('#tblAuthorizationRole').data('AssignedRoles');
+        for(var i =0;i<oAssignedRoles.length;i++)
+        {
+            if(parseInt(oAssignedRoles[i].AuthorizationRoleID) === parseInt(nAuthorizationRoleID))
+            {
+                return oAssignedRoles[i].AuthorizationRoleMappingID;
+            }
+        }
+        return 0;
+    }
+
+    $('#btnSave').click(function(){
+        if(!ValidateInput()) return;
+        var oAllAuthorizationRoles = $('#tblAuthorizationRole').data('AuthorizationRoles');
+        var oAuthorizationRoles = $('#tblAuthorizationRole').datagrid('getRows'); 
+        
+        var bIsShortList = false;
+        if(oAuthorizationRoles.length != oAllAuthorizationRoles.length)
+        {
+            bIsShortList = true;            
+        }
+        else
+        {
+            bIsShortList = false;
+        }
+        
+        var oAuthorizationRoleMapping = {
+            IsShortList : bIsShortList,
+            IsUserBased : true,
+            AuthorizationRoleMappings : RefreshObjects()
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : sessionStorage.getItem('BaseAddress')+"/AuthorizationRole/CommitMappingRole",
+            traditional: true,
+            data:  JSON.stringify(oAuthorizationRoleMapping),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sfeedBackMessage= jQuery.parseJSON(data);
+                if (sfeedBackMessage == "Succefully Saved") 
+                {                    
+                    alert("Data Save Successfully!!");
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else 
+                {
+                    alert(sfeedBackMessage);
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $('#btnClose').click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+
+    $('#txtSearchRollName').keyup(function (e){
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = $.trim($('#txtSearchRollName').val());
+        var oSearchedItems = [];  var sTempName="";
+        var oCurrentList = $('#tblAuthorizationRole').datagrid('getRows');
+        if (e.which == 8)
+        {
+            var oAuthorizationRoles = $('#tblAuthorizationRole').data('AuthorizationRoles');
+            oCurrentList = oAuthorizationRoles;
+        }
+
+        for(i=0;i<oCurrentList.length;++i)
+        {
+            sTempName=oCurrentList[i].RoleName;
+            n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedItems.push(oCurrentList[i]);
+            }
+        }
+        RefreshList(oSearchedItems);
+
+        var oAssignedRoles = $('#tblAuthorizationRole').data('AssignedRoles');
+        if(oAssignedRoles.length>0)
+        {
+            SetAuthorizationRole();
+        }
+    });
+</script>

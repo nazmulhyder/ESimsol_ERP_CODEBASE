@@ -1,0 +1,334 @@
+﻿@model ESimSol.BusinessObjects.TProductCategory
+@{
+    ViewBag.Title = "Item Category List";
+}
+
+<div class="menuMainCollectionTable">
+    <table id="tblProductCategoryTreeGrid" title="Item Category List" class="easyui-treegrid" fit="true" fitcolumns="true"
+           data-options="idField:'id',treeField:'text',rownumbers:'true',toolbar:'#toolbar'">
+        <thead>
+            <tr>
+                <th data-options="field:'text',width:300">Item Category Name</th>
+                <th data-options="field:'id',width:100">Code</th>
+                <th data-options="field:'Description',width:250">Description</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        @*<input type="text" id="txtSearchByName" value="Search by name" style="width:120px" onclick="ClearNamefield()" />*@
+        <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+        <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+        <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        <a id="btnSetProperty" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Set Property</a>
+        <a id="btnAllCategory" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">All Category</a>
+        <a id="btnAccountEffect" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" onclick="AccountEffect()" plain="true">Account Effect</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var _oTProductCategory=null;
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping = [];
+    $(document).ready(function () {
+        _oTProductCategory=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+     debugger;
+        var oTProductCategorys =sessionStorage.getItem("ProductCategorys");
+        var nID =sessionStorage.getItem("SelectedRowIndex");
+        RefreshList(_oTProductCategory);
+        if(nID>0 && nID !=null)
+        {
+            $('#tblProductCategoryTreeGrid').treegrid('select', nID);
+        }
+    });
+
+
+    /*account head start */
+    function AccountEffect (){
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || parseInt(oProductCategory.id)<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(parseInt(oProductCategory.parentid)===0)
+        {
+            alert("No Need Account Effect for Root!");
+            return;
+        }
+        var tsv=((new Date()).getTime())/1000;
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", oProductCategory.id);
+        sessionStorage.setItem("BackLink", window.location.href);
+        sessionStorage.setItem("AccountEffectHeader", "Account Effect For Product Category ("+oProductCategory.text+" )");// EnumModuleName :  ProductCategory=150,
+        window.location.href = _sBaseAddress+ "/AccountEffect/ViewAccountEffect?mid="+oProductCategory.id+"&mtype=150&ts="+tsv;
+    }
+    /*account head End */
+
+
+    $('#btnAllCategory').click(function(){
+        var oProductCategory = {ProductCategoryID : 0 };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ProductCategory/GetsAlcategory",
+            data: JSON.stringify(oProductCategory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                 
+                var oTProductCategory = jQuery.parseJSON(data);
+                if(oTProductCategory!=null)
+                {
+                    if(parseInt(oTProductCategory.id)>0)
+                    {
+                        RefreshList(oTProductCategory);
+                    }
+                    else
+                    {
+                        alert(oTProductCategory.text);
+                    }
+                }
+                else
+                {
+                    alert('Invalid Operations!');
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    });
+
+    $("#btnSetProperty").click(function(){
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0 )
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (oProductCategory.IsLastLayer==0)
+        {
+            alert("Please select a Last Layer item from list!");
+            return;
+        }        
+        var tsv=((new Date()).getTime())/1000;
+        var row = $('#tblProductCategoryTreeGrid').treegrid('getSelected');
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", row.id);
+        sessionStorage.setItem("ProductCategoryHeader", "Set Property");
+        window.location.href = _sBaseAddress+ "/ProductCategory/SetProperty?id="+oProductCategory.id+'&ts='+tsv;
+        ///
+        //var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        //if(oProductCategory==null || oProductCategory.id<=0 )
+        //{
+        //    alert("Please select a item from list!");
+        //    return;
+        //}
+        //if (oProductCategory.IsLastLayer==0)
+        //{
+        //    alert("Please select a Last Layer item from list!");
+        //    return;
+        //}
+        //var SelectedRowIndex=$('#tblProductCategoryTreeGrid').datagrid('getRowIndex',oProductCategory);
+        //var oParameter = new Object();
+        //var url =_sBaseAddress+ "/ProductCategory/SetProperty?id="+oProductCategory.id;
+        //window.showModalDialog(url, oParameter, 'dialogHeight:610px;dialogWidth:425px;dialogLeft:450;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+    $("#btnProductEntry").click(function(){
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0 )
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (oProductCategory.IsLastLayer==0)
+        {
+            alert("Please select a Last Layer item from list!");
+            return;
+        }
+
+        var tsv=((new Date()).getTime())/1000;
+        var row = $('#tblProductCategoryTreeGrid').treegrid('getSelected');
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", row.id);
+        sessionStorage.setItem("ProductCategoryHeader", "View ProductCategory");
+        window.location.href = _sBaseAddress+ "/Product/ViewProducts?nid="+oProductCategory.id+'&ts='+tsv;
+    });
+    $('#txtSearchByName').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        debugger;
+        var txtSearchByName = document.getElementById('txtSearchByName').value;
+        txtSearchByName = txtSearchByName + c;
+        var bFlag=false;
+        var sAccountHeadName="";
+        var rows = $('#tblProductCategoryTreeGrid').treegrid('getChildren',1);
+        for(i=0;i<rows.length;++i){
+            sAccountHeadName=rows[i]['text'].substring(0, txtSearchByName.length);
+            if(txtSearchByName.toUpperCase()==sAccountHeadName.toUpperCase())
+            {
+                var id=rows[i]['id'];
+                $('#tblProductCategoryTreeGrid').treegrid('select',id);
+                break;
+            }
+        }
+    });
+
+    function ClearNamefield()
+    {
+        $("#txtSearchByName")[0].value='';
+    }
+
+    $("#btnView").click(function(){
+
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var tsv=((new Date()).getTime())/1000;
+        sessionStorage.setItem("BackLink",  window.location.href);
+        var row = $('#tblProductCategoryTreeGrid').treegrid('getSelected');
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", row.id);
+        sessionStorage.setItem("ProductCategoryHeader", "View ProductCategory");
+
+        window.location.href = _sBaseAddress+ "/ProductCategory/ViewProductCategory?id="+oProductCategory.id+"&pid=0&ts="+tsv;
+
+
+    });
+
+    $("#btnEdit").click(function(){        
+        var oProductCategory= $('#tblProductCategoryTreeGrid').treegrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var row = $('#tblProductCategoryTreeGrid').treegrid('getSelected');
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", row.id);
+        sessionStorage.setItem("ProductCategoryHeader", "Edit ProductCategory");
+        sessionStorage.setItem("BackLink",  window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/ProductCategory/ViewProductCategory?id="+oProductCategory.id+"&pid=0&ts="+tsv;
+
+    });
+
+    $("#btnAdd").click(function(){
+
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oProductCategory.IsLastLayer==true)
+        {
+            alert("Can not add in under last layer!");
+            return;
+        }
+
+        var oProductCategorys=_oTProductCategory;
+        sessionStorage.setItem("ProductCategorys", JSON.stringify(oProductCategorys));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("ProductCategoryHeader", "Add ProductCategory");
+        sessionStorage.setItem("BackLink",  window.location.href);
+        var tsv=((new Date()).getTime())/1000;
+        window.location.href = _sBaseAddress+ "/ProductCategory/ViewProductCategory?id=0&pid="+oProductCategory.id+"&ts="+tsv;
+        //window.location.href = _sBaseAddress+ "/ProductCategory/ViewProductCategory?id="+0;
+
+
+    });
+
+    function RefreshList(oTProductCategory)
+    {
+        var data= [oTProductCategory];
+        data={"total":""+data.length+"","rows":data};
+        $('#tblProductCategoryTreeGrid').treegrid('loadData',data);
+    }
+
+    $("#btnDelete").click(function(){
+
+        var oProductCategory= $('#tblProductCategoryTreeGrid').datagrid('getSelected');
+        if(oProductCategory==null || oProductCategory.id<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if(oProductCategory.parentid==0)
+        {
+            alert("Root Deletion not possible !");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblProductCategoryTreeGrid').datagrid('getRowIndex',oProductCategory);
+        if (oProductCategory.id > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/ProductCategory/Delete",
+                data: { id: oProductCategory.id },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data Delete Successfully")
+                    {
+                        alert("Data Delete Successfully");
+                        $('#tblProductCategoryTreeGrid').treegrid('remove',oProductCategory.id);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+    function RefreshControlLayout()
+    {
+        document.getElementById('btnAdd').style.display = 'none';
+        document.getElementById('btnEdit').style.display = 'none';
+        document.getElementById('btnDelete').style.display = 'none';
+        document.getElementById('btnSetProperty').style.display = 'none';
+        document.getElementById('btnProductEntry').style.display = 'none';
+
+        if(HavePermission('Add','ProductCategory')){document.getElementById('btnAdd').style.display = ''; document.getElementById('btnProductEntry').style.display = ''; }
+        if(HavePermission('Edit','ProductCategory')){document.getElementById('btnEdit').style.display = '';}
+        if(HavePermission('Delete','ProductCategory')){document.getElementById('btnDelete').style.display = '';}
+        if(HavePermission('Add','Product')){document.getElementById('btnSetProperty').style.display = '';}
+        if(HavePermission('Add','Product')){document.getElementById('btnProductEntry').style.display = '';}
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        @*var nSessionID =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }*@
+    }
+</script>

@@ -1,0 +1,374 @@
+﻿@{
+    ViewBag.Title = "GRN Detail List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.GRNDetail>
+
+    <div id="divActCost" class="menuMainCollectionTable">
+        <table id="tblGRNDetail" title="GRNDetail List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="ImportLCNo" width="120">LC No</th>
+                    <th field="ImportInvoiceNo" width="120">Invoice No</th>
+                    <th field="GRNNo" width="120">GRN No</th>
+                    <th field="ProductName" width="150">Chessis No/ Product</th>
+                    <th field="CurrencySymbol" width="50">Currency</th>
+                    <th field="SupplierPrice" width="100" align="right" formatter="formatPrice5digit">Supplier Price </th>
+                    <th field="LCLandingCost" width="100" align="right" formatter="formatPrice5digit">LC Landing Cost</th>
+                    <th field="InvoiceLandingCost" width="100" align="right" formatter="formatPrice5digit">Invoice Landing Cost</th>
+                    <th field="ItemWiseLandingCost" width="100" align="right" formatter="formatPrice5digit">Item Landing Cost</th>
+                    <th field="UnitPrice" width="120" align="right" formatter="formatPrice5digit">Actual Costing</th>
+                    <th field="CustomerName" width="120">Customer</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="text" id="txtLC" placeholder="Enter LC" style="width:100px" onkeydown="LCKeyDown(event)" />
+            <a id="btnLC" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="PickLC()">P</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="ClearLC()">C</a>
+            GRN Date: <input id="txtGRNDateStart" name="txtGRNDateStart" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            To: <input id="txtGRNDateEnd" name="txtGRNDateEnd" type="text" style="width: 100px;" class="easyui-datebox" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <input type="text" id="txtProduct" placeholder="Enter Product" style="width:100px" onkeydown="ProductKeyDown(event)" />
+            <a id="btnProduct" href="javascript:void(0)" class="easyui-linkbutton" plain="true" iconcls="icon-ok" onclick="PickProduct()">P</a>
+            <a id="" href="javascript:void(0)" class="easyui-linkbutton" plain="true" iconcls="icon-cancel" onclick="ClearProduct()">C</a>
+            <a id="" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="Search()">Search</a>
+            <a id="" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="Costing()">Costing</a>
+        </div>
+    </div>
+
+
+
+<script type="text/javascript">
+var _oGRNDetail=[];
+var _sBaseAddress="";
+$(document).ready(function () {
+    debugger;
+    _oGRNDetail =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));  
+    
+    RefreshList(_oGRNDetail);
+});
+
+    function Search(){
+        if(!Validation()) return;
+        var ProductID = $("#divActCost").data("ProductIDs");
+        var LCID = $("#divActCost").data("ImportLCIDs");
+        var GRNStartDate = $("#txtGRNDateStart").datebox('getValue');
+        var GRNEndDate = $("#txtGRNDateEnd").datebox('getValue');
+        var ErrorMessage = ProductID+"~"+ LCID +"~"+ GRNStartDate +"~"+ GRNEndDate;
+        
+        var oGRN = {
+            ErrorMessage : ErrorMessage
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ActualCosting/Search",
+            traditional: true,
+            data: JSON.stringify(oGRN),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+
+                var oGRNDetail = jQuery.parseJSON(data);///////
+                debugger;
+                if(oGRNDetail!=null && oGRNDetail.length != 0)
+                {
+                    if(oGRNDetail.ErrorMessage=="" || oGRNDetail.ErrorMessage == null) {
+                        RefreshList(oGRNDetail, "tblGRNDetails");
+                    }
+                    else
+                    {
+                        alert(oGRNDetail.ErrorMessage);
+                    }
+                }
+                else
+                {
+                    alert("Data Not Found!");
+                }
+
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+    
+    function Validation(){
+        var ProductID = $("#divActCost").data("ProductIDs");
+        var LCID = $("#divActCost").data("ImportLCIDs");
+        var GRNStartDate = $("#txtGRNDateStart").datebox('getValue');
+        var GRNEndDate = $("#txtGRNDateEnd").datebox('getValue');
+        if(GRNEndDate < GRNStartDate){
+            alert('Start Date Shoul be greater!');
+            return;
+        }
+        if ((GRNStartDate == '' || GRNStartDate == '1900-01-01') && (GRNEndDate == '' || GRNEndDate == '1900-01-01') && (ProductID == undefined || ProductID == "" || ProductID == 0) && (LCID == undefined || LCID == "" || LCID == 0) ) {   
+            alert("Please Enter atleast one field !!");
+            return;
+        }
+        else { return true; }
+    }
+
+
+    function ProductKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtProduct").val();
+            if (oTxtName != null) {
+                PickProduct(oTxtName);
+            }
+        }
+    }
+    function PickProduct(oTxtName)
+    {
+        var oStyleSearch = {ProductName:(typeof(oTxtName) != 'undefined'?oTxtName:"")};//
+        console.log(oStyleSearch);
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch) ,
+            ControllerName: "ActualCosting", //TechnicalSheet
+            ActionName: "GetProduct",//ViewStyleSearch
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = { field: "ProductName", title: "Product Name", width: "200px", align: "left" }; tblColums.push(oColumn);
+                            var oColumn = { field: "ProductCode", title: "Product Code", width: "130px", align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('Product',obj,tblColums,true,'ProductName','ProductID'); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+    function SetProduct(oSelectedStyle) {
+        debugger;
+        var text = "";
+        var ids = "";
+        var len = oSelectedStyle.length;
+        for (var i = 0; i < len; i++) {
+            if (i != 0) {
+                text += ",";
+                ids += ",";
+            }
+            text += oSelectedStyle[i].ProductName;
+            ids += oSelectedStyle[i].ProductID;
+        }
+        if(oSelectedStyle.length == 0){
+            document.getElementById("txtProduct").value = '';
+        }
+        else if(oSelectedStyle.length == 1){
+            document.getElementById("txtProduct").value = oSelectedStyle[0].ProductName;
+        }
+        else{
+            document.getElementById("txtProduct").value = 'You Select ' + oSelectedStyle.length + ' items';
+        }
+
+        $("#divActCost").data("ProductIDs",ids);
+        console.log($("#divActCost").data("ProductIDs"));
+        $("#txtProduct").focus();
+    }
+
+
+    function LCKeyDown(event) {
+        //return;
+        if (event.which == 13) {
+            var oTxtName=$("#txtLC").val();
+            if (oTxtName != null) {
+                PickLC(oTxtName);
+            }
+        }
+    }
+    function PickLC(oTxtName)
+    {
+        var oStyleSearch = {ImportLCNo:(typeof(oTxtName) != 'undefined'?oTxtName:"")};//
+        console.log(oStyleSearch);
+        debugger;
+        var obj = {
+            BaseAddress:_sBaseAddress,
+            Object: (oStyleSearch) ,
+            ControllerName: "ActualCosting", //TechnicalSheet
+            ActionName: "GetLC",//ViewStyleSearch
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = { field: "ImportLCNo", title: "Import LC No", width: "330px", align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('LC',obj,tblColums,true,'ImportLCNo','ImportLCID'); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+    function SetLC(oSelectedStyle) {
+        debugger;
+        var text = "";
+        var ids = "";
+        var len = oSelectedStyle.length;
+        for (var i = 0; i < len; i++) {
+            if (i != 0) {
+                text += ",";
+                ids += ",";
+            }
+            text += oSelectedStyle[i].ImportLCNo;
+            ids += oSelectedStyle[i].ImportLCID;
+        }
+        if(oSelectedStyle.length == 0){
+            document.getElementById("txtLC").value = '';
+        }
+        else if(oSelectedStyle.length == 1){
+            document.getElementById("txtLC").value = oSelectedStyle[0].ImportLCNo;
+        }
+        else{
+            document.getElementById("txtLC").value = 'You Select ' + oSelectedStyle.length + ' items';
+        }
+
+        $("#divActCost").data("ImportLCIDs",ids);
+        console.log($("#divActCost").data("ImportLCIDs"));
+        $("#txtLC").focus();
+    }
+
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        debugger;
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winLC')
+        {
+            SetLC(oResult);
+        }
+        if (oPickerobj.winid == 'winProduct')
+        {
+            SetProduct(oResult);
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 90){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID)
+    {
+        debugger;
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        setInterval(updateProgress,250);
+
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0][pID] > 0) {
+                    debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    $("#progressbar").progressbar({ value: 0 });//hide
+                    $("#progressbarParent").hide();
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("Data Not Found.");
+                $("#progressbar").progressbar({ value: 0 });//hide
+                $("#progressbarParent").hide();
+                return;
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function ClearLC(){
+        $("#txtLC").val('');
+        $("#divActCost").data("ImportLCIDs",0);
+    }
+
+    function ClearProduct(){
+        $("#txtProduct").val('');
+        $("#divActCost").data("ProductIDs",0);
+    }
+
+    function Costing()
+    {
+        //debugger;
+        var oGRNDetail= $('#tblGRNDetail').datagrid('getSelected'); 
+        if(oGRNDetail==null || oGRNDetail.GRNDetailID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+    
+        window.open(_sBaseAddress + '/ActualCosting/Costing?GRNID='+oGRNDetail.GRNID + '&ProductID='+oGRNDetail.ProductID + '&GRNDetailID='+oGRNDetail.GRNDetailID); 
+    } 
+
+
+function PrintList()
+{
+    
+    //var oGRNDetail= $('#tblGRNDetail').datagrid('getRows'); 
+    //var ids ="";
+    //if(oGRNDetail.length >0)
+    //{    
+    //    for(var i =0;i<oGRNDetail.length;i++)
+    //    {
+    //        ids =ids+oGRNDetail[i].SizeCategoryID+",";
+    //    }
+    //    ids= ids.substring(0, ids.length - 1);
+    //}
+    //else
+    //{    
+    //    alert("Data not found ");
+    //    return;
+    //}
+    //window.open(_sBaseAddress + '/GRNDetail/PrintList?sIDs='+ids); 
+        
+} 
+    
+function RefreshList(oGRNDetail)
+{    
+    data=oGRNDetail;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblGRNDetail').datagrid('loadData',data);   
+    var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+    if(nID!=-1)
+    {
+        $('#tblGRNDetail').datagrid('selectRow', nID);
+    }
+}
+
+</script>

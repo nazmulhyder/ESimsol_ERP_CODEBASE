@@ -1,0 +1,189 @@
+﻿<html>
+<head>  
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script> 
+</head>
+<body>
+
+@model ESimSol.BusinessObjects.AccountingSession
+<div style="font-family:Tahoma">           
+<table border="0" cellspacing="2" cellpadding="2">
+    <tr>
+        <td style="background-color:#CFB53B; text-align:center; width:600px; color:White">
+            <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline"> Add Accounting Session </label>
+        </td>
+    </tr>
+</table>
+<div>
+    <fieldset>
+        <legend style="font-weight:bold"> Accounting Session Info : </legend>
+        <table border="0" cellpadding="2" cellspacing="2" style="font-size:11px; font-weight:bold">
+            <tr>
+                <td style="width:100px; text-align:right">Start Date :</td>
+                <td style="width:120px">@Html.TextBoxFor(model => model.StartDateString, new { style = "width: 110px;", id = "txtStartDate", disabled = "disabled" })</td>                    
+                <td style="width:80px"></td>
+                <td style="width:100px; text-align:right">End Date :</td>
+                <td style="width:120px"><input id="txtEndDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /></td>                
+            </tr> 
+            <tr>
+                <td style="width:100px; text-align:right">Session Name :</td>
+                <td colspan="4" style="width:440px">                   
+                    @Html.TextBoxFor(model => model.SessionName, new { style = "width: 450px;", id = "txtSessionName", disabled = "disabled" }) 
+                </td>                
+            </tr>          
+             <tr>
+                <td style="width:100px; text-align:right"> Active Time :</td>
+                <td style="width:120px">@Html.TextBoxFor(model => model.ActivationDateTimeString, new { style = "width: 110px;", id = "txtActivationTime", disabled = "disabled" })</td>
+                <td style="width:80px"></td>
+                <td style="width:120px; text-align:right">Lock Time :</td>
+                <td style="width:120px"><input id="txtLockTime" type="text" style="width: 110px;" class="easyui-timespinner" required="required" /></td>
+            </tr>     
+        </table>
+    </fieldset>
+</div>
+<fieldset>
+    <legend style="font-weight:bold"> Action : </legend>
+    <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+        <tr>
+            <td style="width:400px; text-align:right">
+            </td>
+            <td style="width:150px">                   
+                <a id="btnCommitLock" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-lock" plain="true">Commit Lock</a>
+                <a id="btnCommitUnLock" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-unlock" plain="true">Commit Un-Lock</a>
+            </td>
+            <td style="width:50px">
+                <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+            </td>
+        </tr>       
+    </table>
+</fieldset>
+</div>
+</body>
+</html>
+
+
+<script type="text/javascript"> 
+var _oAccountingSession=null;
+var _sBaseAddress=''; 
+var _sWindowName="";
+var _bIsLock =false;
+ $(document).ready(function () {
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oAccountingSession =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    $('#txtEndDate').datebox('setValue', _oAccountingSession.EndDateTimeString); 
+    $('#txtLockTime').timespinner('setValue', _oAccountingSession.LockDateTimeString); 
+    var obj = window.dialogArguments;  
+    _sWindowName=obj.Name; 
+    document.getElementById('lblHeaderName').innerHTML=obj.Name; 
+    if(obj.Name=="Session Lock")
+    {
+        _bIsLock=true;
+         document.getElementById("btnCommitUnLock").style.display = 'none';
+    }
+    else
+    {
+        document.getElementById("btnCommitLock").style.display = 'none';
+    }
+}); 
+ 
+function ValidateInput()
+{ 
+    if(_oAccountingSession.AccountingSessionID<=0)
+    {        
+        alert("Invalid Accounting Session!");        
+        return false;
+    }  
+    if(!_bIsLock)
+    {
+        var sEndDate = $('#txtEndDate').datebox('getValue');
+        var dEndDate=new Date(sEndDate);
+        var dPreEndDate=new Date(_oAccountingSession.EndDateTimeString)
+        if(dEndDate<=dPreEndDate)
+        {
+            alert("Session End Date Must be Grater Then "+ _oAccountingSession.EndDateTimeString);        
+            return false;
+        }
+    }  
+    return true; 
+}
+
+$("#btnCommitLock").click(function(){
+    if(!ValidateInput()) return;
+    var oAccountingSession=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : _sBaseAddress+  "/AccountingSession/LockUnLock",
+        traditional: true,
+        data:  JSON.stringify(oAccountingSession),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oTAccountingSession = jQuery.parseJSON(data);
+            if (oTAccountingSession.id>0) {                    
+                alert("Data Saved sucessfully");
+                window.returnValue = oTAccountingSession;
+                window.close();
+            }
+            else {
+                alert(oTAccountingSession.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+});
+
+$("#btnCommitUnLock").click(function(){
+    if(!ValidateInput()) return;
+    var oAccountingSession=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",            
+        url : _sBaseAddress+  "/AccountingSession/LockUnLock",
+        traditional: true,
+        data:  JSON.stringify(oAccountingSession),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oTAccountingSession = jQuery.parseJSON(data);
+            if (oTAccountingSession.id>0) {                    
+                alert("Data Saved sucessfully");
+                window.returnValue = oTAccountingSession;
+                window.close();
+            }
+            else {
+                alert(oTAccountingSession.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+
+    });
+});
+
+function RefreshObject()
+{  
+    var oAccountingSession={     
+        AccountingSessionID: _oAccountingSession.AccountingSessionID,
+        LockDateTime : $('#txtLockTime').timespinner('getValue'),
+        EndDate : $('#txtEndDate').datebox('getValue'),
+        IsLock: _bIsLock
+    };
+    return oAccountingSession;
+}
+
+ $("#btnClose").click(function(){
+     window.close();
+ });
+
+</script>

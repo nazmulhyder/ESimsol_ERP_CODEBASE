@@ -1,0 +1,402 @@
+﻿@model ESimSol.BusinessObjects.TrialBalance_Categorized
+    @{
+        ViewBag.Title = "Trial Balance";
+    }
+   
+    <div id="winReport" class="easyui-panel"  title="Trial Balance" style="margin-left: 0px; height: 100%; width:100%;" fit="true">
+        <div id="divTrialBalance_Categorized" style="height:100%;width:100%;">
+            <table id="tblTrialBalance_Categorizeds" class="easyui-datagrid" style="height:96.5%;width:100%;" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="AccountCode" width="17%" align="left" rowspan="2"> Account Code </th>
+                        <th field="AccountHeadName" width="47%" align="left" rowspan="2" formatter="FormatStyle">AccountHead Name</th>
+                        <th colspan="2">Closing Balance</th>
+                    </tr>
+                    <tr>
+                        <th field="DebitClosingBalanceSt" width="17%" align="right">Debit</th>
+                        <th field="CreditClosingBalanceSt" width="17%" align="right">Credit</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                From <input id="txtSettingFromDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                To <input id="txtSettingToDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:100px" />
+                <label id="lblAccountHeadName" for="txtAccountHeadName">Account Head :</label> <input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:219px;margin-left: 5px;" />
+                <select id="cboCurrency" style="width:90px;"></select>
+                <input type="checkbox" id="chkboxApproved" style="width:20px;" />Approved
+                <select id="cboBusinessUnit" style="width:200px"></select>
+                <a id="btnRefreshTBC" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPDF()">Print</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintXL()">Export To Excel</a>
+            </div>
+            <div style="height:10px;width:100%;">
+                <table style="height:100%;width:100%;">
+                    <tr>
+                        <td style="width:26px;"></td>
+                        <td style="width:64%;"></td>
+                        <td style="width:17%;text-align:right;">
+                            <label id="lblTBDebitBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:17%;text-align:right;">
+                            <label id="lblTBCreditBalance" style="font-weight:bold;">0.00</label>
+                        </td>
+                        <td style="width:38px;"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            debugger;
+        var oCompany= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Company));
+
+
+        var oTrialBalance_Categorized =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#divTrialBalance_Categorized').data('obj',oTrialBalance_Categorized);
+        $('#divTrialBalance_Categorized').data('objs',oTrialBalance_Categorized.TrialBalance_Categorizeds);
+
+        var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+        $("#cboCurrency").data('objs',oCurrencies);
+        $("#cboCurrency").icsLoadCombo({List: oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        $("#txtAccountHeadName").data('obj',oCOA);
+
+        var oBusinessUnits= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        $("#cboBusinessUnit").data('objs',oBusinessUnits);
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "Name", InitialValue : "--Select Business Unit--"});
+
+
+
+
+        sessionStorage.setItem("Company", JSON.stringify(oCompany));
+        sessionStorage.setItem("VoucherWindow", 'Close');
+
+        $('#txtSettingFromDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtSettingToDate').datebox('setValue', icsdateformat(new Date()));
+
+
+
+        ////refresh control
+        $('#txtSettingFromDate').datebox('setValue', oTrialBalance_Categorized.StartDateSt);
+        $('#txtSettingToDate').datebox('setValue', oTrialBalance_Categorized.EndDateSt);
+        $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+        $('#cboCurrency').val(oTrialBalance_Categorized.CurrencyID);
+        $('#cboBusinessUnit').val(oTrialBalance_Categorized.BusinessUnitID);
+        document.getElementById('chkboxApproved').checked =  oTrialBalance_Categorized.IsApproved;
+        if(oTrialBalance_Categorized.ParentAccountHeadID<=0){
+            $("#txtAccountHeadName").hide();
+            $('#lblAccountHeadName').hide();
+        }
+        else{
+            if(oTrialBalance_Categorized.AccountType===1){
+                $('#lblAccountHeadName').html('Component Name');
+            }else if(oTrialBalance_Categorized.AccountType===2){
+                $('#lblAccountHeadName').html('Segment Name');
+            }else if(oTrialBalance_Categorized.AccountType===3){
+                $('#lblAccountHeadName').html('Group Name');
+            }else if(oTrialBalance_Categorized.AccountType===4){
+                $('#lblAccountHeadName').html('SubGroup Name');
+            }else if(oTrialBalance_Categorized.AccountType===5){
+                $('#lblAccountHeadName').html('Ledger Name');
+            }
+        }
+        /////end refresh control
+
+        var sHeaderText=RefreshHeader();
+        $('#winReport').panel({ title:sHeaderText});
+        $('#Mainlayout').layout('collapse', 'west');
+
+        DynamicRefreshList(oTrialBalance_Categorized.TrialBalance_Categorizeds,'tblTrialBalance_Categorizeds');
+        RefreshTotalSummary(oTrialBalance_Categorized.TrialBalance_Categorizeds);
+
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsbyParentAndCodeName",
+            Object: {AccountHeadCodeName:'',ParentHeadID:oTrialBalance_Categorized.ParentAccountHeadID},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadCodeName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+    });
+        function RefreshHeader(){
+            var sHeaderText='';
+            if($('#txtAccountHeadName').data('obj') && $('#txtAccountHeadName').data('obj').AccountHeadID>0){
+                sHeaderText='Trial Balance || '+$('#txtAccountHeadName').data('obj').AccountHeadName;
+            }else{
+                sHeaderText='Trial Balance';
+            }
+        
+            if( parseInt($('#cboBusinessUnit').val()) &&  parseInt($('#cboBusinessUnit').val())>0){
+                var oBUs=$("#cboBusinessUnit").data('objs');
+                var sBUName='';
+                for (var i=0;i<oBUs.length;i++){
+                    if(parseInt($('#cboBusinessUnit').val())===oBUs[i].BusinessUnitID){
+                        sBUName=oBUs[i].Name;
+                    }
+                }
+                sHeaderText=sHeaderText+' || '+sBUName+' || "'+$('#txtSettingFromDate').datebox('getValue')+'" to "'+$('#txtSettingToDate').datebox('getValue')+'"';
+
+            }else{
+                sHeaderText=sHeaderText+' || '+jQuery.parseJSON(sessionStorage.getItem("Company")).Name+' || "'+$('#txtSettingFromDate').datebox('getValue')+'" to "'+$('#txtSettingToDate').datebox('getValue')+'"';
+            }
+            return sHeaderText;
+        }
+        function FormatStyle(value,row,index){
+            debugger;
+            var s='';
+            var param='';
+            if(value!='Opening Balance'){
+                if(row.AccountType<5){
+                    param=row.AccountHeadID+","+row.ParentAccountHeadID+","+row.AccountType;
+                    s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="TBC('+param+')">'+value+'</label>';
+                }else if(row.AccountType===5){
+                    param=row.AccountHeadID;
+                    s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="GLMonthly('+param+')">'+value+'</label>';
+                }
+            }
+            else{
+                s=value;
+            }
+            return s;
+        }
+      
+        function GLMonthly(nAccountHeadID)
+        {
+            var oGeneralLedger = {
+                AccountHeadID : parseInt(nAccountHeadID),
+                BusinessUnitID:parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0,
+                StartDate : $('#txtSettingFromDate').datebox('getValue'),
+                EndDate : $('#txtSettingToDate').datebox('getValue'),
+                CurrencyID : parseInt($('#cboCurrency').val()),
+                IsApproved:$('#chkboxApproved').is(':checked')
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/GeneralLedger/SetMonthlyGLSessionData",
+                traditional: true,
+                data:  JSON.stringify(oGeneralLedger),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem("BaseAddress")+ "/GeneralLedger/ViewGLMonthlySummary?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+
+
+        }
+        
+        function TBC(nAccountHeadID, nParentAccountHeadID, nAccountType)
+        {
+            debugger;
+            var sPageAction=PageActionName(nAccountType);
+            if(sPageAction===''){return false;}
+            var oTrialBalance_Categorized = {
+                AccountHeadID : nAccountHeadID,
+                ParentAccountHeadID:nParentAccountHeadID,
+                AccountType:nAccountType,
+                BusinessUnitID:parseInt($('#cboBusinessUnit').val())?parseInt($('#cboBusinessUnit').val()):0,
+                StartDate : $('#txtSettingFromDate').datebox('getValue'),
+                EndDate : $('#txtSettingToDate').datebox('getValue'),
+                CurrencyID : parseInt($('#cboCurrency').val()),
+                IsApproved:$('#chkboxApproved').is(':checked')
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/TrialBalance_Categorized/SetTBCSessionData",
+                traditional: true,
+                data:  JSON.stringify(oTrialBalance_Categorized),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);                
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem("BaseAddress")+ "/TrialBalance_Categorized/"+sPageAction+"?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+
+        
+        }
+
+        function PageActionName(nAccountType){
+            var sPageAction='';
+            if(nAccountType<=0){
+                sPageAction='ViewComponentTBCs';
+            }else if(nAccountType===1){
+                sPageAction='ViewSegmentTBCs';
+            }else if(nAccountType===2){
+                sPageAction='ViewGroupTBCs';
+            }else if(nAccountType===3){
+                sPageAction='ViewSubGroupTBCs';
+            }else if(nAccountType===4){
+                sPageAction='ViewLedgerTBCs';
+            }
+            return sPageAction;
+        }
+
+        function RefreshTotalSummary(objs){
+            var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+            sParamDebit='DebitClosingBalance';
+            sParamCredit='CreditClosingBalance';
+            sLabelDebit='lblTBDebitBalance';
+            sLabelCredit='lblTBCreditBalance';
+        
+            for(var i=0;i<objs.length;i++){
+                nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+                nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+            }
+            nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+            nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+            $('#'+sLabelDebit).html(nDebit);
+            $('#'+sLabelCredit).html(nCredit);
+        }
+        function PrintPDF(){
+            var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+            var sEndDate=$('#txtSettingToDate').datebox('getValue');
+            var nBusinessUnitID=parseInt($("#cboBusinessUnit").val())?parseInt($("#cboBusinessUnit").val()):0;
+            var sHeader=RefreshHeader();
+            var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+            var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+            var bIsApproved=$('#chkboxApproved').is(':checked');
+       
+
+       
+            var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+nBusinessUnitID+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+            window.open(sessionStorage.getItem("BaseAddress")+'/TrialBalance_Categorized/PrintTBCs?Params=' +sParam, "_blank");
+        }
+        function PrintXL(){
+            var sStartDate= $('#txtSettingFromDate').datebox('getValue');
+            var sEndDate=$('#txtSettingToDate').datebox('getValue');
+            var nBusinessUnitID=parseInt($("#cboBusinessUnit").val())?parseInt($("#cboBusinessUnit").val()):0;
+            var sHeader=RefreshHeader();
+            var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0
+            var nCurrencyID=parseInt($('#cboCurrency').val())?parseInt($('#cboCurrency').val()):0;
+            var bIsApproved=$('#chkboxApproved').is(':checked');
+       
+
+       
+            var sParam=nAccountHeadID+'~'+sStartDate+'~'+sEndDate+'~'+nBusinessUnitID+'~'+nCurrencyID+'~'+bIsApproved+'~'+sHeader;
+            window.open(sessionStorage.getItem("BaseAddress")+'/TrialBalance_Categorized/ExportTBCsToExcel?Params=' +sParam, "_blank");
+        }
+
+        $('#btnRefreshTBC').click(function(){
+            if(!ValidateInput()){return false;}
+            RefreshData();
+        });
+        function ValidateInput()
+        {
+            if ( $('#txtSettingFromDate').datebox('getValue')=="") {
+                alert("please select Start date!");
+                $('#txtSettingFromDate').focus();
+                return false;
+            }
+
+            if ( $('#txtSettingToDate').datebox('getValue')=="") {
+                alert("Please select end date!!");
+                $('#txtSettingToDate').focus();
+                return false;
+            }
+
+            var sStartDate=$('#txtSettingFromDate').datebox('getValue');
+            var sEndDate = $('#txtSettingToDate').datebox('getValue');
+            var dStartDate = new Date(sStartDate);
+            var dEndDate = new Date(sEndDate);
+
+            if(dEndDate < dStartDate) {
+                alert("End date must be grater then start date!!");
+                $('#txtSettingToDate').focus();
+                return false;
+            }
+
+            if($('#divTrialBalance_Categorized').data('obj') && $('#divTrialBalance_Categorized').data('obj').ParentAccountHeadID>0){
+                if ((!$('#txtAccountHeadName').data('obj') || $('#txtAccountHeadName').data('obj') == null) ) {
+                    alert("Please select Account Head!");
+                    $('#txtAccountHeadName').focus();
+                    return false;
+                }
+
+                if ((!parseInt($('#txtAccountHeadName').data('obj').AccountHeadID) || parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)<=0) ) {
+                    alert("Please select Account Head!");
+                    $('#txtAccountHeadName').focus();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+
+   
+
+   
+        function RefreshData(){
+            debugger;
+            var nAccountHeadID,nBUID,nCCID=0;
+            var sHeaderText,sControllerName,sActionName,sStartDate,sEndDate='';
+            var obj={};
+
+            nBUID=parseInt($("#cboBusinessUnit").val())?parseInt($("#cboBusinessUnit").val()):0;
+            sControllerName='TrialBalance_Categorized';
+            
+
+
+            sStartDate=$('#txtSettingFromDate').datebox('getValue');
+            sEndDate=$('#txtSettingToDate').datebox('getValue');
+
+            nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+            nAccountType=parseInt($('#txtAccountHeadName').data('obj').AccountType)?parseInt($('#txtAccountHeadName').data('obj').AccountType):0;
+            var nParentHeadID=parseInt($('#txtAccountHeadName').data('obj').ParentHeadID)?parseInt($('#txtAccountHeadName').data('obj').ParentHeadID):0;
+        
+            sActionName=PageActionName(nAccountType);
+            sHeaderText=RefreshHeader();
+
+            if(sActionName===''){return false;}
+
+        
+        
+            obj={
+                AccountHeadID:nAccountHeadID,
+                AccountType:nAccountType,
+                ParentAccountHeadID:nParentHeadID,
+                StartDate:sStartDate,
+                EndDate:sEndDate,
+                BusinessUnitID:nBUID,
+                CurrencyID:parseInt($('#cboCurrency').val()),
+                IsApproved:$('#chkboxApproved').is(':checked')
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem("BaseAddress")+  "/TrialBalance_Categorized/SetTBCSessionData",
+                traditional: true,
+                data:  JSON.stringify(obj),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);                
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem("BaseAddress")+ "/TrialBalance_Categorized/"+sActionName+"?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+
+        }
+    
+    </script>
+    

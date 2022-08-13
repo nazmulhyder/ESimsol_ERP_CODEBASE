@@ -1,0 +1,166 @@
+﻿@{
+    ViewBag.Title = "Master LC list";
+}
+@model ESimSol.BusinessObjects.LCTransfer
+<div class=" menuMainCollectionTable">
+    <table id="tblLCTransfer" title="LC Transfer List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="RefNo" width="150" align="left">Ref. No </th>
+                <th field="TransferIssueDateInString" width="100" align="left">Issue Date</th>
+                <th field="ProductionFactoryName" width="120"> Prod. Factory </th>
+                <th field="TransferNo" width="100" align="left">Transfer No</th>
+                <th field="TransferDateInString" width="100" align="left">Transfer Date</th>
+                <th field="ApprovedByName" width="100" align="left">Approve By</th>
+                <th field="TransferAmount" width="100" align="right" formatter="formatPrice">Total Amount </th>
+                <th field="CommissionAmount" width="100" align="right" formatter="formatPrice">Comm. Amount</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar">
+        <select id="cboSession" style="width:200px;"></select>
+        <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+        <a id="btnDetails" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="View()">View</a>
+        <a id="btnPreView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintPreview()">Preview</a>
+        <select id="cboReportLayout" style="width:200px; font-size: 12px"></select><a id="btnAPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintMISReport()">Print</a>
+    </div>
+</div>
+<script type="text/javascript">
+    var _oLCTransfer = null;
+    var _oLCTransfers = [];
+    var _sBaseAddress ="";
+    var _oReportLayouts = [];
+    var _oBussinessSessions = [];
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oLCTransfer =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oReportLayouts = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.ReportLayouts));
+        _oBussinessSessions = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.BussinessSessions));
+        $("#cboSession").icsLoadCombo({ List: _oBussinessSessions, OptionValue: "BusinessSessionID", DisplayText: "SessionName" });
+        $("#cboReportLayout").icsLoadCombo({ List: _oReportLayouts, OptionValue: "ReportTypeInInt", DisplayText: "ReportName" });
+         
+    });
+
+
+
+function AdvanceSearch()
+{
+    if( $("#cboSession").val()<=0)
+    {
+        alert("Please  Select Sesion");
+        $("#cboSession").focus();
+        return;
+    }
+    $.ajax({
+        type: "GET",
+        dataType: "json",
+        url: '@Url.Action("GetsBySession", "LCTransfer")',
+        data: { nBSessionID: $("#cboSession").val() },
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            _oLCTransfers = jQuery.parseJSON(data);
+            if (_oLCTransfers!= null) {
+                if(_oLCTransfers.length>0)
+                {
+                    RefreshList(_oLCTransfers);
+                }
+                else
+                {
+                    alert("Data not found!!");
+                    RefreshList([]);
+                }
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+    
+
+}
+
+
+
+function RefreshList(oLCTransfers)
+  {
+          data=oLCTransfers;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblLCTransfer').datagrid('loadData',data);
+ }
+
+
+ function View()
+ {
+
+        var oLCTransfer = $('#tblLCTransfer').datagrid('getSelected');
+        if(oLCTransfer==null || oLCTransfer.LCTransferID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var oParameter = new Object();
+        oParameter.Name = "View LC Transfer";
+        var tsv=((new Date()).getTime())/1000;
+        var url = _sBaseAddress+"/LCTransfer/ViewLCTransfer?nMasterLCID="+0+"&nLCTransferID="+oLCTransfer.LCTransferID+"&ts="+tsv;
+        var oLCTransfer = window.showModalDialog(url, oParameter,  'dialogHeight:600px;dialogWidth:950px;dialogLeft:200;dialogTop:10;center:yes;resizable:yes;status:no;scroll:yes');
+
+ }
+
+
+
+
+
+function PrintPreview()
+{
+   var oLCTransfer= $('#tblLCTransfer').datagrid('getSelected');
+    if(oLCTransfer==null || parseInt(oLCTransfer.LCTransferID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    window.open(_sBaseAddress + '/LCTransfer/PrintLCTransferPreview?id='+oLCTransfer.LCTransferID);
+    window.close();
+}
+
+
+function PrintMISReport()
+{
+    
+    if( $("#cboSession").val()<=0)
+    {
+        alert("Please  Select Sesion");
+        $("#cboSession").focus();
+        return;
+    }
+    var cboReportLayout = document.getElementById("cboReportLayout");
+    var nReportLayout = cboReportLayout.options[cboReportLayout.selectedIndex].value;
+    if(parseInt(nReportLayout)<=0)
+    {
+        alert("Please select Report Layout");
+        $("#cboReportLayout").focus();
+        return;
+    }
+   
+    var sParam = $("#cboSession").val()+"~"+$( "#cboSession option:selected" ).text()+"~"+nReportLayout+"~"+GetReportNo(nReportLayout);
+    window.open(_sBaseAddress + '/LCTransfer/MISReports?Param='+sParam);
+}
+
+   function GetReportNo(nReportLayout)
+   {
+        for(var i = 0; i<_oReportLayouts.length;i++)
+        {
+            if(parseInt(_oReportLayouts[i].ReportTypeInInt) == parseInt(nReportLayout))
+            {
+                return _oReportLayouts[i].ReportNo;
+            }
+        }
+        return "";
+   }
+
+
+
+
+</script>

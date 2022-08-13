@@ -1,0 +1,534 @@
+﻿<html>
+<head>
+
+</head>
+<body>
+    @model ESimSol.BusinessObjects.TAPTemplate
+    <div class="menuMainCollectionTable">
+        <fieldset style=" width:97%;">
+            <legend style="font-weight: bold;">Time Action Plan Template Info: </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width:100%; font-weight: bold">
+                <tr>
+                    <td style="width: 20%; text-align: right">
+                        Template No :
+                    </td>
+                    <td style="width: 80%; font-size:12px;">
+                        <table border="0" cellpadding="0" cellspacing="0" style="font-size: 12px; width:100%; font-weight:bold;">
+                            <tr>
+                                <td style="width:25%; text-align:left;">@Html.TextBoxFor(model => model.TemplateNo, new { style = "width:100%;", id = "txtTemplateNo", disabled = "disabled" })</td>
+                                <td style="width:25%; text-align:right;">Template Name:</td>
+                                <td style="width:50%; text-align:left;">@Html.TextBoxFor(model => model.TemplateName, new { style = "width:100%;", id = "txtTemplateName" })</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="width: 20%; text-align: right">
+                        Type:
+                    </td>
+                    <td style="width:80%">
+                        <table border="0" cellpadding="0" cellspacing="0" style="font-size: 12px; width:100%; font-weight:bold;">
+                            <tr>
+                                <td style="width:25%; text-align:left;"><select id="cboTampleteType" style="width:100%"><option value="0">Sweater</option><option value="1">Knit</option><option value="2">Woven</option> </select></td>
+                                <td style="width:25%; text-align:right;">Note:</td>
+                                <td style="width:50%; text-align:left;">@Html.TextBoxFor(model => model.Remarks, new { style = "width:100%;", id = "txtRemarks" })</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+        <div style="margin-left:3px; margin-top:2px;">
+            <table id="tblTAPTemplateDetail" class="easyui-treegrid" title="Template Details" style="width:100%;height:405px" fitcolumns="true" pagination="false" singleselect="true" autorowheight="false" data-options="idField:'id',treeField:'text', rownumbers:'true', toolbar:'#TAPTemplateDetailstoolbar'">
+                <thead>
+                    <tr>
+                        <th field="text" width="120">Step Name</th>
+                        <th field="SequenceInString" width="100">Sequence</th>
+                        <th align="center" width="120" data-options="field:'BeforeShipment',align:'center',editor:{type:'numberbox',options:{precision:0}}">Before Shipment(Days)</th>
+                        <th width="100" data-options="field:'Remarks',align:'center',editor:{type:'text',options:{precision:0}}">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="TAPTemplateDetailstoolbar" style="text-align:left; font-weight:normal">
+                <a href="javascript:void(0)" id="btnAddDetail" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="AddOrderStep()">Add Order Step</a>
+                <a href="javascript:void(0)" id="btnRemoveDetail" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="RemoveStep()">Remove</a>
+                <a href="javascript:void(0)" id="btnUp" class="easyui-linkbutton" iconcls="icon-up" plain="true" onclick="UP()">Up</a>
+                <a href="javascript:void(0)" id="btnDown" class="easyui-linkbutton" iconcls="icon-down" plain="true" onclick="Down()">Down</a>
+                <a href="javascript:void(0)" id="btnRefresh" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshGrid()">Refresh</a>
+            </div>
+        </div>
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold;width:100%">
+                <tr>
+                    <td style="width: 85%; text-align: right"></td>
+                    <td style="width:8%">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-paste" plain="true" onclick="Save(false,false)">Paste</a>
+                    </td>
+                    <td style="width:7%">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oTAPTemplate=null;
+    var _sBaseAddress="";
+    var _oSelectedYarn = null;
+    var _oSelectedColorCategorys = [];
+    var _oTAPTemplateDetails = [];
+    var _oInitialTAPTemplateDetails = [];
+    var _objName =""
+    $(document).ready(function () {
+        //debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oTAPTemplate =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oTAPTemplateDetails = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.TAPTemplateDetails));
+        _objName = sessionStorage.getItem("TAPTemplateHeader");
+       $('#tblTAPTemplateDetail').treegrid({onClickRow:function(row){debugger;onClickTreeGridRow(row);}});
+        RefreshControl();
+    });
+
+    function RefreshControl()
+    {
+      //  debugger;
+        RefreshList(_oTAPTemplate.TTAPTemplateDetail.children);
+        $('#tblTAPTemplateDetail').treegrid('collapseAll',0);
+        _oTAPTemplate.TAPTemplateID = 0;//Reset TAP Template
+        $("#cboTampleteType").val(_oTAPTemplate.TampleteType);
+    }
+
+    function RefreshList(oTTAPTemplateDetail)
+    {
+        data=oTTAPTemplateDetail;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblTAPTemplateDetail').treegrid('loadData',data);
+    }
+
+
+
+    function AddOrderStep()
+    {
+
+        var oOrderStep = {Note:'N/A'};
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oOrderStep,
+            ControllerName: "OrderStep",
+            ActionName: "GetOrderSteps",
+            IsWinClose: false
+        };
+        $.icsDataGets(obj, function (response) {
+            debugger;
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].OrderStepID > 0) {
+                    debugger;
+                    var tblColums = []; var oColumn = { field: "OrderStepName", title: "Order Step Name", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "Note", title: "Note", width: 100, align: "left" }; tblColums.push(oColumn);
+                    var oPickerParam = {
+                        winid: 'winOrderSteps',
+                        winclass: 'clsOrderStep',
+                        winwidth: 600,
+                        winheight: 460,
+                        tableid: 'tblOrderSteps',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: true,
+                        searchingbyfieldName: 'OrderStepName',
+                        windowTittle: 'Oder Step Picker'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+        });
+
+    }
+
+
+    function UP()
+    {
+        debugger;
+        var oTAPTemplateDetail = $('#tblTAPTemplateDetail').treegrid('getSelected');
+        if(_oTAPTemplate.TAPTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if(oTAPTemplateDetail==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+        if(parseInt(oTAPTemplateDetail.Sequence)<=1)
+        {
+            return;
+        }
+        oTAPTemplateDetail.bIsUp=true;
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/TAPTemplate/UpDown",
+            traditional: true,
+            data:  JSON.stringify(oTAPTemplateDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oTAPTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oTAPTemplate.TAPTemplateID)>0)
+                {
+                    RefreshList(_oTAPTemplate.TTAPTemplateDetail.children);
+                }
+                else {
+                    alert(_oTAPTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+
+    function Down()
+    {
+        debugger;
+        debugger;
+        var oTAPTemplateDetail = $('#tblTAPTemplateDetail').treegrid('getSelected');
+        if(_oTAPTemplate.TAPTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if(oTAPTemplateDetail==null)
+        {
+            alert("Please select Item");
+            return;
+        }
+
+        oTAPTemplateDetail.bIsUp=false;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/TAPTemplate/UpDown",
+            traditional: true,
+            data:  JSON.stringify(oTAPTemplateDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oTAPTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oTAPTemplate.TAPTemplateID)>0)
+                {
+                    RefreshList(_oTAPTemplate.TTAPTemplateDetail.children);
+                }
+                else {
+                    alert(_oTAPTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+    function RefreshGrid()
+    {
+        RefreshList(_oTAPTemplate.TTAPTemplateDetail.children);
+    }
+
+    function RemoveStep()
+    {
+        debugger;
+        var oTAPTemplateDetail= $('#tblTAPTemplateDetail').treegrid('getSelected');
+        if(oTAPTemplateDetail==null || oTAPTemplateDetail.TAPTemplateDetailID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return;
+        }
+        if(oTAPTemplateDetail.parentid!=1)
+        {
+            alert("please select Head Step !");
+            return;
+        }
+        if(_oTAPTemplate.TAPTemplateID<=0)
+        {
+            alert("Plese Save First. Then Delete. ");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        $('#tblTAPTemplateDetail').treegrid('remove',oTAPTemplateDetail.id);
+        alert("Delete sucessfully");
+        Save(false,true);
+
+    }
+
+
+    function IntializePickerbutton(oPickerobj) {
+        debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            debugger;
+            //for Single Select
+            PickerEvents(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                PickerEvents(oPickerobj);
+            }
+        });
+    }
+    function PickerEvents(oPickerobj) {
+        var oreturnobj = null, oreturnobjs = [];
+        if(oPickerobj.multiplereturn)
+        {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        }else{
+            oreturnobj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+        if(oPickerobj.winclass=='clsOrderStep')
+        {
+            debugger;
+            if(oreturnobjs!=null)
+            {
+                _oInitialTAPTemplateDetails = [];
+                for(var i=0;i<oreturnobjs.length;i++)
+                {
+                    if(!IsExist(oreturnobjs[i].OrderStepID))
+                    {
+                        var oTAPTemplateDetail = {
+                            TAPTemplateDetailID: 0,
+                            TAPTemplateID:_oTAPTemplate.TAPTemplateID,
+                            OrderStepID :oreturnobjs[i].OrderStepID,
+                            Sequence :0,
+                            BeforeShipment : 0,
+                            Remarks:''
+                        };
+                        _oInitialTAPTemplateDetails.push(oTAPTemplateDetail);
+                    }
+                }
+                if( _oInitialTAPTemplateDetails.length>0)
+                {
+                    Save(true,false);
+                }
+            }
+        }
+    }
+
+
+    function IsExist(nOrderStepID)
+    {
+        debugger;
+        var oTAPTemplateDetails = $('#tblTAPTemplateDetail').treegrid('getData');
+        for(var i = 0;i<oTAPTemplateDetails.length;i++)
+        {
+            if(parseInt(oTAPTemplateDetails[i].OrderStepID)== parseInt(nOrderStepID))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    var editid = undefined;
+    function endEditing(){
+        debugger;
+        if (editid == undefined){return true}
+        if ($('#tblTAPTemplateDetail').treegrid('validateRow', editid)){
+            $('#tblTAPTemplateDetail').treegrid('endEdit', editid);
+            $('#tblTAPTemplateDetail').treegrid('select',editid);
+            var oTAPTemplateDetail=$('#tblTAPTemplateDetail').treegrid('getSelected');
+            $('#tblTAPTemplateDetail').treegrid('update',{id: editid,	row: oTAPTemplateDetail});
+            editid = undefined;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    function onClickTreeGridRow(row){
+        debugger;
+        if (editid != row.id){
+            if (endEditing())
+            {
+                $('#tblTAPTemplateDetail').treegrid('select', row.id).treegrid('beginEdit', row.id);
+                editid = row.id;
+            }
+            else
+            {
+                $('#tblTAPTemplateDetail').treegrid('select', editid);
+            }
+        }
+    }
+
+
+    function ValidateInput()
+    {
+        debugger;
+        var oTAPTemplates = $('#tblTAPTemplateDetail').treegrid('getData');
+        if(oTAPTemplates.length<=0)
+        {
+            alert("Please add at least One Detail");
+            return false;
+        }
+        return true;
+    }
+
+    function GetTAPTemplateDetails()
+    {
+        debugger;
+        var oTAPTemplateDetails = $('#tblTAPTemplateDetail').treegrid('getData');
+        var oTempTAPTemplateDetails= [];
+        if(oTAPTemplateDetails.length>0)
+        {
+            for(var i =0;i<oTAPTemplateDetails.length;i++)
+            {
+                var oTAPTemplateDetail= {
+                    TAPTemplateDetailID :oTAPTemplateDetails[i].TAPTemplateDetailID,
+                    TAPTemplateID:_oTAPTemplate.TAPTemplateID,
+                    OrderStepID :oTAPTemplateDetails[i].id,
+                    Sequence :oTAPTemplateDetails[i].Sequence,
+                    BeforeShipment :oTAPTemplateDetails[i].BeforeShipment,
+                    Remarks :oTAPTemplateDetails[i].Remarks
+                };
+                if(_oTAPTemplate.TAPTemplateID<=0)
+                {
+                    oTAPTemplateDetail.TAPTemplateDetailID = 0;//for  first time save
+                }
+                oTempTAPTemplateDetails.push(oTAPTemplateDetail);
+                var oTempChildrens =oTAPTemplateDetails[i].children;
+                for(var j = 0; j<oTempChildrens.length;j++)
+                {
+                    var oTAPTemplateDetail= {
+                        TAPTemplateDetailID :oTempChildrens[j].TAPTemplateDetailID,
+                        TAPTemplateID:_oTAPTemplate.TAPTemplateID,
+                        OrderStepID :oTempChildrens[j].id,
+                        Sequence :oTempChildrens[j].Sequence,
+                        BeforeShipment :oTempChildrens[j].BeforeShipment,
+                        Remarks :oTempChildrens[j].Remarks
+                    };
+                    if(_oTAPTemplate.TAPTemplateID<=0)
+                    {
+                        oTAPTemplateDetail.TAPTemplateDetailID = 0;//for  first time save
+                    }
+                    oTempTAPTemplateDetails.push(oTAPTemplateDetail);
+                }
+            }
+        }
+        return oTempTAPTemplateDetails;
+    }
+
+    function RefreshObject()
+    {
+        var oTAPTemplate= {
+            TAPTemplateID :_oTAPTemplate.TAPTemplateID,
+            TemplateName :$("#txtTemplateName").val(),
+            TemplateNo :_oTAPTemplate.TemplateNo,
+            Remarks :$("#txtRemarks").val(),
+            TampleteType:$("#cboTampleteType").val(),
+            TAPTemplateDetails :GetTAPTemplateDetails()
+        };
+        return oTAPTemplate;
+    }
+
+    function InitalRefreshObject()
+    {
+        var oTAPTemplate= {
+            TAPTemplateID :_oTAPTemplate.TAPTemplateID,
+            TemplateName :$("#txtTemplateName").val(),
+            TemplateNo :_oTAPTemplate.TemplateNo,
+            Remarks :$("#txtRemarks").val(),
+            TampleteType:$("#cboTampleteType").val(),
+            bIsInitialSave:true,
+            TAPTemplateDetails : _oInitialTAPTemplateDetails
+        };
+        return oTAPTemplate;
+    }
+
+
+    function Save(bIsInitialSave, bIsForRemove)
+    {
+        debugger;
+        var oTAPTemplate =  null;
+        if(!bIsInitialSave)
+        {
+            if(!bIsForRemove)//if not Call from remove function
+            {
+                endEditing();
+            }
+            if(!ValidateInput()) return;
+            oTAPTemplate=RefreshObject();
+
+        }else{
+            oTAPTemplate=InitalRefreshObject();
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/TAPTemplate/Save",
+            traditional: true,
+            data:  JSON.stringify(oTAPTemplate),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                _oTAPTemplate = jQuery.parseJSON(data);
+                if (parseInt(_oTAPTemplate.TAPTemplateID)>0)
+                {
+                    if(!bIsInitialSave && !bIsForRemove)
+                    {
+                        alert("Data Saved sucessfully");
+                        var oTAPTemplates = sessionStorage.getItem("TAPTemplates");
+                        var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if (oTAPTemplates != null) {
+                            oTAPTemplates = jQuery.parseJSON(oTAPTemplates);
+                        }
+                        else {
+                            oTAPTemplates = [];
+                        }
+                        if (nIndex != -1) {
+                            oTAPTemplates[nIndex] = _oTAPTemplate;
+                        }
+                        else {
+                            sessionStorage.setItem("SelectedRowIndex", oTAPTemplates.length);
+                            oTAPTemplates.push(_oTAPTemplate);
+                        }
+                        sessionStorage.setItem("TAPTemplates", JSON.stringify(oTAPTemplates));
+                        window.location.href = sessionStorage.getItem("BackLink");//
+                    }else{
+                        //  RefreshList(_oTAPTemplate.TTAPTemplateDetail.children);
+                        window.location.href = _sBaseAddress+ "/TAPTemplate/ViewTAPTemplate?id="+_oTAPTemplate.TAPTemplateID;
+                    }
+                }
+                else {
+                    alert(_oTAPTemplate.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+
+  
+
+</script>

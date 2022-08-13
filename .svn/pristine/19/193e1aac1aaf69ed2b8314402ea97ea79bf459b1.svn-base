@@ -1,0 +1,428 @@
+﻿@{
+    ViewBag.Title = "Voucher Bill Aging";
+}
+@model ESimSol.BusinessObjects.VoucherBill
+
+
+
+<div id="winBillSlabs" class="easyui-window" title="Bill Slabs" data-options="modal:true,closed:true,collapsible:false,minimizable:false,maximizable:false,closable:false">
+    <fieldset style="margin-top:2px">
+        <div style="height:253px;width:300px;">
+            <table id="tblBillSlabs" class="easyui-datagrid" style="height:100%;width:100%;" fit="true" showheader="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false"
+                   data-options="onClickRow: onClickRow">
+                <thead>
+                    <tr>
+                        <th field="Start" width="35%" align="left">Start</th>
+                        <th field="Separator" width="30%" align="center">Separator</th>
+                        <th field="End" width="35%" align="left" data-options="editor:{type:'numberbox',options:{precision:0}}" formatter="FormatLastRow">End</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </fieldset>
+    <fieldset style="text-align:right">
+        <legend>Actions : </legend>
+        <a id="btnAddSlab" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true"></a>
+        <a id="btnRemoveSlab" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true"></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+        <a id="btnBillSlabOK" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true" onclick="return ChooseBillSlabs()">OK</a>
+        <a id="btnBillSlabClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+    </fieldset>
+</div>
+<div id="divVoucherBills" style="margin-left: 0px; height: 100%; width:100%">
+    <table id="tblVoucherBills" title="Voucher Bill List" class="easyui-datagrid" style="width:100%; height:96.5%;" showfooter="true" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar"></table>
+    <div id="toolbar">
+        <select id="cboBusinessUnit" style="width:150px;"></select>
+        <select id="cboDueType" style="width:100px;"><option value="1">AllBill</option><option value="2">OverDueBill</option></select>
+        Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:219px;margin-left: 5px;" />
+        Sub Ledger :<input type="text" style=" width:284px;" id="txtCostCneterName" placeholder="Type Sub Ledger Name" />
+        <select id="cboCurrency" style="width:90px;"></select>
+        <a id="btnBillSlabs" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-pick" plain="true" onclick="OpenBillSlabs()">Configure Slabs</a>
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+        @*<a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>*@
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        debugger;
+        var oVoucherBill =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        var oCC= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CC));
+
+        $('#divVoucherBills').data('obj',oVoucherBill);
+        $("#cboCurrency").data('objs',oCurrencies);
+        $("#txtAccountHeadName").data('obj',oCOA);
+        $("#txtCostCneterName").data('obj',oCC);
+        $("#cboBusinessUnit").data('BusinessUnits',oBusinessUnits);
+
+        $("#cboCurrency").icsLoadCombo({List: oCurrencies,OptionValue: "CurrencyID",DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Business Unit--"});
+
+        sessionStorage.setItem("BillSlabs",JSON.stringify(oVoucherBill.VoucherBillAgeSlabs));
+
+        /////////refresh control
+        $('#cboBusinessUnit').val(oVoucherBill.BUID);
+        $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+        $("#txtCostCneterName").val(oCC.Name);
+        $('#cboCurrency').val(oVoucherBill.CurrencyID);
+        $('#cboDueType').val(oVoucherBill.DueTypeInt);
+        //////////end refresh control
+
+
+        GenerateTableColumns(oVoucherBill.VoucherBillAgeSlabs);
+        DynamicRefreshList(oVoucherBill.VoucherBillAgings,'tblVoucherBills');
+
+        $('#Mainlayout').layout('collapse', 'west');
+
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+        $('#txtCostCneterName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ACCostCenter",
+            ActionName: "GetsByCodeOrName",
+            Object: {NameCode:''},
+            PropertyName: "Name",
+            ParamName: "NameCode",
+            Columns:[{field:'Name',width:'70%'},{field:'CategoryName',width:'30%'}]});
+    });
+
+
+    $('#btnAddSlab').click(function(){
+        var nDiff=30; var nLastIndex=-1; var nLastSlabStart=0;
+        var oBillSlabs = $('#tblBillSlabs').datagrid('getRows');
+        if(oBillSlabs==null) { oBillSlabs=[]; }
+        if(oBillSlabs.length>9) {return;}
+        if(oBillSlabs.length>0)
+        {
+            nLastIndex = oBillSlabs.length-1;
+            nDiff = parseInt(oBillSlabs[0].End)-(parseInt(oBillSlabs[0].Start)+1);
+        }
+        if(nLastIndex>=0)
+        {
+            oBillSlabs[nLastIndex].Start = (parseInt(oBillSlabs[nLastIndex].Start)+1);
+            oBillSlabs[nLastIndex].Separator =  ' To ';
+            oBillSlabs[nLastIndex].End =  parseInt(oBillSlabs[nLastIndex].Start)+nDiff;
+            nLastSlabStart =  parseInt(oBillSlabs[nLastIndex].End);
+        }
+
+        var oBillSlab = { Start : nLastSlabStart, Separator: ' Above ', End : 0};
+        oBillSlabs.push(oBillSlab);
+        DynamicRefreshList(oBillSlabs,'tblBillSlabs');
+    });
+
+
+    $('#btnRemoveSlab').click(function(){
+        var nLastIndex=-1; var oNewBillSlabs=[];
+        var oBillSlabs = $('#tblBillSlabs').datagrid('getRows');
+        if(oBillSlabs==null) { oBillSlabs=[]; }
+        if(oBillSlabs.length>2)
+        {
+            nLastIndex = oBillSlabs.length-2;
+            for(var i=0; i<oBillSlabs.length-1; i++)
+            {
+                if(i===nLastIndex)
+                {
+                    oBillSlabs[i].Start = (parseInt(oBillSlabs[i].Start)-1);
+                    oBillSlabs[i].Separator = ' Above ';
+                    oBillSlabs[i].End=0;
+                }
+                oNewBillSlabs.push(oBillSlabs[i]);
+            }
+            DynamicRefreshList(oNewBillSlabs,'tblBillSlabs');
+        }
+    });
+
+
+    function FormatLastRow(value,row,index){
+        var s='';
+        if(isNaN(value) || parseInt(value)<=0)
+        {
+            s = '';
+        }
+        else
+        {
+            s= parseInt(value);
+        }
+        return s;
+    }
+
+    function FormatStyle(value,row,index){
+        debugger;
+        var s='';
+        var param=row.AccountHeadID+","+row.SubLedgerID+","+row.VoucherBillID;
+        if(value!='Opening Balance'){
+            s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="BillLedger('+param+')">'+value+'</label>';
+        }
+        else{
+            s=value;
+        }
+        return s;
+    }
+
+
+    function BillLedger(nParentHeadID, nCCID, nVoucherBillID)
+    {
+        debugger;
+        var oVoucherRefReport = {
+            AccountHeadID : nParentHeadID,
+            CCID:nCCID,
+            VoucherBillID:nVoucherBillID,
+            IsForCurrentDate:true,
+            CurrencyID : parseInt($('#cboCurrency').val()),
+            IsApproved:$('#chkboxApproved').is(':checked')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/FinancialStatement/SetVRRSessionData",
+            traditional: true,
+            data:  JSON.stringify(oVoucherRefReport),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/FinancialStatement/ViewBillLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function OpenBillSlabs(){
+        if (!ValidateInput()) {return false;}
+
+        var oBillSlabs=jQuery.parseJSON(sessionStorage.getItem("BillSlabs"));
+        DynamicRefreshList(oBillSlabs,'tblBillSlabs');
+
+        $("#winBillSlabs").icsWindow('open', "Configure Slabs");
+        sessionStorage.setItem("BillSlabsWindow", 'Open');
+    }
+
+    function ChooseBillSlabs(){
+        if(!ValidateInput()){return false;}
+        var oSelectedConfigs=$('#tblBillSlabs').datagrid('getRows');
+
+        sessionStorage.setItem("BillSlabs",JSON.stringify(oSelectedConfigs));
+
+        $("#winBillSlabs").icsWindow('close');
+        sessionStorage.setItem("BillSlabWindow", 'Close');
+        RefreshData();
+    }
+
+    $("#btnBillSlabClose").click(function (){
+        $("#winBillSlabs").icsWindow('close');
+        sessionStorage.setItem("BillSlabWindow", 'Close');
+    });
+
+    function GenerateTableColumns(objs) {
+        var otblColumns = [];
+        var otblFrozenColumns = [];
+        var oColumn = null;
+
+        oColumn = { field: "BillNo", width: "12%", title: "Bill No", frozen: true,formatter: function (value, row, index) { return FormatStyle(value,row,index); } };
+        otblFrozenColumns.push(oColumn);
+        oColumn = { field: "PartyName", width: "12%", title: "Party", frozen: true };
+        otblFrozenColumns.push(oColumn);
+        oColumn = { field: "BillDateSt", width: "8%", title: "Bill Date", frozen: true };
+        otblFrozenColumns.push(oColumn);
+        oColumn = { field: "DueDateSt", width: "8%", title: "Due Date", frozen: true };
+        otblFrozenColumns.push(oColumn);
+        if(parseInt($('#cboDueType').val())===2){
+            oColumn = { field: "OverDueByDays", width: "7%", title: "OverDue Days", frozen: true };
+        }else{
+            oColumn = { field: "DueForDays", width: "7%", title: "Due Days", frozen: true };
+        }
+        otblFrozenColumns.push(oColumn);
+        oColumn = { field: "AmountSt", width: "9%", align: "right", title: "Amount", frozen: true };
+        otblFrozenColumns.push(oColumn);
+        $('#tblVoucherBills').datagrid({ frozenColumns: [otblFrozenColumns] });
+
+        for (var j = 0; j < objs.length; j++) {
+            oColumn =
+                    {
+                        field: 'Slab' + (j+1)+'St',
+                        width: "10%",
+                        align: "right",
+                        //formatter: function (value, row, index) { return formatPrice(value); },
+                        title: objs[j].Range
+                    };
+            otblColumns.push(oColumn);
+        }
+        $('#tblVoucherBills').datagrid({ columns: [otblColumns] });
+    }
+
+    var editIndex = undefined;
+    function endEditing() {
+        if (editIndex == undefined) { return true }
+        if ($('#tblBillSlabs').datagrid('validateRow', editIndex)) {
+            $('#tblBillSlabs').datagrid('endEdit', editIndex);
+            $('#tblBillSlabs').datagrid('selectRow', editIndex);
+            var oVoucherBillAgeSlab= $('#tblBillSlabs').datagrid('getSelected');
+
+            if(parseInt(oVoucherBillAgeSlab.Start)>=parseInt(oVoucherBillAgeSlab.End)){
+                oVoucherBillAgeSlab.End=parseInt(oVoucherBillAgeSlab.Start)+1;
+            }
+            $('#tblBillSlabs').datagrid('updateRow', { index: editIndex, row: oVoucherBillAgeSlab});
+            var nDiff=0;
+            if(parseInt(oVoucherBillAgeSlab.Start)===0){
+                nDiff=parseInt(oVoucherBillAgeSlab.End)-(parseInt(oVoucherBillAgeSlab.Start)+1);
+            }else{
+                nDiff=parseInt(oVoucherBillAgeSlab.End)-parseInt(oVoucherBillAgeSlab.Start);
+            }
+            var oVBAS={};
+            oVBAS.Start=parseInt(oVoucherBillAgeSlab.End)+1;
+            oVBAS.End=parseInt(oVBAS.Start)+nDiff;
+            var nLastIndex = $('#tblBillSlabs').datagrid('getRows').length-1;
+            if(editIndex!= nLastIndex){
+                $('#tblBillSlabs').datagrid('updateRow', { index: editIndex+1, row: oVBAS});
+            }
+            LastRowsUpdate();
+            editIndex = undefined;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function onClickRow(index){
+        if (editIndex != index){
+            if (endEditing())
+            {
+                $('#tblBillSlabs').datagrid('selectRow', index)
+                        .datagrid('beginEdit', index);
+                editIndex  = index;
+            }
+            else
+            {
+                $('#tblBillSlabs').datagrid('selectRow', editIndex);
+            }
+        }
+    }
+
+    function LastRowsUpdate()
+    {
+        var nLastIndex = $('#tblBillSlabs').datagrid('getRows').length-1;
+        var oVBAS = $('#tblBillSlabs').datagrid('getRows')[nLastIndex];
+        oVBAS.End=0;
+        $('#tblBillSlabs').datagrid('updateRow', { index: nLastIndex, row: oVBAS});
+    }
+
+
+    function RefreshObj(){
+        var nAccountHeadID,nBUID,nCCID=0;
+        var sHeaderText,sControllerName,sActionName,sStartDate,sEndDate='';
+        var obj={};
+
+
+        nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        if($('#txtCostCneterName').data('obj')!=null)
+        {
+            nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+        }
+
+        obj={
+            AccountHeadID:nAccountHeadID,
+            SubLedgerID:nCCID,
+            BUID :parseInt($('#cboBusinessUnit').val()),
+            CurrencyID:parseInt($('#cboCurrency').val()),
+            DueTypeInt :parseInt($('#cboDueType').val()),
+            VoucherBillAgeSlabs:jQuery.parseJSON(sessionStorage.getItem("BillSlabs"))
+        };
+        return obj;
+
+    }
+    function RefreshData(){
+        var obj=RefreshObj();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/BillOutStanding/SetVBMSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/BillOutStanding/ViewVoucherBillAging?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+    $('#btnRefresh').click(function(){
+        if(!ValidateInput()){return false;}
+        RefreshData();
+    });
+
+    function ValidateInput()
+    {
+
+        if ((!$('#txtAccountHeadName').data('obj') || $('#txtAccountHeadName').data('obj') == null) ) {
+            alert("Please select Account Head!");
+            $('#txtAccountHeadName').focus();
+            return false;
+        }else if ((!parseInt($('#txtAccountHeadName').data('obj').AccountHeadID) || parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)<=0) ) {
+            alert("Please select Account Head!");
+            $('#txtAccountHeadName').focus();
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnPrintXL").click(function(){
+        if(!ValidateInput()){return false;}
+        var obj=RefreshObj();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/BillOutStanding/SetVBMSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.open(sessionStorage.getItem("BaseAddress")+'/BillOutStanding/ExportVBAToExcel?', "_blank");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    });
+
+    $("#btnPrint").click(function(){
+        if(!ValidateInput()){return false;}
+        var nDueTypeInt=parseInt($('#cboDueType').val());
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        var nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+        var sParams=nDueTypeInt+'~'+nAccountHeadID+'~'+nCCID;
+
+        window.open(sessionStorage.getItem("BaseAddress")+'/BillOutStanding/PrintVoucherBillManagement?Params=' +sParams, "_blank");
+    });
+
+
+
+
+
+</script>

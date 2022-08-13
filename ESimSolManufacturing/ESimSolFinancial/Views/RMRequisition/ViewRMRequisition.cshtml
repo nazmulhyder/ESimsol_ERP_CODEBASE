@@ -1,0 +1,499 @@
+﻿<html>
+@{
+    ViewBag.Title = "Raw Material Requisition";
+}
+<body>
+    @model ESimSol.BusinessObjects.RMRequisition
+    <div class="menuMainCollectionTable" ng-app="RMRequisitionApp" ng-controller="RMRequisitionController as MLCC" id="divRMRequisition">
+        <div style="font-family:Tahoma;text-align:center;height:90%;" class="regionCI">
+            <fieldset>
+                <legend>Basic Info :</legend>
+                <div class="row col-md-12">
+                    <div class="col-md-2 text-right">
+                        <label class="control-label">Requisition No:</label>
+                    </div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="RMRequisition.RefNo"  class="form-control" disabled />
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">Requisition Date:</label></div>
+                    <div class="col-md-2 text-left">
+                        <div class="input-group date date-container">
+                            <input type="text" class="form-control" ng-model="RMRequisition.RequisitionDateSt"><span class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-right"><label class="control-label">Remarks:</label></div>
+                    <div class="col-md-2 text-left">
+                        <input ng-model="RMRequisition.Remarks" class="form-control" />
+                    </div>
+                </div>
+            </fieldset>
+            <div class="ui-grid-top-panel" style="text-align:left;">
+                <label>Sheet No:</label><input ng-model="txtPSNo" placeholder="Type Sheet No & Press Enter" ng-keydown="SearchKeySheetNo($event)" style="width:150px; height:24px;" required />
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickProductionSheet()"><span class="glyphicon glyphicon-ok" aria-hidden="true"> Pick</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RemoveProductionSheet()"><span class="glyphicon glyphicon-remove" aria-hidden="true"> Remove</span></button>
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="RefreshProductionSheet()"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>
+            </div>
+            <div style="width: 100%; height:160px;" ui-grid="gridOptionsRMRequisitionSheet" ui-grid-selection ui-grid-cellnav ui-grid-edit></div>
+            <div style="width: 100%; height:220px;" ui-grid="gridOptionsRMRequisitionMaterial" ui-grid-selection ui-grid-cellnav></div>
+        </div>
+        <fieldset>
+            <legend>Action</legend>
+            <div class="row col-md-2 text-left">
+                <button type="button" class="btn btn-default btn-sm" aria-label="right Align" ng-click="PickRawMaterial()"><span class="glyphicon glyphicon-edit" aria-hidden="true"> Change RM</span></button>                
+            </div>
+            <div class="row col-md-10 text-right">                
+                <button type="button" id="btnApprove" class="btn btn-sm" aria-label="Left Align" ng-show="btnApprove" ng-click="Approve()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"> Approve</span> </button>
+                <button type="button" class="btn btn-sm" aria-label="Left Align" ng-hide="btnSave" ng-click="Save()"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"> Save</span> </button>
+                <button type="button" id="btnclose" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+            </div>
+        </fieldset>
+    </div>
+</body>
+</html>
+<style type="text/css">
+    .regionCI .form-horizontal .control-label {
+        padding-top: 1px;
+    }
+
+    .regionCI .form-control {
+        height: 26px;
+        padding: 0px 6px;
+        font-size: 12px;
+    }
+
+    .regionCI .form-controlsm {
+        height: 20px;
+        padding: 0px 2px;
+        text-align:right;
+        width:100%;
+        font-size: 12px;
+    }
+    .regionCI .col-md-12 {
+        width: 100%;
+        padding-right: 5px;
+        padding-left: 5px;
+        margin-bottom: 3px;
+    }
+
+    .regionCI .col-md-2 {
+        width: 16.66%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+   
+     .regionCI .col-md-10 {
+        width: 83.34%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+ 
+    .regionCI .btn-sm {
+        padding: 3px 10px;
+    }
+
+    .regionCI .input-group-addon {
+        padding: 4px 8px;
+    }
+</style>
+<script type="text/ng-template" id="myHeaderTemplate">
+    <div>
+        <div class="headerTop ngHeaderCell">
+            <span class="content">Raw Materials</span>
+        </div>
+    </div>
+</script>
+<script type="text/javascript">
+    //debugger;
+    var oRMRequisition =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oRMRequisitionSheets= oRMRequisition.RMRequisitionSheets;
+    var oRMRequisitionMaterials= oRMRequisition.RMRequisitionMaterials;
+    var RMRequisitionApp = angular.module('RMRequisitionApp', ['ngAnimate', 'ui.bootstrap','ui.grid', 'ui.grid.selection','ui.grid.edit', 'ms.service']);
+    RMRequisitionApp.controller('RMRequisitionController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession,icsMethod,msGridControl) {
+        debugger;
+        $('.date-container').datepicker({
+            format: "dd M yyyy",
+            calendarWeeks: true,
+            autoclose: true,
+            todayHighlight: true
+        });
+        oRMRequisition.BUID = sessionStorage.getItem('BUID');
+        $scope.RMRequisitionSheets=oRMRequisitionSheets;
+        $scope.RMRequisitionMaterials = oRMRequisitionMaterials;
+        $scope.RMRequisition=oRMRequisition;
+      
+        ////RM Requisition Sheet
+        var oDetailColumns = [];
+        var oColumn = { field: 'SheetNo', name:'Sheet No', width:'13%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ProductCode', name: 'Code', width: '10%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ProductName', name: 'Product', width: '28%',align:'left',cellClass: 'text-left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'UnitSymbol', name: 'Unit', width: '10%',align:'left', enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'SheetQty', name: 'Sheet Qty',cellClass: 'text-right',enableCellEdit:false, width: '12%',align:'left',cellFilter: 'number: 2'};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'YetToPPQty', name: 'Yet To Plan Qty',cellClass: 'text-right',enableCellEdit:false, width: '14%',align:'left',cellFilter: 'number: 2'};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'PPQty', name: 'Qty',cellClass: 'text-right',enableCellEdit:true, width: '10%',align:'left',cellFilter: 'number: 2'};oDetailColumns.push(oColumn);
+        
+        $scope.gridOptionsRMRequisitionSheet = {
+            showColumnFooter: false,
+            multiSelect: false,
+            enableRowSelection: true,
+            enableSelectAll: false,
+            columnDefs:oDetailColumns,
+            data:oRMRequisitionSheets,
+            onRegisterApi: function (gridApi) {
+                $scope.gridSheetApi = gridApi;
+                gridApi.edit.on.afterCellEdit($scope,
+                  function (rowEntity, colDef, newValue, oldValue)
+                  {
+                      debugger;
+                      rowEntity.Qty= parseFloat(rowEntity.Qty);
+                      $scope.RefreshRMRequisitionMaterials(rowEntity);
+                      return rowEntity;
+                  });
+            }
+        };
+
+        //gridOptionsRMRequisitionMaterial
+        var oMaterialColumns = [];
+        oColumn = { field: 'SheetNo', name:'Sheet No', width:'13%',cellClass: 'text-left', enableCellEdit:false };oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'ProductCode', name: 'Item Code', width: '10%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'ProductName', name: 'Item Name', width: '28%',align:'left',cellClass: 'text-left', enableSorting: false ,enableCellEdit:false};oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'MUSymbol', name: 'Unit', width: '10%',align:'left', enableSorting: false ,enableCellEdit:false};oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'RequiredQty', name: 'Required Qty',cellClass: 'text-right',enableCellEdit:false, width: '12%',align:'left',cellFilter: 'number: 4'};oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'YetToRequisitionQty', name: 'Yet To REQN Qty',cellClass: 'text-right',enableCellEdit:false, width: '13%',align:'left',cellFilter: 'number: 4'};oMaterialColumns.push(oColumn);
+        oColumn ={ field: 'Qty', name: 'Qty',cellClass: 'text-right',enableCellEdit:false, width: '10%',align:'left',cellFilter: 'number: 4'};oMaterialColumns.push(oColumn);
+        
+        $scope.gridOptionsRMRequisitionMaterial = {
+            showColumnFooter: false,
+            multiSelect: false,
+            enableRowSelection: true,
+            enableSelectAll: false,
+            columnDefs:oMaterialColumns,
+            data:oRMRequisitionMaterials,
+            headerRowTemplate: 'myHeaderTemplate',
+            onRegisterApi: function (gridApi) {
+                $scope.gridMaterialApi = gridApi;
+            }
+        };
+
+        $scope.RefreshRMRequisitionMaterials = function(oRMRequisitionSheet)
+        {
+            debugger;
+            var oRMRMaterials = $scope.gridOptionsRMRequisitionMaterial.data;
+            for(var i = 0;i<oRMRMaterials.length;i++)
+            {
+                if(parseInt(oRMRMaterials[i].ProductionSheetID)==parseInt(oRMRequisitionSheet.ProductionSheetID))
+                {
+                    var nTempReqQtyForSingleUnit = parseFloat(oRMRMaterials[i].RequiredQty)/parseFloat(oRMRequisitionSheet.SheetQty);
+                    oRMRMaterials[i].Qty = (parseFloat(nTempReqQtyForSingleUnit)* parseFloat(oRMRequisitionSheet.PPQty)).toFixed(2);
+                }
+            }
+            $scope.gridOptionsRMRequisitionMaterial.data= oRMRMaterials;
+        };
+
+        $scope.RefreshProductionSheet = function ()
+        {
+            $scope.gridOptionsRMRequisitionSheet.data =  $scope.gridOptionsRMRequisitionSheet.data;
+        };
+        $scope.PickProductionSheet=   function ()
+        {
+            var oProductionSheet = {
+                BUID: $scope.RMRequisition.BUID,
+                SheetNo: $.trim($scope.txtPSNo)
+            };
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/GetRMRequisitionSheets',$.param(oProductionSheet), config).then(
+                        function (response)
+                        {
+                            var oColumns = [];
+                            var oColumn = { field: 'SheetNo', name: 'Sheet No',width: '18%'  };oColumns.push(oColumn);
+                            oColumn = { field: 'ProductCode', name: 'Product Code',width: '18%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'ProductName', name: 'Product Name',width: '35%', enableSorting: false  };oColumns.push(oColumn);
+                            oColumn = { field: 'QuantitySt', name: 'Qty',width: '20%', enableSorting: false  };oColumns.push(oColumn);
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:true,
+                                pickertitle:'Production Sheet List',
+                                searchingbyfieldName:'SheetNo',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {
+                                debugger;
+                                var oRMRequisitionSheets = $scope.gridOptionsRMRequisitionSheet.data;
+                                for(var i = 0;i<result.length;i++)
+                                {
+                                    if(!icsMethod.ICS_IsExist(oRMRequisitionSheets,'ProductionSheetID', result[i].ProductionSheetID))
+                                    {
+                                        $scope.gridOptionsRMRequisitionSheet.data.push(result[i]);                                       
+                                    }
+                                }                                
+                                $scope.LoadRMRequisitionMaterials(ICS_PropertyConcatation(result,'ProductionSheetID'));
+
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        };
+        $scope.PickRawMaterial =   function ()
+        {
+            var oRMRMaterial = $scope.gridMaterialApi.selection.getSelectedRows()[0];
+            if(oRMRMaterial==null)
+            {
+                alert("Select At least One Material!");
+                return;
+            }     
+            if(parseInt(oRMRMaterial.ProductID)<=0)
+            {
+                alert("Invalid Raw Material!");
+                return;
+            }    
+            var SelectedRowIndex=$scope.gridOptionsRMRequisitionMaterial.data.indexOf(oRMRMaterial);           
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/GetsRMRequisitionMaterial',$.param(oRMRMaterial), config).then(
+                        function (response)
+                        {
+                            var oColumns = [];
+                            var oColumn = { field: 'ProductCode', name: 'Product Code',width: '20%'  };oColumns.push(oColumn);                            
+                            oColumn = { field: 'ProductName', name: 'Product Name',width: '75%', enableSorting: false  };oColumns.push(oColumn);                            
+                            var results=jQuery.parseJSON(response.data);
+                            var modalObj={
+                                size:'md',
+                                modalcontroller:'',
+                                appcontroller:'',
+                                objs:results,
+                                multiSelect:false,
+                                pickertitle:'Product List',
+                                searchingbyfieldName:'ProductName',
+                                columns:oColumns
+                            }
+                            var modalInstance=msModal.Instance(modalObj);
+                            modalInstance.result.then(function (result)
+                            {                                
+                                var oRMRMaterials = $scope.gridOptionsRMRequisitionMaterial.data;                                
+                                oRMRMaterials[SelectedRowIndex].ProductID = result.ProductID;
+                                oRMRMaterials[SelectedRowIndex].ProductName = result.ProductName;
+                                oRMRMaterials[SelectedRowIndex].ProductCode = result.ProductCode;
+                                $scope.gridOptionsRMRequisitionMaterial.data = oRMRMaterials;
+
+                            }, function () {
+                                $log.info('Modal dismissed at: ' + new Date());
+                            });
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        };
+        $scope.SearchKeySheetNo = function (e) {
+            //debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) {
+                var txtPSNo = $.trim($scope.txtPSNo);
+                if(txtPSNo=="" || txtPSNo==null)
+                {
+                    alert("Type Sheet No and Press Enter");
+                    return;
+                }
+                $scope.PickProductionSheet();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.txtPSNo='';
+                $scope.ProductionSheetID=0;
+            }
+        };
+        $scope.RemoveProductionSheet = function ()
+        {
+            debugger;
+            var oRMRequisitionSheet = $scope.gridSheetApi.selection.getSelectedRows()[0];
+            if(oRMRequisitionSheet==null)
+            {
+                alert("Select At least One item !");
+                return;
+            }
+            var SelectedRowIndex=$scope.gridOptionsRMRequisitionSheet.data.indexOf(oRMRequisitionSheet);
+            if (!confirm("Confirm to Delete?")) return ;
+            $scope.gridOptionsRMRequisitionSheet.data.splice(SelectedRowIndex,1);
+            var oRMRMaterials = $scope.gridOptionsRMRequisitionMaterial.data;
+            var oNewMaterials = [];
+            for(var i = 0;i<oRMRMaterials.length;i++)
+            {
+                if(parseInt(oRMRMaterials[i].ProductionSheetID)!=parseInt(oRMRequisitionSheet.ProductionSheetID))
+                {
+                    oNewMaterials.push(oRMRMaterials[i]);
+                }
+            }
+            $scope.gridOptionsRMRequisitionMaterial.data= oNewMaterials;
+            $scope.LoadRMRequisitionMaterials(ICS_PropertyConcatation(oNewMaterials,'ProductionSheetID'));
+        };
+
+        $scope.LoadRMRequisitionMaterials =  function(sProductionSheetIDs)
+        {
+            var oProductionRecipe = {Remarks:sProductionSheetIDs};
+            debugger;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/GetRMRequisitionMaterials',oProductionRecipe).then(
+                        function (response)
+                        {
+                            var oPrivoiusRMRequisitionMaterials = $scope.gridOptionsRMRequisitionMaterial.data;
+                            var oRMRequisitionMaterials= jQuery.parseJSON(response.data);
+                            if(oRMRequisitionMaterials.length>0)
+                            {
+                                for(var i = 0;i<oRMRequisitionMaterials.length;i++)
+                                {
+                                    if(!icsMethod.ICS_IsExistForTwoProperty(oPrivoiusRMRequisitionMaterials,'ProductionSheetID', oRMRequisitionMaterials[i].ProductionSheetID, 'ProductID', oRMRequisitionMaterials[i].ProductID))
+                                    {
+                                        $scope.gridOptionsRMRequisitionMaterial.data.push(oRMRequisitionMaterials[i]);
+                                    }
+                                }
+                            }
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                    );
+        
+        };
+        $scope.Save = function ()
+        {
+            debugger;
+            if(!$scope.ValidateInput()) return;
+            var oRMRequisition= $scope.RMRequisition;
+            oRMRequisition.RequisitionDate = new Date(oRMRequisition.RequisitionDateInString);
+            oRMRequisition.RMRequisitionSheets = $scope.gridOptionsRMRequisitionSheet.data;
+
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/Save',oRMRequisition).then(
+                        function (response)
+                        {
+                            var oRMRequisition= jQuery.parseJSON(response.data);
+                            if (oRMRequisition.ErrorMessage=="" || oRMRequisition.ErrorMessage==null)
+                            {
+                                alert("Data Save Successfully.");
+                                var oRMRequisitions = sessionStorage.getItem("RMRequisitionList");
+                                var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                                if (oRMRequisitions != null) {
+                                    oRMRequisitions = jQuery.parseJSON(oRMRequisitions);
+                                }
+                                else {
+                                    oRMRequisitions = [];
+                                }
+                                if (nIndex != -1) {
+                                    oRMRequisitions[nIndex] = oRMRequisition;
+                                }
+                                else {
+                                    sessionStorage.setItem("SelectedRowIndex", oRMRequisitions.length);
+                                    oRMRequisitions.push(oRMRequisition);
+                                }
+                                sessionStorage.setItem("RMRequisitionList", JSON.stringify(oRMRequisitions));
+                                window.location.href = sessionStorage.getItem("BackLink");
+                            }
+                            else
+                            {
+                                alert(oRMRequisition.ErrorMessage);
+                            }
+                           
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+
+        };
+        $scope.Approve = function ()
+        {
+            if(!$scope.ValidateInput()) return;
+            var oRMRequisition= $scope.RMRequisition;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/RMRequisition/Approve',oRMRequisition).then(
+                        function (response)
+                        {
+                            var oRMRequisition= jQuery.parseJSON(response.data);
+                            if (oRMRequisition.ErrorMessage=="" || oRMRequisition.ErrorMessage==null)
+                            {
+                                alert("Successfully Approved.");
+                                var oRMRequisitions = sessionStorage.getItem("RMRequisitionList");
+                                var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                                if (oRMRequisitions != null)
+                                {
+                                    oRMRequisitions = jQuery.parseJSON(oRMRequisitions);
+                                }
+                                else {
+                                    oRMRequisitions = [];
+                                }
+                                if (nIndex != -1) 
+                                {
+                                    oRMRequisitions[nIndex] = oRMRequisition;
+                                }
+                                else
+                                {
+                                    sessionStorage.setItem("SelectedRowIndex", oRMRequisitions.length);
+                                    oRMRequisitions.push(oRMRequisition);
+                                }
+                                sessionStorage.setItem("RMRequisitionList", JSON.stringify(oRMRequisitions));
+                                window.location.href = sessionStorage.getItem("BackLink");
+                            }
+                            else
+                            {
+                                alert(oRMRequisition.ErrorMessage);
+                            }
+                           
+                        },
+                            function (response) { alert(jQuery.parseJSON(response.data).Message);$scope.MeasurementUnits=[];}
+                    );
+        };
+        $scope.ValidateInput =  function ()
+        {
+            debugger;
+            if($scope.gridOptionsRMRequisitionSheet.data.length <=0){alert("Please Add RM Requisition Sheets");  return false;}
+            var oRMRSheets = $scope.gridOptionsRMRequisitionSheet.data;
+            for(var i = 0;i<oRMRSheets.length;i++)
+            {
+                if(parseFloat(oRMRSheets[i].PPQty)<=0)
+                {
+                    alert(" Qty Should be greater than 0 For Sheet No: '"+oRMRSheets[i].SheetNo+" AND Product No: "+oRMRSheets[i].ProductName);
+                    return false;
+                }
+                if(parseFloat(oRMRSheets[i].PPQty)>parseFloat(oRMRSheets[i].YetToPPQty))
+                {
+                    alert(" Qty Should be Less than or Equal Yet to Plan Qty, For Sheet No: '"+oRMRSheets[i].SheetNo+" AND Product No: "+oRMRSheets[i].ProductName);
+                    return false;
+                }
+            }
+
+            if($scope.gridOptionsRMRequisitionMaterial.data.length <=0){alert("Please Add  Requisition Raw Material");  return false;}
+            var oRMRMaterials = $scope.gridOptionsRMRequisitionMaterial.data;
+            for(var i = 0;i<oRMRMaterials.length;i++)
+            {
+                if(parseFloat(oRMRMaterials[i].Qty)<=0)
+                {
+                    alert(" Qty Should be greater than 0 For Sheet No: '"+oRMRMaterials[i].SheetNo+" AND  Raw Material Name: "+oRMRMaterials[i].ProductName);
+                    return false;
+                }
+                if(parseFloat(oRMRMaterials[i].Qty)>parseFloat(oRMRMaterials[i].YetToRequisitionQty))
+                {
+                    alert(" Qty Should be Less than or Equal Yet to Out Qty, For Sheet No: '"+oRMRSheets[i].SheetNo+" AND Raw Material Name: "+oRMRSheets[i].ProductName);
+                    return false;
+                }
+            }
+            return true;
+        };
+        
+        if(sessionStorage.getItem("RMRequisitionHeader")=="View RM Requisition")
+        {
+            $("#divRMRequisition :input").prop('disabled', true);
+            $('#btnclose').prop('disabled', false);
+        }else if(sessionStorage.getItem("RMRequisitionHeader")=="Approve RM Requisition")
+        {
+            $scope.btnSave = true;
+            $scope.btnApprove = true;
+            $("#divRMRequisition :input").prop('disabled', true);
+            $('#btnApprove,#btnclose').prop('disabled', false);
+        }
+
+        $scope.Close=function ()
+        {
+            window.location.href = sessionStorage.getItem("BackLink");
+        };
+
+
+    });
+
+</script>

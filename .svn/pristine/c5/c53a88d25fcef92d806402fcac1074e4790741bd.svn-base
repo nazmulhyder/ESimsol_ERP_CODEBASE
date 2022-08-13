@@ -1,0 +1,147 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ReceivedChequeHistory>
+    @{
+        ViewBag.Title = "ReceivedCheque History";
+    }
+<html>
+
+<body>
+    <div id="divReceivedChequeHistorys" class="easyui-panel" title="ReceivedCheque History List" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblReceivedChequeHistorys" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="PreviousStatusInString" width="120">Previous Status</th>
+                        <th field="CurrentStatusInString" width="120">Current Status</th>
+                        <th field="OperationByName" width="200">Operation By</th>
+                        <th field="Note" width="120">Remarks</th>
+                        <th field="ChangeLog" width="350">Change Log</th>
+                        <th field="OperationDateTimeInString" width="160">Operation Time</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintReceivedChequeHistory()">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintReceivedChequeHistoryInXL()">Print in XL</a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:100%;">
+                    <tr>
+                        <td style="width:90%; text-align:right"></td>
+
+                        <td style="width:10%; text-align:right">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+ <script type="text/javascript">
+     var _sBaseAddress="";
+     var _sReceivedChequeHistoryHeader=null;
+     var _oAuthorizationRolesMapping = [];
+     var _oReceivedChequeHistorys=[];
+     var _oReceivedChequeHistory={ErrorMessage:''};
+     var _sBackTo,_nCID,_nCBID=null;
+     var _obj;
+     $(document).ready(function () {
+         _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+         _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+         _oReceivedChequeHistorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+         _nCID=parseInt(sessionStorage.getItem("CID"));
+         _nCBID=parseInt(sessionStorage.getItem("CBID"));
+         _sBackTo=sessionStorage.getItem("ReceivedChequeHistoryBackTo");
+         
+         _sReceivedChequeHistoryHeader=sessionStorage.getItem("ReceivedChequeHistoryHeader");
+         $('#divReceivedChequeHistorys').panel({ title:_sReceivedChequeHistoryHeader});
+         RefreshList(_oReceivedChequeHistorys);
+         RefreshControlLayout();
+     });
+     function PrintReceivedChequeHistory()
+     {
+         RefreshArguments();
+         window.open(_sBaseAddress+'/ReceivedChequeHistory/PrintReceivedChequeHistorys?arguments='+_oReceivedChequeHistory.ErrorMessage, "_blank");
+     }
+     function PrintReceivedChequeHistoryInXL()
+     {
+         RefreshArguments();
+         window.open(_sBaseAddress+'/ReceivedChequeHistory/PrintReceivedChequeHistorysInXL?arguments='+_oReceivedChequeHistory.ErrorMessage, "_blank");
+     }
+     function RefreshArguments()
+     {
+         debugger;
+         var arg='Arguments;';
+         var oCurrentList = $('#tblReceivedChequeHistorys').datagrid('getRows'),sReceivedChequeHistoryIDs="";
+         if(oCurrentList!=null&&oCurrentList.length>0){
+             for(var i=0;i<oCurrentList.length;++i){
+                 sReceivedChequeHistoryIDs=sReceivedChequeHistoryIDs+oCurrentList[i].ReceivedChequeHistoryID+",";
+             }
+             arg=arg+'~'+sReceivedChequeHistoryIDs.substr(0,sReceivedChequeHistoryIDs.length-1)+'~';
+         }
+         _oReceivedChequeHistory.ErrorMessage=arg;
+     }
+     
+
+
+     
+
+     function RefreshList(oReceivedChequeHistorys)
+     {
+         data = oReceivedChequeHistorys;
+         data={"total":""+data.length+"","rows":data};
+         $('#tblReceivedChequeHistorys').datagrid('loadData',data);
+     }
+
+
+
+
+
+     function RefreshControlLayout()
+     {
+       
+         document.getElementById('btnPrintList').style.display = 'none';
+         document.getElementById('btnPrintXL').style.display = 'none';
+    
+        
+         if(HavePermission('PrintList','ReceivedChequeHistory')){document.getElementById('btnPrintList').style.display = '';}
+         if(HavePermission('PrintList','ReceivedChequeHistory')){document.getElementById('btnPrintXL').style.display = '';}
+    
+     }
+
+     function HavePermission(sOperationType, sDbObject)
+     {
+         var nSessionID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+         if(nSessionID == -9) //check Superuser
+         {
+             return true;
+         }else
+         {
+
+             for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+             {
+                 if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                     return  true;
+             }
+             return false;
+         }
+     }
+     $("#btnClose").click(function(){
+         //window.location.href = _sBaseAddress+ (_sBackTo==='Issue'? "/ReceivedCheque/ViewReceivedChequeIssue?id="+_nCID+"&nid="+_nCBID: "/ReceivedCheque/ViewReceivedChequeMgt?nid="+_nCBID);
+         window.location.href = _sBackTo;
+     });
+
+     $(document).keydown(function(e) {
+         if(e.which == 27)//escape=27
+         {
+             //window.location.href = _sBaseAddress+ (_sBackTo==='Issue'? "/ReceivedCheque/ViewReceivedChequeIssue?id="+_nCID+"&nid="+_nCBID: "/ReceivedCheque/ViewReceivedChequeMgt?nid="+_nCBID);
+             window.location.href = _sBackTo;
+         }
+     });
+</script>
+       

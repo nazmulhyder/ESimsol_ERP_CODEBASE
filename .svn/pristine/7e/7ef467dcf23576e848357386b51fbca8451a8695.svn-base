@@ -1,0 +1,207 @@
+﻿@{
+    ViewBag.Title = "Financial Deshboard";
+}
+@model ESimSol.BusinessObjects.CapacityAllocation
+<html>
+<body>
+    <div id="MainBord" class="menuMainCollectionTable" style="width:100%">
+            <table id="tblBookingStaus" class="easyui-datagrid" style="width:100%;height:80%" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolBarBooking">
+                <thead>
+                    <tr>
+                        <th field="ShipmentDateSt" width="12%">Month </th>
+                        <th field="MonthWiseCapacity" align="right" width="20%">Total Capacity</th>
+                        <th field="MonthWiseBooking" align="right" width="20%">Total Booking</th>
+                        <th field="MonthWiseFreeCapacity" align="right" width="20%">Free Capacity</th>
+                        <th field="MonthWiseValue" align="right" width="20%" formatter="formatPrice">Total Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolBarBooking">
+                Date:<input id="txtStartDateBooking" type="text" class="easyui-datebox" style="width: 99px;" data-options="formatter:icsdateformat,parser:icsdateparser" /> To <input id="txtEndDateBooking" type="text" class="easyui-datebox" style="width:99px;" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" onclick="RefreshBooking()" iconcls="icon-search" plain="true">Search</a>
+                <a id="btnPrintBooking" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+                <a id="btnPrintBookingInExcel" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-excel" plain="true">XL</a>
+                <a id="btnReLoad" href="javascript:void(0)" class="easyui-linkbutton" onclick="ReLoad()" iconcls="icon-reload" plain="true">ReLoad</a>
+            </div>
+            <div style="text-align:left;width:100%">
+                <table style="text-align:center; width:90%" border="1">
+                    <tr>
+                        <td rowspan="3" style="width:35%">Periodic Summery (<label id="lblMonthRange" style="font-size:11px;font-weight:normal;"> 03 Months</label>):</td>
+                        <td style="width:35%">Total Capacity:</td>
+                        <td style="text-align:right;width:30%"><label id="lblTotalCapacity">0</label></td>
+                    </tr>
+                    <tr>
+                        <td style="width:35%">Total Booking:</td>
+                        <td style="text-align:right;width:30%"><label id="lblTotalBooking">0</label></td>
+                    </tr>
+                    <tr>
+                        <td style="width:35%">Free Capacity:</td>
+                        <td style="text-align:right;width:30%"><label id="lblFreeCapacity">0</label></td>
+                    </tr>
+                </table>
+                <table border="0" style="text-align:center;width:100%;">
+                    <tr>
+                        <td colspan="3" style="text-align:center;">Average FOB :<label id="lblAverageFOB">0</label></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var oCapacityAllocation = null;
+    var oAllocations = [], oBUs =[];
+    var _sBaseAddress="";
+    var sBookingDateRange = "";
+    var oComapny = null;
+    $(document).ready(function () {
+        debugger;
+        oCapacityAllocation =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        oAllocations =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Allocations));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        sBookingDateRange = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BookingDateRange));
+        oComapny = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Comapny));
+        $('#txtStartDateBooking').datebox('setValue',sBookingDateRange.split('~')[0]);
+        $('#txtEndDateBooking').datebox('setValue',sBookingDateRange.split('~')[1]);
+        LoadBookingTables();
+    });
+    function ReLoad()
+    {
+        window.location.href = window.location.href;
+    }
+    function RefreshBooking()
+    {
+        var dStartDate = icsdateformat( new Date($('#txtStartDateBooking').datebox('getValue')));
+        var dEndDate = icsdateformat(new Date($('#txtEndDateBooking').datebox('getValue')));
+        if(new Date(dStartDate)> new Date(dEndDate))
+        {
+            alert("Start Date Should be Less than End Date.");
+            return;
+        }
+        var oCapacityAllocation = {Param:dStartDate+'~'+dEndDate};
+        $.icsProgressBar(true);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/CapacityAllocation/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(oCapacityAllocation),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                debugger;
+                $.icsProgressBar(false);
+                window.location.href = window.location.href;
+
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+    function LoadBookingTables()
+    {
+        debugger;
+        var nTotalCapacity=ICS_TotalCalculation(oAllocations,'MonthWiseCapacity');
+        var nTotalBooking=ICS_TotalCalculation(oAllocations,'MonthWiseBooking');
+        var nTotalValue = ICS_TotalCalculation(oAllocations,'MonthWiseValue');
+        var nFreeCapacity=parseFloat(nTotalCapacity)-parseFloat(nTotalBooking);
+
+
+        $('#lblMonthRange').html(oAllocations[0].ShipmentDateSt+" To "+oAllocations[oAllocations.length-1].ShipmentDateSt);
+        $('#lblTotalCapacity').html(formatPriceWithZeroDecimal(nTotalCapacity,0));
+        $('#lblTotalBooking').html(formatPriceWithZeroDecimal(nTotalBooking,0));
+        $('#lblFreeCapacity').html(formatPriceWithZeroDecimal(nFreeCapacity,0));
+        $('#lblAverageFOB').html(formatPrice(parseFloat(nTotalValue)/parseFloat(nTotalBooking),0));
+
+
+        $('#tblBookingStaus').datagrid({
+            data:oAllocations,
+            view: detailview,
+            detailFormatter:function(index,row){
+                return '<div id="divBookingStatus" style="padding:2px;width:100%"><table id="tblBookingStaus" class="ddv" ></table></div>';
+            },
+            onExpandRow: function(index,row){
+                var ddv = $(this).datagrid('getRowDetail',index).find('table.ddv');
+                ddv.datagrid({
+                    data:row.MonthWiseDetailsAllocations,
+                    fitColumns:true,
+                    singleSelect:true,
+                    rownumbers:true,
+                    loadMsg:'',
+                    height:'auto',
+                    columns:[[
+                        {field:'BuyerName',title:'Buyer',width:130},
+                        {field:'Quantity',title:'Allocated Qty',width:100,align:'right'},
+                        {field:'OrderQty',title:'Order/Booking Qty', formatter:function(value,row,index){ return formatPrice(value); },width:100,align:'right'},
+                        {field:'OrderValue',title:'Total Value', formatter:function(value,row,index){ return formatPrice(value); },width:100,align:'right'},
+                        {field:'BuyerIDWithDateInString',title:'Print', formatter:function(value,row,index){ return formatButtonPrint(value); },width:100,align:'right'}
+                        //BuyerIDWithDate
+                    ]],
+                    onResize:function(){
+                        $('#tblBookingStaus').datagrid('fixDetailRowHeight',index);
+                    },
+                    onLoadSuccess:function(){
+                        setTimeout(function(){
+                            $('#tblBookingStaus').datagrid('fixDetailRowHeight',index);
+                        },0);
+                    }
+                });
+                $('#tblBookingStaus').datagrid('fixDetailRowHeight',index);
+            }
+        });
+    }
+    function formatButtonPrint(value)
+    {
+        debugger
+        var values=value.split("~");
+        var nBuyerID=0;
+        var dShipmentDates=[];
+        var dShipmentDate=null;
+        values=value.split("~");
+        nBuyerID=values[0];
+        dShipmentDates=values[1].split(' ');
+        dShipmentDate = dShipmentDates[0]+'~'+dShipmentDates[1]+'~'+dShipmentDates[2];
+        var sLink = "<a  id='btnPrint"+nBuyerID+"' href='javascript:void(0)'  onclick = ORPrint("+nBuyerID+",'"+dShipmentDate+"',true)>pdf</a> &nbsp; <a  href='javascript:void(0)' id='btnPrintXL"+nBuyerID+"' onclick = ORPrint("+nBuyerID+",'"+dShipmentDate+"',false)>XL</a>";
+        $('#btnPrint'+nBuyerID).linkbutton({ iconCls:'icon-print', plain: true });
+        $('#btnPrintXL'+nBuyerID).linkbutton({ iconCls:'icon-excel', plain: true });
+        return sLink;
+    }
+    function ORPrint(nBuyerID,sShipmentDate,bIsPdf )
+    {
+        debugger;
+        var dShipmentDate = sShipmentDate.split('~').join(' ');
+        if(bIsPdf)
+        {
+            window.open(_sBaseAddress+ '/CapacityAllocation/PrintOrderRecapList?nBuyerID='+nBuyerID+'&dShipmentDate='+dShipmentDate,'_blank');
+        }else{
+            window.open(_sBaseAddress+ '/CapacityAllocation/PrintOrderRecapListInExcel?nBuyerID='+nBuyerID+'&dShipmentDate='+dShipmentDate,'_blank');
+        }
+    }
+    $('#btnPrintBooking').click(function(){
+        var dStartDate = icsdateformat( new Date($('#txtStartDateBooking').datebox('getValue')));
+        var dEndDate = icsdateformat(new Date($('#txtEndDateBooking').datebox('getValue')));
+        var Param =dStartDate+'~'+dEndDate;
+        if(dStartDate>dEndDate)
+        {
+            Param =icsdateformat(new Date())+'~'+icsdateformat(new Date())
+        }
+        window.open(_sBaseAddress+ '/CapacityAllocation/PrintBookingStatus?sParam='+Param,'_blank');
+
+    });
+    $('#btnPrintBookingInExcel').click(function(){
+        var dStartDate = icsdateformat( new Date($('#txtStartDateBooking').datebox('getValue')));
+        var dEndDate = icsdateformat(new Date($('#txtEndDateBooking').datebox('getValue')));
+        var Param =dStartDate+'~'+dEndDate;
+        if(dStartDate>dEndDate)
+        {
+            Param =icsdateformat(new Date())+'~'+icsdateformat(new Date())
+        }
+        window.open(_sBaseAddress+ '/CapacityAllocation/PrintReportXL?sParam='+Param,'_blank');
+
+    });
+
+    
+</script>

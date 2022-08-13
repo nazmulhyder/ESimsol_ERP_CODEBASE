@@ -1,0 +1,179 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.SP_GeneralLedger>
+        <div style="margin-left:0px;">
+            <table id="tblGeneralLedger" title="General Ledger" class="easyui-datagrid" style="width:897px;height:420px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="VoucherDateInString" width="90" align="left"> Voucher Date</th>
+                        <th field="VoucherIDWithNo" width="150" align="left" formatter="FormatStyle">Voucher No</th>
+                        <th field="Particulars" width="200" align="left">Particulars</th>
+                        <th field="DebitAmountInString" width="130" align="right">Debit</th>
+                        <th field="CreditAmountInString" width="130" align="right">Credit</th>
+                        <th field="CurrentBalanceInString" width="140" align="right">Balance</th>
+                    </tr>
+                </thead>
+            </table>
+
+            <div id="toolbar" style="height: 50px;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="width: 100%; text-align: left; font-size: 12px; font-weight:bold; color : blue">
+                            <label id="lblInfo"></label>  
+                        </td>                        
+                    </tr>                    
+                    <tr>
+                        <td style="width:100%; text-align: left; font-size: 12px">                            
+                            <a id="btnPrintVoucher" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintVoucher()">Print Voucher</a>
+                            @*<a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print General Ledger</a>
+                            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print Cost Break Up</a>*@
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:700px"></td>
+                        <td style="width:50px"></td>
+                        <td style="width:50px">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _oGeneralLedgers=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _nAccountHeadID=0;
+    var _oAuthorizationRolesMapping =[];
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oGeneralLedgers=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var sStatementInfo = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.StatementInfo));
+        $('#lblInfo').text(sStatementInfo);
+        RefreshList(_oGeneralLedgers);
+    });
+
+   function RefreshList(oGeneralLedgers)
+    {
+          data=oGeneralLedgers;
+          data={"total":""+data.length+"","rows":data};
+          $('#tblGeneralLedger').datagrid('loadData',data);
+   }
+
+   function FormatStyle(value){
+       var values=value.split("~");
+       var sVoucherNo = values[0];
+       var nVoucherID = values[1];
+       var s = "";
+       if(nVoucherID > 0)
+       {
+           s = '<label id="lblOpening~'+nVoucherID+'" style="color:Blue;cursor:pointer" onclick="Detail('+nVoucherID+')">'+sVoucherNo+'</label>';
+       }
+       else
+       {
+           s = '<label>'+sVoucherNo+'</label>';
+       }
+       return s;
+   }
+
+   function Detail(nVoucherID)
+   {
+       var oParameter = new Object();
+       oParameter.OperationName=  "View Voucher";
+       var tsv= (new Date().getTime())/1000;
+       var url =_sBaseAddress+ "/Voucher/ViewSingleVoucherDetails?id="+parseInt(nVoucherID)+"&ts="+tsv;
+       var oVoucher = window.showModalDialog(url, oParameter, 'dialogHeight:515px;dialogWidth:1000px;dialogLeft:230;dialogTop:70;center:yes;resizable:no;status:no;scroll:no');
+   }
+
+
+    $("#btnPrint").click(function(){
+        if(!ValidateInput())return;
+        var id= _oCreditChartOfAccount.AccountHeadID;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        window.open(_sBaseAddress+'/FinancialStatement/GeneralLedger?id=' + id + '&date1=' + date1 + '&date2=' + date2, "_blank");
+     });
+
+
+
+    $("#btnPrintXL").click(function(){
+
+       if(!ValidateInput())return;
+        var id= _oCreditChartOfAccount.AccountHeadID;
+        var date1=$('#txtStartDate').datebox('getValue');
+        var date2= $('#txtEndDate').datebox('getValue');
+        window.open(_sBaseAddress+'/FinancialStatement/GeneralLedgerCostCenterWise?id=' + id + '&date1=' + date1 + '&date2=' + date2, "_blank");
+
+     });
+
+
+
+
+
+  function PrintVoucher()
+    {
+    //debugger;
+        var oGeneralLedger = $('#tblGeneralLedger').datagrid('getSelected');
+        if(oGeneralLedger==null || oGeneralLedger.VoucherID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        window.open(_sBaseAddress+'/Voucher/PrintVoucher?id=' + oGeneralLedger.VoucherID+'&buid=0', "_blank");
+
+    }
+
+
+
+function ValidateInput()
+ {
+    if (_oCreditChartOfAccount ==null ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if (_oCreditChartOfAccount.AccountHeadID <=0 ) {
+        alert("Please select a account head !");
+         $('#txtAccountHeadName').focus();
+        return false;
+    }
+
+    if ( $('#txtStartDate').datebox('getValue')=="") {
+       alert("please select start date!");
+       $('#txtStartDate').focus();
+       return false;
+    }
+
+    if ( $('#txtEndDate').datebox('getValue')=="") {
+        alert("Please select end date!!");
+         $('#txtEndDate').focus();
+        return false;
+    }
+    return true;
+ }
+  function Close()
+ {
+    window.close();
+ }
+</script>

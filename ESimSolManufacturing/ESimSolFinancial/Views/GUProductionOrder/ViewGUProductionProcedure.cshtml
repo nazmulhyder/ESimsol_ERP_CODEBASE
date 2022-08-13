@@ -1,0 +1,411 @@
+﻿<html>
+<body>
+
+@model ESimSol.BusinessObjects.GUProductionOrder
+<div style="font-family:Tahoma" id="divPanel">           
+<fieldset style="height:180px">
+        <table border="0"style ="font-size:12; margin: 50px 0 20px 90px">
+            <tr>
+                <td style="width:100px; text-align:right">PO No:</td>
+                <td style="width:200px; text-align:left">  
+                    @Html.TextBoxFor(model => model.GUProductionOrderNo, new { style = "width: 200px;", id = "txtGUProductionOrderNo", disabled = "disabled" })
+                </td> 
+                <td style="width:100px; text-align:right">Factory Name:</td>
+                <td style="width:220px; text-align:left">                
+                    @Html.TextBoxFor(model => model.ProductionFactoryName, new { style = "width: 220px;", id = "txtProductionFactoryName", disabled = "disabled" })
+                </td> 
+            </tr>  
+            <tr>
+                <td style="width:100px; text-align:right">Style No:</td>
+                <td style="width:200px; text-align:left">  
+                    @Html.TextBoxFor(model => model.StyleNo, new { style = "width: 200px;", id = "txtGUProductionOrderNo", disabled = "disabled" })
+                </td> 
+                <td style="width:100px; text-align:right">Buyer Name:</td>
+                <td style="width:220px; text-align:left">                
+                    @Html.TextBoxFor(model => model.BuyerName, new { style = "width: 220px;", id = "txtProductionFactoryName", disabled = "disabled" })
+                </td> 
+            </tr> 
+        </table>
+</fieldset>
+<div title="Production Procedure Details" style="padding-top:5px; margin-left:3px;">             
+    <table id="tblProductionProcedure" title="Production Procedure Detail" class="easyui-datagrid" style="width: 1010px; height: 230px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#DetailtoolBar"  
+    data-options="singleSelect: false, fitColumns:false,  rownumbers:true,pagination:false,autoRowHeight:false,  onClickRow: onClickRow">
+        <thead>
+            <tr>                  
+                <th field="StepName" width="33%" align="left" >Step Name</th>
+                <th field="Sequence" width="30%" align="center" >Sequence</th>                
+                <th width="35%" align="left"  data-options="field:'Remarks',editor:{type:'text'}"> Remarks </th>
+            </tr>
+        </thead>
+    </table>
+    <div id ="DetailtoolBar">  
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="RefreshDetail()"></a> 
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="ProductionProcedureTemplatePicker()">Template</a>        
+        Production Step : <select id="cboProductionStep" style="width:135px"></select>
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="AddDetail()">Add</a>                                          
+        <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="RemoveDetail()">Delete</a>        
+        <a id="btnUp" style =" text-align:left;" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-up"plain="true"  onclick="UP()">Up</a>
+        <a id="btnDown" style =" text-align:left;"  href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-down"plain="true"  onclick="Down()">Down</a>                       
+    </div>  
+</div>
+
+    
+<fieldset style="font-weight:bold;width:990px; ">
+    <legend > Action : </legend>
+        <table border="0" style="font-size:11px;font-weight:bold">
+            <tr>
+                <td style="width:840px; text-align:right">
+                               
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true" onclick="Save()">Save</a>
+                </td>
+                <td style="width:50px">
+                   <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+             </tr>       
+         </table>
+</fieldset>
+</div>
+</body>
+</html>
+
+<script type="text/javascript"> 
+ var _oGUProductionOrder=null;
+ var _oProductionProcedures = []; 
+ var _oProductionSteps=[];
+ var _sBaseAddress="";
+ $(document).ready(function () {
+     debugger;     
+     _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));                  
+     _oGUProductionOrder =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+     _oProductionProcedures = _oGUProductionOrder.GUProductionProcedures;
+     _oProductionSteps =  _oGUProductionOrder.ProductionSteps;
+     $('#divPanel').panel({
+         title:sessionStorage.getItem("GUProductionOrderHeader")
+     });
+     RefreshListDetails(_oProductionProcedures);
+     RefreshCboProductionStep();
+});
+
+function ProductionProcedureTemplatePicker()
+{
+    var oParameter = new Object();
+    oParameter.Name = "Search Package Template";
+    var url = _sBaseAddress+"/ProductionProcedureTemplate/ProductionProcedureTemplatePicker"
+    var oProductionProcedureTemplateDetails = window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:750px;dialogLeft:375;dialogTop:80;center:yes;resizable:no;status:no;scroll:no');
+    if(oProductionProcedureTemplateDetails!=null)
+    {
+        if(oProductionProcedureTemplateDetails.length>0)
+        {
+            var oProductionProcedures=[];
+            RefreshListDetails(oProductionProcedures);            
+            for(var i=0; i<oProductionProcedureTemplateDetails.length; i++)
+            {
+                var oProductionProcedure ={
+                                                ProductionProcedureID : 0,
+                                                GUProductionOrderID : _oGUProductionOrder.GUProductionOrderID,
+                                                ProductionStepID : oProductionProcedureTemplateDetails[i].ProductionStepID,
+                                                Sequence : oProductionProcedures.length + 1,
+                                                Remarks : "",
+                                                StepName : oProductionProcedureTemplateDetails[i].StepName
+                                           };
+                oProductionProcedures.push(oProductionProcedure);
+            }
+            RefreshListDetails(oProductionProcedures);
+        }
+    }
+}
+
+function RefreshCboProductionStep()
+{
+    var listItems= "<option value='"+0+"'>" +"--Production Step--" + "</option>";
+    for (i = 0; i < _oProductionSteps.length; i++) 
+    {
+        listItems += "<option value='" + _oProductionSteps[i].ProductionStepID+"'>" + _oProductionSteps[i].StepName+"</option>";
+    }
+    $("#cboProductionStep").html(listItems);     
+}
+
+
+
+function RefreshListDetails(oProductionProcedures)
+{
+    data=oProductionProcedures;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedure').datagrid('loadData',data);
+ }
+ 
+
+
+  function AddDetail()
+ {
+    debugger;
+    var cboProductionStep = document.getElementById("cboProductionStep");
+    var nProductionStepID=cboProductionStep.options[cboProductionStep.selectedIndex].value;
+    if(parseInt(nProductionStepID)<=0)
+    {
+        alert("Please Select Production Step!");
+        return;
+    }
+    if(IsExists(nProductionStepID) == true)
+    {
+         alert("Your Selected Production Step Already Exists");
+         return;
+    }    
+    
+    var oProductionProcedure ={
+                                ProductionProcedureID : 0,
+                                GUProductionOrderID : _oGUProductionOrder.GUProductionOrderID,
+                                ProductionStepID : nProductionStepID,
+                                Sequence : ($('#tblProductionProcedure').datagrid('getRows')).length + 1,
+                                Remarks : "",
+                                StepName : cboProductionStep.options[cboProductionStep.selectedIndex].text
+                             };
+    $('#tblProductionProcedure').datagrid('appendRow',oProductionProcedure);       
+ }
+
+ function IsExists(nProductionStepID)
+ {
+    var oProductionProcedures = $('#tblProductionProcedure').datagrid('getRows');
+    for(var i =0;i<oProductionProcedures.length;i++)
+    {
+        if(oProductionProcedures[i].ProductionStepID==nProductionStepID)
+        {
+            return true;
+        }
+    }
+    return false;
+ }
+
+
+function RemoveDetail()
+{
+    var oPSTDetail =$('#tblProductionProcedure').datagrid('getSelected'); 
+    if(oPSTDetail==null)
+    {
+        alert("Select At least One item !");
+        return;
+    }
+    var SelectedRowIndex=$('#tblProductionProcedure').datagrid('getRowIndex',oPSTDetail);
+    if (!confirm("Confirm to Delete?")) return ;
+    $('#tblProductionProcedure').datagrid('deleteRow',SelectedRowIndex);
+    
+    //Reset Sequence Number
+    var oProductionProcedures = $('#tblProductionProcedure').datagrid('getRows');
+    for(var i =0;i<oProductionProcedures.length;i++)
+    {
+        oProductionProcedures[i].Sequence = i+1;        
+    }
+    RefreshListDetails(oProductionProcedures);
+}
+
+function UP()
+{
+    debugger;
+    var oProductionProcedure = $('#tblProductionProcedure').datagrid('getSelected'); 
+    if(oProductionProcedure==null || parseInt(oProductionProcedure.ProductionStepID)<=0)
+    {
+        alert("Please select a production Step");
+        return;
+    }
+         
+    var SelectedRowIndex=$('#tblProductionProcedure').datagrid('getRowIndex',oProductionProcedure);    
+    if(SelectedRowIndex==0) return;        
+    _oProductionProcedures =[];
+    _oProductionProcedures = $('#tblProductionProcedure').datagrid('getRows');
+    var oProductionProcedures=[];          
+    oProductionProcedures=_oProductionProcedures;
+    _oProductionProcedures=[];       
+    for(var i=0; i<oProductionProcedures.length; i++)
+    {
+        if(i==(SelectedRowIndex-1))
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i+1];                
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i-1];    
+        }
+        else
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i]; 
+        }
+        _oProductionProcedures[i].Sequence=i+1;
+    }
+
+    data = _oProductionProcedures;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedure').datagrid('loadData',data);    
+    var newSelectedRowIndex=SelectedRowIndex-1;
+    $('#tblProductionProcedure').datagrid('selectRow',newSelectedRowIndex); 
+    
+}
+
+
+
+function Down()
+{
+    debugger;
+    var oProductionProcedure = $('#tblProductionProcedure').datagrid('getSelected'); 
+    if(oProductionProcedure==null || parseInt(oProductionProcedure.ColorCategoryID)<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }                       
+    var SelectedRowIndex=$('#tblProductionProcedure').datagrid('getRowIndex',oProductionProcedure);    
+    if(SelectedRowIndex==(_oProductionProcedures.length-1))return; 
+    
+    _oProductionProcedures =[];
+    _oProductionProcedures = $('#tblProductionProcedure').datagrid('getRows');
+
+    var oProductionProcedures=[];          
+    oProductionProcedures=_oProductionProcedures;
+    _oProductionProcedures=[];       
+    for(var i=0; i<oProductionProcedures.length; i++)
+    {
+        if(i==(SelectedRowIndex+1))
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i-1];                
+        }
+        else if(i==SelectedRowIndex)
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i+1];    
+        }
+        else
+        {
+            _oProductionProcedures[i]=oProductionProcedures[i]; 
+        }
+        _oProductionProcedures[i].Sequence=i+1;
+    }            
+    data = _oProductionProcedures;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblProductionProcedure').datagrid('loadData',data);
+    var newSelectedRowIndex=SelectedRowIndex+1;
+    $('#tblProductionProcedure').datagrid('selectRow',newSelectedRowIndex);                   
+ } 
+
+
+function RefreshDetail()
+{
+    endEditing();
+    var oProductionProcedures = $('#tblProductionProcedure').datagrid('getRows');
+    if(oProductionProcedures!=null)
+    {
+        RefreshProductionProcedures(oProductionProcedures);
+    }
+}
+
+var editIndex = undefined;  
+function endEditing(){  
+        if (editIndex == undefined){return true}  
+        if ($('#tblProductionProcedure').datagrid('validateRow', editIndex)){
+            $('#tblProductionProcedure').datagrid('endEdit', editIndex);  
+            editIndex  = undefined;  
+            return true;  
+        } 
+        else
+        {  
+            return false;  
+        }  
+}  
+
+function onClickRow(index){
+    if (editIndex != index){  
+        if (endEditing())
+        {  
+            $('#tblProductionProcedure').datagrid('selectRow', index)  
+                    .datagrid('beginEdit', index);  
+            editIndex  = index;  
+        } 
+        else
+        {  
+            $('#tblProductionProcedure').datagrid('selectRow', editIndex);  
+        }  
+    }  
+}  
+
+function Save()
+{
+    debugger;
+    endEditing();
+    if(!ValidateInput()) return;
+    _oGUProductionOrder.ProductionProcedures= $('#tblProductionProcedure').datagrid('getRows');
+    $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : _sBaseAddress+"/GUProductionOrder/SaveGUProductionProcedure",
+            traditional: true,
+            data:  JSON.stringify(_oGUProductionOrder),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oProductionProcedures= jQuery.parseJSON(data);
+                if(oProductionProcedures!=null)
+                {
+                    if(oProductionProcedures.length>0)
+                    {
+                        if (oProductionProcedures[0].ErrorMessage=="") 
+                        {                   
+                       
+                            alert("Data Save Successfully!!");                            
+                            window.location.href = sessionStorage.getItem("BackLink");
+                        }
+                        else 
+                        {
+                                alert(oProductionProcedures[0].ErrorMessage);
+                        }
+                    }
+                    else
+                    {                    
+                        alert("Invlid Operations");
+                    }
+                }
+                else
+                {
+                    alert("Invlid Operations");
+                }
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+        });
+}
+
+
+
+function ValidateInput()
+{
+  debugger;
+   if(_oGUProductionOrder==null || parseInt(_oGUProductionOrder.GUProductionOrderID)<=0) 
+   { 
+        alert("Invalid Production Order!");         
+        return false; 
+   }
+
+   var oProductionProcedures =  $('#tblProductionProcedure').datagrid('getRows');
+   if(oProductionProcedures.length<=0)
+   {
+        alert("Please Add at least one Production Step!");
+        return false;
+   }  
+   return true;
+}
+    
+function Close()
+{
+    
+    window.location.href = sessionStorage.getItem("BackLink");
+}
+
+$(document).keydown(function(e) {    
+    //debugger;
+    if(e.which == 27)//escape=27
+    {
+        //debugger;        
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+
+</script>

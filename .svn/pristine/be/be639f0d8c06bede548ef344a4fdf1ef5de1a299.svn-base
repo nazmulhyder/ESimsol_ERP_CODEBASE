@@ -1,0 +1,212 @@
+﻿@{
+    ViewBag.Title = "FabricPOSetup";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.FabricPOSetup>
+
+<div ng-app="FabricPOSetupModule">
+    @*<script src="~/Views/FabricPOSetup/AdvanceSearch.js"></script>*@
+ 
+    <div ng-controller="FabricPOSetupController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+        @*<div class="custom-pagination">
+                <ul uib-pagination boundary-links="true" total-items="totalItems" ng-model="currentPage" items-per-page="itemPerPage" max-size="maxSize" ng-change="pageChanged()" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
+            </div>*@
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFabricPOSetups =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+    debugger;
+    var  FabricPOSetupModule = angular.module('FabricPOSetupModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    FabricPOSetupModule.controller('FabricPOSetupController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oFabricPOSetups= (userSession.getData('FabricPOSetups').length>0)? userSession.getData('FabricPOSetups'):oFabricPOSetups;
+      
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'OrderName', name: 'OrderName', width:'10%', enableCellEdit: false },
+                { field: 'NoCode', name: 'Number Code', width: '15%' },
+                { field: 'FabricCode', name: 'Fabric Code', width: '15%' },
+                  { field: 'POPrintName', name: 'POPrint Name', width: '40%' },
+                { field: 'ActivitySt', name: 'Activity', width: '15%' }
+            ],
+            data:oFabricPOSetups,
+            onRegisterApi:function(gridApi) 
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oFabricPOSetups.length>0 && userSession.getRowIndex()>=0)
+                {
+                    $scope.gridApi.grid.modifyRows(oFabricPOSetups);
+                    $scope.gridApi.selection.selectRow(oFabricPOSetups[userSession.getRowIndex()]);
+                    $scope.RowSelect(oFabricPOSetups[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("FabricPOSetupHeader", "Add FabricPOSetup");
+            sessionStorage.setItem("FabricPOSetups", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+         
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/FabricPOSetup/ViewFabricPOSetup?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FabricPOSetupID==data[0].FabricPOSetupID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FabricPOSetupHeader", "Edit FabricPOSetup");
+                    sessionStorage.setItem("FabricPOSetups", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FabricPOSetup/ViewFabricPOSetup?nId="+value.FabricPOSetupID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            if (!confirm("Confirm to Delete?")) return ;
+          
+            $http.post('/FabricPOSetup/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.FabricPOSetupID==data[0].FabricPOSetupID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.FabricPOSetupID==data[0].FabricPOSetupID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("FabricPOSetupHeader", "View FabricPOSetup");
+                    sessionStorage.setItem("FabricPOSetups", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/FabricPOSetup/ViewFabricPOSetup?nId="+value.FabricPOSetupID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+     
+     
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oFabricPOSetup = data[0];
+            if(oFabricPOSetup==null || oFabricPOSetup.FabricPOSetupID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/FabricPOSetup/PrintFabricPOSetupPreview?id='+oFabricPOSetup.FabricPOSetupID);
+        };
+
+     
+      
+     
+    
+
+
+        //button hide
+      
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

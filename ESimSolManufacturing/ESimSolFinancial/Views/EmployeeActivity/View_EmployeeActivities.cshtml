@@ -1,0 +1,506 @@
+﻿@{
+    ViewBag.Title = "Employee Activity";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.EmployeeActivityCategory>
+
+<div ng-app="EmployeeActivityModule" ng-controller="EmployeeActivityController as MLCC">
+    <div class="ui-grid-top-panel"><h6><b>Employee Activity</b></h6></div>
+
+    <section>
+        <ul class="nav nav-tabs" style="background:#d6dbdf; color:white;">
+            <li ng-class="{active:MLCC.IsSet(1)}">
+                <a href="" ng-click="MLCC.SetTab(1)" style="color:black;">Employee Activity Note</a>
+            </li>
+            <li ng-class="{active:MLCC.IsSet(2)}">
+                <a href="" ng-click="MLCC.SetTab(2)" style="color:black;">Employee Activity Category</a>
+            </li>
+        </ul>
+        <div ng-show="MLCC.IsSet(1)">
+            <div class="form-inline">
+                <input type="checkbox" ng-model="chkDate" class="form-control" />
+                <div class="input-group date date-container">
+                    <input type="text" class="form-control" style="width:100px" ng-model="dtIssueFrom" ng-disabled="!chkDate"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                </div>
+                <span>to</span>
+                <div class="input-group date date-container">
+                    <input type="text" class="form-control" style="width:100px" ng-model="dtIssueTo" ng-disabled="!chkDate"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                </div>
+                <select ng-model="EACID" ng-options="obj.EACID as obj.Description for obj in EmployeeActivityCategorys" ng-disabled="disabled" class="form-control" style="width:164px">
+                    <option value="">--Select Category--</option>
+                </select>
+                <input type="text" ng-model="Name" ng-change="filter()" ng-keyup="searchEmployeeByKeyUp($event)" class="form-control" style="width:130px" placeholder="Search Employee by Name or Code" />
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="searchNote()"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="addNote()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="EditNote()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="deleteNote()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="approveNote()"> <span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Approve</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="print()"> <span class="glyphicon glyphicon-print" aria-hidden="true"> Print</span></button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="excel()"> <span class="glyphicon glyphicon-export" aria-hidden="true"> Excel</span></button>
+            </div>
+            <div ui-grid="EmployeeActivityNotegridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+        <div ng-if="MLCC.IsSet(2)">
+            <div class="form-inline">
+                <input type="text" ng-model="EA.txtCategoryEntry" class="form-control" style="width:300px" placeholder="Enter Category Description" />
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="addCategory()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add</button>
+                <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="deleteCategory()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Remove</button>
+            </div>
+            <div ui-grid="EmployeeActivityCategorygridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+    </section>
+</div>
+
+<style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 480px;
+            width: 100%;
+        }
+
+        .angular-grid {
+            height: 480px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+        .ui-grid-top-panel{
+                background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%);
+        }
+    </style>
+
+
+                       
+
+<script type="text/javascript">
+   var  _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oEmployeeActivityCategorys =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oEmployeeActivityNotes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.EmployeeNote));
+    
+
+    var  vEmployeeActivityModule = angular.module('EmployeeActivityModule', ['ngAnimate','ui.bootstrap','ui.grid','ui.grid.selection','ui.grid.resizeColumns','ms.service']);
+    vEmployeeActivityModule.controller('EmployeeActivityController', function ($scope,$http,$uibModal,$log,uiGridConstants,msModal,userSession) {
+        debugger;
+
+        oEmployeeActivityNotes= (userSession.getData('EmployeeActivityNote').length>0)? userSession.getData('EmployeeActivityNote'):oEmployeeActivityNotes;
+
+        $(document).ready(function(){
+            $('.date-container').datepicker({
+                format: "dd M yyyy",
+                calendarWeeks: true,
+                autoclose: true,
+                todayHighlight: true
+            });
+            $(".number-int").icsNumberField({ min: 0,precision: 0 });
+            $(".number-precision").icsNumberField({ min: 0,precision: 2 });
+        });
+        $scope.EmployeeActivityCategorys =oEmployeeActivityCategorys;
+        $scope.chkDate = false;
+        $scope.EACID = 0;
+        $scope.Name = "";
+        $scope.EmployeeActivityNotegridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'Code', name: 'Code', width:'15%', enableCellEdit: false },
+                { field: 'Name', name: 'Name', width:'15%', enableCellEdit: false },
+                { field: 'OfficialInfo', name: 'Official Informtion', width:'15%', enableCellEdit: false },
+                { field: 'ActivityCategory', name: 'Category', width:'15%', enableCellEdit: false },
+                { field: 'ActivityDateInStr', name: 'Activity Date', width:'15%', enableCellEdit: false },
+                { field: 'ApproveByName', name: 'ApproveByName', width:'15%', enableCellEdit: false },
+                { field: 'ApproveByDateInStr', name: 'ApproveByDate', width:'15%', enableCellEdit: false },
+
+            ],
+            data:oEmployeeActivityNotes,
+            onRegisterApi:function(gridApi) {
+                $scope.EmployeeActivityNotegridOptionsgridApi = gridApi;
+                $scope.EmployeeActivityNotegridOptionsgridApi.selection.clearSelectedRows();
+                debugger;
+                if(oEmployeeActivityNotes.length>0 && userSession.getRowIndex()>=0){
+                    debugger;
+                    $scope.EmployeeActivityNotegridOptionsgridApi.grid.modifyRows(oEmployeeActivityNotes);
+                    $scope.EmployeeActivityNotegridOptionsgridApi.selection.selectRow(oEmployeeActivityNotes[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+
+            }
+        };
+
+        $scope.EmployeeActivityCategorygridOptions ={
+            enableRowHeaderSelection: false,
+            enableRowSelection: true,
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'Description', name: 'Category Description', width:'40%', enableCellEdit: false },
+            ],
+            data:oEmployeeActivityCategorys,
+            onRegisterApi:function(EmployeeActivityCategorygridApi) {
+                $scope.EmployeeActivityCategorygridApi = EmployeeActivityCategorygridApi;
+
+            }
+        };
+        $scope.EA = {};
+
+
+        $scope.EAN = oEmployeeActivityNotes;
+
+
+
+    
+        $scope.dtIssueFrom=$scope.dtIssueTo=icsdateformat(new Date());
+
+
+        $scope.searchEmployeeByKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                this.getsEmployee();
+            }
+            else if(keyEvent.which==08){
+                $scope.EmployeeID = 0;
+            }
+        };
+        $scope.getsEmployee=function(){
+           
+            $scope.Name =($scope.Name == undefined || $scope.Name =="")?"":$scope.Name ;
+
+            var obj={ Name: $scope.Name }
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/Employee/GetsEmployee',$.param(obj), config).then(function (response)
+            { 
+                var results=jQuery.parseJSON(response.data);
+                var modalObj={
+                    size:'sm',
+                    title:'Employee List',
+                    url:_sBaseAddress+'/Home/Modal',
+                    modalController:'ModalCtrl', 
+                    appController:'EmployeeActivityController', 
+                    objs:results, 
+                    multiSelect:false,
+                    columns:[{ field: 'Code', name: 'Code' }, { field: 'Name', name: 'Employee Name' }]
+                }
+                var modalInstance=msModal.Instance(modalObj);
+               
+                modalInstance.result.then(function (result) {
+                    debugger;
+                   
+                    $scope.Name = result.Name;
+
+
+                }, function () {
+                    $log.info('Modal dismissed at: ' + new Date());
+                });
+            },
+                function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+        }
+
+        $scope.validationSearch = function() {
+            if(!$scope.chkDate && $scope.EACID <= 0 && ( $scope.Name == undefined || $scope.Name == "")){
+                msModal.Message({headerTitle : '', bodyText:'Please enter at least one criteria to search', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            return true;
+        }
+
+        $scope.searchNote = function () {
+            debugger;
+            if(!$scope.validationSearch())
+                return false;
+
+            if($scope.EACID == null)
+                $scope.EACID = 0;
+            else
+                $scope.EACID = $scope.EACID;
+            var obj = {
+                Params :  $scope.chkDate+'~'+ $scope.dtIssueFrom +'~'+ $scope.dtIssueTo +'~'+$scope.EACID +'~' + $scope.Name
+            };
+            $http.post(_sBaseAddress + '/EmployeeActivity/GetsEmployeeActivityNote', JSON.stringify(obj)).then(
+                  function (response) {
+                      var result = jQuery.parseJSON(response.data);
+                      if (result.length > 0 && result[0].EANID>0) {
+                          $scope.EmployeeActivityNotegridOptions.data=result;
+                          $scope.EmployeeActivityNotegridOptionsgridApi.grid.modifyRows($scope.EmployeeActivityNotegridOptions.data);
+                      }
+                      else {
+                          msModal.Message({ headerTitle: '', bodyText: 'No Data Found', sucessText: ' Yes', cancelText: ' Close', feedbackType: false, autoClose: false });
+                        
+                          $scope.EmployeeActivityNotegridOptions.data=[];
+                      }
+                  },
+                  function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage); }
+            );
+        };
+
+
+        //PDF
+        $scope.print = function(){
+            debugger;
+            if(!$scope.chkDate && $scope.EACID <= 0 && ( $scope.Name == undefined || $scope.Name == "")){
+                msModal.Message({headerTitle : '', bodyText:'Please enter at least one criteria to print', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var sParams =  $scope.chkDate+'~'+ $scope.dtIssueFrom +'~'+ $scope.dtIssueTo +'~'+$scope.EACID +'~' + $scope.Name
+            window.open(_sBaseAddress + '/EmployeeActivity/Print_PDF?sParams=' + sParams, "_blank");
+
+        }
+
+        //EXCEL
+        
+        $scope.excel = function(){
+            debugger;
+            if(!$scope.chkDate && $scope.EACID <= 0 && ( $scope.Name == undefined || $scope.Name == "")){
+                msModal.Message({headerTitle : '', bodyText:'Please enter at least one criteria to print', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var sParams =  $scope.chkDate+'~'+ $scope.dtIssueFrom +'~'+ $scope.dtIssueTo +'~'+$scope.EACID +'~' + $scope.Name
+            window.open(_sBaseAddress + '/EmployeeActivity/Print_Excel?sParams=' + sParams, "_blank");
+
+        }
+
+
+
+
+
+        $scope.validation = function(){
+           
+            if($scope.EA.txtCategoryEntry== "" || $scope.EA.txtCategoryEntry== null)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Enter Category', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false}); 
+                return false;
+            }
+            
+
+            return true;
+            
+        }
+
+        //Add
+        $scope.addCategory = function () {
+            debugger;
+            if(!$scope.validation())
+                return false;
+            var oEmployeeActivityCategorys = {
+                Description:$scope.EA.txtCategoryEntry
+            };           
+          
+            $http.post(_sBaseAddress+'/EmployeeActivity/Save', oEmployeeActivityCategorys).then(
+                    function (response) {   
+                        var result=jQuery.parseJSON(response.data);
+                        if(result.EACID>0)
+                        {
+                            $scope.EmployeeActivityCategorygridOptions.data.push(result);
+                        }
+                        else{
+                            msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+        };
+
+
+        //delete 
+        $scope.deleteCategory = function () {
+            debugger;
+            var data=$scope.EmployeeActivityCategorygridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            $scope.index=$scope.EmployeeActivityCategorygridOptions.data.indexOf(data[0]);
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to Delete?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+                    $http.post(_sBaseAddress+'/EmployeeActivity/Delete',JSON.stringify(data[0])).then(
+                                function (response) {
+                                    if(jQuery.parseJSON(response.data)=='Deleted'){
+
+                                        $scope.EmployeeActivityCategorygridOptions.data.splice($scope.index,1);
+                                        msModal.Message({headerTitle : '', bodyText:'Deleted Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    } 
+                                    else{
+                                        msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+                }
+            });
+        };
+
+
+        //for employee category note
+
+        $scope.addNote = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.setItem("SelectedRowIndex", -1);
+            sessionStorage.setItem("EmployeeActivityNote", "Employee Activity Note");
+            sessionStorage.setItem("EmployeeActivityNote", JSON.stringify($scope.EmployeeActivityNotegridOptions.data));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/EmployeeActivity/View_EmployeeActivity?id=0";
+        };
+
+
+        $scope.EditNote = function () {
+            var data=$scope.EmployeeActivityNotegridOptionsgridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].ApproveBy!=0){
+                msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.EmployeeActivityNotegridOptions.data,function(value,index){
+                if(value.EANID==data[0].EANID){
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("EmployeeActivityNoteEdit", "Edit Employee Activity Note");
+                    sessionStorage.setItem("EmployeeActivityNote", JSON.stringify($scope.EmployeeActivityNotegridOptions.data));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/EmployeeActivity/View_EmployeeActivity?Id="+value.EANID;
+                }
+            },$scope.EmployeeActivityNotegridOptions.data);
+        };
+
+
+        $scope.deleteNote = function () {
+            debugger;
+            var data=$scope.EmployeeActivityNotegridOptionsgridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            
+            else if(data[0].ApproveBy!=0){
+                msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to Delete?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+                    debugger;
+                    $http.post(_sBaseAddress+'/EmployeeActivity/DeleteNote',JSON.stringify(data[0])).then(
+                                function (response) {
+                                    if(jQuery.parseJSON(response.data)=='Deleted'){
+                                        angular.forEach($scope.EmployeeActivityNotegridOptions.data,function(value,index){
+                                            if(value.EANID==data[0].EANID){
+                                                $scope.EmployeeActivityNotegridOptions.data.splice(index,1);
+                                            }
+                                        },$scope.EmployeeActivityNotegridOptions.data);
+                                        msModal.Message({headerTitle : '', bodyText:'Deleted Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    } 
+                                    else{
+                                        msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                    }
+                                },
+                                function (response) {alert(jQuery.parseJSON(response.data));}
+                            );
+                }
+            });
+        };
+
+
+        $scope.approveNote = function ()
+        {
+            var data=$scope.EmployeeActivityNotegridOptionsgridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            else if(data[0].ApproveBy!=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Already approved.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            msModal.Message({headerTitle : '', bodyText:'Are you sure to approve?.', sucessText : ' Ok', cancelText : ' Cancel', feedbackType:true, autoClose : false}).result.then(function(result){
+                if(result){
+                    angular.forEach($scope.EmployeeActivityNotegridOptions.data,function(value,index)
+                    {
+                        if(value.EANID==data[0].EANID)
+                        {
+                            $http.post(_sBaseAddress+'/EmployeeActivity/ApproveNote', JSON.stringify(data[0])).then(
+                                 function (response) 
+                                 {
+                                     var result=jQuery.parseJSON(response.data);
+                                     if(result.EANID>0)
+                                     {
+                                         debugger;
+                                         $scope.EmployeeActivityNotegridOptions.data[index]=result;
+                                         $scope.EmployeeActivityNotegridOptionsgridApi.grid.modifyRows($scope.EmployeeActivityNotegridOptions.data);
+                                         $scope.EmployeeActivityNotegridOptionsgridApi.selection.selectRow(result);
+                                     }
+                                     else
+                                     {
+                                         alert(result.ErrorMessage);
+                                     }
+                                 },
+                                 function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                           );
+                        }
+                    },$scope.EmployeeActivityNotegridOptions.data);
+            
+                }
+            
+            });
+               
+        };
+
+
+
+
+
+
+
+
+
+        //TAb selection
+        this.tab = 1;
+        this.SetTab = function (tabId)
+        {
+
+            this.tab = tabId;
+        }
+        this.IsSet = function (tabid)
+        {
+
+            return this.tab === tabid;
+        }
+
+        //$scope.IsSet(2);
+
+    });
+
+
+</script>
+
+
+
+

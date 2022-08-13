@@ -1,0 +1,195 @@
+﻿@{
+    
+    ViewBag.Title = "Cost Head";
+}
+@model IEnumerable<ESimSol.BusinessObjects.CostHead>
+    
+
+    <div class="menuMainCollectionTable">
+        <table id="tblCostHeads" title="Delivery Print Setup" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="fasle" singleselect="true" autorowheight="false" toolbar="#toolbarDeliverySetup">
+            <thead>
+                <tr>
+                    <th field="Name" width="15%">Name</th>  
+                    <th field="CostHeadTypeSt" width="10%">Head Type </th>
+                    @*<th field="CostHeadCategoreySt" width="10%">Head Categorey</th>*@
+                    <th field="Note" width="20%">Note</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbarDeliverySetup">
+            <input type="text" id="txtName" style="width:160px;" placeholder="Type Name" />
+            <select style="width:110px;height:22px;" id="cboCostHeadType"></select>
+            @*<select style="width:110px;height:22px;" id="cboCostHeadCategoreyType"></select>*@
+            <input type="text" id="txtNote" style="width:160px;" placeholder="Type Note" />
+            <a id="btnAddCostHead" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnUpdateCostHead" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Update</a>
+            <a id="btnDeleteCostHead" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        </div>
+    </div>
+    <style type="text/css">
+        #winDeliverySetup {
+            width: 600px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var _sBaseAddress="";
+    var oCostHead=null;
+    var _oCostHeads=[];
+    var _oCostHeadTypes = [];
+    //var _oCostHeadCategoreys = [];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oCostHeads =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oCostHeadTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.EnumCostHeadTypes));
+        @*_oCostHeadCategoreys = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.EnumCostHeadCategoreys));*@
+      
+        DynamicRefreshList(_oCostHeads, "tblCostHeads");
+        if(sessionStorage.getItem('TempRowIndex')!=undefined)
+        {
+            $('#tblCostHeads').datagrid('selectRow',parseInt(sessionStorage.getItem('TempRowIndex')));
+        }
+        RefreshCBO();
+    });
+    function RefreshCBO()
+    { 
+        $("#cboCostHeadType").icsLoadCombo({
+                List: _oCostHeadTypes,
+                OptionValue: "id",
+                DisplayText: "Value"
+        });
+        //$("#cboCostHeadCategoreyType").icsLoadCombo({
+        //        List: _oCostHeadCategoreys,
+        //        OptionValue: "id",
+        //        DisplayText: "Value"
+        //    });
+    }
+    $("#btnAddCostHead").click(function (e) {
+        if($("#cboCostHeadType").val()<=0){
+            alert("Select Cost Head Type!");
+            return false; 
+        }
+        //if($("#cboCostHeadCategoreyType").val()<=0){
+        //    alert("Select Cost Categorey Type!");
+        //    return false;
+        //}
+        var oCostHead = RefreshObjectCostHead();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress +  "/CostHead/Save",
+            traditional: true,
+            data: JSON.stringify(oCostHead),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oCostHead = jQuery.parseJSON(data);
+                debugger;
+                if (oCostHead.ErrorMessage=="") {
+                    alert("Data Save Sucessfully");
+                    $('#tblCostHeads').datagrid('appendRow',oCostHead);
+                    $("#txtName,#txtNote").val("");
+                    //$("#cboCostHeadType,#cboCostHeadCategoreyType").val(0);
+                }
+                else
+                {
+                    alert(oCostHead.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshObjectCostHead() {
+        var oCostHead = {
+            CostHeadID: 0,
+            Name: $.trim($("#txtName").val()),
+            Note: $.trim($("#txtNote").val()),
+            CostHeadType : $('#cboCostHeadType').val(),
+            //CostHeadCategorey : $('#cboCostHeadCategoreyType').val(),
+            ErrorMessage : ""
+        }; 
+        return oCostHead;
+    }
+
+    $("#btnDeleteCostHead").click(function () {
+        var oCostHead = $("#tblCostHeads").datagrid("getSelected");
+        if (oCostHead == null || oCostHead.CostHeadID <= 0) {
+            alert("Please select an item from list.");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return false;
+        var obj =
+        {
+            BaseAddress: _sBaseAddress,
+            Object: oCostHead,
+            ObjectId: oCostHead.CostHeadID,
+            ControllerName: "CostHead",
+            ActionName: "Delete",
+            TableId: "tblCostHeads",
+            IsWinClose: false
+        };
+        $.icsDelete(obj);
+      
+    });
+
+    $(function() {
+        $('#tblCostHeads').datagrid({
+            onSelect: function(rowIndex, rowData) {
+                debugger;
+                var oCostHead = $('#tblCostHeads').datagrid('getSelected');
+                $('#txtName').val(oCostHead.Name);
+                $('#cboCostHeadType').val(oCostHead.CostHeadType);
+                $('#txtNote').val(oCostHead.Note);                
+            }
+        });
+    });
+
+    $('#btnUpdateCostHead').click(function (e) {
+        debugger;
+        var oCostHead = $('#tblCostHeads').datagrid('getSelected');
+        if(oCostHead==null || oCostHead.CostHeadID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if($("#cboCostHeadType").val()<=0){
+            alert("Select Cost Head Type!");
+            return false; 
+        }
+        var SelectedRowIndex = $('#tblCostHeads').datagrid('getRowIndex',oCostHead);
+        var oCostHead = {
+            CostHeadID: oCostHead.CostHeadID,
+            Name: $.trim($("#txtName").val()),
+            Note: $.trim($("#txtNote").val()),
+            CostHeadType : $('#cboCostHeadType').val()
+        }; 
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress +  "/CostHead/Save",
+            data:  JSON.stringify(oCostHead),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oCostHeadReturn = jQuery.parseJSON(data);                
+                if (oCostHeadReturn.ErrorMessage == '' || oCostHeadReturn.ErrorMessage == null)
+                {
+                    alert("Data Updated sucessfully");
+                    $('#tblCostHeads').datagrid('updateRow',{index: SelectedRowIndex,row: oCostHeadReturn});                    
+                }
+                else
+                {
+                    alert(oCostHeadReturn.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    })
+
+</script>
+

@@ -1,0 +1,240 @@
+﻿<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.plugins.js")" type="text/javascript"></script>
+
+</head>
+<body>
+    @model ESimSol.BusinessObjects.ITaxLedger
+    <div style="font-family: Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color: #cfb53b; text-align: center; width:370px; color: White">
+                    <label id="lblHeaderName" style="font-size: 15px; font-weight: bold; text-decoration: Underline">
+                    </label>
+                </td>
+            </tr>
+        </table>
+        <fieldset>
+            <legend style="font-weight: bold">Income Tax Advance Payment </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="text-align: right">
+                        Employee :
+                    </td>
+                    <td>
+                        <input id="txtEmployee" type="text" style="width: 160px;" placeholder="Write name or code and enter " />
+                        <input id="btnCEmployee" type="button" value="C" />
+                        <input id="btnEmployeePicker" type="button" value="P" />
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="text-align: right">
+                        Assesment Year :
+                    </td>
+                    <td>
+                        <input id="txtAssesmentYear" type="text" style="width: 228px;" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: right">
+                        Min. Gross :
+                    </td>
+                    <td>
+                        <input id="txtMinGross" class="number" type="text" style="width: 228px;" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: right"></td>
+                    <td style="text-align: left">
+                        <input id="chkConsiderMaxRebate" type="checkbox" />Consider Max Rebate
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: right"></td>
+                    <td style="text-align: left">
+                        <input id="chkAllEmployee" type="checkbox" />Apply for all taxable employee
+                    </td>
+                </tr>
+
+            </table>
+        </fieldset>
+        <br />
+        <fieldset>
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold">
+                <tr>
+                    <td style="width: 400px; text-align: left"></td>
+                    <td style="width: 50px">
+                        <a id="btnProcess" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok"
+                           plain="true" onclick="Process()">Process</a>
+                    </td>
+                    <td style="width: 50px">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel"
+                           plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oITaxProcess = null;
+    var _sBaseAddress = "";
+    var _oEmployee = null;
+    var _nEmployeeID = 0;
+    var _nITaxAssessmentYearID = 0;
+
+    $(document).ready(function()
+    {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oITaxProcess = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var obj = window.dialogArguments;
+        document.getElementById("txtAssesmentYear").value = _oITaxProcess.ITaxAssessmentYear.AssessmentYear;
+        document.getElementById("txtAssesmentYear").readOnly = true;
+        $('.number').icsCurrencyBox();
+        $('#txtMinGross').val(30000);
+    });
+
+    $('#txtEmployee').keypress(function (e) 
+    {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        var sEmpCode=document.getElementById("txtEmployee").value;
+        
+        if (code == 13)//Enter key-13
+        {
+            if(sEmpCode=="")
+            {
+                alert("Please Enter Code !");
+                return;
+            }
+            var nts=(new Date()).getTime()/1000;
+            var oParameter = new Object();
+            oParameter.MultipleItemReturn = false;
+            var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0&nts="+nts;
+            var nLeft=(window.screen.width/2)-(515/2);
+            var nHeight=(window.screen.height/2)-(415/2);
+            _oEmployee =    window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+            //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:510px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            if(_oEmployee!=null)
+            {
+                if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+                {
+                    alert("This Employee Has No Official Information !");
+                    return;
+                }
+
+                if(_oEmployee.IsActive == false)
+                {
+                    alert("InActive Employee. Work can not be assigned for this employee!");
+                    return;
+                }
+                if(_oEmployee.WorkingStatus != 1)
+                {
+                    alert("This employee is not in work place!");
+                    return;
+                }
+                $("#txtEmployee")[0].value=_oEmployee.Name;
+                //_nEmployeeID=_oEmployee.EmployeeID;
+                _nEmployeeID=_oEmployee.EmployeeID;
+            }
+        }
+    });
+
+    $('#btnEmployeePicker').click(function (e)
+    {
+        var oParameter = new Object();
+        oParameter.Name = "Employee Advance Search";
+        oParameter.MultipleItemReturn=false;
+        var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+
+        var nLeft=(window.screen.width/2)-(945/2);
+        var nHeight=(window.screen.height/2)-(530/2);
+        var oEmployee =    window.showModalDialog(url, oParameter, 'dialogHeight:530px;dialogWidth:945px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        if(oEmployee!=null)
+        {
+            $("#txtEmployee")[0].value=oEmployee.Name;
+            _nEmployeeID=oEmployee.EmployeeID;
+        }
+    });
+
+    $('#btnCEmployee').click(function (e)
+    {
+        _nEmployeeID=0;
+        document.getElementById("txtEmployee").value = "" ;
+    });
+
+    function ValidateInput()
+    {
+        if(_nEmployeeID == 0 && document.getElementById("chkAllEmployee").checked == false)
+        {
+            alert("Please enter employee or check all employees");
+            document.getElementById("txtEmployee").focus();
+            document.getElementById("txtEmployee").style.borderColor = 'red';
+            return false;
+        }
+        return true;
+    }
+
+    function Process()
+    {
+        if (!ValidateInput()) return;
+        var nEmployeeID = _nEmployeeID;
+        var nITaxAssessmentYearID = _oITaxProcess.ITaxAssessmentYear.ITaxAssessmentYearID;
+        var IsAllEmployee = document.getElementById("chkAllEmployee").checked;
+        var IsConsiderMaxRebate = document.getElementById("chkConsiderMaxRebate").checked;
+        var MinGross=parseFloat(icsRemoveComma(document.getElementById("txtMinGross").value));
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/ITaxProcessAndDeployment/ITaxProcess",
+            traditional: true,
+            data: JSON.stringify({nEmployeeID : nEmployeeID, nITaxAssessmentYearID : nITaxAssessmentYearID, IsAllEmployee : IsAllEmployee,IsConsiderMaxRebate:IsConsiderMaxRebate,MinGross:MinGross}),
+            contentType: "application/json; charset=utf-8",
+            success: function(data) {
+                var oITaxLedgers = jQuery.parseJSON(data);
+                if (oITaxLedgers.length>0  && oITaxLedgers[0].ErrorMessage == "")
+                {
+                        alert("Processed sucessfully");
+                        window.returnValue = oITaxLedgers;
+                        window.close();
+                } 
+                else 
+                {
+                    alert(oITaxLedgers[0].ErrorMessage);
+                    oITaxLedgers = [];
+                   
+                }
+
+                //var oITaxLedger = jQuery.parseJSON(data);
+                //if (oITaxLedger.ITaxLedgerID > 0) {
+                //    alert("Processed sucessfully");
+                //    window.returnValue = oITaxLedger;
+                //    window.close();
+                //} else {
+                //    alert(ITaxLedger.ErrorMessage);
+                //}
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+
+    }
+
+    function Close()
+    {
+        window.close();
+    }
+</script>

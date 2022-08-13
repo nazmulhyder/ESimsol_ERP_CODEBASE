@@ -1,0 +1,113 @@
+﻿@{
+    ViewBag.Title = "QC List";
+}
+@model ESimSol.BusinessObjects.QC
+<head>
+</head>
+<body>
+    @*<div id="progbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>*@
+    
+    <div class="menuMainCollectionTable">
+        <div style="margin-left:0px; height:100%; width:100%; font-family:Tahoma">
+            <table id="tblQCs" title="QC List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="false" autorowheight="false" toolbar="#toolbarQC">
+                <thead>
+                    <tr>                       
+                        <th field="SheetNo" width="7%">SheetNo</th>
+                        <th field="LotNo" width="10%">Lot No</th>
+                        <th field="QCPersonName" width="15%">QC Person</th>
+                        <th field="StoreName" width="20%">Store Name</th>
+                        <th field="ProductName" width="20%">Product Name</th>
+                        @*<th field="PassQuantityInString" width="12%" align="right">Price</th>*@
+                        <th field="PassQuantityInString" width="12%" align="right">Qty</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarQC">
+                <table>
+                    <tr>
+                        <td>
+                            BU:<select id="cbBU" style="width:200px;"></select>&nbsp;&nbsp;&nbsp;Date:<input id="txtDate" type="text" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" style="width:115px" />
+                            <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true"></a>
+                            <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-print" plain="true">Print</a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>    
+      
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oQC = null;
+    var _oQCs = [];
+    var _oBusinessUnits = [];
+    $(document).ready(function() {
+        _oQCs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+        debugger;
+        $("#cbBU").icsLoadCombo({List: _oBusinessUnits,OptionValue: "BusinessUnitID",DisplayText: "NameCode"});
+        $('#txtDate').datebox('setValue',icsdateformat(new Date()));
+    });
+    
+    $('#btnRefresh').click(function(){
+        debugger;
+        var nBUID = parseInt($("#cbBU").val());
+        if(parseInt(nBUID)<=0)
+        {
+            alert("Please Select BU.");
+            return;
+        }
+        var oQC = {BUID:nBUID, OperationTime:$('#txtDate').datebox('getValue')};
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+"/QC/GetsQCList",
+            traditional: true,
+            data:  JSON.stringify(oQC),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+              var  oQCs = jQuery.parseJSON(data);
+                if (oQCs.length>0)
+                {
+                    if(oQCs[0].ErrorMessage == '' || oQCs[0].ErrorMessage == null)
+                    {
+                        DynamicRefreshList(oQCs, 'tblQCs');
+                    } else
+                    {
+                        alert(oQCs[0].ErrorMessage);
+                    }
+                    
+                }
+                else
+                {
+                    alert("Data Not Found.");
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(xhr+'~' +status+'~'+error);
+            }
+        });
+    });
+
+    $('#btnPrint').click(function(){
+        var oQC=$('#tblQCs').datagrid('getSelected');
+        if(oQC==null|| parseInt(oQC.QCID)<=0)
+        {
+            alert("Sorry, there is no QC.");
+            return false;
+        }
+        window.open(sessionStorage.getItem("BaseAddress")+ "/QC/PrintFGCost?QCID="+parseInt(oQC.QCID),'_blank');
+
+    });
+
+
+
+
+</script>

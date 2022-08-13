@@ -1,0 +1,251 @@
+﻿@{
+    ViewBag.Title = "Currency Conversion List";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.CurrencyConversion>
+
+<div ng-app="CurrencyConversionModule">
+    <div ng-controller="CurrencyConversionController">
+        <div class="ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                 </div>
+            </div>
+        </div>
+        <div style="margin:2px; padding:0;">
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+        
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 520px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oCurrencyConversions =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+    debugger;
+    var  CurrencyConversionModule = angular.module('CurrencyConversionModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    CurrencyConversionModule.controller('CurrencyConversionController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oCurrencyConversions= (userSession.getData('CurrencyConversions').length>0)? userSession.getData('CurrencyConversions'):oCurrencyConversions;
+      
+        console.log(oCurrencyConversions);
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            //enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'StartDateSt', name: 'Start Date', width:'10%', enableCellEdit: false },
+                { field: 'EndDateSt', name: 'End Date', width:'10%', enableCellEdit: false },
+                { field: 'IsOpenSt', name: 'Type', width:'10%', enableCellEdit: false },
+                { field: 'BranchName', name: 'Branch Name', width:'25%', enableCellEdit: false },
+                { field: 'BranchCode', name: 'Branch Code', width:'10%', enableCellEdit: false },
+                { field: 'ConversionRate', name: 'Purchase Rate', width:'15%', enableCellEdit: false },
+                { field: 'ConversionRateRateSale', name: 'Sale Rate', width:'10%', enableCellEdit: false },
+                //{ field: 'RatePurchase', name: 'Purchase Rate', width:'10%', enableCellEdit: false },
+                { field: 'Note', name: 'Note', width: '20%' }
+            ],
+
+            data:oCurrencyConversions,
+            onRegisterApi:function(gridApi) 
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.grid.registerRowsProcessor($scope.singleFilter, 200);
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oCurrencyConversions.length>0 && userSession.getRowIndex()>=0){
+                    $scope.gridApi.grid.modifyRows(oCurrencyConversions);
+                    $scope.gridApi.selection.selectRow(oCurrencyConversions[userSession.getRowIndex()]);
+                    $scope.RowSelect(oCurrencyConversions[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.singleFilter=function(renderableRows){
+           
+            var matcherName = new RegExp(angular.uppercase($scope.Name));
+            var matcherOperationTypeST = new RegExp(angular.uppercase($scope.OperationTypeST));
+            renderableRows.forEach( function( row ) {
+                debugger;
+                var match = false;
+                if (angular.uppercase(row.entity['Name']).match(matcherName) && angular.uppercase(row.entity['OperationTypeST']).match(matcherOperationTypeST)){
+                    match = true;
+                }
+                if ( !match ){
+                    row.visible = false;
+                }
+            });
+            return renderableRows;
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("CurrencyConversionHeader", "Add CurrencyConversion");
+            sessionStorage.setItem("CurrencyConversions", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("CurrencyConversion", JSON.stringify([]));
+            sessionStorage.setItem("BackLink", window.location.href);
+         
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/CurrencyConversion/ViewCurrencyConversion?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.CurrencyConversionID==data[0].CurrencyConversionID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("CurrencyConversionHeader", "Edit CurrencyConversion");
+                    sessionStorage.setItem("CurrencyConversions", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("CurrencyConversion", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/CurrencyConversion/ViewCurrencyConversion?nId="+value.CurrencyConversionID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+        $scope.delete = function()
+        {
+            var data=$scope.gridApi.selection.getSelectedRows();
+            var oCurrencyConversion= data[0];//get selected index
+            if(oCurrencyConversion==null || oCurrencyConversion.CurrencyConversionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            if (!confirm("Confirm to Delete?")) return ;
+            var SelectedRowIndex= $scope.gridOptions.data.indexOf(oCurrencyConversion);
+            if (oCurrencyConversion.CurrencyConversionID > 0)
+            {
+               
+                $.ajax
+                ({
+                    type: "GET",
+                    dataType: "json",
+                    url : _sBaseAddress+ "/CurrencyConversion/Delete",
+                    data: { id: oCurrencyConversion.CurrencyConversionID},
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        debugger;
+                        feedbackmessage = jQuery.parseJSON(data);
+                        if (feedbackmessage == "Deleted")
+                        {
+                            alert("Delete sucessfully");
+                            $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                            $scope.gridApi.core.refresh();
+                        }
+                        else
+                        {
+                            alert(feedbackmessage);
+                        }
+                    },
+                    error: function (xhr, status, error)
+                    {
+                        alert(error);
+                    }
+
+                });
+            }
+        }
+   
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.CurrencyConversionID==data[0].CurrencyConversionID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("CurrencyConversionHeader", "View CurrencyConversion");
+                    sessionStorage.setItem("CurrencyConversions", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("CurrencyConversion", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/CurrencyConversion/ViewCurrencyConversion?nId="+value.CurrencyConversionID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+     
+     
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oCurrencyConversion = data[0];
+            if(oCurrencyConversion==null || oCurrencyConversion.CurrencyConversionID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/CurrencyConversion/PrintCurrencyConversionPreview?id='+oCurrencyConversion.CurrencyConversionID);
+        };
+
+     
+      
+     
+    
+
+
+        //button hide
+      
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

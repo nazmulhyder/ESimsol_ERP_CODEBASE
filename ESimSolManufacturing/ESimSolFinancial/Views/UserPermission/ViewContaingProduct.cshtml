@@ -1,0 +1,203 @@
+﻿<html>
+<body>
+    @{
+        ViewBag.Title = "Containing Product";
+    }
+    @model ESimSol.BusinessObjects.ContainingProduct
+    <div id="divContainingProduct" class="easyui-panel" title="" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:87%; text-align:center">
+            <table id="tblContainingProduct" title="" class="easyui-datagrid" style="width:100%;height:100%" data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar'">
+                <thead>
+                    <tr>
+                        <th field="ProductCategoryName" width="500" align="left">Product Category</th>
+                        <th field="Remarks" width="300" align="left">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div style="text-align:left" id="toolbar">
+                Product Category : <select id="cboProductCategory" class="easyui-combotree" style="width:250px;"></select>
+                Remarks : @Html.TextBoxFor(model => model.Remarks, new { style = "width: 300px;", id = "txtRemarks" })
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true"></a>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+
+ var _oContainingProduct=null;
+ $(document).ready(function () {
+     _oContainingProduct =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+     $('#tblContainingProduct').datagrid({ title: ('Containing Product for Store : ' +_oContainingProduct.WorkingUnitName)});
+     RefreshList(_oContainingProduct.ContainingProducts);
+     RefreshProductCategory();
+ });
+
+function RefreshProductCategory()
+{
+    var oProductCategory ={  ProductCategoryID: 0 };
+    $.ajax
+    ({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/ProductCategory/GetsProductCategoryForCombo",
+        data:  JSON.stringify(oProductCategory),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            //debugger;
+            var oProductCategorys = jQuery.parseJSON(data);
+            if(oProductCategorys!=null)
+            {
+                $('#cboProductCategory').combotree('loadData', oProductCategorys);
+            }
+        },
+        error: function (xhr, status, error)
+        {
+            alert(error);
+        }
+    });
+}
+
+ function ValidateInput()
+ {
+    var nCategoryID = $('#cboProductCategory').combotree('getValue');
+    if(nCategoryID===null || nCategoryID===undefined)
+    {
+        alert("Please select Product Category!");
+        $('#cboProductCategory').focus();
+        return false;
+    }
+    if(_oContainingProduct==null || parseInt(_oContainingProduct.WorkingUnitID)<=0)
+    {
+        alert("Invalid Store!");
+        return false;
+    }
+    return true;
+ }
+
+
+function RefreshObject()
+ {
+    var oContainingProduct=   {
+                                ContainingProductID : 0,
+                                WorkingUnitID : parseInt(_oContainingProduct.WorkingUnitID),
+                                ProductCategoryID : parseInt($('#cboProductCategory').combotree('getValue')),
+                                Remarks : $.trim($('#txtRemarks').val())
+                            };
+    return oContainingProduct;
+}
+
+$("#btnAdd").click(function(){
+    if(!ValidateInput()) return;
+    var oContainingProduct=RefreshObject();
+    $.ajax({
+        type: "POST",
+        dataType: "json",
+        url : sessionStorage.getItem("BaseAddress")+  "/UserPermission/SaveContainingProduct",
+        traditional: true,
+        data:  JSON.stringify(oContainingProduct),
+        contentType: "application/json; charset=utf-8",
+        success: function (data) {
+            var oContainingProduct = jQuery.parseJSON(data);
+            if(parseInt(oContainingProduct.ContainingProductID)>0)
+            {
+                alert("Data Saved sucessfully");
+                var nIndex=$('#tblContainingProduct').datagrid('getRows').length;
+                $('#tblContainingProduct').datagrid('appendRow',oContainingProduct);
+                $('#tblContainingProduct').datagrid('selectRow', nIndex);
+                $('#cboProductCategory').combotree('clear');
+                $("#txtRemarks").val('');
+            }
+            else {
+                alert(oContainingProduct.ErrorMessage);
+            }
+        },
+        error: function (xhr, status, error) {
+            alert(error);
+        }
+    });
+});
+
+$('#btnDelete').click(function(e){
+    var oContainingProduct = $('#tblContainingProduct').datagrid('getSelected');
+    if(oContainingProduct==null)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var conf = confirm("Confirm to delete?");
+    if(conf==false)return;
+    var SelectedRowIndex=$('#tblContainingProduct').datagrid('getRowIndex',oContainingProduct);
+    if (parseInt(oContainingProduct.ContainingProductID)> 0)
+    {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/UserPermission/DeleteContainingProduct",
+            traditional: true,
+            data:  JSON.stringify(oContainingProduct),
+            contentType: "application/json; charset=utf-8",
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                feedbackmessage = jQuery.parseJSON(data);
+                if (feedbackmessage == "Deleted")
+                {
+                    alert("Delete sucessfully");
+                    $('#tblContainingProduct').datagrid('deleteRow',SelectedRowIndex);
+                }
+                else
+                {
+                    alert(feedbackmessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+});
+
+function RefreshList(oContainingProducts)
+{
+    var data=oContainingProducts;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblContainingProduct').datagrid('loadData',data);
+}
+
+$("#btnRefresh").click(function(){
+    var data=$('#tblContainingProduct').datagrid('getRows');
+    data={"total":""+data.length+"","rows":data};
+    $('#tblContainingProduct').datagrid('loadData',data);
+});
+
+
+$("#btnClose").click(function(){
+    window.location.href = sessionStorage.getItem("BackLink");
+});
+
+$(document).keydown(function(e) {
+    if(e.which == 27)//escape=27
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+    }
+});
+</script>

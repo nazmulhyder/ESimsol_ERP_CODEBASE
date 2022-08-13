@@ -1,0 +1,235 @@
+﻿@{
+    ViewBag.Title = "Production Detail";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.DUDashboardProduction>
+<div ng-app="DUDBDVApp">
+   <div ng-controller="DUDBDVCntrl">
+       <div class="panel-warning">
+        <div class="panel-heading">
+            <label class="control-label">{{lblHeader}} </label>
+            <label class="control-label">|| Date : {{dtStart}}</label>
+            <label class="control-label" ng-show="IsDate=='true'"> <span> To {{dtEnd}}</span></label>
+        </div>
+       </div>
+       <div ng-if="TrackID==1">
+           <div ui-grid="ProductWisegridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+       </div>
+       <div ng-if="TrackID==2">
+           <div ui-grid="BuyerWisegridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+       </div>
+       <div ng-if="TrackID==3">
+           <div ui-grid="MachineWisegridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+       </div>
+       <div ng-if="TrackID==4">
+           <div ui-grid="StoreWisegridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+       </div>
+
+       <div>
+           <fieldset>
+               <legend>Action</legend>
+               <div class="row col-md-12 text-right">
+                   <div style="float:left; padding-left:20px">
+                       <button type="button" class="btn btn-sm btn-primary" style="" aria-label="Left Align" ng-click="PrintDetails()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Print</button>
+                       <button type="button" class="btn btn-sm btn-primary" style="" aria-label="Left Align" ng-click="PrintDetails_XL()"> <span class="glyphicon glyphicon-print" aria-hidden="true"></span> Export To Excel</button>
+                   </div>
+                   <button type="button" id="btnclose" class="btn btn-danger btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"> Close</span> </button>
+               </div>
+           </fieldset>
+       </div>
+    </div>
+</div>
+
+<style type="text/css">
+    .grid {
+        height: 459px;
+    }
+    .form-control{
+    height:26px;
+    padding:0px 6px;
+    font-size:12px;
+}
+    .input-group-addon{
+        height:26px;
+    padding:0px 6px;
+    font-size:12px;
+    }
+
+    .ui-grid-cell.lightGreen {
+        background-color:  #B5DA69!important ;  /*90EE90*/ /*8ab92d*/
+        color: #000 !important;
+        font-size:12px;
+        font-weight:bold;
+    }
+   .my-button {
+            /*padding-top:-15px;*/
+            background:#B5DA69;
+            display: none;
+            position: relative;
+
+        }
+   .ui-grid-cell:hover .my-button {
+        display: block;
+        padding-top:-5px;
+        width: 95%;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        /*padding: 5px 0;*/
+        position: static;
+        z-index: 1;
+        /*bottom: 2%;
+        left: 1%;*/
+        /*margin-top: 5px;*/
+        opacity: 10;
+        transition: opacity 2s;
+        overflow:visible;
+        visibility:visible;
+        font-size:8px;
+        cursor:pointer;
+    }
+</style>
+
+<script type="text/javascript">
+_sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+var oLotBaseTests =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model)); 
+var nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+var nTrackID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.TrackID));
+var str ="@ViewBag.SearchStr";
+sessionStorage.setItem('BUID',nBUID);
+
+var  DUDBDVApp = angular.module('DUDBDVApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+ DUDBDVApp.controller('DUDBDVCntrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+    $('.date-container').datepicker({
+        format: "dd M yyyy",
+        calendarWeeks: true,
+        autoclose: true,
+        todayHighlight: true
+    });
+    $scope.reset = function(){
+        $scope.TrackID = nTrackID;
+        $scope.IsDate =str.split('~')[0];
+        $scope.dtStart =str.split('~')[1];
+        $scope.dtEnd = (str.split('~')[2]);
+        $scope.lblHeader=sessionStorage.getItem("HeaderDetail");
+        debugger;
+    }
+    $scope.reset();
+    $scope.ProductWisegridOptions ={
+        enableRowHeaderSelection: false,
+        enableRowSelection: true,
+        enableFullRowSelection: true,
+        multiSelect: false,
+        enableColumnResizing: true,
+        rowHeight:40,
+        noUnselect : true,
+        enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+        columnDefs: [
+            {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+            //{ field: 'Name', name: 'Name', width:'20%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} , cellTemplate:  '<div ng-dblclick="grid.appScope.ShowDetails(row.entity)" style="padding-top:5px;">{{row.entity.Name}} <span class="my-button">Double Click To View Details </span></div>'},
+            { field: 'RouteSheetDateSt', name: 'RS Date', width:'10%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+            { field: 'RouteSheetNo', name: 'Batch No', width:'8%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+            { field: 'OrderNo', name: 'Order No', width:'12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+            //{ field: 'Name', name: 'Name', width:'20%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+             { field: 'Qty_Out', name: 'Qty', width:'12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+             { field: 'Qty_Fresh', name: 'Qty Fresh', width:'12%' , cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';}},
+             { field: 'Qty_UnManage', name: 'Qty UnManage', width:'12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+             { field: 'StockInHand', name: 'StockInHand', width:'12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+               { field: 'Qty_DC', name: 'Delivery Qty', width:'12%', cellClass: function(grid, row, col, rowRenderIndex, colRenderIndex) {return (row.entity.Name=="Total :")?'lightGreen':'';} },
+        ],
+        data:oLotBaseTests,
+        onRegisterApi:function(ProductWisegridApi) {
+            $scope.ProductWisegridApi = ProductWisegridApi;
+            }
+    };
+    $scope.BuyerWisegridOptions ={
+        enableRowHeaderSelection: false,
+        enableRowSelection: true,
+        enableFullRowSelection: true,
+        multiSelect: false,
+        enableColumnResizing: true,
+        noUnselect : true,
+        rowHeight:40,
+        enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+        columnDefs: [
+            {name: 'ID',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{rowRenderIndex+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false}
+        ],
+        data:oLotBaseTests,
+        onRegisterApi:function(BuyerWisegridApi) {
+            $scope.BuyerWisegridApi = BuyerWisegridApi;
+        }
+    };
+    $scope.MachineWisegridOptions ={
+        enableRowHeaderSelection: false,
+        enableRowSelection: true,
+        enableFullRowSelection: true,
+        multiSelect: false,
+        enableColumnResizing: true,
+        rowHeight:40,
+        noUnselect : true,
+        enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+        columnDefs: [
+            { field: 'Name', name: 'Name', width:'20%' },
+            { name: 'Activity', cellTemplate: '<div style="padding-top:5px;" ng-if="row.entity.Activity==true"><span class="glyphicon glyphicon-ok btn-primary" aria-hidden="true"></span> </div> <div style="padding-top:5px;" ng-if="row.entity.Activity==false"><span class="glyphicon glyphicon-remove btn-danger" aria-hidden="true"></span></div>', cellClass: 'text-center', width:'10%', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+
+        ],
+        data:oLotBaseTests,
+        onRegisterApi:function(MachineWisewgridApi) {
+            $scope.MachineWisewgridApi = MachineWisewgridApi;
+        }
+    };
+    $scope.StoreWisegridOptions ={
+        enableRowHeaderSelection: false,
+        enableRowSelection: true,
+        enableFullRowSelection: true,
+        multiSelect: false,
+        enableColumnResizing: true,
+        rowHeight:40,
+        noUnselect : true,
+        enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+        columnDefs: [
+            { name: 'Activity', cellTemplate: '<div style="padding-top:5px;" ng-if="row.entity.Activity==true"><span class="glyphicon glyphicon-ok btn-primary" aria-hidden="true"></span> </div> <div style="padding-top:5px;" ng-if="row.entity.Activity==false"><span class="glyphicon glyphicon-remove btn-danger" aria-hidden="true"></span></div>', cellClass: 'text-center', width:'10%', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+        ],
+        data:oLotBaseTests,
+        onRegisterApi:function(StoreWisegridApi) {
+            $scope.StoreWisegridApi = StoreWisegridApi;
+        }
+    };
+
+    $scope.PrintDetails=function()
+    {
+        var SearchStr = sessionStorage.getItem('SearchStr_Detail');
+        $scope.IsDate =SearchStr.split('~')[0];
+        $scope.dtStart =SearchStr.split('~')[1];
+        $scope.dtEnd = (SearchStr.split('~')[2]);
+        $scope.ActiveView= (SearchStr.split('~')[4]);
+        $scope.PortionID= (SearchStr.split('~')[5]);
+        $scope.ContractorID=  sessionStorage.getItem('DUPID');
+        //$scope.lblHeader=sessionStorage.getItem("Header");
+        SearchStr=$scope.IsDate+'~'+$scope.dtStart+'~'+$scope.dtEnd+'~'+(SearchStr.split('~')[3])+'~'+$scope.ContractorID;
+        window.open(_sBaseAddress+ '/DUDashboardProduction/Print_DetailRS?buid='+sessionStorage.getItem('BUID')+"&ViewType="+$scope.ActiveView+'&portionID='+$scope.PortionID+"&searchStr=" +SearchStr,'blank');
+    }
+    $scope.PrintDetails_XL=function()
+    {
+        var SearchStr = sessionStorage.getItem('SearchStr_Detail');
+        $scope.IsDate =SearchStr.split('~')[0];
+        $scope.dtStart =SearchStr.split('~')[1];
+        $scope.dtEnd = (SearchStr.split('~')[2]);
+        $scope.ActiveView= (SearchStr.split('~')[4]);
+        $scope.PortionID= (SearchStr.split('~')[5]);
+        $scope.ContractorID= sessionStorage.getItem('DUPID');
+        //$scope.lblHeader=sessionStorage.getItem("Header");
+        SearchStr=$scope.IsDate+'~'+$scope.dtStart+'~'+$scope.dtEnd+'~'+(SearchStr.split('~')[3])+'~'+$scope.ContractorID;
+        window.open(_sBaseAddress+ '/DUDashboardProduction/PrintXL_DetailRS?buid='+sessionStorage.getItem('BUID')+"&ViewType="+$scope.ActiveView+'&portionID='+$scope.PortionID+"&searchStr="+SearchStr+"&sName="+sessionStorage.getItem('Name'),'blank');
+    }
+    $scope.Close = function () {
+        window.location.href=sessionStorage.getItem("BackLinkDetail");
+    };
+});
+</script>
+
+
+
+
+

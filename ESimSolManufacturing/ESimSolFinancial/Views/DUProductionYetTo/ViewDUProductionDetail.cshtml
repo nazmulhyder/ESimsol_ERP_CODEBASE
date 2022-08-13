@@ -1,0 +1,202 @@
+﻿@{
+    ViewBag.Title = "Lot Stock Report";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.DUOrderRS>
+
+    <div ng-app="DUOrderRSModule">
+        <div ng-controller="DUOrderRSController as DUPYT">
+            <div class="ui-grid-top-panel">
+                {{sHeader}}
+            </div>
+            <section>
+                <ul class="nav nav-tabs" style="background:#d6dbdf; color:white;">
+                    <li ng-class="{active:DUPYT.IsSet(1)}">
+                        <a href="" ng-click="DUPYT.SetTab(1)" style="color:black;">Detail View</a>
+                    </li>
+                    <li ng-class="{active:DUPYT.IsSet(2)}">
+                        <a href="" ng-click="DUPYT.SetTab(2)" style="color:black;">Challan View</a>
+                    </li>
+                </ul>
+                <div ng-if="DUPYT.IsSet(1)">
+                    <div class="col-md-12">
+                        <div style="width:99.5%;" ui-grid="gridOptions" ui-grid-selection class="grid"></div>
+                    </div>
+                </div>
+
+                <div ng-if="DUPYT.IsSet(2)">
+                    <div class="col-md-12">
+                        <div class="form-inline">
+                            <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="DUPYT.GetsChallanDetail()"> <span class="glyphicon glyphicon-refresh" aria-hidden="true"> Refresh</span></button>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div style="width:99.5%;" ui-grid="gridOptions_Challan" ui-grid-selection class="grid"></div>
+                    </div>
+                </div>
+            </section>
+            <div class="row" style="width:100%;">
+                <fieldset style="height:60px; margin:10px 0 0 20px">
+                    <legend>Action</legend>
+                    <div class="row col-md-12 text-right">
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Close</button>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 440px;
+            width: 98%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+
+        .ui-grid-top-panel 
+        {
+            height:25px;
+            padding-left:5px;
+            background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%);
+        } 
+        /*.ui-grid-panel {
+            background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%);
+        }*/
+    </style>
+
+    <script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oDUOrderRSs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oDUDeliveryChallanDetails =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DUDeliveryChallanDetails));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+
+    debugger;
+    var  DUOrderRSModule = angular.module('DUOrderRSModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ms.service']);
+    DUOrderRSModule.controller('DUOrderRSController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        $scope.sHeader=sessionStorage.getItem('oDUProductionYetToHeader');
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            showColumnFooter: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.always,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'RouteSheetNo', name: 'Dye Lot No', width:'12%', enableCellEdit: false },
+                { field: 'RSDateSt', name: 'Date', width:'8%', enableCellEdit: false },
+                { field: 'ColorName', name: 'Color', width:'12%', enableCellEdit: false },
+                { field: 'Qty_RS', name: 'Dyeing Qty', width: '10%', cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'FreshDyedYarnQty', name: 'Packing Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'StockInHand', name: 'Stock InHand', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'DeliveryQty', name: 'Delivery Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'UnManagedQty', name: 'UnManaged Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'ManagedQty', name: 'Managed Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'GainPer', name: 'Gain%', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'LossPer', name: 'Loss%', width: '10%',cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                { field: 'RSStateSt', name: 'Status', width:'10%', enableCellEdit: false },
+            ],
+            data:oDUOrderRSs,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+            }
+        };
+
+        $scope.gridOptions_Challan ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            showColumnFooter: true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.always,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                { field: 'ChallanNo', name: 'Challan No', width:'14%', enableCellEdit: false },
+                { field: 'ChallanDate', name: 'Challan Date', width:'10%', enableCellEdit: false },
+                //{ field: 'PINo', name: 'PINo', width:'12%', enableCellEdit: false },
+                //{ field: 'PIDateSt', name: 'PIDateSt', width:'12%', enableCellEdit: false },
+                //{ field: 'PartyName', name: 'Party', width:'12%', enableCellEdit: false },
+                { field: 'Qty', name: 'Qty', width: '15%', cellClass:'text-right', cellFilter:'number:2',aggregationType: uiGridConstants.aggregationTypes.sum, aggregationHideLabel: true, footerCellFilter: 'number:2', footerCellClass: 'text-right' },
+                //{ field: 'ApproveBy', name: 'Approve By', width:'10%', enableCellEdit: false }
+            ],
+            data:oDUDeliveryChallanDetails,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi_Challan = gridApi;
+                $scope.gridApi_Challan.selection.clearSelectedRows();
+            }
+        };
+
+        this.GetsChallanDetail = function(){
+            debugger;
+            var data=JSON.parse(sessionStorage.getItem("SelectedData"));
+            var obj = {
+                ProductID:data.ProductID,
+                DyeingOrderID:data.DyeingOrderID
+            }
+            var list = [];
+            $http.post(_sBaseAddress+'/DUProductionYetTo/GetsChallanDetail', JSON.stringify(obj)).then(
+                           function (response) {
+                               var results=jQuery.parseJSON(response.data);
+                               debugger;
+                               if(results.length==0)
+                                   alert("No Data Found!!");
+                               else if(results!=null && results[0].ErrorMessage=="")
+                               {
+                                   $scope.gridOptions_Challan.data= results ;
+                               }
+                               else{
+                                   msModal.Message({headerTitle : '', bodyText:results[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                               }
+                           },
+                           function (response) {
+                               msModal.Message({headerTitle : '', bodyText:(response.data).ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});}
+                       );
+            return list;
+        }
+
+        this.tab = 1;
+        this.SetTab = function (tabId)
+        {
+            this.tab = tabId;
+        }
+        this.IsSet = function (tabid)
+        {
+            return this.tab === tabid;
+        }
+
+        $scope.Close=function ()
+        {
+            debugger;
+            //window.location.href = sessionStorage.getItem("BackLink");
+            userSession.previousPage();
+        };
+    });
+
+    </script>
+
+
+
+

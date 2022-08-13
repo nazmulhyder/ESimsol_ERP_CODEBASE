@@ -1,0 +1,247 @@
+﻿@{
+    ViewBag.Title = "Currency List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.Currency>
+
+<div style="margin-left:0px; height:565px;" onfocus="parent_disable();" onclick="parent_disable();">
+            <table id="tblCurrencys" title="Currency List"  class="easyui-datagrid" style="width:100%;height:565px" fitColumns="true"  rownumbers="true" pagination="false" singleSelect="true", autoRowHeight="false" toolbar="#toolbar">
+                <thead>  
+                    <tr>  
+                        <th field="CurrencyName" width="150" >Currency Name</th>  
+                        <th field="IssueFigure" width="200" >Issue Figure</th>  
+                        <th field="Symbol" width="120" >Symbol</th>
+                        <th field="SmallerUnit" width="120" >Smaller Unit</th>
+                        <th field="SmUnitValue" width="120" align="right" formatter="formatPrice" >Small Unit Value</th>                         
+                        <th field="Note" width="120" >Note</th>                         
+                    </tr>  
+                </thead> 
+            </table>​  
+            <div id="toolbar"> 
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-reload" plain="true" onclick="Refresh()"></a>  
+                <input type="text" id="txtSearchByName" placeholder="Search by Currency Name" style="width:250px; font-size:11px;"  />              
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-add" plain="true" onclick="Add()">Add</a>  
+                <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-edit" plain="true" onclick="Edit()">Edit</a>                
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-details" plain="true" onclick="Details()">View</a>
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-remove" plain="true" onclick="Delete()">Delete</a>     
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-redo" plain="true" onclick="Convert()">Currency Convertion</a>            
+            </div>  
+</div>
+
+
+
+<script type="text/javascript">
+    var popupWindow=null;
+    var _oCurrencys=[];
+    var _sBaseAddress="";
+    var _BaseCurrencyID = 0;
+    $(document).ready(function () {
+        //debugger;
+        _oCurrencys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _BaseCurrencyID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BaseCurrencyID));
+        RefreshList(_oCurrencys);
+    });
+
+
+
+
+$('#txtSearchByName').keypress(function (e) {
+//debugger;
+    var c = String.fromCharCode(e.which);
+    var txtSearchByName = document.getElementById('txtSearchByName').value;
+    txtSearchByName = txtSearchByName + c;
+
+    var bFlag=false;
+    var sTempName="";
+    var rows = $('#tblCurrencys').datagrid('getRows');
+    for(i=0;i<rows.length;++i){
+        sTempName=rows[i]['CurrencyName'].substring(0, txtSearchByName.length);
+        if(txtSearchByName.toUpperCase()==sTempName.toUpperCase())
+        {
+            bFlag=true;
+            break;
+        }
+    }
+    if(bFlag)
+    {
+        $('#tblCurrencys').datagrid('selectRow', i);
+    }
+});
+
+
+function Refresh()
+{
+    var oCurrencys = $('#tblCurrencys').datagrid('getRows');
+    data=oCurrencys;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblCurrencys').datagrid('loadData',data);
+}
+
+function child_open(url,oParameter,modal)
+{
+    if(popupWindow && !popupWindow.closed)
+        popupWindow.focus();
+    else
+        popupWindow =window.open(url,"_blank",modal);
+
+}
+function parent_disable() {
+    if(popupWindow && !popupWindow.closed)
+        popupWindow.focus();
+}
+
+function Add()
+{
+//debugger;
+    var oParameter = new Object();
+    oParameter.Name = "Add Currency";
+    var url =_sBaseAddress+ "/Currency/ViewCurrency?id=0";
+    sessionStorage.setItem("SelectedRowIndex", -1);
+    sessionStorage.setItem("Operation", "ADD");
+    sessionStorage.setItem("SelectedParam", JSON.stringify(oParameter));
+    //var oCurrency = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:505px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+    child_open(url,oParameter,"directories=no, status=no, menubar=no, scrollbars=no, resizable=no, height=300px,width=505px,top=100,left=400");
+}
+
+function WinReturnCurrency(oCurrency)
+{
+    debugger;
+    if(oCurrency!=null)
+    {
+        if (sessionStorage.getItem("Operation") == "ADD") {
+            if(oCurrency.CurrencyID>0)
+            {
+                var oCurrencys = $('#tblCurrencys').datagrid('getRows');
+                var nIndex=oCurrencys.length;
+
+                $('#tblCurrencys').datagrid('appendRow',oCurrency);
+                $('#tblCurrencys').datagrid('selectRow', nIndex);
+            }
+        }
+        else {
+            if(oCurrency.CurrencyID>0)
+            {
+                $('#tblCurrencys').datagrid('updateRow',{index: parseInt(sessionStorage.getItem('SelectedRowIndex')),	row: oCurrency});
+            }
+        }
+
+    }
+}
+
+function Edit()
+{
+    //debugger;
+    var oCurrency= $('#tblCurrencys').datagrid('getSelected');
+    if(oCurrency==null || oCurrency.CurrencyID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblCurrencys').datagrid('getRowIndex',oCurrency);
+    var oParameter = new Object();
+    oParameter.Name = "Edit Currency";
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("Operation", "EDIT");
+    sessionStorage.setItem("SelectedParam", JSON.stringify(oParameter));
+    var url =_sBaseAddress+  "/Currency/ViewCurrency?id="+oCurrency.CurrencyID;
+    //oCurrency = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:505px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+    child_open(url,oParameter,"directories=no, status=no, menubar=no, scrollbars=no, resizable=no, height=300px,width=505px,top=100,left=400");
+}
+
+
+function Details()
+{
+//debugger;
+    var oCurrency= $('#tblCurrencys').datagrid('getSelected');
+    if(oCurrency==null || oCurrency.CurrencyID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblCurrencys').datagrid('getRowIndex',oCurrency);
+    var oParameter = new Object();
+    oParameter.Name = "View Currency";
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+    sessionStorage.setItem("Operation", "VIEW");
+    sessionStorage.setItem("SelectedParam", JSON.stringify(oParameter));
+    var url =_sBaseAddress+  "/Currency/ViewCurrency?id="+oCurrency.CurrencyID;
+    //oCurrency = window.showModalDialog(url, oParameter, 'dialogHeight:300px;dialogWidth:505px;dialogLeft:500;dialogTop:200;center:yes;resizable:no;status:no;scroll:no');
+    child_open(url,oParameter,"directories=no, status=no, menubar=no, scrollbars=no, resizable=no, height=300px,width=505px,top=100,left=400");
+}
+
+function Delete()
+{
+       debugger;
+        var oCurrency= $('#tblCurrencys').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return ;
+
+        if(oCurrency==null || oCurrency.CurrencyID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        var SelectedRowIndex=$('#tblCurrencys').datagrid('getRowIndex',oCurrency);
+
+        if (oCurrency.CurrencyID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/Currency/Delete",
+                data: { id: oCurrency.CurrencyID},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                   debugger;
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblCurrencys').datagrid('deleteRow',SelectedRowIndex);
+
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+}
+
+
+function RefreshList(oCurrencys)
+{
+    data=oCurrencys;
+    data={"total":""+data.length+"","rows":data};
+    $('#tblCurrencys').datagrid('loadData',data);
+}
+
+function Convert()
+{
+//debugger;
+    var oCurrency = $('#tblCurrencys').datagrid('getSelected');
+    if(oCurrency==null || oCurrency.CurrencyID<=0)
+    {
+        alert("Please select a item from list!");
+        return;
+    }
+    if(_BaseCurrencyID == oCurrency.CurrencyID){
+        alert("You can not convertion. Because it is Base currency!");
+        return;
+    }
+    var SelectedRowIndex=$('#tblCurrencys').datagrid('getRowIndex',oCurrency);
+    sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+
+    var oCurrencys= $('#tblCurrencys').datagrid('getRows');
+    sessionStorage.setItem("Currencys", JSON.stringify(oCurrencys));
+    sessionStorage.setItem("CurrencyHeader", "Currency Convertion");
+    sessionStorage.setItem("BackLink", window.location.href);
+    window.location.href = _sBaseAddress+  "/Currency/ViewCurrencyConversion?id="+oCurrency.CurrencyID;
+}
+</script>

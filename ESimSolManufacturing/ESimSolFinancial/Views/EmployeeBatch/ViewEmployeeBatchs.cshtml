@@ -1,0 +1,233 @@
+﻿
+    @{
+        ViewBag.Title = "Employee Batch";
+    }
+@model IEnumerable<ESimSol.BusinessObjects.EmployeeBatch>
+
+    <div class="menuMainCollectionTable" style="height:100%">
+        <table id="tblEmployeeBatchs" title="EmployeeBatch List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="BatchNo" width="100">Batch No</th>
+                    <th field="BatchName" width="100">Batch Name</th>
+                    <th field="EmpCount" width="100" align="right">Emp Count</th>
+                    <th field="CreateDateInString" width="100" align="center">Create Date</th>
+                    <th field="CauseOfCreation" width="100">CauseOfCreation</th>
+                    <th field="Remarks" width="100">Remarks</th>
+                    <th field="CreateByName" width="100">Create By</th>
+                    <th field="ApprovedByName" width="100">Approved By</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">            
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Approve</a>
+            <a id="btnUndoApprove" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-approved" plain="true">Undo Approve</a>           
+        </div>
+    </div>
+  <script type="text/javascript">
+      $(document).ready(function () {
+          var oEmployeeBatchs =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+          var oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+          var oTempEmployeeBatchs =sessionStorage.getItem("EmployeeBatchs");
+          if(oTempEmployeeBatchs!=null)
+          {
+              oEmployeeBatchs = jQuery.parseJSON(oTempEmployeeBatchs);
+          }
+          RefreshList(oEmployeeBatchs);
+          RefreshControlLayout(oAuthorizationRolesMapping);
+      });
+
+      $('#btnAdd').click(function () {
+          var oEmployeeBatchs = $('#tblEmployeeBatchs').datagrid('getRows');
+          sessionStorage.setItem("EmployeeBatchs", JSON.stringify(oEmployeeBatchs));
+          sessionStorage.setItem("SelectedRowIndex", -1);
+          sessionStorage.setItem("EmployeeBatchHeader", "Add EmployeeBatch");
+          sessionStorage.setItem("BackLink", window.location.href);
+          window.location.href = sessionStorage.getItem('BaseAddress')+ "/EmployeeBatch/ViewEmployeeBatch?id=0";
+      });
+   
+      $('#btnEdit').click(function(){
+          var oEmployeeBatch= $('#tblEmployeeBatchs').datagrid('getSelected');
+          if(oEmployeeBatch==null || oEmployeeBatch.EmployeeBatchID<=0)
+          {
+              alert("Please select an item from list!");
+              return;
+          }
+          if(parseInt(oEmployeeBatch.ApprovedBy)!=0)
+          {
+              alert("Your selected EmployeeBatch already approved!");
+              return;
+          }
+          var nSelectedRowIndex=$('#tblEmployeeBatchs').datagrid('getRowIndex',oEmployeeBatch);
+          var oEmployeeBatchs= $('#tblEmployeeBatchs').datagrid('getRows');
+          sessionStorage.setItem("EmployeeBatchs", JSON.stringify(oEmployeeBatchs));
+          sessionStorage.setItem("SelectedRowIndex", nSelectedRowIndex);
+          sessionStorage.setItem("EmployeeBatchHeader", "Edit EmployeeBatch");
+          sessionStorage.setItem("BackLink", window.location.href);
+          window.location.href =  sessionStorage.getItem('BaseAddress')+  "/EmployeeBatch/ViewEmployeeBatch?id="+oEmployeeBatch.EmployeeBatchID;
+      });
+
+      $('#btnView').click(function(){
+          var oEmployeeBatch= $('#tblEmployeeBatchs').datagrid('getSelected');
+          if(oEmployeeBatch==null || oEmployeeBatch.EmployeeBatchID<=0)
+          {
+              alert("Please select an item from list!");
+              return;
+          }
+          var nSelectedRowIndex=$('#tblEmployeeBatchs').datagrid('getRowIndex',oEmployeeBatch);
+          var oEmployeeBatchs= $('#tblEmployeeBatchs').datagrid('getRows');
+          sessionStorage.setItem("EmployeeBatchs", JSON.stringify(oEmployeeBatchs));
+          sessionStorage.setItem("SelectedRowIndex", nSelectedRowIndex);
+          sessionStorage.setItem("EmployeeBatchHeader", "View EmployeeBatch");
+          sessionStorage.setItem("BackLink", window.location.href);
+          window.location.href =  sessionStorage.getItem('BaseAddress')+  "/EmployeeBatch/ViewEmployeeBatch?id="+oEmployeeBatch.EmployeeBatchID;
+      });
+
+      $('#btnDelete').click(function(){
+          debugger;
+          var oEmployeeBatch= $('#tblEmployeeBatchs').datagrid('getSelected');
+          if(oEmployeeBatch==null || oEmployeeBatch.EmployeeBatchID<=0)
+          {
+              alert("Please select an item from list!");
+              return;
+          }
+          if(parseInt(oEmployeeBatch.ApprovedBy)!=0)
+          {
+              alert("Your selected EmployeeBatch already approved!");
+              return;
+          }
+          if (!confirm("Confirm to Delete?")) return ;
+
+
+          var SelectedRowIndex=$('#tblEmployeeBatchs').datagrid('getRowIndex',oEmployeeBatch);
+
+          if (oEmployeeBatch.EmployeeBatchID > 0)
+          {
+              debugger;
+              $.ajax
+              ({
+                  type: "POST",
+                  dataType: "json",
+                  url :sessionStorage.getItem('BaseAddress')+  "/EmployeeBatch/Delete",
+                  data: JSON.stringify(oEmployeeBatch),
+                  contentType: "application/json; charset=utf-8",
+                  success: function (data) {
+                      debugger;
+                      feedbackmessage = jQuery.parseJSON(data);
+                      if (feedbackmessage == "Deleted")
+                      {
+                          alert("Delete sucessfully");
+                          $('#tblEmployeeBatchs').datagrid('deleteRow',SelectedRowIndex);
+                          var oEmployeeBatchs= $('#tblEmployeeBatchs').datagrid('getRows');
+                          sessionStorage.setItem("EmployeeBatchs", JSON.stringify(oEmployeeBatchs));
+
+                      }
+                      else
+                      {
+                          alert(feedbackmessage);
+                      }
+                  },
+                  error: function (xhr, status, error)
+                  {
+                      alert(error);
+                  }
+
+              });
+          }
+      });
+
+      $('#btnApprove').click(function (e) {
+          debugger;
+          var oEmployeeBatch= $('#tblEmployeeBatchs').datagrid('getSelected');
+          var nSelectedRowIndex=$('#tblEmployeeBatchs').datagrid('getRowIndex',oEmployeeBatch);
+          if(oEmployeeBatch==null || oEmployeeBatch.EmployeeBatchID<=0)
+          {
+              alert("Please select an item from list!");
+              return;
+          }
+          if(parseInt(oEmployeeBatch.ApprovedBy)!=0)
+          {
+              alert("Your selected EmployeeBatch already approved!");
+              return;
+          }
+          if (!confirm("Confirm to Approve?")) return ;
+          $.ajax({
+              type: "POST",
+              dataType: "json",
+              url: sessionStorage.getItem('BaseAddress')+  "/EmployeeBatch/Approve",
+              traditional: true,
+              data:  JSON.stringify(oEmployeeBatch),
+              contentType: "application/json; charset=utf-8",
+              success: function (data) {
+                  debugger;
+                  oEmployeeBatch = jQuery.parseJSON(data);
+                  $('#tblEmployeeBatchs').datagrid('updateRow',{ index: nSelectedRowIndex, row: oEmployeeBatch });
+              },
+              error: function (xhr, status, error) {
+                  alert(error);
+              }
+          });
+      });
+      $('#btnUndoApprove').click(function (e) {
+          debugger;
+          var oEmployeeBatch= $('#tblEmployeeBatchs').datagrid('getSelected');
+          var nSelectedRowIndex=$('#tblEmployeeBatchs').datagrid('getRowIndex',oEmployeeBatch);
+          if(oEmployeeBatch==null || oEmployeeBatch.EmployeeBatchID<=0)
+          {
+              alert("Please select an item from list!");
+              return;
+          }
+          if(parseInt(oEmployeeBatch.ApprovedBy)==0)
+          {
+              alert("Your selected EmployeeBatch Not approved!");
+              return;
+          }
+          if (!confirm("Confirm to Undo Approve?")) return ;
+          $.ajax({
+              type: "POST",
+              dataType: "json",
+              url: sessionStorage.getItem('BaseAddress')+  "/EmployeeBatch/UndoApprove",
+              traditional: true,
+              data:  JSON.stringify(oEmployeeBatch),
+              contentType: "application/json; charset=utf-8",
+              success: function (data) {
+                  debugger;
+                  oEmployeeBatch = jQuery.parseJSON(data);
+                  $('#tblEmployeeBatchs').datagrid('updateRow',{ index: nSelectedRowIndex, row: oEmployeeBatch });
+              },
+              error: function (xhr, status, error) {
+                  alert(error);
+              }
+          });
+      });
+      function RefreshControlLayout(oAURolesMapping)
+      {
+          $("#btnAdd").hide();
+          $("#btnEdit").hide();
+          $("#btnView").hide();
+          $("#btnDelete").hide();
+          $("#btnApprove").hide();
+          $("#btnUndoApprove").hide();
+
+          if(PermissionChecker('Add','EmployeeBatch',oAURolesMapping)){$("#btnAdd").show();}
+          if(PermissionChecker('Edit','EmployeeBatch',oAURolesMapping)){$("#btnEdit").show();}
+          if(PermissionChecker('View','EmployeeBatch',oAURolesMapping)){$("#btnView").show();}
+          if(PermissionChecker('Delete','EmployeeBatch', oAURolesMapping)){$("#btnDelete").show();}
+          if(PermissionChecker('Approved','EmployeeBatch', oAURolesMapping)){$("#btnApprove").show();}
+          if(PermissionChecker('UnApproved','EmployeeBatch', oAURolesMapping)){$("#btnUndoApprove").show();}
+      }
+      function RefreshList(oEmployeeBatchs)
+      {
+          DynamicRefreshList(oEmployeeBatchs, 'tblEmployeeBatchs'); 
+          var nSelectedRowIndex =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+          if(nSelectedRowIndex!=-1)
+          {
+              $('#tblEmployeeBatchs').datagrid('selectRow', nSelectedRowIndex);
+          }
+      }
+   
+   </script>

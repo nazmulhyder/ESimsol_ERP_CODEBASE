@@ -1,0 +1,252 @@
+﻿@{
+    ViewBag.Title = "Production Unit List";
+}
+
+@model IEnumerable <ESimSol.BusinessObjects.ProductionUnit>
+
+<div ng-app="ProductionUnitModule">
+    <div ng-controller="ProductionUnitController">
+        <div class="row ui-grid-top-panel">
+            <div class="container">
+                <div class="form-inline">
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="add()"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> New</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="edit()"> <span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="delete()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="view()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> View</button>
+                    <button type="button" class="btn btn-sm btn-primary" aria-label="Left Align" ng-click="configure()"> <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span> Line Config.</button>
+                     
+                </div>
+            </div>
+        </div>
+        <div class="row" style="margin:2px; padding:0;">
+            <div style="width:100%" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+        </div>
+        
+    </div>
+</div>
+
+<style type="text/css">
+
+     .form-control{
+        height:26px;
+        padding:0px 6px;
+        font-size:12px;
+    }
+    .grid {
+        height: 450px;
+        width: 100%;
+    }
+
+    .custom-pagination {
+        margin-top: -15px;
+        margin-bottom: -15px;
+    }
+
+    .spacing {
+        padding-bottom: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var pager =[];
+    var _nBUID=0;
+    _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oProductionUnits =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+   
+    debugger;
+    var  ProductionUnitModule = angular.module('ProductionUnitModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service']);
+    ProductionUnitModule.controller('ProductionUnitController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+        debugger;
+        oProductionUnits= (userSession.getData('ProductionUnits').length>0)? userSession.getData('ProductionUnits'):oProductionUnits;
+      
+        $scope.gridOptions ={
+            enableSorting: true,
+            enableFullRowSelection: true,
+            //enableRowHeaderSelection: false,
+            enableSelectAll: false,
+            multiSelect:false,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            //enableVerticalScrollbar : false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'Name', name: 'Name', width:'25%', enableCellEdit: false },
+                { field: 'ShortName', name: 'Short Name', width: '20%' },
+                { field: 'ProductionUnitTypeST', name: 'Type', width: '20%' },
+                { field: 'RefName', name: 'Ref Name', width: '35%' }
+            ],
+
+            data:oProductionUnits,
+            onRegisterApi:function(gridApi) 
+            {
+                debugger;
+                $scope.gridApi = gridApi;
+                $scope.gridApi.selection.clearSelectedRows();
+                //$scope.gridApi.grid.registerRowsProcessor($scope.singleFilter, 200);
+                $scope.gridApi.core.refresh();
+                debugger;
+                if(oProductionUnits.length>0 && userSession.getRowIndex()>=0){
+                    $scope.gridApi.grid.modifyRows(oProductionUnits);
+                    $scope.gridApi.selection.selectRow(oProductionUnits[userSession.getRowIndex()]);
+                    $scope.RowSelect(oProductionUnits[userSession.getRowIndex()]);
+                }
+                userSession.clear();
+            }
+        };
+
+        $scope.singleFilter=function(renderableRows){
+           
+            var matcherName = new RegExp(angular.uppercase($scope.Name));
+            var matcherOperationTypeST = new RegExp(angular.uppercase($scope.OperationTypeST));
+            renderableRows.forEach( function( row ) {
+                debugger;
+                var match = false;
+                if (angular.uppercase(row.entity['Name']).match(matcherName) && angular.uppercase(row.entity['OperationTypeST']).match(matcherOperationTypeST)){
+                    match = true;
+                }
+                if ( !match ){
+                    row.visible = false;
+                }
+            });
+            return renderableRows;
+        };
+
+        $scope.add = function () {
+            sessionStorage.setItem("Operation", "New");
+            sessionStorage.removeItem("SelectedRowIndex");
+            sessionStorage.setItem("SelectedRowIndex",-1);
+            sessionStorage.setItem("ProductionUnitHeader", "Add ProductionUnit");
+            sessionStorage.setItem("ProductionUnits", JSON.stringify($scope.gridOptions.data));
+            sessionStorage.setItem("ProductionUnit", JSON.stringify([]));
+            sessionStorage.setItem("BackLink", window.location.href);
+         
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/ProductionUnit/ViewProductionUnit?nId=0&buid="+_nBUID+"&ts="+tsv;
+        };
+
+        $scope.edit = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+          
+            if(data==null || data.length<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ProductionUnitID==data[0].ProductionUnitID){
+                  
+                    sessionStorage.setItem("Operation", "Edit");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ProductionUnitHeader", "Edit ProductionUnit");
+                    sessionStorage.setItem("ProductionUnits", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ProductionUnit", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ProductionUnit/ViewProductionUnit?nId="+value.ProductionUnitID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.delete = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+           
+            if (!confirm("Confirm to Delete?")) return ;
+          
+            $http.post(_sBaseAddress+ '/ProductionUnit/Delete',JSON.stringify(data[0])).then(
+                            function (response) {
+                                if(jQuery.parseJSON(response.data)=='Deleted'){
+                                    angular.forEach($scope.gridOptions.data,function(value,index){
+                                        if(value.ProductionUnitID==data[0].ProductionUnitID){
+                                            $scope.gridOptions.data.splice(index,1);
+                                        }
+                                    },$scope.gridOptions.data);
+                                    alert("Delete Successfully.");
+                                } 
+                                else{
+                                    alert(jQuery.parseJSON(response.data));
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+
+        $scope.view = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ProductionUnitID==data[0].ProductionUnitID){
+                    sessionStorage.setItem("Operation", "View");
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ProductionUnitHeader", "View ProductionUnit");
+                    sessionStorage.setItem("ProductionUnits", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ProductionUnit", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ProductionUnit/ViewProductionUnit?nId="+value.ProductionUnitID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+     
+        $scope.configure = function () {
+            debugger;
+            var data=$scope.gridApi.selection.getSelectedRows();
+            if(data==null || data.length<=0){
+                msModal.Message({headerTitle : '', bodyText:'Select an item from list.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            angular.forEach($scope.gridOptions.data,function(value,index){
+                if(value.ProductionUnitID==data[0].ProductionUnitID){
+                    sessionStorage.setItem("SelectedRowIndex", index);
+                    sessionStorage.setItem("ProductionUnits", JSON.stringify($scope.gridOptions.data));
+                    sessionStorage.setItem("ProductionUnit", JSON.stringify($scope.gridOptions.data[index]));
+                    sessionStorage.setItem("BackLink", window.location.href);
+                    var tsv=((new Date()).getTime())/1000;
+                    window.location.href = _sBaseAddress+ "/ProductionUnit/ViewPLineConfigure?nId="+value.ProductionUnitID+"&buid="+_nBUID+"&ts="+tsv;
+                }
+            },$scope.gridOptions.data);
+        };
+
+        $scope.PrintPreview = function ()
+        {
+            var data = $scope.gridApi.selection.getSelectedRows();
+            var oProductionUnit = data[0];
+            if(oProductionUnit==null || oProductionUnit.ProductionUnitID<=0)
+            {
+                alert("Please select a item from list!");
+                return;
+            }
+            window.open(_sBaseAddress + '/ProductionUnit/PrintProductionUnitPreview?id='+oProductionUnit.ProductionUnitID);
+        };
+
+     
+      
+     
+    
+
+
+        //button hide
+      
+
+       
+
+    });
+
+
+</script>
+                       
+
+
+              

@@ -1,0 +1,199 @@
+﻿<html>
+@{
+    ViewBag.Title = "Change Salary Structure";
+}
+<body>
+    @model ESimSol.BusinessObjects.ArchiveData
+    <div class="menuMainCollectionTable">
+        @*<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+            <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+                <label style="font-size:18px;">Please wait</label>
+                <div id="progressbar" style="width:100%;height:37px;"></div>
+            </div>
+        </div>*@
+        <div id="MainDiv" class="easyui-panel" title="Change Salary Structure" style="font-family:Tahoma; text-align:center; height:88%;">
+            <fieldset style="height:100%">
+                <legend style="font-weight:bold">Change Salary Structure : </legend>
+                <table style="width:100%;margin-top:15%">
+                    <tr>
+                        <td style="width:10%; text-align:right"></td>
+                        <td style="width:15%; text-align:right">
+                            Select Data Archive :
+                        </td>
+                        <td style="width:50%">
+                            <select id="cboArchiveData" style="width:99%;height:22px;"></select>
+                        </td>
+                        <td style="width:30%; text-align:right">
+                        </td>
+                     
+                    </tr>
+                    <tr>
+                        <td style="width:10%; text-align:right"></td>
+                        <td style="width:15%; text-align:right">
+                            Employee Batch :
+                        </td>
+                        <td style="width:50%">
+                            <select id="cboEmployeeBatch" style="width:99%;height:22px;"></select>
+                        </td>
+                        <td style="width:30%; text-align:right"></td>
+
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight:bold; "> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;width:100%; font-weight:bold">
+                <tr>
+                    <td style="width:85%; text-align:right"></td>
+                    <td style="width:15%">
+                        <a id="btnCommit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Commit</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+    <div id="progress"></div>
+    <div id="result"></div>
+</body>
+</html>
+
+<script type="text/javascript">
+   
+    $(document).ready(function () {
+        var oArchiveDatas = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ArchiveData));
+        var oEmployeeBatchs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.EmployeeBatch));
+        $("#cboArchiveData").icsLoadCombo({ List: oArchiveDatas, OptionValue: "ArchiveDataID", DisplayText: "ArchiveDataNoMonthYear", InitialValue : "Archive No / Month / Year"  });
+        $("#cboEmployeeBatch").icsLoadCombo({ List: oEmployeeBatchs, OptionValue: "EmployeeBatchID", DisplayText: "EmployeeBatchNoCount", InitialValue : "Employee Batch No / Batch Name / Employee Count" });
+        //$("#progressbarParent").hide();
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+
+    function ValidateInput()
+    {        
+        if(parseInt( $("#cboArchiveData").val())<=0)
+        {
+            alert("Please Select Archive Data");
+            return false;
+        }
+        if(parseInt( $("#cboEmployeeBatch").val())<=0)
+        {
+            alert("Please Select Employee Batch");
+            return false;
+        }
+        return true;
+    }
+
+    function RefreshObject()
+    {        
+        var oArchiveSalaryStruc={
+            ArchiveDataID : parseInt($("#cboArchiveData").val()),
+            EmployeeBatchID : parseInt($("#cboEmployeeBatch").val())
+        }
+        return oArchiveSalaryStruc;
+    }
+
+    $('#btnCommittest').click(function(){        
+        if(!ValidateInput()) return;       
+        var oArchiveSalaryStruc = RefreshObject();
+
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").show();
+        var intervalID = setInterval(updateProgress, 250);
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ArchiveSalaryStruc/CommitChangeSalaryStructure",
+            traditional: true,
+            data:  JSON.stringify(oArchiveSalaryStruc),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {       
+                clearInterval(intervalID);
+                $("#progressbarParent").hide();
+                var oArchiveData = jQuery.parseJSON(data);
+                if (oArchiveData.ErrorMessage == "" && oArchiveData.EmployeeBatchDetails.length<=0)
+                {
+                    alert("Salary Chnages Commit Sucessfully");
+                }
+                else 
+                {
+                    if (oArchiveData.EmployeeBatchDetails.length>0)
+                    {
+                        if (!confirm("There has some Invalid Employee Information!\nAre you want to download this List??"))
+                        {
+                            ProgressBarHide();
+                            return ;
+                        }   
+                        var tsv=((new Date()).getTime())/1000;
+                        window.open(sessionStorage.getItem("BaseAddress")+ "/ArchiveSalaryStruc/DownloadErrorList?ts="+tsv,"_blank");
+                    }
+                    else
+                    {
+                        alert(oArchiveData.ErrorMessage);
+                    }
+                }
+                
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+
+    $('#btnCommit').click(function(){        
+        if(!ValidateInput()) return;
+        InitializeProgressBar();
+        var oArchiveSalaryStruc = RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/ArchiveSalaryStruc/CommitChangeSalaryStructure",
+            traditional: true,
+            data:  JSON.stringify(oArchiveSalaryStruc),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {            
+                var oArchiveData = jQuery.parseJSON(data);
+                if (oArchiveData.ErrorMessage == "" && oArchiveData.ArchiveSalaryStrucs.length<=0)
+                {
+                    alert("Salary Chnages Commit Sucessfully");
+                }
+                else 
+                {
+                    if (oArchiveData.ArchiveSalaryStrucs.length>0)
+                    {
+                        if (!confirm("There has some Invalid Employee Information!\nAre you want to download this List??"))
+                        {
+                            ProgressBarHide();
+                            return ;
+                        }   
+                        var tsv=((new Date()).getTime())/1000;
+                        window.open(sessionStorage.getItem("BaseAddress")+ "/ArchiveSalaryStruc/DownloadErrorList?ts="+tsv,"_blank");
+                    }
+                    else
+                    {
+                        alert(oArchiveData.ErrorMessage);
+                    }
+                }
+                ProgressBarHide();
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+ </script>

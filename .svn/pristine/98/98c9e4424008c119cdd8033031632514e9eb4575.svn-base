@@ -1,0 +1,298 @@
+﻿<html>
+<head><title>Att. Monitoring Dashboard</title></head>
+<body>
+    @model ESimSol.BusinessObjects.AttMonitoringDashboard
+
+    <!--<div class="easyui-tabs" data-options="tools:'#tab-tools'" style="width:100%;height:100%">-->
+
+    @*<table id="tblPurchaseInvoiceIBP" title="Att. Monitoring Dashboard" class="easyui-datagrid" fit="true" rownumbers="false" pagination="true" singleselect="true" autorowheight="false" toolbar="#tab-tools">
+      
+    </table>*@
+
+    <div style="text-align:right; background-color:lightgray;">
+        <input id="dStartDate" type="text" style="width: 150px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        To
+        <input id="dEndDate" type="text" style="width: 150px" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <a id="btnAdvanceSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="AdvanceSearch()">Search</a>
+    </div>
+    <div style="height:543px;">
+        <div id="flot-placeholder" style="width:90%;height:400px;margin:0 auto; margin-top:50px"></div>
+        <div id="divGraphName" style="width:90%;margin:0 auto; margin-top:10px; text-align:center; font-weight:bold; color:Blue"></div>
+    </div>
+
+</body>
+</html>
+<script type="text/javascript">
+        var _sBaseAddress="";
+        var _oSelectedContractors  =[];
+        var _nContractorID ="";
+        var _SelectedBankBranchIDs  = '';
+        var _oAttMonitoringDashboard=null;
+        var _oAttMonitoringDashboards_Chart=[];
+        var _oGraphData=[];
+        var _oGraphDataSet=[];
+        var _oGraphData=[];
+        var _oGraphTicks=[];
+        var _somePlot = null;
+
+        $(document).ready(function () {
+            debugger;
+            _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oAttMonitoringDashboards=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            $('#dStartDate').datebox('setValue', icsdateformat(new Date()));
+            $('#dEndDate').datebox('setValue', icsdateformat(new Date()));
+        });
+
+        function AdvanceSearch()
+        {
+            debugger;
+            var dStartDate =$('#dStartDate').datebox('getValue');
+            var dEndDate =$('#dEndDate').datebox('getValue');
+            
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/AttendanceDaily/GetsForGraph",
+                traditional: true,
+                data: JSON.stringify({StartDate:dStartDate,EndDate :dEndDate}),
+                contentType: "application/json; charset=utf-8",
+
+                success: function (data) {
+                    debugger;
+
+                    var oAttMonitoringDashboard = jQuery.parseJSON(data);
+
+                    if (oAttMonitoringDashboard.ErrorMessage == "" && oAttMonitoringDashboard != null)
+                    {
+
+                        var oGraph = new Object();
+                        GraphList = [];
+                        oGraph.Value =100;
+                        oGraph.Name = "Total("+oAttMonitoringDashboard.TotalEmployee+")";
+                        GraphList.push(oGraph);
+                        var oGraph = new Object();
+                        oGraph.Value = oAttMonitoringDashboard.PresentPercent;
+                        oGraph.Name = "Present(%)";
+                        GraphList.push(oGraph);
+                        var oGraph = new Object();
+                        oGraph.Value = oAttMonitoringDashboard.AbsentPercent;
+                        oGraph.Name = "Absent(%)";
+                        GraphList.push(oGraph);
+                        var oGraph = new Object();
+                        oGraph.Value = oAttMonitoringDashboard.LeavePercent;
+                        oGraph.Name = "Leave(%)";
+                        GraphList.push(oGraph);
+                        var oGraph = new Object();
+                        oGraph.Value = oAttMonitoringDashboard.LatePercent;
+                        oGraph.Name = "Late(%)";
+                        GraphList.push(oGraph);
+                        var oGraph = new Object();
+                        oGraph.Value = oAttMonitoringDashboard.EarlyPercent;
+                        oGraph.Name = "Early(%)";
+                        GraphList.push(oGraph);
+
+                        PrepareGraph(GraphList);
+                    }
+                    else
+                    {
+                        alert(oAttMonitoringDashboard.ErrorMessage);
+                        oAttMonitoringDashboard = null;
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+
+        function PrepareGraph(oDateWiseSummery)
+        {
+            debugger
+            _oGraphData=[];
+            _oGraphTicks=[];
+            var oDataPonint=[]; var x=0; var y=0;
+            var oTickPonint=[]; var xx=0; var yy="";
+
+            //oDataPonint.push(0); //SEt Intital Y Axis
+            //oDataPonint.push(0)
+            //_oGraphData.push(oDataPonint);
+
+            //oTickPonint.push(0); //SEt Intital X Axis
+            //oTickPonint.push('')
+            //_oGraphTicks.push(oTickPonint);
+
+            for(var i=0; i<oDateWiseSummery.length; i++)
+            {
+                oDataPonint=[];
+                x = i+1;
+                y = oDateWiseSummery[i].Value;
+                oDataPonint.push(x);
+                oDataPonint.push(y);
+                _oGraphData.push(oDataPonint);
+
+                oTickPonint=[];
+                xx = i+1;
+                yy = oDateWiseSummery[i].Name;
+                oTickPonint.push(xx);
+                oTickPonint.push(yy)
+                _oGraphTicks.push(oTickPonint);
+            }
+
+            var oGraphOptions = {
+                series: {
+                    bars: {
+                        show: true
+                    }
+                },
+
+                bars: {
+                    align: "center",
+                    barWidth: 0.5
+                },
+
+                xaxis: {
+                    axisLabel: "Date Wise Att.",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 10,
+                    ticks: _oGraphTicks
+
+                },
+
+                yaxis: {
+                    axisLabel: "Percentage",
+                    axisLabelUseCanvas: true,
+                    axisLabelFontSizePixels: 12,
+                    axisLabelFontFamily: 'Verdana, Arial',
+                    axisLabelPadding: 3,
+                    tickFormatter: function (v, axis) {
+                        return numberformat(v);
+                    }
+                },
+
+                legend: {
+                    noColumns: 0,
+                    labelBoxBorderColor: "#000000",
+                    position: "nw"
+                },
+
+                grid: {
+                    hoverable: true,
+                    borderWidth: 2,
+                    backgroundColor: { colors: ["#ffffff", "#EDF5FF"]
+                    }
+                }
+            };
+
+            var dStartDate =$('#dStartDate').datebox('getValue');
+            var dEndDate =$('#dEndDate').datebox('getValue');
+
+            _oGraphDataSet = [ { label: dStartDate+" To "+ dEndDate+" Att. Summery", data: _oGraphData, color: "#5482FF" }];
+            _somePlot = $.plot($("#flot-placeholder"), _oGraphDataSet, oGraphOptions);
+
+            $.plot($("#flot-placeholder"), _oGraphDataSet, oGraphOptions);
+            $("#flot-placeholder").UseTooltip();
+            document.getElementById("divGraphName").innerHTML=dStartDate+" To "+ dEndDate+" Att. Summery";
+
+            SetPoint();
+        }
+
+        function SetPoint()
+        {
+            debugger;
+            var ctx = _somePlot.getCanvas().getContext("2d");
+            var data = _somePlot.getData()[0].data;
+            var xaxis = _somePlot.getXAxes()[0];
+            var yaxis = _somePlot.getYAxes()[0];
+            var offset = _somePlot.getPlotOffset();
+            ctx.font = "13px 'Tahoma'";
+            ctx.fillStyle = "Blue";
+
+
+            for (var i = 0; i <data.length; i++){
+                var text = formatPrice(data[i][1])+ '';
+                var metrics = ctx.measureText(text);
+                var xPos = (xaxis.p2c(data[i][0])+offset.left) - metrics.width/2;
+                var yPos = yaxis.p2c(data[i][1]) + offset.top - 5;
+                ctx.fillText(text, xPos, yPos);
+
+            }
+        }
+
+        function gd(year, month, day) {
+            return new Date(year, month, day).getTime();
+        }
+
+        var previousPoint = null, previousLabel = null;
+
+        $.fn.UseTooltip = function () {
+            $(this).bind("plothover", function (event, pos, item) {
+                if (item) {
+                    if ((previousLabel != item.series.label) || (previousPoint != item.dataIndex)) {
+                        previousPoint = item.dataIndex;
+                        previousLabel = item.series.label;
+                        $("#tooltip").remove();
+
+                        var x = item.datapoint[0];
+                        var y = item.datapoint[1];
+
+                        var color = item.series.color;
+
+                        //console.log(item.series.xaxis.ticks[x].label);
+
+                        showTooltip(item.pageX,
+                            item.pageY,
+                            color,
+                            "<strong>" + item.series.label + "</strong><br>" + item.series.xaxis.ticks[x].label + " : <strong>" + numberformat(y) + "</strong>");
+                    }
+                } else {
+                    $("#tooltip").remove();
+                    previousPoint = null;
+                }
+            });
+        };
+
+        function showTooltip(x, y, color, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y - 40,
+                left: x - 120,
+                border: '2px solid ' + color,
+                padding: '3px',
+                'font-size': '9px',
+                'border-radius': '5px',
+                'background-color': '#fff',
+                'font-family': 'Verdana, Arial, Helvetica, Tahoma, sans-serif',
+                opacity: 0.9
+            }).appendTo("body").fadeIn(200);
+        }
+
+        function numberformat(val) {
+            if (val == null) {
+                val = 0;
+            }
+            val = parseFloat(val);
+            var test = val.toFixed();
+            var tests = addComma(test);
+            return tests;
+        }
+
+        function addComma(nStr) {
+            nStr += '';
+            x = nStr.split('.');
+            x1 = x[0];
+            x2 = x.length > 1 ? '.' + x[1] : '';
+            var process = /(\d+)(\d{3})/;
+            while (process.test(x1)) {
+                x1 = x1.replace(process, '$1' + ',' + '$2');
+            }
+            return x1 + x2;
+        }
+
+</script>
+
+

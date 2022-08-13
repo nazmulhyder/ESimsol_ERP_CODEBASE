@@ -1,0 +1,245 @@
+﻿@{
+    ViewBag.Title = "Add More DispoProductionAttachment";
+}
+
+<html>
+
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.DispoProductionAttachment>
+    <div class="menuMainCollectionTable" style="height: 550px;">
+        <div class="easyui-panel" title="DispoProductionAttachment" style="font-family:Tahoma; text-align:center; height:89%;">
+            <div id="toolbar">
+                <input type="file" name="fileInput" id="fileInput" style="float: left;" />
+                <a id="btnSave" href="javascript:void(0)" style="float: left;" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Save()">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" style="float: left;" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            </div>
+
+            <table style="width: 100%" id="tblDispoProductionAttachments" title="" class="easyui-datagrid" fitcolumns="true" rownumbers="true" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="SubFileName" width="100" align="center">Attachment Name</th>
+                        <th field="DispoProductionAttachmentID" width="100" align="center" formatter="FormatDownload">Download</th>
+
+                    </tr>
+                </thead>
+            </table>
+        </div>
+        <fieldset>
+            <legend style="font-weight:bold"> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold; width:100%;">
+                <tr>
+                    <td style="width:100%;text-align:right">
+                        <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _oDispoProductionAttachments=[];
+    var _oDispoProductionComment = {};
+    var _sBaseAddress="";
+    var  _lBackLink = "";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oDispoProductionAttachments =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oDispoProductionComment =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.DispoProductionComment));
+        var oDispoProductionAttachments =sessionStorage.getItem("DispoProductionAttachments");
+        _lBackLink = sessionStorage.getItem("BackLink");
+        if(oDispoProductionAttachments!=null)
+        {
+            oDispoProductionAttachments = jQuery.parseJSON(oDispoProductionAttachments);
+        }
+        else
+        {
+            oDispoProductionAttachments=_oDispoProductionAttachments;
+        }
+        RefreshList(oDispoProductionAttachments);
+    });
+
+    function RefreshList(oDispoProductionAttachments)
+    {
+        debugger;
+        var data=oDispoProductionAttachments;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDispoProductionAttachments').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblDispoProductionAttachments').datagrid('selectRow',nIndex);
+    }
+
+    function validateFile() 
+    {
+        var allowedExtension = ['jpeg', 'jpg', 'png'];
+        var fileExtension = document.getElementById('fileInput').value.split('.').pop().toLowerCase();
+        var isValidFile = false;
+
+        for(var index in allowedExtension) {
+
+            if(fileExtension === allowedExtension[index]) {
+                isValidFile = true; 
+                break;
+            }
+        }
+        //if(!isValidFile) {
+        //    alert('Allowed Extensions are : *.' + allowedExtension.join(', *.'));
+        //    return;
+        //}
+        return isValidFile;
+    }
+
+    function RefreshObject()
+    {
+        debugger;
+        var oDispoProductionAttachment= {
+            DispoProductionAttachmentID : 0,
+            FileName: $("#fileInput").val(),
+            DispoProductionCommentID:  _oDispoProductionComment.DispoProductionCommentID,
+        };
+        return oDispoProductionAttachment;
+    }
+    function Save()
+    {
+        if(document.getElementById("fileInput").value==null || document.getElementById("fileInput").value=="")
+        {
+            alert("Please enter an Attachment!");
+            $('#fileInput').focus();
+            return false;
+        }
+
+        var isValidFile = validateFile();
+        if(!isValidFile) {
+            alert('You can not save this file. Allowed Extensions are : .jpg, .jpeg, .png !!');
+            return;
+        }
+        debugger;
+        var oDispoProductionAttachment=RefreshObject();
+
+        var IsFile = true;
+        var  oFormdata = new FormData();
+        var fileInput = document.getElementById("fileInput");
+        if(fileInput.files[0]!=null){oFormdata.append(fileInput.files[0].name, fileInput.files[0]);} else IsFile=false;
+
+        var nts=((new Date()).getTime())/1000;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST',_sBaseAddress+'/DispoProduction/SaveAttachment?nts='+ nts);
+        xhr.setRequestHeader('DispoProductionAttachmentID', oDispoProductionAttachment.DispoProductionAttachmentID);
+        xhr.setRequestHeader('DispoProductionCommentID', oDispoProductionAttachment.DispoProductionCommentID);
+        xhr.setRequestHeader('FileName', oDispoProductionAttachment.FileName);
+        xhr.send(oFormdata);
+
+        debugger;
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4 && xhr.status == 200)
+            { //the response is ready
+                debugger;
+                oDispoProductionAttachment = MakeObject(xhr.responseText);
+                if (oDispoProductionAttachment.DispoProductionAttachmentID > 0) {
+                    $("#fileInput")[0].value = null;
+                    alert("Attachment Added sucessfully");
+                    debugger;
+                    window.location.href = _sBaseAddress + "/DispoProduction/ViewDispoProductionAttachments?nDispoProductionCommentID=" + oDispoProductionAttachment.DispoProductionCommentID;
+                }
+                else {
+                    $("#fileInput")[0].value = null;
+                    alert(oDispoProductionAttachment.ErrorMessage);
+                }
+            }
+        };
+    }
+    function MakeObject(sResponseValue)
+    {
+        debugger;
+        sResponseValue=sResponseValue.split('\\"')[1];
+        //var nEmployeeDocID=sResponseValue.split('~')[0];
+        var oDispoProductionAttachment=
+            {
+                ErrorMessage: sResponseValue.split('~')[0],
+                DispoProductionAttachmentID:sResponseValue.split('~')[1],
+                DispoProductionCommentID : sResponseValue.split('~')[2],
+                FileName : sResponseValue.split('~')[3]
+
+            };
+        return oDispoProductionAttachment;
+    }
+
+    function Delete()
+    {
+        //debugger;
+        var oDispoProductionAttachment= $('#tblDispoProductionAttachments').datagrid('getSelected');
+
+        if(oDispoProductionAttachment==null || oDispoProductionAttachment.DispoProductionAttachmentID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblDispoProductionAttachments').datagrid('getRowIndex',oDispoProductionAttachment);
+        if (oDispoProductionAttachment.DispoProductionAttachmentID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : _sBaseAddress+  "/DispoProduction/DeleteAttachment",
+                data: { nDispoProductionAttachmentID: oDispoProductionAttachment.DispoProductionAttachmentID, fileName: oDispoProductionAttachment.FileName},
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Data delete successfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblDispoProductionAttachments').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+
+            });
+        }
+    }
+
+    function Close()
+    {
+        if(_lBackLink!=null && _lBackLink!="")
+        {
+            window.location.href = _lBackLink;
+        }else{
+            window.close();
+        }
+    }
+
+    function FormatDownload(value)
+    {
+        debugger;
+        var nDispoProductionAttachmentID =parseInt(value);
+        var str = '   <input type="image" src="@Url.Content("~/Content/CSS/icons/down.png")"   onclick="DownLoadDispoProductionAttachment('+nDispoProductionAttachmentID+')", value="" id="btnDownload"'+nDispoProductionAttachmentID+'/> ';
+        return str;
+    }
+    function DownLoadDispoProductionAttachment(nDispoProductionAttachmentID)
+    {
+        debugger;
+        if(nDispoProductionAttachmentID==null || nDispoProductionAttachmentID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var tsv= ((new Date()).getTime())/1000;
+        var url =_sBaseAddress+  "/DispoProduction/DownloadAttachment?nDispoProductionAttachmentID="+ nDispoProductionAttachmentID+"&ts="+tsv;
+        window.open(url, '_blank');
+        
+    }
+
+</script>

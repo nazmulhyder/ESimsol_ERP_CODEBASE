@@ -1,0 +1,276 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.EmployeeRequestOnAttendance>
+    @{
+        ViewBag.Title = "Employee Request On Attendance";
+    }
+    <div style="margin-left:0px; height:500px" class="menuMainCollectionTable">
+        <table id="tblEmployeeRequest" title="Employee Request List" class="easyui-datagrid" style="width:100%;height:510px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" selectoncheck="false" checkonselect="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="EmployeeName" width="200" align="left">Name</th>
+                    <th field="EmployeeCode" width="200" align="left">Code</th>
+                    <th field="AttendanceDateInString" width="150" align="left">Att. Date</th>
+                    <th field="IsOSDInString" width="150" align="left">OSD</th>
+                    <th field="Remark" width="150" align="left">Remark</th>
+                    <th field="ApproveByName" width="150" align="left">Approve By</th>
+                    <th field="ApproveDateInString" width="150" align="left">Approve Date</th>
+                    <th field="CancelByName" width="150" align="left">Cancel By</th>
+                    <th field="CancelDateInString" width="150" align="left">Cancel Date</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar" style="height:auto;">
+            <input type="checkbox" id="chkIsDateSearch" onclick="dateEnableDisable()"/> 
+            <input id="dtDateFromRequest" style="width: 150px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            <span>to</span>
+            <input id="dtDateToRequest" style="width: 150px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+            
+            <input id="txtEmployee_Collection" style="width:15%;" type="text" placeholder="Type Code & Enter" />
+            <input id="btnCEmployee" type="button" value="C" />
+            <a id="btnSearchRequest" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true" onclick="SearchRequest()"></a>
+
+            <a id="btnApprove" href="javascript:void(0)" class="easyui-linkbutton" plain="true" iconcls="icon-ok">Approve</a>
+            <a id="btnCancel" href="javascript:void(0)" class="easyui-linkbutton" plain="true" iconcls="icon-ok">Cancel</a>
+        </div>
+    </div>
+    <style type="text/css">
+        
+    </style>
+    <script type="text/javascript">
+        var _oEmployeeRequests=[];
+        var _sBaseAddress="";
+        var _oEmployeeRequest = { EROAID:0};
+        var _sEmployeeIDs = "";
+
+        $(document).ready(function ()
+        {
+            debugger;
+            _oEmployeeRequests =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+            _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            
+            $("#dtDateFromRequest, #dtDateToRequest").datebox({ disabled: true });
+            $('#dtDateFromRequest, #dtDateToRequest').datebox("setValue", icsdateformat(new Date()));
+
+            DynamicRefreshList(_oEmployeeRequests, "tblEmployeeRequest");
+        });
+
+        $('#txtEmployee_Collection').keypress(function (e)
+        {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)//Enter key-13
+            {
+                var sCodeName = $.trim($("#txtEmployee_Collection").val());
+                if(sCodeName==''){alert("Please enter name or code to search.");$("#txtEmployee_Collection").focus(); return;}
+                SearchEmployeeByText(sCodeName);
+            }
+        });
+        function SearchEmployeeByText(sEmpNameCode){
+            var oEmployee = { Params: sEmpNameCode +'~'+ 0};
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oEmployee,
+                ControllerName: "Employee",
+                ActionName: "GetsByEmpCode",
+                IsWinClose: false
+            };
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs.length > 0) {
+                    if (response.objs[0].EmployeeID > 0) {
+
+                        var tblColums = [];var oColumn = { field: "Code", title: "Code", width: 70, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "Name", title: "Name", width: 120, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "DepartmentName", title: "Department", width: 100, align: "left" };tblColums.push(oColumn);
+                        oColumn = { field: "DesignationName", title: "Designation", width: 100, align: "left" };tblColums.push(oColumn);
+                        var oPickerParam = {
+                            winid: 'winEmployeePickerTextSearch',
+                            winclass:'clsEmployeePickerTextSearch',
+                            winwidth: 455,
+                            winheight: 460,
+                            tableid: 'tblEmployeePickerTextSearch',
+                            tablecolumns: tblColums,
+                            datalist: response.objs,
+                            multiplereturn: false,
+                            searchingbyfieldName:'Name',
+                            windowTittle: 'Employee list'
+                        };
+
+                        $.icsPicker(oPickerParam);
+                        IntializeEmployeePickerTextSearch(oPickerParam);//multiplereturn, winclassName
+
+                    }
+                    else { alert(response.objs[0].ErrorMessage); }
+                }
+            });
+        }
+        function IntializeEmployeePickerTextSearch(oPickerobj)
+        {
+            $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+                var oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+                if(oreturnObj == null || oreturnObj.EmployeeID<=0){  alert("please select an employee."); return false;}
+
+                $("#"+oPickerobj.winid).icsWindow("close");
+                $("#" + oPickerobj.winid).remove();
+                if (oPickerobj.winid == 'winEmployeePickerTextSearch')
+                {
+                    if (oreturnObj != null && oreturnObj.EmployeeID > 0)
+                    {
+                        _sEmployeeIDs=oreturnObj.EmployeeID;
+                        $("#txtEmployee_Collection").val(oreturnObj.Name);
+                    }
+                }
+            });
+
+            $(document).find('.' +oPickerobj.winclass).keydown(function (e) {
+                if (e.which == 13)//enter=13
+                {
+                    var oreturnObj = $('#'+oPickerobj.tableid).datagrid('getSelected');
+                    if(oreturnObj == null || oreturnObj.EmployeeID<=0){  alert("please select an employee."); return false;}
+
+                    $("#"+oPickerobj.winid).icsWindow("close");
+                    $("#" + oPickerobj.winid).remove();
+
+                    if (oPickerobj.winclass == 'clsEmployeePickerTextSearch')
+                    {
+                        if (oreturnObj != null && oreturnObj.EmployeeID > 0)
+                        {
+                            _sEmployeeIDs=oreturnObj.EmployeeID;
+                            $("#txtEmployee_Collection").val(oreturnObj.Name);
+                        }
+                    }
+                }
+            });
+        }
+        $('#btnCEmployee').click(function (e)
+        {
+            document.getElementById("txtEmployee_Collection").value = "" ;
+            _sEmployeeIDs = 0;
+        });
+        
+        function dateEnableDisable()
+        {
+            debugger;
+            $("#dtDateFromRequest, #dtDateToRequest").datebox({ disabled: !($("#chkIsDateSearch").is(":checked") == true) });
+            $('#dtDateFromRequest, #dtDateToRequest').datebox("setValue", icsdateformat(new Date()));
+        }
+        function SearchRequest()
+        {
+
+            var sDateFrom = $('#dtDateFromRequest').datebox('getValue');
+            var sDateTo = $('#dtDateToRequest').datebox('getValue');
+            var _IsDateSearch = $("#chkIsDateSearch").is(":checked");
+        
+            $.ajax({
+                type: "POST",
+                dataType: "json",               
+                url: _sBaseAddress+ "/EmployeeRequestOnAttendance/SearchRequest",
+                data: JSON.stringify({sDateFrom:sDateFrom,sDateTo:sDateTo, sEmployeeIDs:_sEmployeeIDs, IsDateSearch:_IsDateSearch}),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) 
+                {
+                    debugger; 
+                    var oReqs = jQuery.parseJSON(data); 
+                    if(oReqs.length>0 && oReqs[0].ErrorMessage=="")
+                    {
+                        $('#tblEmployeeRequest').datagrid('loadData', oReqs);
+                    }
+                    else
+                    {
+                        //alert("No Data found between these 2 dates");
+                        alert(oReqs[0].ErrorMessage);
+                        $('#tblEmployeeRequest').datagrid('loadData', []);
+                    }    
+          
+                     
+                },
+                error: function (xhr, status, error) 
+                {
+                    alert(error);
+                }
+            });
+        }
+
+        $('#btnApprove').click(function (e)
+        {
+            debugger;
+            var oRequest = $("#tblEmployeeRequest").datagrid("getSelected");
+            var SelectedRowIndex = $('#tblEmployeeRequest').datagrid('getRowIndex', oRequest);
+
+            if (oRequest == null || oRequest.EROAID <= 0) 
+            { 
+                alert('Please Select one request!!'); 
+                return; 
+            }
+        
+            var oReq = {
+                EROAID : oRequest.EROAID,
+                EmployeeID : oRequest.EmployeeID,
+                AttendanceDate : oRequest.AttendanceDate,
+                IsOSD : oRequest.IsOSD,
+                Remark : oRequest.Remark
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeRequestOnAttendance/ApproveRequest",
+                traditional: true,
+                data: JSON.stringify(oReq),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    alert("Approved successfully");
+                    _oEmployeeRequest = jQuery.parseJSON(data);
+                    $('#tblEmployeeRequest').datagrid('updateRow', { index: SelectedRowIndex, row: _oEmployeeRequest });
+                    
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        });
+
+        $('#btnCancel').click(function (e)
+        {
+            debugger;
+            var oRequest = $("#tblEmployeeRequest").datagrid("getSelected");
+            var SelectedRowIndex = $('#tblEmployeeRequest').datagrid('getRowIndex', oRequest);
+
+            if (oRequest == null || oRequest.EROAID <= 0) 
+            { 
+                alert('Please Select one request!!'); 
+                return; 
+            }
+        
+            var oReq = {
+                EROAID : oRequest.EROAID,
+                EmployeeID : oRequest.EmployeeID,
+                AttendanceDate : oRequest.AttendanceDate,
+                IsOSD : oRequest.IsOSD,
+                Remark : oRequest.Remark
+            };
+
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeRequestOnAttendance/CancelRequest",
+                traditional: true,
+                data: JSON.stringify(oReq),
+                contentType: "application/json; charset=utf-8",
+
+                success: function(data)
+                {
+                    alert("Approved successfully");
+                    _oEmployeeRequest = jQuery.parseJSON(data);
+                    $('#tblEmployeeRequest').datagrid('updateRow', { index: SelectedRowIndex, row: _oEmployeeRequest });
+                    
+                },
+                error: function(xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        });
+
+    </script>

@@ -1,0 +1,258 @@
+﻿
+<html>
+<head>
+    <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+
+    <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+
+    <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+</head>
+<body>
+    @model ESimSol.BusinessObjects.VoucherBillBreakDown
+    <div style="font-family:Tahoma">
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td style="background-color:#CFB53B; text-align:center; width:973px; color:White">
+                    <label id="lblHeaderName" style="font-size:15px; font-weight:bold; color:blue; text-decoration:Underline;">Voucher Bill Break Down</label>
+                </td>
+            </tr>
+        </table>
+        <div style="width:100%;">
+            <table id="tblVoucherBillBreakdown" title="Voucher Bill Break down" class="easyui-datagrid" style="width:980px; height:465px;" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="VoucherBillIDWithNo" width="150" align="left" formatter="FormatStyle">Bill No</th>
+                        <th field="OpeningValueInString" width="200" align="right">Opening Value</th>
+                        <th field="DebitAmountInString" width="200" align="right">Debit Amount</th>
+                        <th field="CreditAmountInString" width="200" align="right">Credit Amount</th>
+                        <th field="ClosingValueInString" width="200" align="right">Closing Value</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar" style="height:25px;">
+                <input type="text" id="txtName" placeholder="Type Voucher Bill Name" style="width:200px;" />
+                <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="ViewVoucherBillLedger()">View Voucher Bill Ledger</a>
+            </div>
+            <table border="0" cellpadding="0" cellspacing="0" style="font-size:12px; font-weight:bold;">
+                <tr>
+                    <td style="width:150; text-align:right;">Total:</td>
+                    <td style="width:200;text-align:right;"><label id="lbltotalOpeningValue">0</label></td>
+                    <td style="width:200; text-align:right;"><label id="lbltotalDebitAmount">0</label></td>
+                    <td style="width:200; text-align:right;"><label id="lbltotalCreditAmount">0</label></td>
+                    <td style="width:200; text-align:right;"><label id="lbltotalClosingAmount">0</label></td>
+                </tr>
+            </table>
+            <fieldset style="width:963px;">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:463px; text-align:right"></td>
+                        <td style="width:300px; text-align:right">
+                            <a id="btnVoucherWithoutVB" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">Voucher Without Voucher Bill</a>
+                        </td>
+                        <td style="width:120px">
+                            <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+                        </td>
+                        <td style="width:82px">
+                            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oVoucherBillBreakDown=null;
+    var _oVoucherBillBreakDowns = [];
+    var _obj = null;
+    var _BillInfo = null;
+    var _AccountHeadName = "";
+    var _AccountHeadID = 0;
+    var _CurrencyID = 0;
+    var _bApprovedBy = false;
+    var _VBID=0;
+    var _dStartDate = new Date();
+    var _dEndDate = new Date();
+    var _sBillNo = "";
+    $(document).ready(function () {
+        _obj = window.dialogArguments;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+         _oVoucherBillBreakDown=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oVoucherBillBreakDowns=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.VoucherBillBreakDowns));
+
+        SetBasicInfo(_obj.CostingInfo);
+        _BillInfo = _obj.CostingInfo;
+        RefreshList(_oVoucherBillBreakDowns);
+        SetTotal(_oVoucherBillBreakDowns);
+
+    });
+    function FormatStyle(value){
+        var values=value.split("~");
+        var sBillNo = values[0];
+        var nVoucherBillID = values[1];
+        var s = '<label id="lblOpening~'+nVoucherBillID+'" style="color:Blue;cursor:pointer" class="lblOpening'+nVoucherBillID+'" onclick="Detail('+nVoucherBillID+')">'+sBillNo+'</label>';
+        return s;
+    }
+    function Detail(nVoucherBillID)
+    {
+        var makeClass = ".lblOpening"+nVoucherBillID;
+        _sBillNo = $(makeClass).text();
+        var Params = 0 + "~" + _dStartDate + "~" + _dEndDate + "~" + _AccountHeadID + "~" + _CurrencyID + "~" + _bApprovedBy + "~" + _AccountHeadName + "~" + parseInt(nVoucherBillID)
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Voucher Bill";
+        oParameter.CostingInfo = _BillInfo;
+        oParameter.AccountHeadName = _AccountHeadName;
+        oParameter.AccountHeadID = _AccountHeadID;
+        oParameter.ApprovedBy = _bApprovedBy;
+        oParameter.VoucherBillID = parseInt(_VBID);
+        oParameter.CurrencyID = _CurrencyID;
+        oParameter.StartDate = _dStartDate;
+        oParameter.EndDate = _dEndDate;
+        oParameter.BillNo = _sBillNo;
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/FinancialStatement/ViewVoucherBillDetails?sParams="+Params+"&tsv="+tsv;
+        var oVB = window.showModalDialog(url, oParameter, 'dialogHeight:572px;dialogWidth:985px;dialogLeft:230;dialogTop:60;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    function ViewVoucherBillLedger()
+    {
+        var oVB= $('#tblVoucherBillBreakdown').datagrid('getSelected');
+        if(oVB==null)
+        {
+            alert("Please select an item from list!");
+            return;
+        }
+
+        var Params = _BillInfo +'~'+oVB.VoucherBillID+'~'+oVB.BillNo;
+        var SelectedRowIndex=$('#tblVoucherBillBreakdown').datagrid('getRowIndex',oVB);
+        var oParameter = new Object();
+        oParameter.OperationName=  "View Voucher Bill";
+        oParameter.CostingInfo = Params;
+        oParameter.AccountHeadName = _AccountHeadName;
+        oParameter.AccountHeadID = _AccountHeadID;
+        oParameter.ApprovedBy = _bApprovedBy;
+        oParameter.VoucherBillID = oVB.VoucherBillID;
+        oParameter.CurrencyID = _CurrencyID;
+        oParameter.StartDate = _dStartDate;
+        oParameter.EndDate = _dEndDate;
+        oParameter.BillNo = oVB.BillNo;
+        oParameter.Params = Params;
+        var tsv= (new Date().getTime())/1000;
+        var url =_sBaseAddress+ "/FinancialStatement/ViewVoucherBillDetails?sParams="+Params+"&tsv="+tsv;
+        var oVB = window.showModalDialog(url, oParameter, 'dialogHeight:572px;dialogWidth:985px;dialogLeft:230;dialogTop:60;center:yes;resizable:no;status:no;scroll:no');
+    }
+
+    $("#btnPrintXL").click(function(){
+        var nCboDate = 5; //Between
+        var nAccountHeadID = _AccountHeadID;
+        var date1=_dStartDate;
+        var date2= _dEndDate;
+        var nCurrencyID = _CurrencyID;
+        var bIsApproved = _bApprovedBy;
+        var sParams = parseInt(nCboDate) + "~"  + date1 + "~" + date2 + "~" + parseInt(nAccountHeadID) + "~" + parseInt(nCurrencyID) + "~" + bIsApproved;
+        window.open(_sBaseAddress+'/GeneralLedger/PrintVoucherBillBreakDownXL?sParams=' + sParams, "_blank");
+        window.close();
+    });
+
+    $("#btnVoucherWithoutVB").click(function(){
+        var sParam = parseInt(_AccountHeadID) + "~" + _dStartDate + "~" + _dEndDate;
+        var tsv= (new Date().getTime())/1000;
+        var oParameter = new Object();
+        oParameter.OperationName=  "Voucher Without Voucher Bill";
+        var url =_sBaseAddress+ "/Voucher/ViewVoucherWithoutVB?sParams="+sParam+"&tsv="+tsv;
+        var oVoucher = window.showModalDialog(url, oParameter, 'dialogHeight:610px;dialogWidth:990px;dialogLeft:230;dialogTop:50;center:yes;resizable:no;status:no;scroll:no');
+    });
+
+
+
+    function SetTotal(oVoucherBillBreakDowns)
+    {
+        //var nComponentID = _obj.ComponentID;
+        var sDR_CRopenning = (_oVoucherBillBreakDown.IsDrOpen == 1 ? "Dr" : "Cr");
+        var sDR_CRclosing = (_oVoucherBillBreakDown.IsDrClosing == 1 ? "Dr" : "Cr");
+        var nOpeningValue = parseFloat(parseFloat(_oVoucherBillBreakDown.OpeningValue).toFixed(2));
+        var nClosingValue = parseFloat(parseFloat(_oVoucherBillBreakDown.ClosingValue).toFixed(2));
+        var nDebitAmount = parseFloat(parseFloat(_oVoucherBillBreakDown.DebitAmount).toFixed(2));
+        var nCreditAmount = parseFloat(parseFloat(_oVoucherBillBreakDown.CreditAmount).toFixed(2));
+
+        document.getElementById('lbltotalOpeningValue').innerHTML = sDR_CRopenning +" "+oVoucherBillBreakDowns[0].CurrencySymbol+" "+formatPrice(nOpeningValue,0);
+        document.getElementById('lbltotalDebitAmount').innerHTML = oVoucherBillBreakDowns[0].CurrencySymbol+" "+formatPrice(nDebitAmount,0);
+        document.getElementById('lbltotalCreditAmount').innerHTML = oVoucherBillBreakDowns[0].CurrencySymbol+" "+formatPrice(nCreditAmount,0);
+        document.getElementById('lbltotalClosingAmount').innerHTML = sDR_CRclosing +" "+oVoucherBillBreakDowns[0].CurrencySymbol+" "+formatPrice(nClosingValue,0);
+    }
+
+
+    function SetBasicInfo(scostingInfo)
+    {
+
+        var sInfo = scostingInfo.split('~');
+        var sDateValue;
+        if(sInfo[0]==5)//5 : between
+        {
+            sDateValue =  icsdateformat(new Date(sInfo[1])) +' To '+icsdateformat(new Date(sInfo[2]));
+        }else{
+            sDateValue = sInfo[1];
+        }
+        var sApproveUnApproveMessage = "";
+        if(sInfo[5]=='true')
+        {
+            sApproveUnApproveMessage = " [Approved Only]";
+        }else{
+            sApproveUnApproveMessage = " [Approved & Un Approved]";
+        }
+        _AccountHeadName = sInfo[6];
+        _AccountHeadID = sInfo[3];
+        _CurrencyID = sInfo[4];
+        _bApprovedBy= sInfo[5];
+        _VBID= sInfo[0];
+        _sBillNo = sInfo[8];
+
+        _dStartDate = icsdateformat(new Date(sInfo[1]));
+        _dEndDate = icsdateformat(new Date(sInfo[2]));
+        document.getElementById('lblHeaderName').innerHTML = "Date :"+ sDateValue+" &  Account Head Name :"+sInfo[6]+sApproveUnApproveMessage;
+    }
+
+
+    function RefreshList(oVoucherBillBreakDowns)
+    {
+        var data=oVoucherBillBreakDowns;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblVoucherBillBreakdown').datagrid('loadData',data);
+    }
+
+    function Close()
+    {
+        window.close();
+    }
+
+    $(this).keydown(function (e)
+    {
+        if (e.which === 27) {
+            window.close();
+        }
+    });
+
+    $('#txtName').keyup(function (e) {
+        var txtSearchByName = document.getElementById('txtName').value;
+        var sName = "";
+        var oSearchedData = [];
+        var n = 0;
+        for (i = 0; i < _oVoucherBillBreakDowns.length; ++i) {
+            sName = _oVoucherBillBreakDowns[i].BillNo;
+            n = 0;
+            n = sName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+            if (n != -1) {
+                oSearchedData.push(_oVoucherBillBreakDowns[i]);
+            }
+        }
+        RefreshList(oSearchedData);
+    });
+</script>

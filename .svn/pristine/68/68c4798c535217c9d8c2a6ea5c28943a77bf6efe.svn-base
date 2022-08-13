@@ -1,0 +1,222 @@
+﻿@{
+    ViewBag.Title = "Employee Loan";
+}
+
+@model IEnumerable<ESimSol.BusinessObjects.EmployeeLoan>
+
+    <head>
+        <title>Employee Loan</title>
+    </head>
+
+    <body>
+        <div class="menuMainCollectionTable">
+            <table id="tblEmployeeLoan" title="Employee Loan List" class="easyui-datagrid" fit="true" fitcolumn="true" rownumbers="true" pagination="true" singleselect="true" autorowheight="false" toolbar="#toolbarEmployeeLoan">
+                <thead>
+                    <tr>
+                        <th field="Code" width="8%" align="center">Loan Code</th>
+                        <th field="EmployeeCode" width="10%" align="center">Employee Code</th>
+                        <th field="EmployeeName" width="18%">Employee Name</th>
+                        <th field="EmployeeWorkingStatus" width="8%" align="left">W. Status</th>
+                        <th field="LoanTypeStr" width="12%">Loan Type</th>
+                        <th field="NoOfTotalInstallment" width="6%" align="right">No. of Inst</th>
+                        <th field="InterestRate" width="8%" formatter="formatPrice" align="right">Interest Rate</th>
+                        <th field="InstallmentAmount" width="8%" formatter="formatPrice" align="right">Ins. Amt.</th>
+                        <th field="LoanAmount" width="8%" formatter="formatPrice" align="right">Loan Amt.</th>
+                        <th field="ApproveDateStr" width="8%" align="center">Approve Date</th>
+                        <th field="ApproveByName" width="16%" align="left">Approve By</th>
+                    </tr>
+                </thead>
+
+            </table>
+
+            <div id="toolbarEmployeeLoan">
+                <input type="text" id="txtCode" placeholder="Search by Loan Code" style="width:18%;" />
+                <input type="text" id="txtEmployeeNameCode" placeholder="Search by Employee" style="width:18%;" />
+                <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-details" plain="true">View</a>
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton initial-state" iconcls="icon-print" plain="true">Print</a>
+            </div>
+        </div>
+    </body>
+
+
+    <script type="text/javascript">
+        var _sBaseAddress="";
+        var _oEmployeeLoans=[];
+
+        $(document).ready(function () {
+            _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+            _oEmployeeLoans =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+
+            //$('.initial-state').hide();
+            if(sessionStorage.getItem("EmployeeLoans")!=null && sessionStorage.getItem("EmployeeLoans").length>0){
+                _oEmployeeLoans= jQuery.parseJSON(sessionStorage.getItem('EmployeeLoans'));
+                var nIndex= sessionStorage.getItem('SelectedRowIndex');
+                DynamicRefreshList(_oEmployeeLoans, 'tblEmployeeLoan');
+                if(nIndex>-1){
+                    $('#tblEmployeeLoan').datagrid('selectRow',nIndex);
+                }
+            }
+            else{
+                DynamicRefreshList(_oEmployeeLoans, 'tblEmployeeLoan');
+            }
+        });
+
+        $(document).keydown(function (e) { if (e.keyCode == 27) { $('div').icsWindow('close'); } });
+
+
+        /*.......... Searching ............. */
+
+
+        $("#txtCode").keyup(function (e) {
+            var oEmployeeLoans =[];
+            var keyCode = e.keyCode || e.which;
+            $('#txtCode').removeClass("errorFieldBorder");
+            if (keyCode == 8) { oEmployeeLoans = _oEmployeeLoans; }
+            else{ oEmployeeLoans = $('#tblEmployeeLoan').datagrid('getRows'); }
+            if (e.keyCode == 13) // Enter Press
+            {
+                if (!$.trim($("#txtCode").val()).length) {
+
+                    alert("Please enter loan code to search.");
+                    $('#txtCode').focus();
+                    $('#txtCode').val("");
+                    return;
+                }
+                else { $('#txtCode').removeClass("errorFieldBorder"); }
+
+                var oEmployeeLoan={
+                    Params:   $.trim($("#txtCode").val())+'~'+""
+
+                };
+                GetsEmployeeLoan(oEmployeeLoan,false);
+            }
+            else {
+                var sTempName="";
+                var oSearchedData = [];
+                for(i=0;i<oEmployeeLoans.length;++i)
+                {
+                    sTempName=oEmployeeLoans[i]['Code'];
+                    if(sTempName.toUpperCase().indexOf($('#txtCode').val().toUpperCase())>-1)
+                    {
+                        oSearchedData.push(oEmployeeLoans[i]);
+                    }
+                }
+                $('#tblEmployeeLoan').empty();
+                if (oSearchedData.length == 0) { DynamicRefreshList(_oEmployeeLoans, "tblEmployeeLoan");}
+                else { DynamicRefreshList(oSearchedData, "tblEmployeeLoan"); }
+
+            }
+        });
+
+
+        $("#txtEmployeeNameCode").keyup(function (e) {
+            var oEmployeeLoans =[];
+            var keyCode = e.keyCode || e.which;
+            $('#txtEmployeeNameCode').removeClass("errorFieldBorder");
+            if (keyCode == 8) { oEmployeeLoans = _oEmployeeLoans; }
+            else{ oEmployeeLoans = $('#tblEmployeeLoan').datagrid('getRows'); }
+            if (e.keyCode == 13) // Enter Press
+            {
+                if (!$.trim($("#txtEmployeeNameCode").val()).length) {
+
+                    alert("Please enter employee name/ code to search.");
+                    $('#txtEmployeeNameCode').focus();
+                    $('#txtEmployeeNameCode').val("");
+                    return;
+                }
+                else { $('#txtEmployeeNameCode').removeClass("errorFieldBorder"); }
+
+                var oEmployeeLoan={
+                    Params:   ""+'~'+$.trim($("#txtEmployeeNameCode").val())
+
+                };
+                GetsEmployeeLoan(oEmployeeLoan,false);
+            }
+            else {
+                var sTempName="";
+                var oSearchedData = [];
+                for(i=0;i<oEmployeeLoans.length;++i)
+                {
+                    sTempName=oEmployeeLoans[i]['EmployeeNameCode'];
+                    if(sTempName.toUpperCase().indexOf($('#txtEmployeeNameCode').val().toUpperCase())>-1)
+                    {
+                        oSearchedData.push(oEmployeeLoans[i]);
+                    }
+                }
+                $('#tblEmployeeLoan').empty();
+                if (oSearchedData.length == 0) { DynamicRefreshList(_oEmployeeLoans, "tblEmployeeLoan");}
+                else { DynamicRefreshList(oSearchedData, "tblEmployeeLoan"); }
+
+            }
+        });
+
+
+        $('#btnSearch').click(function(e){
+
+            if($.trim($("#txtCode").val())=="" && $.trim($("#txtEmployeeNameCode").val())==""){
+                alert("No searching criteria found to search."); return false;
+            }
+            var oEmployeeLoan={
+                Params:   $.trim($("#txtCode").val()) +'~'+$.trim($("#txtEmployeeNameCode").val())
+
+            };
+            GetsEmployeeLoan(oEmployeeLoan, false) ;
+        });
+
+        function GetsEmployeeLoan(oEmployeeLoan, bIsAdvSearch) {
+            var obj =
+            {
+                BaseAddress: _sBaseAddress,
+                Object: oEmployeeLoan,
+                ControllerName: "EmployeeLoan",
+                ActionName: "Gets",
+                IsWinClose: bIsAdvSearch
+            };
+
+            $.icsDataGets(obj, function (response) {
+
+                if (response.status && response.objs != null) {
+                    if (response.objs.length > 0) {
+                        if(response.objs[0].EmployeeLoanID>0){
+                            _oEmployeeLoans=response.objs;
+                            DynamicRefreshList(response.objs, "tblEmployeeLoan");
+                        }
+                        else{DynamicRefreshList([], "tblEmployeeLoan"); alert(response.objs[0].ErrorMessage);}
+                    }
+                    else { DynamicRefreshList([], "tblEmployeeLoan"); alert("No EmployeeLoan found."); }
+                }
+            });
+        }
+
+
+        /*------------------------------------*/
+
+        $('#btnView').click(function (e)
+        {
+            var oEmployeeLoan = $('#tblEmployeeLoan').datagrid('getSelected');
+            if (oEmployeeLoan ==null || oEmployeeLoan.EmployeeLoanID <=0 ) { alert("Please select an item from list."); return ; }
+
+            var nIndex=$('#tblEmployeeLoan').datagrid('getRowIndex',oEmployeeLoan);
+
+            sessionStorage.clear();
+            sessionStorage.setItem("Operation", "View");
+            sessionStorage.setItem("SelectedRowIndex", nIndex);
+            sessionStorage.setItem("EmployeeLoanHeader", "View Loan Request");
+            sessionStorage.setItem("EmployeeLoans", JSON.stringify($('#tblEmployeeLoan').datagrid('getRows')));
+            sessionStorage.setItem("BackLink", window.location.href);
+            var tsv=((new Date()).getTime())/1000;
+            window.location.href = _sBaseAddress+ "/EmployeeLoan/ViewEmployeeLoan?nId="+oEmployeeLoan.EmployeeLoanID+"&ts="+tsv;;
+        });
+
+
+        $('#btnPrint').click(function (e)
+        {
+            var oEmployeeLoan = $('#tblEmployeeLoan').datagrid('getSelected');
+            if (oEmployeeLoan ==null || oEmployeeLoan.EmployeeLoanID <=0 ) { alert("Please select an item from list."); return ; }
+            var tsv=((new Date()).getTime())/1000;
+            window.open(_sBaseAddress+ "/EmployeeLoan/PrintEmployeeLoan?nId="+oEmployeeLoan.EmployeeLoanID+"&nts="+tsv, "_blank");
+        });
+
+
+    </script>

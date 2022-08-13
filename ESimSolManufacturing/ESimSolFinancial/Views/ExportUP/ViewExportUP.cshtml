@@ -1,0 +1,477 @@
+﻿@{
+    ViewBag.Title = "Export UP";
+}
+
+@model ESimSol.BusinessObjects.ExportUP
+
+<div style="padding-top:5px" ng-app="ExportUPApp" ng-controller="ExportUPCtrl" class="form-horizontal regionExportUP ms-custom-control">
+
+    <fieldset>
+        <legend>U/P Information</legend>
+        <div class="col-md-12 ">
+            <div class="col-md-2 text-right"><label class="control-label">UP No:</label></div>
+            <div class="col-md-3 text-left form-inline">
+                <div class="input-group">
+                    <input type="text" ng-model="ExportUP.UPNo" class="number-int form-control" style="width:80%" required ng-disabled="disabled" />
+                    <input type="text" ng-model="UPYear" class="number-int form-control" style="width:18%" required ng-disabled="disabled" />
+                </div>
+               
+            </div>
+            <div class="col-md-2 text-right"><label class="control-label">Issue Date:</label></div>
+            <div class="col-md-3 text-left">
+                <div class="input-group date date-container">
+                    <input type="text" class="form-control" ng-model="ExportUP.ExportUPDateStr" ng-change="changeDate()" ng-disabled="disabled"><span class="input-group-addon"><i class="glyphicon glyphicon-th" ng-disabled="disabled"></i></span>
+                </div>
+            </div>
+            <div class="col-md-2 text-right"><label class="control-label">Prepare By:</label></div>
+            <div class="col-md-3 text-left">
+                <input ng-model="ExportUP.PrepareByName" class="form-control" disabled />
+            </div>
+        </div>
+    </fieldset>
+    <div class="ui-grid-top-panel">
+        <div class="form-inline">
+            <div class="input-group">
+                <input ng-model="UDNo" ng-keyup="searchUDByKeyUp($event)" class="form-control" style="width:220px" placeholder="Search By UD No And LC No" required ng-disabled="disabled" />
+                <span class="input-group-btn">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="searchUD()" ng-disabled="disabled"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                </span>
+            </div>
+            @*<div class="input-group">
+                <input ng-model="ExportLCNo" ng-keyup="searchLCByKeyUp($event)" class="form-control" style="width:220px" placeholder="Search By LC...." required ng-disabled="disabled" />
+                <span class="input-group-btn">
+                    <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="searchLC()" ng-disabled="disabled"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                </span>
+            </div>*@
+            @*<button type="button" class="btn btn-sm btn-default" aria-label="Left Align" ng-click="add()" ng-hide="hide"> <span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add</button>*@
+            <button type="button" class="btn btn-sm btn-default" aria-label="Left Align" ng-click="remove()" ng-hide="hide"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Remove</button>
+        </div>
+    </div>
+    <div style="width:100%" ui-grid="gridOptionDetails" ui-grid-selection ui-grid-edit ui-grid-resize-columns ui-grid-key-nav class="grid ui-grid-selectable"></div>
+    <fieldset>
+        <legend>Action</legend>
+        <div class="row col-md-12 text-right">
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="save()" ng-hide="hide"> <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span> Save</button>
+            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Close</button>
+        </div>
+    </fieldset>
+</div>
+
+<style type="text/css">
+    .grid {
+        height: 400px;
+        width: 100%;
+    }
+    .regionExportUP .col-md-12 {
+        width: 100%;
+        padding-right: 5px;
+        padding-left: 5px;
+        margin-bottom: 5px;
+    }
+
+    .regionExportUP .col-md-11 {
+        width: 86%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .regionExportUP .col-md-2 {
+        width: 13%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+
+    .regionExportUP .col-md-3 {
+        width: 20%;
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+</style>
+
+<script type="text/javascript">
+
+     var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oExportUP=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    debugger;
+    var ExportUPModule = angular.module('ExportUPApp', ['ms.service','ngAnimate', 'ui.bootstrap', 'ui.grid', 'ui.grid.resizeColumns','ui.grid.selection', 'ui.grid.cellNav', 'ui.grid.edit', 'ui.grid.rowEdit']);
+    ExportUPModule.controller('ExportUPCtrl', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession, msGridControl, icsMethod) {
+        debugger;
+        $(document).ready(function(){
+            $('.date-container').datepicker({
+                format: "dd M yyyy",
+                calendarWeeks: true,
+                autoclose: true,
+                todayHighlight: true
+            });
+            $(".number-int").icsNumberField({ min: 0,precision: 0 });
+            $(".number-precision").icsNumberField({ min: 0,precision: 2 });
+        });
+
+        var oDetailColumns = [];
+        var oColumn ={ field: 'ExportLCNo', name: 'LC No', width: '13%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ANo', name: 'A. No', width: '6%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'LCOpeningDateStr', name: 'LC Date', width: '10%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ApplicantName', name: 'Party Name', width: '20%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'UDReceiveDateStr', name: 'UD Rcv Date', width: '10%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn ={ field: 'ExportUDNo', name: 'UD No', width: '15%', cellClass: 'text-left',enableSorting: false ,enableCellEdit:false};oDetailColumns.push(oColumn);
+        oColumn={ field: 'YetToUPAmount', name: 'Yet To UP', width: '12%',  cellFilter: 'number:2', cellClass: 'text-right',  enableSorting: false,enableCellEdit:false };oDetailColumns.push(oColumn);
+        oColumn={ field: 'Amount', name: 'Amount', width: '12%',  cellFilter: 'number:2', cellClass: 'text-right',  enableSorting: false,enableCellEdit:true };oDetailColumns.push(oColumn);
+        $scope.gridOptionDetails ={
+            multiSelect: false,
+            enableFullRowSelection: true,
+            enableSelectAll: false,
+            enableCellEdit:true,
+            enableHorizontalScrollbar: uiGridConstants.scrollbars.NEVER,
+            columnDefs:oDetailColumns,
+            data:[],
+            onRegisterApi:function(gridApi) {
+                $scope.gridApi = gridApi;
+                //gridApi.edit.on.afterCellEdit($scope,
+                //  function (rowEntity, colDef, newValue, oldValue)
+                //  {
+                //      debugger;
+                //  });
+            }
+        };
+
+
+        $scope.ExportUP = oExportUP;
+        $scope.gridOptionDetails.data= $scope.ExportUP.ExportUPDetails;
+
+        $scope.hide=$scope.disabled=userSession.viewOption();
+        $scope.ExportBillNo = $scope.ExportLCNo="";
+        $scope.UPYear = new Date($scope.ExportUP.ExportUPDateStr).getFullYear().toString().substring(2,4);
+
+        $scope.MakeObjEUPDetail= function(){
+            return {
+                ExportUPDetailID : 0,
+                ExportUPID : ($scope.ExportUP!=null)? $scope.ExportUP.ExportUPID:0,
+                ExportUDID : 0,
+                ExportUP:null
+            }
+        }
+        
+        $scope.ExportUPDetail= $scope.MakeObjEUPDetail();
+
+        $scope.changeDate=function(){
+            if(new Date($scope.ExportUP.ExportUPDateStr)=='Invalid Date'){
+                $scope.UPYear="";
+            }
+            else
+                $scope.UPYear = new Date($scope.ExportUP.ExportUPDateStr).getFullYear().toString().substring(2,4);
+        }
+       
+
+        //$scope.IsSearchByBill=false;
+        //$scope.searchBillByKeyUp=function(keyEvent){
+        //    if(keyEvent.which==13){
+        //        $scope.getsByBill();
+        //    }
+        //    else if(keyEvent.which==08 && $scope.IsSearchByBill){
+        //        $scope.ExportUPDetail.ExportBillID=0;
+        //    }
+        //};
+
+        //$scope.searchBill=function(){
+        //    $scope.getsByBill();
+        //};
+
+        //$scope.searchLCByKeyUp=function(keyEvent){
+        //    if(keyEvent.which==13){
+        //        $scope.getsByLC();
+        //    }
+        //    else if(keyEvent.which==08 && !$scope.IsSearchByBill){
+        //        $scope.ExportUPDetail.ExportBillID=0;
+        //    }
+        //};
+
+        //$scope.searchLC=function(){
+        //    $scope.getsByLC();
+        //};
+
+        //$scope.getsByBill = function(){
+        //    $scope.IsSearchByBill=true;
+        //    var obj={ ExportBillNo:$scope.ExportBillNo , BUID:sessionStorage.getItem('BUID')}
+        //    $scope.getsExportBill(obj);
+        //};
+       
+        //$scope.getsByLC = function(){
+        //    $scope.IsSearchByBill=false;
+        //    var obj={ ExportLCNo:$scope.ExportLCNo,BUID:sessionStorage.getItem('BUID')}
+        //    $scope.getsExportBill(obj);
+        //}
+
+        $scope.searchUDByKeyUp=function(keyEvent){
+            if(keyEvent.which==13){
+                $scope.getsUD();
+            }
+            else if(keyEvent.which==08){
+                $scope.ExportUPDetail.ExportUDID=0;
+            }
+        };
+
+        $scope.searchUD=function(){
+            debugger;
+            $scope.getsUD();
+        };
+
+        $scope.getsUD=function(){
+            //var oDetails = $scope.gridOptionDetails.data;
+            //var ids = "";
+            //if(oDetails.length > 0){
+            //    for(var i=0;i<oDetails.length;i++){
+            //        ids+=oDetails[i].ExportUDID + ",";
+            //    }
+            //    if(ids.length > 0)
+            //        ids = ids.substring(0,ids.length-1);
+            //}
+            var obj = {UDNo: (typeof($scope.UDNo) != 'undefined'?$scope.UDNo:""), BUID: sessionStorage.getItem('BUID')}// ErrorMessage: ids,
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/ExportLCUPUD/GetExportUDs',$.param(obj), config).then(
+                                  function (response)
+                                  {
+                                      debugger;
+                                      //var results=jQuery.parseJSON(response.data);
+                                      var results=response.data;
+                                      var modalObj={
+                                          size:'lg',
+                                          title:'Export UD List',
+                                          url:_sBaseAddress+'/Home/Modal',
+                                          modalController:'LotModalCtrl',
+                                          appController:'ExportUPController',
+                                          objs:results,
+                                          multiSelect:true,
+                                          columns:[
+                                                    { field: 'ExportLCNo', name: 'LC No', width: '20%', cellClass: 'text-left' },
+                                                    { field: 'LCOpeningDateInString', name: 'LC  Date', width: '17%', cellClass: 'text-left' },
+                                                    { field: 'ANo', name: 'A. No', width: '8%', cellClass: 'text-left' },
+                                                    { field: 'UDNo', name: 'UD No', width:'15%', cellClass: 'text-left' },
+                                                    { field: 'UDReceiveDateInString', name: 'Rcv Date', width: '17%', cellClass: 'text-left' },
+                                                    { field: 'YetToUPAmount', name: 'Yet To UP', width:'15%', cellClass: 'text-right',cellFilter: 'number:2' },
+                                          ]
+                                      }
+                                      var modalInstance=msModal.Instance(modalObj);
+                                      modalInstance.result.then(function (result) {
+                                          //$scope.ExportUPDetail.ExportUDID=0;
+                                          //debugger;
+                                          //if(result.ExportUDID>0){
+                                          //    $scope.UDNo=result.UDNo;
+                                          //    $scope.ExportUPDetail.ExportUDID = result.ExportUDID;
+                                          //}
+                                          for(var i=0;i<result.length;i++){
+                                              var oObj = {
+                                                  ExportUPDetailID: 0,
+                                                  ExportUPID: ($scope.ExportUP!=null)? $scope.ExportUP.ExportUPID:0,
+                                                  ExportUDID: result[i].ExportUDID,
+                                                  ExportUDNo: result[i].UDNo,
+                                                  ApplicantName: result[i].ApplicantName,
+                                                  ExportLCNo: result[i].ExportLCNo,
+                                                  LCOpeningDateStr: result[i].LCOpeningDateInString,
+                                                  UDReceiveDateStr: result[i].UDReceiveDateInString,
+                                                  ANo: result[i].ANo,
+                                                  Amount: result[i].YetToUPAmount,
+                                                  YetToUPAmount: result[i].YetToUPAmount,
+                                                  Note: ""
+                                              }
+                                              $scope.gridOptionDetails.data.push(oObj);
+                                          }
+                                          
+                                          $scope.gridApi.grid.modifyRows($scope.gridOptionDetails.data);
+
+
+                                      }, function () {
+                                          $log.info('Modal dismissed at: ' + new Date());
+                                      });
+                                  },
+                                  function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                            );
+        }
+
+        //$scope.getsExportBill=function(obj){
+
+        //    var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+        //    $http.post(_sBaseAddress+'/ExportBill/GetExportBillForExportUP',$.param(obj), config).then(
+        //                          function (response)
+        //                          {
+        //                              var results=jQuery.parseJSON(response.data);
+        //                              var modalObj={
+        //                                  size:'md',
+        //                                  title:'Export Bill/LC List',
+        //                                  url:_sBaseAddress+'/Home/Modal',
+        //                                  modalController:'LotModalCtrl',
+        //                                  appController:'ExportUPController',
+        //                                  objs:results,
+        //                                  multiSelect:false,
+        //                                  columns:[
+        //                                            { field: 'ExportBillNo', name: 'Invoice No', width:'20%', cellClass: 'text-left' },
+        //                                            { field: 'ApplicantName', name: 'Party Name', width: '25%', cellClass: 'text-left' },
+        //                                            { field: 'ExportLCNo', name: 'Export LC No', width: '15%', cellClass: 'text-left' },
+        //                                            { field: 'LCOpeningDatest',  name: 'LC Date', width:'15%', cellClass: 'text-left'},
+        //                                            { field: 'Amount', name: 'Amount', width: '18%', cellClass: 'text-right', cellFilter: 'number: 2'}
+        //                                  ]
+        //                              }
+        //                              var modalInstance=msModal.Instance(modalObj);
+        //                              modalInstance.result.then(function (result) {
+        //                                  $scope.ExportUPDetail.ExportBillID=0;
+        //                                  if(result.ExportBillID>0){
+        //                                      if($scope.IsSearchByBill)
+        //                                          $scope.ExportBillNo=result.ExportBillNo;
+        //                                      else
+        //                                          $scope.ExportLCNo=result.ExportLCNo;
+        //                                      $scope.ExportUPDetail.ExportBillID = result.ExportBillID;
+        //                                  }
+
+        //                              }, function () {
+        //                                  $log.info('Modal dismissed at: ' + new Date());
+        //                              });
+        //                          },
+        //                          function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        //                    );
+        //}
+
+       
+
+     
+        //$scope.add = function () {
+        //    if($scope.ExportUPDetail.ExportUDID<=0){
+        //        msModal.Message({headerTitle : '', bodyText:'Export UD Reuired.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+        //        return false;
+        //    }
+
+        //    if($scope.ExportUPDetail.ExportUPID<=0)
+        //    {
+        //        if(!$scope.Validation())
+        //            return false;
+        //        $scope.ExportUPDetail.ExportUP=  $scope.ExportUP; 
+        //    }
+
+            
+
+        //    $http.post(_sBaseAddress+'/ExportUP/SaveExportUPDetail', JSON.stringify($scope.ExportUPDetail)).then(
+
+        //                     function (response) {
+        //                         debugger;
+        //                         var result=jQuery.parseJSON(response.data);
+        //                         if(result.ExportUPDetailID>0)
+        //                         {
+        //                             if(result.ExportUP.ExportUPID>0){
+        //                                 $scope.ExportUP=result.ExportUP;
+        //                                 userSession.setData('ExportUPs',$scope.ExportUP);
+        //                             }
+        //                             result.ExportUP=null;
+        //                             $scope.gridOptionDetails.data.push(result);
+        //                             $scope.gridApi.grid.modifyRows($scope.gridOptionDetails.data);
+        //                             $scope.ExportUPDetail= $scope.MakeObjEUPDetail();
+        //                         }
+        //                         else{
+        //                             msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+        //                         }
+        //                     },
+        //                     function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+        //               );
+        //};
+
+        $scope.remove = function () {
+            debugger;
+            
+            var oDetail = $scope.gridApi.selection.getSelectedRows()[0];
+            if(oDetail==null)
+            {
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete. Select an item.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return;
+            }
+            var SelectedRowIndex=$scope.gridOptionDetails.data.indexOf(oDetail);
+            if (!confirm("Confirm to Delete?")) return ;
+            $scope.gridOptionDetails.data.splice(SelectedRowIndex,1);
+
+
+            //$scope.gridOptionDetails.data.splice($scope.gridOptions.data.indexOf(data.first()),1);
+            //$scope.gridApi.grid.modifyRows($scope.gridOptionDetails.data);
+
+            //$http.post(_sBaseAddress+'/ExportUP/DeleteExportUPDetail',JSON.stringify(data.first())).then(
+            //                function (response) {
+            //                    if(jQuery.parseJSON(response.data)=='Deleted'){
+            //                        msModal.Message({headerTitle : '', bodyText:'Delete Successfully.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //                        $scope.gridOptionDetails.data.splice($scope.gridOptions.data.indexOf(data.first()),1);
+            //                        $scope.gridApi.grid.modifyRows($scope.gridOptionDetails.data);
+            //                    }
+            //                    else{
+            //                        msModal.Message({headerTitle : '', bodyText:jQuery.parseJSON(response.data), sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+            //                    }
+            //                },
+            //                function (response) {alert(jQuery.parseJSON(response.data));}
+            //            );
+
+        };
+
+        $scope.Validation=function(){
+
+            if(new Date($scope.ExportUP.ExportUPDateStr)=='Invalid Date'){
+                msModal.Message({headerTitle : '', bodyText:'Invalid Date.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            var oDetails = $scope.gridOptionDetails.data;
+            if(oDetails.length <= 0){
+                msModal.Message({headerTitle : '', bodyText:'Please enter atleast one Detail!', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+
+            for(var i=0;i<oDetails.length;i++){
+                if(oDetails[i].Amount <= 0){
+                    alert("Amount can not be zero for LC No: " + oDetails[i].ExportLCNo + ", UD No: " + oDetails[i].ExportUDNo);
+                    return;
+                }
+                if(oDetails[i].Amount > oDetails[i].YetToUPAmount){
+                    alert("Amount can not be greater than Yet to Amount. Yet Amount: " + oDetails[i].YetToUPAmount + ", LC No: " + oDetails[i].ExportLCNo + ", UD No: " + oDetails[i].ExportUDNo);
+                    return;
+                }
+            }
+
+            return  true;
+        };
+
+        $scope.save = function () {
+            debugger;
+            $scope.ExportUP.ExportUPDate= $scope.ExportUP.ExportUPDateStr;
+            $scope.ExportUP.BUID = sessionStorage.getItem('BUID');
+            if(!$scope.Validation())
+                return false;
+            //console.log($scope.ExportUP);
+            //return;
+            //$scope.ExportUP.ExportUPDetails = $scope.gridOptionDetails.data;
+            $http.post(_sBaseAddress+'/ExportUP/Save', JSON.stringify($scope.ExportUP)).then(
+
+                             function (response) {
+                                 debugger;
+                                 var result=jQuery.parseJSON(response.data);
+                                 if(result.ExportUPID>0)
+                                 {
+                                     $scope.ExportUP=result.ExportUP;
+                                     alert("Data Save Successfully.");
+                                     userSession.setData('ExportUPs',result);
+                                     userSession.previousPage();
+                                 }
+                                 else{
+                                     msModal.Message({headerTitle : '', bodyText:result.ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                 }
+                             },
+                             function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+                       );
+        };
+
+        $scope.close = function () {
+            userSession.previousPage();
+        };
+
+    });
+
+
+
+
+
+
+
+
+
+</script>

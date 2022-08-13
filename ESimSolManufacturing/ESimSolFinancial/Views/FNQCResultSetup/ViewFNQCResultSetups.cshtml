@@ -1,0 +1,264 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "FN QC Result Setup";    
+}
+@model ESimSol.BusinessObjects.FNTreatmentProcess
+    <div ng-app="mainApp">
+        <div ng-controller="mainController">
+            <div>
+                <fieldset>
+                    <label style="margin:0 auto">Treatment Process: {{FNTreatmentProcess.FNProcess}}</label>
+                </fieldset>
+            </div>
+            <div class="col-md-12">
+                <div class="form-inline" style="padding:2px">
+                    <div class="input-group">
+                        <input ng-model="QCParameterName" class="form-control" ng-keydown="SearchQCParameterName($event)" placeholder="Type QC Parameter Name & Press Enter" required />
+                        <span class="input-group-btn">
+                            <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="PickQCParameter()"> <span class="glyphicon glyphicon-search" aria-hidden="true"></span></button>
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Delete($entity)"> <span class="glyphicon glyphicon-minus" aria-hidden="true"></span> Delete</button>
+                </div>
+                <div ui-grid="gridOptions1" ui-grid-selection ui-grid-resize-columns ui-grid-key-nav ui-grid-edit class="grid-angular ui-grid-selectable"></div>
+            </div>
+            <fieldset>
+                <legend>Action</legend>
+                <button type="button" style="float:right" class="btn btn-sm btn-danger" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Close</button>
+            </fieldset>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .ui-grid-top-panel .btn-sm, .input-group-addon {
+            padding: 3px 3px;
+        }
+
+        .grid-angular {
+            height: 430px;
+            width: 100%;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    var _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    var oFNTreatmentProcess =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var oFNQCResultSetups =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FNQCResultSetups));
+
+    debugger;
+    var  mainAppModule = angular.module('mainApp', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection', 'ui.grid.cellNav','ui.grid.resizeColumns','ms.service','ui.grid.edit']);
+    mainAppModule.controller('mainController', function ($scope, $http, $uibModal,$interval,$timeout,  $log, uiGridConstants, msModal, userSession) {
+
+        $scope.FNTreatmentProcess = oFNTreatmentProcess;
+        $scope.FNQCResultSetups = [];
+        $scope.FNQCResultSetup = [];
+
+        $scope.gridOptions1 ={
+            enableFullRowSelection: true,
+            multiSelect: false,
+            enableCellEdit:false,
+            enableColumnResizing: true,
+            noUnselect : true,
+            enableRowSelection: true,
+            enableRowHeaderSelection: false,
+            showColumnFooter: false,
+            columnDefs: [
+                {name: ' ',width:'3%', cellTemplate: '<div style="padding-top:5px;"><span>{{grid.renderContainers.body.visibleRowCache.indexOf(row)+1}}</span></div>',cellClass: 'text-center', enableCellEdit: false, enableSorting:false, enableColumnResizing:false, enableColumnMenu:false},
+                { field: 'Code', name: 'Code', width: '8%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'FnQCTestGroupName', name: 'Group Name', width: '14%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'Name', name: 'Name Of The Test', width: '18%',  cellClass: 'text-left',enableCellEdit:false   },                
+                { field: 'TestMethod', name: 'TestMethod', width: '15%',  cellClass: 'text-left',enableCellEdit:true   },
+                { field: 'SubName', name: 'Requirements', width: '15%',  cellClass: 'text-left',enableCellEdit:true   },
+                { field: 'Value', name:'Standard', width:'15%',cellClass: 'text-left', enableCellEdit:true},//,cellFilter:'number:2',
+                { field: 'Note', name: 'Remarks', width: '20%',  cellClass: 'text-left',enableCellEdit:true   },
+                { field: 'DBUserName', name: 'Added By', width: '10%',  cellClass: 'text-left',enableCellEdit:false   },
+                { field: 'LastUpdateByName', name: 'Last Updated By', width: '12%',  cellClass: 'text-left',enableCellEdit:false   },
+            ],
+            data:oFNQCResultSetups,
+            onRegisterApi:function(gridApi)
+            {
+                $scope.gridApi = gridApi;
+                //----------------On CLick Save------------------------//
+                gridApi.edit.on.afterCellEdit($scope,
+                    function (rowEntity, colDef, newValue, oldValue)
+                    {
+                        $scope.SaveSetupList();
+                        return rowEntity;
+                    });
+                //---------------- End On CLick Save------------------------//
+            }
+        };
+        $scope.SaveSetupList = function (e)
+        {
+            var data=$scope.gridApi.selection.getSelectedRows()[0];
+            var nIndex = $scope.gridOptions1.data.indexOf(data);
+            debugger;
+            $http.post(sessionStorage.getItem('BaseAddress')+'/FNQCResultSetup/Save',data).then(
+                  function (response)
+                  {
+                      debugger;
+                      var oFNQCResultSetup = JSON.parse(response.data)
+                      if (oFNQCResultSetup.ErrorMessage=="" || oFNQCResultSetup.ErrorMessage==null)
+                      {
+                          $scope.gridOptions1.data[nIndex]=oFNQCResultSetup;
+                      }
+                      else
+                      {
+                          alert(oFNQCResultSetup.ErrorMessage);
+                      }
+                  },
+                      function (response) { alert(jQuery.parseJSON(response.data).Message);}
+              );
+        }
+        $scope.Delete = function () {
+            debugger;
+            var oFNQCResultSetup=$scope.gridApi.selection.getSelectedRows()[0];
+            if(oFNQCResultSetup==null || oFNQCResultSetup.FNQCResultSetupID<=0)
+            {
+                msModal.Message({headerTitle : '', bodyText:'No item found to delete.', sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                return false;
+            }
+            var SelectedRowIndex=$scope.gridOptions1.data.indexOf(oFNQCResultSetup);
+            if (!confirm("Confirm to Delete?")) return ;
+            $http.post(_sBaseAddress+ '/FNQCResultSetup/Delete',JSON.stringify(oFNQCResultSetup)).then(
+                            function (response) {
+                                var sMessage= jQuery.parseJSON(response.data).toLowerCase();
+                                debugger;
+                                if(sMessage=='deleted')
+                                {
+                                    alert("Successfully Deleted.");
+                                    $scope.gridOptions1.data.splice(SelectedRowIndex,1);
+                                }
+                                else{
+                                    alert(sMessage);
+                                    //msModal.Message({headerTitle : '', bodyText:result[0].ErrorMessage, sucessText : ' Yes', cancelText : ' Close', feedbackType:false, autoClose : false});
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+        $scope.Close = function(e)
+        {
+            window.close();
+        }
+        $scope.SaveAll = function (FNQCResultSetups) {
+            debugger;
+            if($scope.FNQCResultSetups.length<=0)return;
+            $http.post(_sBaseAddress+ '/FNQCResultSetup/SaveAll',JSON.stringify($scope.FNQCResultSetups)).then(
+                            function (response) {
+                                var obj= jQuery.parseJSON(response.data);
+                                var nLength = obj.length;
+                                debugger;
+                                if(nLength>0)
+                                {
+                                    alert("Successfully Added.");
+                                    for(var i = 0; i<nLength; i++)
+                                    {
+                                        $scope.gridOptions1.data.push(obj[i]);
+                                    }
+                                }
+                                else{
+                                    alert("Already Have Some Parameter");
+                                }
+                            },
+                            function (response) {alert(jQuery.parseJSON(response.data));}
+                        );
+
+        };
+        $scope.SearchQCParameterName=function (e)
+        {
+            debugger;
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13)
+            {
+                var QCParameterName = $.trim($scope.QCParameterName);
+                if(QCParameterName==""||QCParameterName==null)
+                {
+                    alert("Type QC Parameter and Press Enter");
+                    return;
+                }
+                $scope.PickQCParameter();
+            }else if (code == 8) //backspace=8
+            {
+                //debugger;
+                $scope.QCParameterName = '';
+            }
+        };
+        $scope.PickQCParameter= function () {
+            $.icsProgressBar(true);
+            var obj = {Name:$.trim($scope.QCParameterName)};
+            var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+            $http.post(_sBaseAddress+'/FNQCParameter/Search',obj).then(
+                                function (response)
+                                {
+                                    debugger;
+                                    $.icsProgressBar(false);
+                                    var oColumns = [];
+                                    var oColumn = { field: 'Name', name: 'Name',width: '40%'};oColumns.push(oColumn);
+                                    oColumn = { field: 'Code', name: 'Code',width: '20%',enableSorting: false};oColumns.push(oColumn);
+                                    oColumn = { field: 'FnQCTestGroupName', name: 'Group Name',width: '20%',enableSorting: false};oColumns.push(oColumn);
+                                    debugger;
+                                    var results=jQuery.parseJSON(response.data);
+                                    var modalObj={
+                                        size:'md',
+                                        url:_sBaseAddress+'/Home/Modal',
+                                        modalcontroller:'EODModalCtrl',
+                                        appcontroller:'mainController',
+                                        objs:results,
+                                        multiSelect:true,
+                                        pickertitle:'QC Parameter',
+                                        searchingbyfieldName:'Name',
+                                        columns:oColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        debugger;
+                                        var length = result.length;
+                                        $scope.FNQCResultSetups = [];
+                                        for(var i=0; i<length; i++)
+                                        {
+                                            $scope.FNQCResultSetup = {};
+                                            $scope.FNQCResultSetup.FNQCResultSetupID = 0;
+                                            $scope.FNQCResultSetup.FNTPID = $scope.FNTreatmentProcess.FNTPID;
+                                            $scope.FNQCResultSetup.FNQCParameterID = result[i].FNQCParameterID;
+                                            $scope.FNQCResultSetups.push($scope.FNQCResultSetup);
+                                        }
+                                        $scope.SaveAll($scope.FNQCResultSetups);
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+                                },
+                                  function (response) { alert(jQuery.parseJSON(response.data).Message);}
+                            );
+        };
+    });
+
+    </script>
+
+
+
+
+
+
+
+
+
+
+

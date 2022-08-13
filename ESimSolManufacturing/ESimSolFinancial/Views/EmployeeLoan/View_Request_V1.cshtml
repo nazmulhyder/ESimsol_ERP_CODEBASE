@@ -1,0 +1,553 @@
+﻿<html>
+    <head>  
+        <link href="@Url.Content("~/Content/CSS/icon.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/CSS/easyui.css")" rel="stylesheet" type="text/css" />
+        <link href="@Url.Content("~/Content/CSS/Pikerstyle.css")" rel="stylesheet" type="text/css" />
+        <script src="@Url.Content("~/Scripts/jquery-1.7.1.min.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/jquery.ics.customize.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/jquery.easyui.min.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/jquery-ui.min.js")" type="text/javascript"></script>
+        <script src="@Url.Content("~/Scripts/json2.js")" type="text/javascript"></script>
+        <style type="text/css">
+            .lblStar
+            {
+                color :Red;    
+            }
+        </style>
+
+    </head>
+    <body>
+    @model ESimSol.BusinessObjects.EmployeeLoan
+        <div style="font-family:Tahoma">           
+            <table border="0" cellspacing="2" cellpadding="2">
+                <tr>
+                    <td style="background-color:#cfb53b; text-align:center; width:800px; color:White">
+                        <label id="lblHeaderName" style="font-size:15px; font-weight:bold; text-decoration:Underline"> Add Leave Application</label>
+                    </td>
+                </tr>
+            </table>
+            <fieldset>
+                <legend style="font-weight:bold">  Request For Loan </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight: bold">
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                            Employee :
+                        </td>
+                        <td style="width:430px;">
+                            <input id="txtEmployee" type="text" style="width:200px;" placeholder = "Type Code or Name then enter"/>
+                            <input id="btnClearEmployee" type ="button" value="C" /><input id="btnPickEmployee" type ="button" value="P" />
+                             &nbsp;&nbsp; Code : <input id="txtCode" type="text" style="width:82px;" readonly/>
+                           
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                            Official Info :
+                        </td>
+                        <td style="width:430px;">
+                        <input id="txtOfficialInfo" type="text" style="Width:400px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                            Salary Info :
+                        </td>
+                        <td style="width:430px;">
+                            <input id="txtSalaryInfo" type="text" style="Width:400px;" />
+                            <label class="lblStar">*</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                            Last Loan Info :
+                        </td>
+                       <td style="width:430px;">
+                            <input id="txtLastLoanInfo" type="text" style="Width:400px;" />
+                            <label class="lblStar">*</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                            Purpose :
+                        </td>
+                        <td style="width:430px;">
+                            <input id="txtPurpose" type="text" style="Width:400px;" />
+                            <label class="lblStar">*</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                           Amount :
+                        </td>
+                        <td style="width:430px;">
+                        <input id="txtAmount" type="text" style="Width:150px;" />
+                        <label class="lblStar">*</label>
+                            <span id="spAmountInTaka"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:130px; text-align:right">
+                           Special Note(If any) :
+                        </td>
+                        <td style="width:430px;">
+                        <textarea id = "txtRequestNote" rows ="5" cols ="47"></textarea>
+                        </td>
+                    </tr>
+                   
+                 
+                </table>
+            </fieldset>
+            <br />
+            <fieldset>
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold">
+                    <tr>
+                        <td style="width:400px; text-align:left">
+                            
+                        </td>
+                        <td style="width:50px">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-save" plain="true" onclick="Save()">Save</a>
+                           
+                        </td>
+                        <td style="width:50px">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                        </td>
+                    </tr>       
+                </table>
+            </fieldset>
+        </div>
+    </body>
+</html>
+
+<script type="text/javascript">
+var _oEmployeeLoan = null;
+var _sBaseAddress = "";
+var _bIsPaid=true;
+var _oEmployee = null;
+var _nEmployeeID = 0;
+var _nESSID = 0;
+
+$(document).ready(function() 
+{
+    _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+    _oEmployeeLoan = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    var obj = window.dialogArguments;
+    document.getElementById('lblHeaderName').innerHTML = obj.Name;
+    $("#txtAmount").numberbox();
+    if(obj.Name == "Edit Loan Request")
+    {
+        RefreshControl();
+    }
+    if(obj.Name == "Preview Loan Request")
+    {
+        RefreshControl();
+        RefreshControlForPreview();
+
+    }
+});
+
+$('#txtAmount').numberbox({
+	onChange: function(newValue,oldValue){
+          
+    var tsv= (new Date().getTime())/1000;   
+    $.ajax({
+            type: "GET",
+            dataType: "json",            
+            url : _sBaseAddress+  "/EmployeeLoan/TakaInWord",
+            traditional: true,
+            data: {value:newValue, ts:tsv },
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {
+                //document.getElementById("lblAmountInWord").innerHTML = jQuery.parseJSON(data); 
+                document.getElementById("spAmountInTaka").innerHTML = jQuery.parseJSON(data); 
+                
+            },
+            error: function (xhr, status, error) 
+            {
+                alert(error);
+            }
+
+        });
+}
+});
+
+function RefreshControlForPreview()
+{
+    document.getElementById("txtPurpose").readOnly = true;
+    document.getElementById("txtAmount").readOnly = true;
+    document.getElementById("txtRequestNote").readOnly = true;
+    document.getElementById("btnSave").style.display='none';
+    $(".lblStar").innerHTML = "";
+}
+
+function RefreshControl()
+{
+    _nEmployeeID = _oEmployeeLoan.EmployeeID;
+    document.getElementById('txtEmployee').value = _oEmployeeLoan.EmployeeName+"["+_oEmployeeLoan.EmployeeCode+"]";
+    $("#txtOfficialInfo")[0].value = _oEmployeeLoan.DesignationName+"," + _oEmployeeLoan.DepartmentName +","+_oEmployeeLoan.LocationName+"["+_oEmployeeLoan.EmployeeTypeName+","+_oEmployeeLoan.WorkingStatusInString+"]";
+    document.getElementById("txtCode").value = _oEmployeeLoan.Code;
+    GetSalaryAndLastLoanInfo();
+    document.getElementById("txtPurpose").value = _oEmployeeLoan.Purpose;
+    $('#txtAmount').numberbox('setValue',_oEmployeeLoan.Amount);
+    //document.getElementById("txtAmount").value = _oEmployeeLoan.Amount;
+    document.getElementById("txtRequestNote").value = _oEmployeeLoan.RequestNote;
+    
+}
+
+
+function ValidateInput() 
+{
+   
+    if(_nEmployeeID == 0)
+    {
+        alert("Please Enter Employee !");
+        document.getElementById("txtEmployee").style.borderColor = 'red';
+        document.getElementById("txtEmployee").focus();
+        return false;
+    }
+        
+    if(_nESSID == 0)
+    {
+        alert("This employee has no salary structure !");
+        document.getElementById("txtSalaryInfo").style.borderColor = 'red';
+        document.getElementById("txtSalaryInfo").focus();
+        return false;
+    }
+    
+    if(document.getElementById("txtPurpose").value =="")
+    {
+        alert("Please Enter Purpose !");
+        document.getElementById("txtPurpose").style.borderColor = 'red';
+        document.getElementById("txtPurpose").focus();
+        return false;
+    }
+    
+    if(document.getElementById("txtAmount").value =="")
+    {
+        alert("Please Enter Amount!");
+        document.getElementById("txtAmount").style.borderColor = 'red';
+        $('#txtAmount').focus();
+        return false;
+    }
+   
+    return true;
+}
+
+function RefreshObject() 
+{
+    
+    var oEmployeeLoanHistory ={
+        EmployeeLoanID : 0,
+        StatusInt : 1,
+        PreviousStatusInt : 0
+    
+    }
+    
+    var oEmployeeLoan = {
+        EmployeeLoanID : _oEmployeeLoan.EmployeeLoanID,
+        EmployeeID: _nEmployeeID,
+        Purpose: document.getElementById("txtPurpose").value,
+        Amount: document.getElementById("txtAmount").value, 
+        RequestNote: document.getElementById("txtRequestNote").value,
+        StatusInt : 1,
+        EmployeeLoanHistory : oEmployeeLoanHistory
+      
+    };
+
+    return oEmployeeLoan;
+}
+
+function Save() 
+{
+    if (!ValidateInput()) return;
+     
+    var oEmployeeLoan = RefreshObject();
+    
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_IU",
+    traditional: true,
+    data: JSON.stringify(oEmployeeLoan),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+        
+        var oEmployeeLoan = jQuery.parseJSON(data);
+        if (oEmployeeLoan.EmployeeLoanID > 0) {
+            alert("Data Saved sucessfully");
+            window.returnValue = oEmployeeLoan;
+            window.close();
+        } else {
+            alert(oEmployeeLoan.ErrorMessage);
+        }
+    },
+    error: function(xhr, status, error) {
+        alert(error);
+    }
+    });
+    
+}
+
+$('#txtEmployee').keypress(function (e) 
+{
+    var code = (e.keyCode ? e.keyCode : e.which);
+    var sEmpCode=document.getElementById("txtEmployee").value;
+        
+    if (code == 13)//Enter key-13
+    {
+        if(sEmpCode=="")
+        {
+            alert("Please Enter Code !");
+            return;
+        }
+        var nts=(new Date()).getTime()/1000;
+        var oParameter = new Object();
+        oParameter.MultipleItemReturn = false;
+        var url = _sBaseAddress + "/Employee/EmployeePikerByCode?sCode="+sEmpCode+"&nDepartmentID=0&nts="+nts;
+        var nLeft=(window.screen.width/2)-(515/2);
+        var nHeight=(window.screen.height/2)-(415/2);
+        _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:415px;dialogWidth:515px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+        //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:405px;dialogWidth:510px;dialogLeft:400;dialogTop:100;center:yes;resizable:no;status:no;scroll:no');
+            
+        if(_oEmployee!=null)
+        {
+
+            if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+            {
+                alert("This Employee Has No Official Information !");
+                return;
+            }
+
+            if(_oEmployee.IsActive == false)
+            {
+                alert("InActive Employee. Work can not be assigned for this employee!");
+                return;
+            }
+
+            if(_oEmployee.WorkingStatus != 1)
+            {
+                alert("This employee is not in work place!");
+                return;
+            }
+
+            $("#txtOfficialInfo")[0].value = _oEmployee.DesignationName+"," + _oEmployee.DepartmentName +","+_oEmployee.LocationName+"["+_oEmployee.EmployeeTypeName+","+_oEmployee.WorkingStatusInString+"]";
+            $("#txtEmployee")[0].value=_oEmployee.Name;
+            _nEmployeeID=_oEmployee.EmployeeID;
+            GetSalaryAndLastLoanInfo();
+            
+        }
+    }
+});
+
+$('#btnPickEmployee').click(function (e)
+{
+
+    var oParameter = new Object();
+    oParameter.Name = "Employee Advance Search";
+    oParameter.MultipleItemReturn=false;
+    var url = _sBaseAddress + "/Employee/EmployeeHRMPiker";
+    var nLeft=(window.screen.width/2)-(1000/2);
+    var nHeight=(window.screen.height/2)-(510/2);
+    _oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:1000px;dialogLeft:'+nLeft+';dialogTop:'+nHeight+';center:yes;resizable:no;status:no;scroll:yes');
+    //_oEmployee = window.showModalDialog(url, oParameter, 'dialogHeight:510px;dialogWidth:945px;dialogLeft:200;dialogRight:50;dialogTop:100;center:yes;resizable:yes;status:no;scroll:no');
+    if(_oEmployee!=null)
+    {
+        if(_oEmployee.DesignationName=="" || _oEmployee.DepartmentName=="" || _oEmployee.LocationName=="")
+        {
+            alert("This Employee Has No Official Information !");
+            return;
+        }
+        
+        if(_oEmployee.IsActive == false)
+        {
+            alert("InActive Employee. Work can not be assigned for this employee!");
+            return;
+        }
+        if(_oEmployee.WorkingStatus != 1)
+        {
+            alert("This employee is not in work place!");
+            return;
+        }
+
+        $("#txtOfficialInfo")[0].value = _oEmployee.DesignationName+"," + _oEmployee.DepartmentName +","+_oEmployee.LocationName+"["+_oEmployee.EmployeeTypeName+","+_oEmployee.WorkingStatusInString+"]";
+        $("#txtEmployee")[0].value=_oEmployee.Name;
+        
+        _nEmployeeID = _oEmployee.EmployeeID;
+       
+        GetSalaryAndLastLoanInfo();
+    }
+});
+
+$('#btnClearEmployee').click(function (e)
+{
+    $("#txtEmployee")[0].value="";
+    $("#txtOfficialInfo")[0].value="";
+    $("#txtLastLoanInfo")[0].value="";
+    $("#txtSalaryInfo")[0].value="";
+    _nEmployeeID = 0;
+    _nESSID = 0;
+
+});
+
+$('#btnEffect').click(function (e)
+{
+    var dStartDate =  $('#dtStartDate').datebox('getValue'); 
+    var dEndDate =  $('#dtEndDate').datebox('getValue');
+    $('#dtActualStartDate').datebox('setValue',dStartDate);
+    $('#dtActualEndDate').datebox('setValue',dEndDate); 
+
+});
+
+function GetSalaryAndLastLoanInfo()
+{
+
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/GetSalaryAndLastLoanInfo",
+    traditional: true,
+    data: JSON.stringify({nEmployeeID :_nEmployeeID}),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+        
+        var oEmployeeLoan = jQuery.parseJSON(data);
+        if(oEmployeeLoan.EmployeeSalaryStructure.ESSID >0)
+        {
+            _nESSID = oEmployeeLoan.EmployeeSalaryStructure.ESSID;
+            document.getElementById('txtSalaryInfo').value = oEmployeeLoan.EmployeeSalaryStructure.SalarySchemeName +", Gross : "+oEmployeeLoan.EmployeeSalaryStructure.GrossAmount +", Basic : "+oEmployeeLoan.EmployeeSalaryStructureDetails[0].Amount+"(BDT)";
+        }
+        else
+        {
+            document.getElementById('txtSalaryInfo').value = "NILL";
+        }
+        if(oEmployeeLoan.LastEmployeeLoan.EmployeeLoanID >0)
+        {
+            document.getElementById('txtLastLoanInfo').value = oEmployeeLoan.LastEmployeeLoan.LastLoanInString;
+        }
+        else
+        {
+             document.getElementById('txtLastLoanInfo').value = "NILL";
+        }
+    },
+    error: function(xhr, status, error) 
+    {
+        alert(error);
+    }
+    }); 
+
+}
+
+$('#btnApprove').click(function (e)
+{
+    var sApprovalNote = document.getElementById('txtApprovalNote').value;
+   
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_Approve",
+    traditional: true,
+    data: JSON.stringify({sApprovalNote :sApprovalNote,nEmployeeLoanID: _oEmployeeLoan.EmployeeLoanID}),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+             
+             oEmployeeLoan = jQuery.parseJSON(data);
+             if (oEmployeeLoan.EmployeeLoanID > 0)
+             {
+                alert("Approved sucessfully !");
+                window.returnValue = oEmployeeLoan;
+                window.close();  
+             } 
+             else
+             {
+                 alert(oEmployeeLoan.ErrorMessage);
+             }
+         }
+         
+     });
+
+});
+
+$('#btnFinalize').click(function (e)
+{
+    
+    var sResult = document.getElementById('txtResult').value;
+    var sResultNote = document.getElementById('txtResultNote').value;
+    var dPassingDate =  $('#dtPassingDate').datebox('getValue');
+    var IsComplete = 0;
+    if(document.getElementById("chkComplete").checked)
+    {
+        IsComplete = 1;
+        if(sResult == "")
+        {
+            alert("Please enter Result !");
+            return;
+        }
+    }
+   
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_Finalize",
+    traditional: true,
+    data: JSON.stringify({sResult :sResult,sResultNote : sResultNote,dPassingDate : dPassingDate,IsComplete :IsComplete,nEmployeeLoanID: _oEmployeeLoan.EmployeeLoanID}),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+             
+             oEmployeeLoan = jQuery.parseJSON(data);
+             if (oEmployeeLoan.EmployeeLoanID > 0)
+             {
+                alert("Finalize sucessfully !");
+                window.returnValue = oEmployeeLoan;
+                window.close();  
+             } 
+             else
+             {
+                 alert(oEmployeeLoan.ErrorMessage);
+             }
+         }
+         
+     });
+
+});
+
+$('#btnInActive').click(function (e)
+{
+    var sInActiveNote = document.getElementById('txtInActiveNote').value;
+   
+    $.ajax({
+    type: "POST",
+    dataType: "json",
+    url: _sBaseAddress + "/EmployeeLoan/EmployeeLoan_InActive",
+    traditional: true,
+    data: JSON.stringify({sInActiveNote :sInActiveNote,nEmployeeLoanID: _oEmployeeLoan.EmployeeLoanID}),
+    contentType: "application/json; charset=utf-8",
+
+    success: function(data) {
+             
+             oEmployeeLoan = jQuery.parseJSON(data);
+             if (oEmployeeLoan.EmployeeLoanID > 0)
+             {
+                alert("InActivated sucessfully !");
+                window.returnValue = oEmployeeLoan;
+                window.close();  
+             } 
+             else
+             {
+                 alert(oEmployeeLoan.ErrorMessage);
+             }
+         }
+         
+     });
+
+});
+
+function Close() 
+{
+    window.close();
+}
+</script>

@@ -1,0 +1,142 @@
+﻿@{
+    ViewBag.Title = "Voucher Batch Historys List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.VoucherBatchHistory>
+<head>
+    
+</head>
+<body>
+    <div id="divVoucherBatchHistory" class="easyui-panel" title="Voucher Batch History List" style="font-family:Tahoma; height:100%; width:100%">
+        <div style="width:100%; height:88%; text-align:center">
+            <table id="tblVoucherBatchHistorys" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="falsse" singleselect="true" autorowheight="false" toolbar="#toolbarVoucherBatchHistory">
+                <thead>
+                    <tr>
+                        <th field="OperationDateInString" width="14%">Operation Date Time</th>
+                        <th field="BatchNO" width="10%">Batch NO</th>
+                        <th field="CreateDateInString" width="8%">Create Date</th>
+                        <th field="CreateByName" width="20%">Create By</th>
+                        <th field="PreviousBatchStatusInString" width="10%">Previous Status</th>
+                        <th field="CurrentBatchStatusInString" width="10%">Current Status</th>
+                        <th field="RequestDateInString" width="8%">Request Date</th>
+                        <th field="RequestToName" width="15%">Request To</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarVoucherBatchHistory">
+                <table>
+                    <tr>
+                       
+                        <td>
+                            @using (Html.BeginForm("PrintVoucherBatchHistorys", "VoucherBatch", FormMethod.Post, new { enctype = "multipart/form-data", target = "_blank", @class = "PrintForm" }))
+                        {
+                                <input type="text" name="txtVoucherBatchHistoryCollectionList" id="txtVoucherBatchHistoryCollectionList" hidden="hidden" />
+                                <input type="submit" id="btnPrintVoucherBatchHistory" value="     Print List" class="icon-print PrintList" style="margin-top: 4px;" />
+                        }
+                            <a id="btnPrintInXLVoucherBatchHistory" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" hidden="hidden">Print in XL</a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%"></td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="false">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+        </div>
+</body>
+
+<script type="text/javascript">
+    var _oVoucherBatchHistory = null;
+    var _oVoucherBatchHistorys = [];
+    var _sBaseAddress = "";
+    var _oAuthorizationRolesMapping = [];
+    var _nMenuid=0;
+    var _sVoucherBatchHeader='';
+    $(document).ready(function() {
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+        _oVoucherBatchHistorys = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oAuthorizationRolesMapping = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _sVoucherBatchHeader=sessionStorage.getItem("VoucherBatchHeader");
+        $('#divVoucherBatchHistory').panel({ title:_sVoucherBatchHeader});
+
+        DynamicRefreshList(_oVoucherBatchHistorys, 'tblVoucherBatchHistorys');
+        
+
+        RefreshControlLayout();
+
+        $('#btnPrintInXLVoucherBatchHistory').hide();
+
+    });
+    
+    
+    $('#btnPrintVoucherBatchHistory').click(function(){
+        var oVoucherBatchHistorys=$('#tblVoucherBatchHistorys').datagrid('getRows');
+        if(oVoucherBatchHistorys==null||oVoucherBatchHistorys.length<=0){return false;}
+        for(var i=0;i<oVoucherBatchHistorys.length;i++){
+            oVoucherBatchHistorys[i].DBServerDateTime=oVoucherBatchHistorys[i].OperationDateInString;
+            oVoucherBatchHistorys[i].CreateDate=oVoucherBatchHistorys[i].CreateDateInString;
+            oVoucherBatchHistorys[i].RequestDate=oVoucherBatchHistorys[i].RequestDateInString;
+        }
+        $("#txtVoucherBatchHistoryCollectionList").val(JSON.stringify(oVoucherBatchHistorys));
+    });
+
+
+
+    function RefreshControlLayout() {
+        //VoucherBatchHistory
+
+
+        $("#btnPrintListVoucherBatchHistory").hide();
+        $("#btnPrintInXLVoucherBatchHistory").hide();
+
+
+
+        if (HavePermission('PrintList', 'VoucherBatchHistory')) {
+            $("#btnPrintListVoucherBatchHistory").show();
+        }
+        if (HavePermission('XLPrint', 'VoucherBatchHistory')) {
+            $("#btnPrintInXLVoucherBatchHistory").show();
+        }
+
+
+    }
+
+    function HavePermission(sOperationType,sDbObject) {
+        var nUserId = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nUserId === -9) //check SuperUser
+        {
+            return true;
+        }
+        else
+        {
+            for(var i =0; i<_oAuthorizationRolesMapping.length; i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString === sOperationType && _oAuthorizationRolesMapping[i].DBObjectName === sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+    $("#btnClose").click(function(){
+        window.location.href = _sBaseAddress+ "/VoucherBatch/ViewVoucherBatchs?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.location.href = _sBaseAddress+ "/VoucherBatch/ViewVoucherBatchs?menuid="+_nMenuid;
+        }
+    });
+
+</script>

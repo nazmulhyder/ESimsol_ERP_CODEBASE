@@ -1,0 +1,143 @@
+﻿@{
+    ViewBag.Title = "Operation Unit List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.OperationUnit>
+    <div style="margin-left:0px; height:100%;width:100%">
+        <table id="tblOperationUnit" title="Operation Unit" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="OperationUnitName" width="30%">Operation Unit Name</th>
+                    <th field="ShortName" width="20%">Short Name</th>
+                    <th field="Description" width="30%">Description</th>
+                    <th field="StoreStatus" width="20%">Store Status</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" onclick="Add()">Add</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true" onclick="Edit()">Edit</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true" onclick="Details()">Details</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true" onclick="Delete()">Delete</a>
+            @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+            @{var BUID = @ViewBag.BUID;}
+            @Html.ActionLink("Location", "ViewLocations", "Location", new { buid = @BUID, menuid = @MenuID }, null)   ||  @Html.ActionLink("Operation Unit", "RefreshList", "OperationUnit", new { buid = @BUID, menuid = @MenuID }, null) ||  @Html.ActionLink("Working Unit", "RefreshList", "WorkingUnit", new { buid = @BUID, menuid = @MenuID }, null)
+        </div>
+
+
+
+
+
+<script type="text/javascript">
+    
+    $(document).ready(function () {
+        var oTempOperationUnits =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oOperationUnits =sessionStorage.getItem("OperationUnits");
+        if(oOperationUnits!=null)
+        {
+            oOperationUnits = jQuery.parseJSON(oOperationUnits);
+        }
+        else
+        {
+            oOperationUnits=oTempOperationUnits;
+        }
+        RefreshList(oOperationUnits);
+          
+    });
+
+    function RefreshList(oOperationUnits)
+    {
+        var data=oOperationUnits;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblOperationUnit').datagrid('loadData',data);
+        var nID =parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        if(nID!=-1)
+        {
+            $('#tblOperationUnit').datagrid('selectRow', nID);
+        }
+    }
+
+    function Add()
+    {
+        var oOperationUnits= $('#tblOperationUnit').datagrid('getRows');
+        sessionStorage.setItem("OperationUnits", JSON.stringify(oOperationUnits));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("OperationName", "Add Operation Unit");
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/OperationUnit/ViewOperationUnit?id=0";
+
+    }
+
+    function Edit()
+    {
+        var oOperationUnit = $('#tblOperationUnit').datagrid('getSelected');
+        if(oOperationUnit==null || oOperationUnit.OperationUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblOperationUnit').datagrid('getRowIndex',oOperationUnit);
+        var oOperationUnits= $('#tblOperationUnit').datagrid('getRows');
+        sessionStorage.setItem("OperationUnits", JSON.stringify(oOperationUnits));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem('OperationName','Edit Operation Unit');
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/OperationUnit/ViewOperationUnit?id="+oOperationUnit.OperationUnitID;
+    }
+
+    function Details()
+    {
+        var oOperationUnit = $('#tblOperationUnit').datagrid('getSelected');
+        if(oOperationUnit==null || oOperationUnit.OperationUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var SelectedRowIndex=$('#tblOperationUnit').datagrid('getRowIndex',oOperationUnit);
+        var oOperationUnits= $('#tblOperationUnit').datagrid('getRows');
+        sessionStorage.setItem("OperationUnits", JSON.stringify(oOperationUnits));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem('OperationName','View Operation Unit');
+        sessionStorage.setItem("BackLink", window.location.href);
+        window.location.href = sessionStorage.getItem('BaseAddress')+ "/OperationUnit/ViewOperationUnit?id="+oOperationUnit.OperationUnitID;
+    }
+
+    function Delete()
+    {
+        var oOperationUnit = $('#tblOperationUnit').datagrid('getSelected');
+        if(oOperationUnit==null || oOperationUnit.OperationUnitID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblOperationUnit').datagrid('getRowIndex',oOperationUnit);
+        if (oOperationUnit.OperationUnitID > 0)
+        {
+            $.ajax
+            ({
+                type: "GET",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/OperationUnit/Delete",
+                data: { id: oOperationUnit.OperationUnitID },
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "Delete sucessfully")
+                    {
+                        alert("Delete sucessfully");
+                        $('#tblOperationUnit').datagrid('deleteRow',SelectedRowIndex);
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    }
+</script>

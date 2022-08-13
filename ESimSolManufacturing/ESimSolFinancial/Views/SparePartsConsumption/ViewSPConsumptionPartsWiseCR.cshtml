@@ -1,0 +1,228 @@
+﻿@{
+    ViewBag.Title = "Spare Parts Consumption Report";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model ESimSol.BusinessObjects.SparePartsConsumptionRegister
+
+<div id="divSPCRegister" style="margin-left:0px; width:100%;height:89%" class="menuMainCollectionTable">
+    <table id="tblSPCRegister" style="width:896px;height:500px" title="Capital Resource List" class="easyui-datagrid" fit="true" showfooter="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="true" toolbar="#toolbar">
+        <thead>
+            <tr>
+                <th field="ResourceTypeName" width="20%">Resource Type</th>
+                <th field="CRCode" width="12%">Code</th>
+                <th field="CRName" width="40%" data-options="formatter:cellClickEvent">Capital Resource / Machine Name</th>
+                <th field="CRModel" width="12%">Model</th>
+                <th field="Amount" align="right" formatter="formatPrice" width=" 15%">Consumption Amount</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="toolbar" style="height:auto">
+        <table>
+            <tr>
+                <td>
+                    <select id="cboBU" style="height:24px; min-width:125px"></select>
+                    <select id="cboResourceTypes" style="height:24px; min-width:125px"></select>
+                    <input type="text" class="easyui-datebox" style="width: 110px; font-size:11px;" id="txtDateFrom" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <label>to</label>
+                    <input type="text" class="easyui-datebox" style="width: 110px; font-size:11px;" id="txtDateTo" data-options="formatter:icsdateformat,parser:icsdateparser" />
+                    <input type="text" id="txtSearchByCode" placeholder="Search by Code" style="width:125px" />
+                    <input type="text" id="txtSearchByName" placeholder="Search by Name" style="width:125px" />
+                    <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true"></a>
+                    @*<a id="btnAddResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true"></a>
+                        <a id="btnEditResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true"></a>
+                        <a id="btnDeleteResourcesType" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true"></a>
+                        <a id="btnCopySparePartsConsumptionRegister" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-copy" plain="true">Copy</a>
+                        <a id="btnView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-details" plain="true">View</a>*@
+                    <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<div style="width:100%; height:10%">
+    <fieldset>
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+            <tr>
+                <td style="width:80%; text-align:right"></td>
+                <td style="width:20%">
+                    <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+</div>
+<script type="text/javascript">
+    var _nSelectedIndex = 0;
+    $(document).ready(function () {
+        var sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oSPCRegister = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oResourcesTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ResourcesType));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+
+        $('#divSPCRegister').data('BaseAddress', sBaseAddress);
+        $('#divSPCRegister').data('ProductID', oSPCRegister.ProductID);
+
+        $("#cboBU").icsLoadCombo({List: oBUs, OptionValue: "BusinessUnitID", DisplayText: "ShortName", InitialValue:"Business Unit"});
+        $("#cboResourceTypes").icsLoadCombo({List: oResourcesTypes, OptionValue: "CRID", DisplayText: "Name", InitialValue:"Resources Type"});
+
+        RefreshControl(oSPCRegister);
+        RefreshList(oSPCRegister.SparePartsConsumptionRegisters);
+        ChangeHeader(oSPCRegister.SearchingCiteria);
+    });
+
+    function RefreshControl(oSPCRegister)
+    {
+        debugger;
+        $('#cboBU').val(oSPCRegister.BUID);
+        $('#cboResourceTypes').val(oSPCRegister.ResourceType);
+        $('#txtDateFrom').datebox('setValue',oSPCRegister.StartDateSt);
+        $('#txtDateTo').datebox('setValue',oSPCRegister.EndDateSt);
+        $('#txtSearchByCode').val(oSPCRegister.CRCode);
+        $('#txtSearchByName').val(oSPCRegister.CRName);
+        if(oSPCRegister.BUID>0)
+        {
+            $('#cboBU').val(oSPCRegister.BUID);
+            $('#cboBU').prop("disabled", true);
+        }
+    }
+
+    function RefreshList(oSPCRegisters)
+    {
+        data=oSPCRegisters;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblSPCRegister').datagrid('loadData',data);
+        if(sessionStorage.getItem('SPCRegisterCR')!=null)
+        {
+            var nID = JSON.parse(sessionStorage.getItem('SPCRegisterCR')).LineNumber;
+            $('#tblSPCRegister').datagrid('selectRow', nID);
+        }
+        $.icsMakeFooterColumn('tblSPCRegister',['CRModel','Amount']);
+    }
+    function ChangeHeader(oText)
+    {
+        var p = $('#tblSPCRegister').datagrid('getPanel');  // get the panel object
+        p.panel('setTitle',oText);
+    }
+    function cellClickEvent(value,row,index) {
+        return '<a id="btnShowDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="" style="font-weight:bold" plain="true" onclick="CellOnClick('+row.CRID+','+index+')">'+row.CRName+'</a>';
+    }
+    function CellOnClick(nCRID, index) {
+        debugger;
+        _nSelectedIndex = index;
+        SetObjectIntoSession(50);
+        sessionStorage.setItem("BackLinkSecondLayer", window.location.href);
+        window.location.href = $('#divSPCRegister').data('BaseAddress')+  "/SparePartsConsumption/ViewSPConsumptionTransaction?nCRID="+nCRID+"&buid="+sessionStorage.getItem('BUID')+"&nSPID="+$('#divSPCRegister').data('ProductID');
+    }
+    $('#btnClose').click(function(e)
+    {
+        SetObjectIntoSession(49);
+        debugger;
+        SetObjectIntoSession(50);       //for destination Page
+        var menuid = sessionStorage.getItem("BackLinkFirstLayer").slice(-4);
+        sessionStorage.setItem("BackLinkSPCCRWise", window.location.href);
+        window.location.href = $('#divSPCRegister').data('BaseAddress')+  "/SparePartsConsumption/ViewSPConsumptionParts?isMenu=0&"+"buid="+sessionStorage.getItem('BUID')+"&menuid=" + menuid;
+    });
+    //-----------------------Basic Search(Start)--------------------------------------//
+    function SetObjectIntoSession(nReportLayout)
+    {
+        debugger;
+        //-----------------set page control into session(START)-----------------//
+        var oLayoutControl = MakeObject(49);
+        var oSPCRegister = $('#tblSPCRegister').datagrid('getRows')[_nSelectedIndex ];
+        sessionStorage.setItem("SPCRegisterCR", JSON.stringify(oLayoutControl));
+        //-----------------set page control into session (END)-----------------//
+
+        var obj = [];
+        if(nReportLayout == 48)        // previous Page
+        {
+            obj = JSON.parse(sessionStorage.getItem('SPCRegisterCR'));
+        }
+        else if(nReportLayout == 49)        // searching
+        {
+            obj = MakeObject(nReportLayout);
+        }
+        else if(nReportLayout == 50)    // next page
+        {
+            if(sessionStorage.getItem('SPCRegisterTransaction')==null)
+            {
+                obj = MakeObject(nReportLayout);
+                obj.CRID = oSPCRegister.CRID;
+                obj.CRCode = oSPCRegister.CRCode;
+                obj.CRName = oSPCRegister.CRName;
+                obj.ProductID = $('#divSPCRegister').data('ProductID');
+            }
+            else
+            {
+                obj = JSON.parse(sessionStorage.getItem('SPCRegisterTransaction'));
+                obj.ProductID = $('#divSPCRegister').data('ProductID');
+            }
+        }
+        
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : $('#divSPCRegister').data('BaseAddress')+  "/SparePartsConsumption/SetSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                ChangeHeader(JSON.parse(data));
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+    function MakeObject(nReportLayout)
+    {
+        debugger;
+        var tempObj = {
+            BUID:$('#cboBU').val(),
+            ResourceType:$('#cboResourceTypes').val(),
+            StartDate:$('#txtDateFrom').datebox('getValue'),
+            EndDate:$('#txtDateTo').datebox('getValue'),
+            CRName:$('#txtSearchByName').val(),
+            CRCode:$('#txtSearchByCode').val(),
+            StoreName:$('#txtSearchByStore').val(),
+            LineNumber : _nSelectedIndex,
+            ReportLayout: nReportLayout
+        }
+        return tempObj;
+    }
+
+    $('#btnSearch').click(function(e)
+    {
+        SetObjectIntoSession(49);
+        var obj = MakeObject(49);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : $('#divSPCRegister').data('BaseAddress')+  "/SparePartsConsumption/Gets",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                if(data!= null && data.SparePartsConsumptionRegisters.length>0)
+                {
+                    RefreshList(data.SparePartsConsumptionRegisters);
+                }
+                else{alert("No Data Found !!");}
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+    $('#btnPrint').click(function(e)
+    {
+        SetObjectIntoSession(46);
+        var nts = (new Date().getTime()) / 1000;
+        window.open($('#divSPCRegister').data('BaseAddress') +"/SparePartsConsumption/PrintCapitalResourceList?nBuid="+ sessionStorage.getItem('BUID') +"&nReportLayout=46&nts="+nts , "_blank");
+    });
+</script>
+

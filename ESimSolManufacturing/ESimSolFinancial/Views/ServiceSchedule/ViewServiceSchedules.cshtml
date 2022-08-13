@@ -1,0 +1,275 @@
+﻿@{
+    ViewBag.Title = "Service Schedule";
+}
+@model IEnumerable<ESimSol.BusinessObjects.ServiceSchedule>
+    <body>
+        <div style="margin-left: 0px; height: 88%; width:100%">
+            <table id="tblServiceSchedules" title="Service Schedule List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="false" , autorowheight="false" toolbar="#toolbarServiceSchedule" data-options="onClickCell: onClickCell,onEndEdit: onEndEdit">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        @*<th field="ServiceDateSt" width="50" align="center" editor="{type:'date', options:{formatter:icsdateformatWithDay,parser:icsdateparserWithDay}}">Service Date</th>*@
+                        <th field="ServiceDateSt" width="70" align="center" editor="{type:'datetimebox', options:{formatter:icsdatetimeformat,parser:icsdatetimeparser}}">Service Date</th>
+                        @*<th field="ChargeTypeSt" width="70" editor="{type:'combobox', options:{data:@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ChangeTypes)),valueField:'id',textField:'Value'}}">Charge Type</th>*@
+                        <th field="ChargeTypeSt" width="50" >Charge Type</th>
+                        <th field="StatusSt" width="30" align="center">Status</th>
+                        <th field="Remarks" width="200" editor="text">Remarks</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbarServiceSchedule">
+                Service Interval <input type="text" class="number" style="width:35px" id="txtServiceInterval" /> months & Service duration <input type="text" class="number" style="width:30px" id="txtServiceDuration"/> years
+                <a id="btnGenerate" href="javascript:void(0)" class="easyui-linkbutton easyui-tooltip" title="Refresh" iconcls="icon-reload" plain="true">Auto Generate</a>
+                <select id="cboChargeType" ></select>
+                <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            </div>
+        </div>
+        <fieldset style="">
+            <legend>Actopn:</legend>
+            <a id="btnClose" style="float:right" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+            <a id="btnSave" style="float:right"  href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Save</a>
+        </fieldset>
+    </body>
+
+
+
+    <script type="text/javascript">
+
+    var _oPreInvoice = [];
+    var _oServiceSchedules = [];
+    var _oChangeTypes = [];
+    var _sBaseAddress = "";
+    $(document).ready(function() {
+        _oPreInvoice = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.PreInvoice));
+        _oChangeTypes = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ChangeTypes));
+        _oServiceSchedules = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        debugger;
+        RefreshList();
+        $("#cboChargeType").icsLoadCombo({List: _oChangeTypes,OptionValue: "id", DisplayText: "Value",});
+    });
+
+    function RefreshList()
+    {
+        $("#tblServiceSchedules").datagrid("loadData", _oServiceSchedules);
+        var dgPanel = $('#tblServiceSchedules').datagrid('getPanel');
+        dgPanel.panel('setTitle', 'Service Schedule For Invoice No : ' +  _oPreInvoice.InvoiceNo + ', Komm No : ' + _oPreInvoice.KommNo + ', Chassis : ' + _oPreInvoice.ChassisNo + ', Model : ' + _oPreInvoice.ModelNo + ', Customer : ' + _oPreInvoice.CustomerName);
+    }
+
+    $("#btnGenerate").click(function(){
+        if($('#txtServiceInterval').val()==undefined || $('#txtServiceInterval').val()=='' || $('#txtServiceInterval').val()==0)
+        {
+            alert('Please Give The Service Interval !!');
+            return;
+        }
+        if($('#txtServiceDuration').val()==undefined || $('#txtServiceDuration').val()=='' || $('#txtServiceDuration').val()==0)
+        {
+            alert('Please Give The Service Duration !!');
+            return;
+        }
+        var oList = GetServiceScheduleDate();
+        $("#tblServiceSchedules").datagrid("loadData", oList);
+    });
+    function GetServiceScheduleDate()
+    {
+        debugger;
+        var nServiceInterval = parseInt($('#txtServiceInterval').val());
+        var nServiceDuration = parseFloat($('#txtServiceDuration').val());
+        var dInvoiceDate = new Date(_oPreInvoice.InvoiceDateST);
+
+        var nTotalDateCount = Math.ceil((12/nServiceInterval) * nServiceDuration);
+        if(nTotalDateCount<_oPreInvoice.OfferedFreeService)
+        {
+            alert("Offered Free Service is More Than Service Schedule Date !! It has " + _oPreInvoice.OfferedFreeService + " Free Services !!");
+            return;
+        }
+        var oServiceSchedules = [];
+        var dServiceDate = dInvoiceDate.setMonth(dInvoiceDate.getMonth() + nServiceInterval);
+        var oTempChargeType = [];
+        for(var i=0; i<nTotalDateCount; i++)
+        {
+            if(i<_oPreInvoice.OfferedFreeService)
+            {
+                oTempChargeType = _oChangeTypes[1];      /*For Complementary*/
+            }
+            else
+            {
+                oTempChargeType = _oChangeTypes[0];      /*For Paying*/
+            }
+            dServiceDate = new Date(dServiceDate);
+            var oServiceSchedule = {
+                ServiceScheduleID : 0,
+                PreInvoiceID : _oPreInvoice.PreInvoiceID,
+                ServiceDate : dServiceDate,
+                Status:(dServiceDate>new Date())?1:2,
+                StatusSt:(dServiceDate>new Date())?'Up Comming':'Pending',
+                //ServiceDateSt : dServiceDate.format('dd mmm yyyy'),
+                ServiceDateSt :icsdatetimeformat(dServiceDate),  //  dServiceDate.toDateString(),
+                ChargeType : oTempChargeType.id,
+                ChargeTypeSt : oTempChargeType.Value,
+                Remarks : ''
+            }
+            oServiceSchedules.push(oServiceSchedule);
+            dServiceDate = new Date(dServiceDate);
+            dServiceDate = dServiceDate.setMonth(dServiceDate.getMonth() + nServiceInterval);
+        }
+        return oServiceSchedules;
+    }
+
+    $('#btnAdd').click(function(e){
+        if($('#cboChargeType').val()==0)
+        {
+            alert('Please Select Any Payment Type !!');
+            return;
+        }
+        if($('#txtServiceInterval').val()==undefined || $('#txtServiceInterval').val()=='' || $('#txtServiceInterval').val()==0)
+        {
+            alert('Please Give The Service Interval !!');
+            return;
+        }
+        var oServiceSchedules = $('#tblServiceSchedules').datagrid('getRows');
+        var oServiceSchedule = oServiceSchedules[oServiceSchedules.length-1];
+        var nServiceInterval = parseInt($('#txtServiceInterval').val());
+        var nServiceDuration = parseFloat($('#txtServiceDuration').val());
+        var dLastDate = new Date(oServiceSchedule.ServiceDateSt);
+        var dServiceDate = dLastDate.setMonth(dLastDate.getMonth() + nServiceInterval);
+        dServiceDate = new Date(dServiceDate);
+        debugger;
+        var obj = {
+            ServiceScheduleID : 0,
+            PreInvoiceID : _oPreInvoice.PreInvoiceID,
+            ServiceDate : dServiceDate,
+            Status:(dServiceDate>new Date())?1:2,
+            StatusSt:(dServiceDate>new Date())?'Up Comming':'Pending',
+            //ServiceDateSt : dServiceDate.format('dd mmm yyyy'),
+            ServiceDateSt : dServiceDate.toDateString(),
+            ChargeType : $('#cboChargeType').val(),
+            ChargeTypeSt : $( "#cboChargeType option:selected" ).text(),
+            IsDone : false,
+            Remarks : ''
+        }
+        $('#tblServiceSchedules').datagrid('appendRow', obj);
+    });
+
+    $("#btnDelete").click(function(){
+        debugger;
+        var oServiceSchedules= $('#tblServiceSchedules').datagrid('getChecked');
+        if(oServiceSchedules==null || oServiceSchedules.length<=0)
+        {
+            alert("Please Selete at least 1 row!");
+            return false;
+        }
+        if (!confirm("Confirm to Delete?")) return ;
+        for(var i=0; i<oServiceSchedules.length; i++)
+        {
+            if(oServiceSchedules[i].IsDone == true)
+            {
+                alert("Can Not Delete !! Some Services is already enjoyed");
+                return;
+            }
+        }
+        var oTempList = $('#tblServiceSchedules').datagrid('getRows');
+        for ( var i = 0; i < oTempList.length; i++) {
+            $('#tblServiceSchedules').datagrid('endEdit', i);
+        }
+        var nCount = 0;
+        for(var a=0;a<oTempList.length;a++)
+        {
+            for(var b=0; b<oServiceSchedules.length; b++)
+            {
+                if(oTempList[a] == oServiceSchedules[b])
+                {
+                    var nIndex=$('#tblServiceSchedules').datagrid('getRowIndex',oTempList[a]);
+                    $('#tblServiceSchedules').datagrid('deleteRow',nIndex);
+                    nCount ++;
+                }
+            }
+        }
+        alert('Successfully Removed ' + nCount + ' Data, Please Save to Effect Database !!');
+    });
+    $('#btnSave').click(function(e){
+        debugger;
+        var oList = $('#tblServiceSchedules').datagrid('getRows');
+        for ( var i = 0; i < oList.length; i++) 
+        {
+           $('#tblServiceSchedules').datagrid('endEdit', i);
+           oList[i].TempServiceDateSt = oList[i].ServiceDateSt
+            if(parseInt(oList[i].ChargeTypeSt)>0)
+            {
+                oList[i].ChargeType = parseInt(oList[i].ChargeTypeSt);
+            }
+        }  
+        _oPreInvoice.ServiceSchedules = oList;
+        $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/ServiceSchedule/SaveAll",
+                data: JSON.stringify(_oPreInvoice),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    debugger;
+                    var obj = jQuery.parseJSON(data);
+                    if (obj.ErrorMessage == "")
+                    {
+                        alert("Saved sucessfully");
+                        window.location.href = sessionStorage.getItem("BackLink");
+                    }
+                    else
+                    {
+                        alert(obj.ErrorMessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+    });
+    $("#btnClose").click(function(){
+        window.location.href = sessionStorage.getItem('BackLink');
+    })
+    /*************************GRID EDIT***********************/
+    var editIndex = undefined;
+    function endEditing(){
+        if (editIndex == undefined){return true}
+        if ($('#tblServiceSchedules').datagrid('validateRow', editIndex)){
+            $('#tblServiceSchedules').datagrid('endEdit', editIndex);
+            editIndex = undefined;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    function onClickCell(index, field){
+        debugger;
+        if (editIndex != index){
+            if (endEditing()){
+                $('#tblServiceSchedules').datagrid('selectRow', index).datagrid('beginEdit', index);
+                var ed = $('#tblServiceSchedules').datagrid('getEditor', {index:index,field:field});
+                if (ed){
+                    ($(ed.target).data('textbox') ? $(ed.target).textbox('textbox') : $(ed.target)).focus();
+                    //($(ed.target).data('datebox') ? $(ed.target).datebox('datebox') : $(ed.target)).focus();
+                }
+                editIndex = index;
+            } else {
+                setTimeout(function(){
+                    $('#tblServiceSchedules').datagrid('selectRow', editIndex);
+                },0);
+            }
+        }
+    }
+    function onEndEdit(index, row){
+        //var ed = $(this).datagrid('getEditor', {
+        //    index: index,
+        //    field: 'productid'
+        //});
+    }
+    /***********************************************************/
+
+
+
+
+
+    </script>

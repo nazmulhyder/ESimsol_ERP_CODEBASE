@@ -1,0 +1,376 @@
+﻿@model ESimSol.BusinessObjects.BalanceSheet
+@{
+    ViewBag.Title = "Statement of Financial Position";
+}
+
+@*<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>*@
+<div id="divBalanceSheet" class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%; height:35px; padding:5px; overflow:hidden">
+            <div style="margin-bottom:5px">                                
+                <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Print</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+                @*<a id="btnBackToStatement" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="false">Back to Statement</a>*@
+            </div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table id="tblFinancialPosition" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Notes of Financial Position</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;">As at 31 December 2015</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:2%"></td>
+                        <td style="width:48%"></td>
+                        <td style="width:28%; text-align:center; font-weight:bold">Notes</td>
+                        <td style="width:20%; text-align:right; border:1px solid black">
+                            <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold">31 Dec 2015-BDT</label>
+                        </td>
+                        <td style="width:2%"></td>
+                    </tr>
+                    @*<tr>
+                            <td style="width:2%"></td>
+                            <td style="width:48%"></td>
+                            <td style="width:28%"></td>
+                            <td style="width:20%"></td>
+                            <td style="width:2%"></td>
+                        </tr>*@
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /*#progressbarParent {
+        opacity: 0.8;
+        background-color: #DCD9D4;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+        z-index: 1000;
+    }*/
+
+    .subgroupclass {
+        color: black;
+        font-size: 12px;
+        font-family: Tahoma;
+        font-weight: bold;
+        font-style: italic;
+    }
+
+    .ledgerclass {
+        color: black;
+        font-size: 12px;
+        font-family: Tahoma;
+    }
+
+    .subgroupsummeryclass {
+        color: black;
+        font-size: 13px;
+        font-family: Tahoma;
+        font-weight: bold;
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblFinancialPosition tr:hover td,
+    #tblFinancialPosition tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+<script type="text/javascript">
+    var _oBalanceSheet=null;
+    var _sBaseAddress="";
+    var _nMenuid=0;
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBalanceSheet =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.MenuID]));
+
+
+        var oBU =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BU));
+        $('#divBalanceSheet').data('BU',oBU);
+
+        $('#divBalanceSheet').data('ParentAccountHeadID',_oBalanceSheet.ParentAccountHeadID);
+        $('#divBalanceSheet').data('BalanceSheetDate',_oBalanceSheet.BalanceSheetDate);
+        $('#divBalanceSheet').data('BalanceSheetStartDate',_oBalanceSheet.StartDateInSt);
+
+        RefreshControl(_oBalanceSheet);
+        RefreshNotesOfStatement(_oBalanceSheet);
+
+        //$("#progressbar").progressbar({ value: 0 });
+        //$("#progressbarParent").hide();
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+    $("#btnPrint").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#divBalanceSheet').data('BalanceSheetStartDate');
+        var dEndDate = $('#divBalanceSheet').data('BalanceSheetDate');
+        var nParentAccountHeadID=parseInt($('#divBalanceSheet').data('ParentAccountHeadID'))?parseInt($('#divBalanceSheet').data('ParentAccountHeadID')):0;
+        var sParam= nBUID+"~"+dEndDate+"~"+nParentAccountHeadID+"~"+_oBalanceSheet.IsApproved+'~'+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/PrintNotesOfStatement?sParameter=' + sParam, "_blank");
+    });
+    $("#btnPrintXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#divBalanceSheet').data('BalanceSheetStartDate');
+        var dEndDate = $('#divBalanceSheet').data('BalanceSheetDate');
+        var nParentAccountHeadID=parseInt($('#divBalanceSheet').data('ParentAccountHeadID'))?parseInt($('#divBalanceSheet').data('ParentAccountHeadID')):0;
+        var sParam= nBUID+"~"+dEndDate+"~"+nParentAccountHeadID+"~"+_oBalanceSheet.IsApproved+'~'+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/NotesOfStatementExpotToExcel?sParameter=' + sParam, "_blank");
+    });
+    function RefreshControl(oBalanceSheet)
+    {
+        $('#lblCompanyName').text(oBalanceSheet.Company.Name);
+        $('#lblStatementDate').text('As at '+ oBalanceSheet.BalanceSheetDate);
+        $('#lblStatementDateWithCurrency').text(oBalanceSheet.BalanceSheetDate+'-'+oBalanceSheet.Company.CurrencyName);
+    }
+
+    function RefreshNotesOfStatement(oBalanceSheet)
+    {
+        //Segment = 2, SubGroup = 4,
+        var sTotalAmount ='';
+        var oBalanceSheets = oBalanceSheet.BalanceSheets;
+        for(var i=0;  i<oBalanceSheets.length; i++ )
+        {
+            if(parseInt(oBalanceSheets[i].AccountTypeInt)===4)
+            {
+
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.colSpan= 4;
+                cellAccountHead.width= "78%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oBalanceSheets[i].AccountCode+' '+oBalanceSheets[i].AccountHeadName+' - '+oBalanceSheet.Company.CurrencyName+'  '+oBalanceSheets[i].CGSGBalanceInString+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellBlank = row.insertCell(1);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.colSpan= 4;
+                cellAccountHead.width= "78%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="ledgerclass" >This Consists of as follows :</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellBlank = row.insertCell(1);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                sTotalAmount  = oBalanceSheets[i].CGSGBalanceInString;
+            }
+            else if(parseInt(oBalanceSheets[i].AccountTypeInt)===5)
+            {
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellBlank = row.insertCell(0);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                var cellAccountHead = row.insertCell(1);
+                cellAccountHead.width= "48%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="ledgerclass" >'+oBalanceSheets[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellNote = row.insertCell(2);
+                cellNote.width= "28%";
+                cellNote.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" onclick="NoteWiseDetails('+oBalanceSheets[i].AccountHeadID+');" class="ledgerclass" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oBalanceSheets[i].AccountCode+'</label>';
+                cellNote.style.textAlign = 'center';
+
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="ledgerclass" >'+oBalanceSheets[i].LedgerBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+                if(i===1)
+                {
+                    cellAmount.style.borderTop = "1px solid black"
+                }
+                cellAmount.style.borderLeft = "1px solid black"
+                cellAmount.style.borderRight = "1px solid black"
+                if(i===oBalanceSheets.length-1 &&  parseInt(oBalanceSheets[i].AccountTypeInt)!=4)
+                {
+
+                    cellAmount.style.borderBottom = "1px solid black"
+                }
+                var cellBlank = row.insertCell(4);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+            }
+        }
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 5;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '5';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 3;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = '';
+        cellTotalAssets.className = 'subgroupsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        cellTotalAssetsAmount.innerHTML = sTotalAmount;
+        cellTotalAssetsAmount.className = 'subgroupsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+
+        var cellBlank = row.insertCell(2);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 3;
+        cellTotalAssets.width= "78%";
+        cellTotalAssets.innerHTML = '';
+        cellTotalAssets.className = 'subgroupsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+        cellTotalAssets.height = '2';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        cellTotalAssetsAmount.innerHTML = '';
+        cellTotalAssetsAmount.className = 'subgroupsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+
+        var cellBlank = row.insertCell(2);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 5;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '80';
+    }
+
+  
+
+    function RefreshObject(nAccountHeadID)
+    {
+        var oGeneralLedger = {
+            BusinessUnitIDs:$('#divBalanceSheet').data('BU')?$('#divBalanceSheet').data('BU').BusinessUnitID:"0",
+            BUName:$('#divBalanceSheet').data('BU')?$('#divBalanceSheet').data('BU').ShortName:"Group Accounts",
+            AccountHeadID : parseInt(nAccountHeadID),
+            StartDate : _oBalanceSheet.BalanceSheetDate,
+            EndDate : _oBalanceSheet.BalanceSheetDate,
+            CurrencyID : 1,
+            IsApproved: _oBalanceSheet.IsApproved,
+            DisplayModeInInt:1,
+            IsForCurrentDate:true
+        };
+        return oGeneralLedger;
+    }
+
+    function NoteWiseDetails(nAccountHeadID)
+    {
+        //Hare 14 means P/L Appropriation A/C 
+        if(parseInt(nAccountHeadID)===14)
+        {            
+            var obj={
+                BUID : $('#divBalanceSheet').data('BU')?$('#divBalanceSheet').data('BU').BusinessUnitID:0,
+                StartDate : _oBalanceSheet.BalanceSheetDate,
+                EndDate : _oBalanceSheet.BalanceSheetDate
+            };
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : sessionStorage.getItem('BaseAddress')+  "/IncomeStatement/SetISSessionData",
+                traditional: true,
+                data:  JSON.stringify(obj),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = sessionStorage.getItem('BaseAddress')+ "/IncomeStatement/ViewComprehensiveIncome?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+        else
+        {
+            var oGeneralLedger = RefreshObject(nAccountHeadID);
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/GeneralLedger/SetMonthlyGLSessionData",
+                traditional: true,
+                data:  JSON.stringify(oGeneralLedger),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var sFeedBackMessage = jQuery.parseJSON(data);
+                    if (sFeedBackMessage==="Successful") {
+                        window.location.href = _sBaseAddress+ "/GeneralLedger/ViewGLMonthlySummary?menuid="+_nMenuid;
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+            });
+        }
+    }
+
+</script>

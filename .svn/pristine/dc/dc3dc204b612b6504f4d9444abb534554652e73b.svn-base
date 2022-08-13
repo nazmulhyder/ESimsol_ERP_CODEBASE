@@ -1,0 +1,164 @@
+﻿@{
+    ViewBag.Title = "Department Permission";
+}
+@model ESimSol.BusinessObjects.User
+@{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+<head>
+
+</head>
+<body>
+    <div class="divDepartmentSetUp" style="margin-left:0px;width:100%; height:100%">
+        <div style="width:100%; height:87%; text-align:left; padding-top:2px">
+            <fieldset style="height:97%; overflow:auto">
+                <legend style="font-weight: bold;text-align:left;">Menu Permission : </legend>
+                <ul id="ulDRPTree" data-options="checkbox:true"></ul>
+            </fieldset>
+        </div>
+        <div style="width:100%; height:10%">
+            <fieldset>
+                <legend style="font-weight: bold">Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                    <tr>
+                        <td style="width:80%; text-align:right"></td>
+                        <td style="width: 10%">
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        </td>
+                        <td style="width: 10%">
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </div>
+    </div>
+</body>
+
+<script type="text/javascript">
+    var _oUser=null;
+    var _sBaseAddress="";
+    var _oPermittedDRPPs=[];
+    $(document).ready(function () {
+        _sBaseAddress=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oUser=@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        LoadDRP();
+    });
+
+    function LoadDRP()
+    {
+        var oUser=jQuery.parseJSON(sessionStorage.getItem("User"));
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/DepartmentRequirementPolicyPermission/GetDRPSetup",
+            traditional: true,
+            data:  JSON.stringify(oUser),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                var oTenmpDRP = jQuery.parseJSON(data);
+                _oPermittedDRPPs= oTenmpDRP.DRPPs;
+                if (oTenmpDRP != null) {
+                    $('#ulDRPTree').tree({ data: [oTenmpDRP] });
+                    RefreshControl();
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+    function RefreshControl()
+    {  
+        var oAllNodes=$('#ulDRPTree').tree('getChecked', 'unchecked');         
+        if(oAllNodes!=null)
+        {
+            for(var n=0;n<oAllNodes.length;n++)
+            {
+                if(AlreadySelected(oAllNodes[n].DeptReqPolicyID))
+                {
+                    //if($('#ulDRPTree').tree('isLeaf', oAllNodes[n].target))
+                    //{
+                    //    alert(n);
+                    if(oAllNodes[n].DataType == 3){$('#ulDRPTree').tree('check', oAllNodes[n].target); }
+                        
+                    //}
+                }
+            }
+        }    
+    }
+        
+    function AlreadySelected(nKey)
+    {   
+        for(var j=0;j<_oPermittedDRPPs.length;j++)
+        {
+            if(_oPermittedDRPPs[j].DRPID ==nKey)
+            {
+                return true;    
+            }
+        }
+        return false;
+    }
+    $("#btnSave").click(function () {   
+        var SelectedDRPs = $('#ulDRPTree').tree('getChecked');
+        var oUser=jQuery.parseJSON(sessionStorage.getItem("User"));
+        if(oUser===null)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+        if(parseInt(oUser.UserID)<=0)
+        {
+            alert("Invalid User please try again!");
+            return;
+        }
+
+        var oSelectedDRPs= $('#ulDRPTree').tree('getChecked');        
+        if(oSelectedDRPs==null || oSelectedDRPs.length<=0)
+        {
+            alert("Please select at least one item!");
+            return;
+        }
+        var sMenuKeys="";
+        for(var i=0; i<oSelectedDRPs.length;i++)
+        {
+            if(oSelectedDRPs[i].DataType==3){sMenuKeys = sMenuKeys + oSelectedDRPs[i].DeptReqPolicyID+',';}
+        }      
+
+        //get indeterminate items
+        //oSelectedDRPs= [];
+        //oSelectedDRPs= $('#ulDRPTree').tree('getChecked', 'indeterminate'); 
+        //for(var i=0; i<oSelectedDRPs.length;i++)
+        //{
+        //    sMenuKeys=sMenuKeys + oSelectedDRPs[i].id+',';        
+        //}   
+        
+        var oUser= {
+            UserID : parseInt(oUser.UserID),            
+            Keys : sMenuKeys
+        }
+          
+        $.ajax({
+            type: "POST",
+            dataType: "json",            
+            url : sessionStorage.getItem("BaseAddress")+  "/DepartmentRequirementPolicyPermission/ConfirmDRPPermission",
+            traditional: true,
+            data:  JSON.stringify(oUser),   
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {                
+                var aaaa = jQuery.parseJSON(data);
+                if(aaaa=='Data save successfully')
+                {
+                    alert(aaaa);
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                alert(aaaa);
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });        
+    })
+    $("#btnClose").click(function () {          
+        window.location.href = sessionStorage.getItem("BackLink");
+    })
+</script>

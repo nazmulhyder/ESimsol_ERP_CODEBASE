@@ -1,0 +1,454 @@
+﻿<html>
+@{
+    ViewBag.Title = "Knit Dyeing Recipe";
+}
+<body>
+    @model ESimSol.BusinessObjects.KnitDyeingRecipe
+    <div class="menuMainCollectionTable">
+        <div id="MainDiv" class="easyui-panel" title="Recipe" style="font-family:Tahoma; text-align:center; height:88%;">
+            <fieldset>
+                <legend style="font-weight:bold">Knit Dyeing Recipe Informations : </legend>
+                <table style="width:100%">
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Recipe Code :
+                        </td>
+                        <td style="width:20%">
+                            <input type="text" id="txtRecipeCode" style="width:100%" disabled="disabled" />
+                        </td>
+                        <td style="width:15%; text-align:right">
+                            Recipe Name :
+                        </td>
+                        <td style="width:20%">
+                            <input type="text" id="txtRecipeName" style="width:100%" />
+                        </td>
+                        <td style="width:30%;text-align:right"></td>
+
+                    </tr>
+                    <tr>
+                        <td style="width:15%; text-align:right">
+                            Note :
+                        </td>
+                        <td colspan="3" style="width:13%">
+                            <input type="text" id="txtNote" style="width:100%" />
+                        </td>
+                        <td style="width:30%;text-align:right"></td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div style="margin-left:2px; height:40%;">
+                <table id="tblKnitDyeingRecipeDetail" title="Recipe Details Information" class="easyui-datagrid" style="width:100%;height:380px"
+                       data-options="singleSelect: true,fitColumns:false,rownumbers:true,pagination:false,autoRowHeight:false,toolbar: '#toolbar',onClickCell: onClickCell,onEndEdit: onEndEdit">
+                    <thead>
+                        <tr>
+                            <th field="ProductName" width="30%" align="left">Product Name</th>
+                            <th field="MUnitTypeName" width="10%" align="left">MUnitType</th>
+                            <th field="ReqQty" width="10%" align="right" formatter="formatPrice" editor="{type:'numberbox',options:{precision:0}}">Quantity</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbar">
+                    <input type="text" id="txtProduct" style="width:160px" placeholder="Enter with Product Name" />
+                    <input type="button" id="btnClearProduct" style="width:25px;" value="C" />
+                    <input type="button" id="btnPickProduct" style="width:25px;" value="P" />
+                    MUnit:<select id="cboMUnit" style="width:70px;"></select>
+                    Qty:<input type="text" id="txtQty" style="width:100px" />
+                    <input type="text" value="Per/Kg" style="width:50px" disabled="disabled" />
+                    <a id="btnAddKnitDyeingRecipeDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                    <a id="btnRemoveKnitDyeingRecipeDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+                    <a id="btnRefreshKnitDyeingRecipeDetail" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>
+                </div>
+            </div>
+        </div>
+        <fieldset style="height:10%">
+            <legend style="font-weight:bold; "> Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px;width:100%; font-weight:bold">
+                <tr>
+                    <td style="width:85%; text-align:right"></td>
+                    <td style="width:15%">
+                        <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true">Save</a>
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" >Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+    </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        var oKnitDyeingRecipe =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        $('#MainDiv').data('KnitDyeingRecipe', oKnitDyeingRecipe);
+        RefreshControl(oKnitDyeingRecipe);
+    });
+
+    function RefreshControl(oKnitDyeingRecipe)
+    {   
+        debugger;
+        $('#txtProduct').data('Product',null);
+        $('#txtQty').icsCurrencyBox(null, null, 0);
+        if(sessionStorage.getItem("KnitDyeingRecipeHeader")=="View KnitDyeingRecipe")
+        {
+            $('#btnSave').hide();
+            $('#btnAddKnitDyeingRecipeDetail').hide();
+            $('#btnRemoveKnitDyeingRecipeDetail').hide();
+            $('#btnRefreshKnitDyeingRecipeDetail').hide();
+            $('#txtProduct').attr('disabled','disabled');
+            $('#btnPickProduct').attr('disabled','disabled');
+            $('#btnClearProduct').attr('disabled','disabled');
+            $('#txtQty').attr('disabled','disabled');
+            $('#cboMUnit').attr('disabled','disabled');
+            $('#txtRecipeName').attr('disabled','disabled');
+            $('#txtNote').attr('disabled','disabled');
+        }
+
+        $("#txtRecipeCode").val(oKnitDyeingRecipe.RecipeCode);
+        $("#txtRecipeName").val(oKnitDyeingRecipe.RecipeName);
+        $("#txtNote").val(oKnitDyeingRecipe.Note);
+        DynamicRefreshList(oKnitDyeingRecipe.KnitDyeingRecipeDetails, 'tblKnitDyeingRecipeDetail');
+    }
+    $("#txtProduct").keydown(function (e) {
+
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) // Enter Press
+        {
+            if($.trim($('#txtProduct').val())===null || $.trim($('#txtProduct').val())==="")
+            {
+                alert("Press enter with Product Name");
+                return;
+            }
+            PickProduct();
+        }
+        if (code == 8) //backspace=8
+        {
+            $('#txtProduct').val("");
+            $("#txtProduct").removeClass("fontColorOfPickItem");
+            $('#txtProduct').data('Product', null);
+            $("#cboMUnit").icsLoadCombo({ List: [], OptionValue: "", DisplayText: "" });
+        }
+    });
+    $("#btnPickProduct").click(function () {
+        PickProduct();
+    });
+    $("#btnClearProduct").click(function () {
+        $('#txtProduct').val("");
+        $("#txtProduct").removeClass("fontColorOfPickItem");
+        $('#txtProduct').data('Product',null);
+        $("#cboMUnit").icsLoadCombo({ List: [], OptionValue: "", DisplayText: "" });
+    });
+    function PickProduct()
+    {
+
+        debugger;
+ 
+        var oProduct = {
+
+            BUID: sessionStorage.getItem('BUID'),
+            ProductName:$.trim($("#txtProduct").val())
+
+        };
+
+
+        debugger;
+        var obj = {
+            BaseAddress:sessionStorage.getItem('BaseAddress'),
+            Object: (oProduct) ,
+            ControllerName: "KnitDyeingRecipe",
+            ActionName: "GetProducts",
+            IsWinClose: false
+        };
+        var tblColums = []; var oColumn = []; var oColumn = { field: 'ProductCode', name: 'Code',title: 'Code',width: '20%'  };tblColums.push(oColumn);
+        oColumn = { field: 'ProductName', title: 'ProductName',width: '50%', enableSorting: false  };tblColums.push(oColumn);
+        //oColumn = { field: "Name", title: "Name", width: 280, align: "left" }; tblColums.push(oColumn);
+        DynamicPiker('Product',obj,tblColums,false,'ProductName','ProductID',400); //pickerName(unique),obj,table,multiReturn,SearchingField, pkID
+    }
+    function DynamicPiker(pickerName,obj,pTblColums,pMultiReturn,pSearchField,pID,nWidth)
+    {
+        // debugger;
+        $.icsDataGets(obj, function (response) {
+            //debugger;
+            if (response.status && response.objs.length > 0) {
+                //debugger;
+                if (response.objs[0][pID] > 0) {
+                    //  debugger;
+                    var tblColums = pTblColums;
+                    var oPickerParam = {
+                        winid: 'win'+pickerName,
+                        winclass: 'cls'+pickerName,
+                        winwidth: nWidth,
+                        winheight: 460,
+                        tableid: 'tbl'+pickerName+'s',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: pMultiReturn,
+                        searchingbyfieldName: pSearchField,
+                        windowTittle: pickerName+' List',
+                        colsable:true
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else{
+                alert("Data Not Found.");
+                return;
+            }
+        });
+    }
+    function IntializePickerbutton(oPickerobj) {
+        //debugger;
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            // debugger;
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+
+    function SetPickerValueAssign(oPickerobj)
+    {
+        // debugger;
+        var oResult;
+        if (oPickerobj.multiplereturn)
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getChecked');
+        }
+        else
+        {
+            oResult = $('#'+oPickerobj.tableid).datagrid('getSelected');
+        }
+
+
+        if (oPickerobj.winid == 'winProduct')
+        {
+            SetProduct(oResult);
+        }
+
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+    function SetProduct(oResult){
+        $('#txtProduct').data('Product', oResult);
+        $("#txtProduct").val(oResult.ProductName);
+        $("#txtProduct").addClass("fontColorOfPickItem");
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/KnitDyeingRecipe/GetMUnit",
+            traditional: true,
+            data:  JSON.stringify(oResult),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {            
+                oKnitDyeingRecipe = jQuery.parseJSON(data);
+                $("#cboMUnit").icsLoadCombo({ List: oKnitDyeingRecipe, OptionValue: "MeasurementUnitID", DisplayText: "Symbol" });
+                $("#cboMUnit").val(parseInt(oResult.MeasurementUnitID));
+               
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    }
+    $("#btnRemoveKnitDyeingRecipeDetail").click(function ()
+    {
+        debugger;
+
+        var oKnitDyeingRecipeDetail= $('#tblKnitDyeingRecipeDetail').datagrid('getSelected');
+        var rowIndex = $("#tblKnitDyeingRecipeDetail").datagrid("getRowIndex", oKnitDyeingRecipeDetail);
+        if(oKnitDyeingRecipeDetail==null || parseInt(oKnitDyeingRecipeDetail.ProductID)<=0){
+            alert("Please Select an Item");
+            return;
+        }
+        $('#tblKnitDyeingRecipeDetail').datagrid('deleteRow',rowIndex);
+    });
+    $("#btnRefreshKnitDyeingRecipeDetail").click(function ()
+    {
+        debugger;
+        var oKnitDyeingRecipeDetail =$('#tblKnitDyeingRecipeDetail').datagrid('getRows');
+        $('#tblKnitDyeingRecipeDetail').datagrid('loadData',[]);
+        DynamicRefreshList(oKnitDyeingRecipeDetail,'tblKnitDyeingRecipeDetail');
+    });
+    $("#btnAddKnitDyeingRecipeDetail").click(function ()
+    {
+        debugger;
+        var Qty=parseFloat(icsRemoveComma($("#txtQty").val()));
+        if(Qty<=0){
+            alert("Please Give the Quantity");
+            return;
+        }
+        if(parseInt($("#cboMUnit").val())<=0){
+            alert("Please Select Unit");
+            return;
+        }
+        var oKnitDyeingRecipe= $('#MainDiv').data('KnitDyeingRecipe');
+        var oProduct=$('#txtProduct').data('Product');
+        if(oProduct==null||oProduct.ProductID<=0){
+            alert("Please Pick Product First");
+            return;
+        }
+        var ExistCheck=$('#tblKnitDyeingRecipeDetail').datagrid('getRows');
+            var check=0;
+            for(var j=0;j<ExistCheck.length;j++){
+                if(ExistCheck[j].ProductID==oProduct.ProductID){
+                    check=1;
+           
+                }
+            }
+            if(check==0){
+                var oKnitDyeingRecipeDetail={
+                    KnitDyeingRecipeDetailID:0,
+                    KnitDyeingRecipeID:oKnitDyeingRecipe.KnitDyeingRecipeID,
+                    ProductID:oProduct.ProductID,
+                    ProductName:oProduct.ProductName,
+                    ProductType:oProduct.ProductType,
+                    ReqQty:Qty,
+                    MunitType:parseInt($("#cboMUnit").val()),
+                    MUnitTypeName:$("#cboMUnit option:selected" ).text()
+                };
+
+                $('#tblKnitDyeingRecipeDetail').datagrid('appendRow',oKnitDyeingRecipeDetail);
+            }
+            $('#txtProduct').val("");
+        $("#txtProduct").removeClass("fontColorOfPickItem");
+        $('#txtProduct').data('Product',null);
+        $('#txtQty').val("");
+        $("#cboMUnit").icsLoadCombo({ List: [], OptionValue: "", DisplayText: "" });
+    });
+
+    function  ValidateInput()
+    {
+        var oKnitDyeingRecipeDetail=$('#tblKnitDyeingRecipeDetail').datagrid('getRows');
+        
+        if(oKnitDyeingRecipeDetail.length<=0){
+            alert("Please add At leaset one detail information");
+            return false;
+        }
+        for(var i=0;i<oKnitDyeingRecipeDetail.length;i++)
+        {
+            if(parseFloat(oKnitDyeingRecipeDetail[i].ReqQty)<=0){
+                alert("Please give quantity");
+                return false;
+            }
+        }
+        if($.trim($('#txtRecipeName').val())===null || $.trim($('#txtRecipeName').val())==="")
+        {
+            alert("Press enter Recipe name");
+            return false;
+        }
+
+        return true;
+    }
+    function RefreshObject()
+    {     
+        debugger;
+        var oKnitDyeingRecipe= {
+            KnitDyeingRecipeID : $('#MainDiv').data('KnitDyeingRecipe').KnitDyeingRecipeID,
+            RecipeCode : $("#txtRecipeCode").val(),
+            RecipeName : $.trim($('#txtRecipeName').val()),
+            Note :$.trim($('#txtNote').val()),
+            BUID:sessionStorage.getItem("BUID"),
+            KnitDyeingRecipeDetails:$('#tblKnitDyeingRecipeDetail').datagrid('getRows'),
+        };
+        return oKnitDyeingRecipe;
+    }
+    $('#btnSave').click(function(){
+        debugger;
+        endEditing();
+        if(!ValidateInput()) return;
+        var oKnitDyeingRecipe=RefreshObject();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/KnitDyeingRecipe/Save",
+            traditional: true,
+            data:  JSON.stringify(oKnitDyeingRecipe),
+            contentType: "application/json; charset=utf-8",
+            success: function (data)
+            {            
+                oKnitDyeingRecipe = jQuery.parseJSON(data);
+                if (oKnitDyeingRecipe.ErrorMessage=="" || oKnitDyeingRecipe.ErrorMessage==null)
+                {
+                    alert("Data Saved sucessfully");
+                    var oKnitDyeingRecipes = sessionStorage.getItem("KnitDyeingRecipes");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if (oKnitDyeingRecipes != null)
+                    {
+                        oKnitDyeingRecipes = jQuery.parseJSON(oKnitDyeingRecipes);
+                    }
+                    else {
+                        oKnitDyeingRecipes = [];
+                    }
+                    if (nIndex != -1)
+                    {
+                        oKnitDyeingRecipes[nIndex] = oKnitDyeingRecipe;
+                    }
+                    else {
+                        sessionStorage.setItem("SelectedRowIndex", oKnitDyeingRecipes.length);
+                        oKnitDyeingRecipes.push(oKnitDyeingRecipe);
+                    }
+                    sessionStorage.setItem("KnitDyeingRecipes", JSON.stringify(oKnitDyeingRecipes));
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else 
+                {
+                    alert(oKnitDyeingRecipe.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    });
+    $('#btnClose').click(function(){
+        window.location.href = sessionStorage.getItem("BackLink");
+    });
+    var editIndex = undefined;
+    function endEditing(){
+        if (editIndex == undefined){return true}
+        if ($('#tblKnitDyeingRecipeDetail').datagrid('validateRow', editIndex)){
+            $('#tblKnitDyeingRecipeDetail').datagrid('endEdit', editIndex);
+            editIndex = undefined;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    function onClickCell(index, field){
+        if (editIndex != index){
+            if (endEditing()){
+                $('#tblKnitDyeingRecipeDetail').datagrid('selectRow', index)
+                        .datagrid('beginEdit', index);
+                var ed = $('#tblKnitDyeingRecipeDetail').datagrid('getEditor', {index:index,field:field});
+                if (ed){
+                    ($(ed.target).data('textbox') ? $(ed.target).textbox('textbox') : $(ed.target)).focus();
+                }
+                editIndex = index;
+            } else {
+                setTimeout(function(){
+                    $('#tblKnitDyeingRecipeDetail').datagrid('selectRow', editIndex);
+                },0);
+            }
+        }
+    }
+    function onEndEdit(index, row){
+        var ed = $(this).datagrid('getEditor', {
+            index: index,
+            field: 'productid'
+        });
+    }
+</script>

@@ -1,0 +1,207 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@model ESimSol.BusinessObjects.AuthorizationRoleMapping
+<div class="easyui-panel" title="Assign To User" style="font-family: Tahoma; width:100%;height:100%">
+    <fieldset style="width:99%; height:88%">
+        <div style="width:60%; margin:30px auto">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%; margin-bottom:5px">
+                <tr>
+                    <td style="width:25%; font-size:12px; font-weight:bold">
+                        <label>Search by User Name:</label>
+                    </td>
+                    <td style="width:75%; font-size:12px; font-weight:bold">
+                        <input type="text" id="txtSearchUserName" placeholder="Search by User Name" style="width:inherit; width:100%" />
+                    </td>
+                </tr>
+            </table>
+            <table id="tblUser" class="easyui-datagrid" style="width:100% ;margin:0 auto; height: 350px" fitcolumns="false" rownumbers="true" pagination="false" singleselect="false" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th data-options="field:'Selected',checkbox:true"></th>
+                        <th field="UserName" width="40%">User Name</th>
+                        <th field="ContactNo" width="50%">Contact No</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </fieldset>
+    <fieldset style="width:99%; height:12%">
+        <legend style="font-weight: bold">Action : </legend>
+        <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; width: 100%; font-weight:bold">
+            <tr>
+                <td style="float:right; margin-right:5%">
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" id="btnSave" plain="true" onclick="Save()">Save</a>
+                    <a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true" onclick="Close()">Close</a>
+                </td>
+            </tr>
+        </table>
+    </fieldset>
+</div>
+<script type="text/javascript">
+
+    var _oAuthorizationRoleMapping=null;
+    var _oUsers = [];
+    var _value ="";
+    var _obj = "";
+    var _oAuthorizationRoleMappings = [];
+    var _nAuthorizationRoleID =0;
+    var _sBaseAddress="";
+
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRoleMapping =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _oUsers = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.Users));
+        _oAuthorizationRoleMappings = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model.AuthorizationRoleMappings));
+        _nAuthorizationRoleID=@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(TempData["AuthorzationRoleID"]));
+        RefreshList(_oUsers);
+        if(_oAuthorizationRoleMappings.length>0)
+        {
+            SetAuthorizationRole();
+        }
+        _obj = window.dialogArguments;
+        //document.getElementById('lblHeaderName').innerHTML = "Assign To User";
+    });
+    $('#txtSearchUserName').keyup(function (e) {
+        debugger;
+        var c = String.fromCharCode(e.which);
+        var txtSearchByName = document.getElementById('txtSearchUserName').value;
+        //    var n=0;
+        var oSearchedAuthorizationRoles = [];  var sTempName="";
+        var oCurrentList = $('#tblUser').datagrid('getRows');
+        if (e.which == 8)
+        {
+            oCurrentList = _oUsers;
+        }
+        for(i=0;i<oCurrentList.length;++i){
+            sTempName=oCurrentList[i].UserName;
+            n=sTempName.toUpperCase().indexOf(txtSearchByName.toUpperCase())
+            if(n!=-1)
+            {
+                oSearchedAuthorizationRoles.push(oCurrentList[i]);
+            }
+        }
+        RefreshList(oSearchedAuthorizationRoles);
+        SetAuthorizationRole();
+    });
+    function RefreshList(oUsers)
+    {
+        data=oUsers;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblUser').datagrid('loadData',data);
+    }
+    function SetAuthorizationRole()
+    {
+        var oUsers = $('#tblUser').datagrid('getRows');
+        for(var i =0;i<_oAuthorizationRoleMappings.length;i++)
+        {
+            for(var j =0;j<oUsers.length;j++)
+            {
+                if(_oAuthorizationRoleMappings[i].UserID == oUsers[j].UserID)
+                {
+                    $('#tblUser').datagrid('checkRow', j);
+                    break;
+                }
+            }
+        }
+    }
+    function Save()
+    {
+        debugger;
+        if(!ValidateInput()) return;
+        var oUsers = $('#tblUser').datagrid('getRows');
+        var oAuthorizationRoleMapping = {};
+        if(oUsers.length!=_oUsers.length)
+        {
+            oAuthorizationRoleMapping.IsShortList = true;
+        }else
+        {
+            oAuthorizationRoleMapping.IsShortList = false;
+        }
+        oAuthorizationRoleMapping.IsUserBased = false;
+        oAuthorizationRoleMapping.AuthorizationRoleMappings=RefreshObjects();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/AuthorizationRole/CommitMappingRole",
+            traditional: true,
+            data:  JSON.stringify(oAuthorizationRoleMapping),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                debugger;
+                sfeedBackMessage= jQuery.parseJSON(data);
+                if (sfeedBackMessage=="Succefully Saved")
+                {
+                    alert("Data Save Successfully!!");
+                    var nIndex = parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    sessionStorage.setItem("SelectedRowIndex",nIndex);
+                    window.location.href = sessionStorage.getItem("BackLink");
+                }
+                else
+                {
+                    alert(sfeedBackMessage);
+                }
+            },
+            error: function (xhr, status, error)
+            {
+                alert(error);
+            }
+        });
+    }
+    function ValidateInput()
+    {
+        debugger;
+        var oUsers = $('#tblUser').datagrid('getChecked');
+        if(oUsers.length<=0)
+        {
+            alert("Select at least select one User ");
+            return false;
+        }
+        return true;
+    }
+    function RefreshObjects()
+    {
+        debugger;
+
+        var oUsers = $('#tblUser').datagrid('getChecked');
+        var oAuthorizationRoleMappings =[];
+        for(var i =0;i<oUsers.length;i++)
+        {
+            var oAuthorizationRoleMapping= {
+                AuthorizationRoleMappingID :GetARMappingID(oUsers[i].UserID),
+                AuthorizationRoleID :_nAuthorizationRoleID,
+                UserID :oUsers[i].UserID
+            };
+            oAuthorizationRoleMappings.push(oAuthorizationRoleMapping);
+        }
+
+        return oAuthorizationRoleMappings;
+    }
+    function GetARMappingID(nUserID)
+    {
+
+        for(var i =0;i<_oAuthorizationRoleMappings.length;i++)
+        {
+            if(parseInt(_oAuthorizationRoleMappings[i].UserID) == parseInt(nUserID))
+            {
+                return _oAuthorizationRoleMappings[i].AuthorizationRoleMappingID;
+            }
+        }
+        return 0;
+    }
+    function Close()
+    {
+        window.location.href = sessionStorage.getItem("BackLink");
+
+    }
+    $(document).keydown(function(e) {
+        if(e.which == 27)//escape=27
+        {
+            window.close();
+        }
+    });
+</script>
+
+
+

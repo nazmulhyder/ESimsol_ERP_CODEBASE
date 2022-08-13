@@ -1,0 +1,537 @@
+﻿@{
+    ViewBag.Title = "Lot Assign";
+}
+@model ESimSol.BusinessObjects.FabricLotAssign
+    <div ng-app="FabricLotAssignModule">
+        <div ng-controller="FabricLotAssignController" style="width:99.5%">
+           <fieldset>
+               <legend>Basic Info:</legend>
+               <div class="col-md-12">
+                   <div class="col-md-1 text-right"><label>Date:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="DyeingOrderFabricDetail.OrderDateSt" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Order:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="DyeingOrderFabricDetail.ExeNo" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Qty:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="FabricLotAssign.Qty" style="width:100%" disabled /></div>
+                   <div class="col-md-1 text-right"><label>Party:</label></div>
+                   <div class="col-md-2"><input type="text" ng-model="DyeingOrderFabricDetail.BuyerName" style="width:100%" disabled /></div>
+               </div>
+           </fieldset>
+            <div class="ui-grid-top-panel" style="padding-top:5px">
+                <div class="row">
+                    <div class="form-inline">
+                        <input class="form-control" ng-model="FabricLotAssign.txtLotNo" placeholder="Type Lot No & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownLot($event)" style="width:210px; height:24px; margin-left:20px" required />
+                        <button type="button" class="btn btn-primary btn-xs" aria-label="right Align" ng-click="PickLots()" ng-disabled="disabled"><span aria-hidden="true" class="glyphicon glyphicon-ok"> Pick </span></button>
+                        <input class="form-control number" ng-model="FabricLotAssign.txtLotQty" placeholder="Type Qty & Press Enter" ng-disabled="disabled" ng-keydown="SearchKeyDownLotQty($event)" style="width:110px; height:24px; margin-left:20px" required />
+                        <button type="button"class="btn btn-success btn-xs" aria-label="right Align" ng-click="AddLot()" ng-disabled="disabled"><span aria-hidden="true" class="glyphicon glyphicon-plus"> Add </span></button>
+                        <button type="button" class="btn btn-danger btn-xs" aria-label="right Align" style="float:right; margin-right:5%" ng-click="Remove_FabricLotAssign()" ng-disabled="disabled"><span aria-hidden="true" class="glyphicon glyphicon-trash"> Remove </span></button>  
+                    </div>
+                </div>
+            </div>
+            <div style="width:99.5%;" ui-grid="gridOptions" ui-grid-selection ui-grid-resize-columns ui-grid-edit ui-grid-row-edit class="grid"></div>
+            <div class="row" style="width:100%;">
+                <fieldset style="height:60px; margin:10px 0 0 20px">
+                    <legend>Action</legend>
+                    <div class="row col-md-12 text-right">
+                        <button type="button" class="btn btn-sm" aria-label="Left Align" ng-click="Close()"> <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Close</button>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+
+    <style type="text/css">
+        .form-control {
+            height: 26px;
+            padding: 0px 6px;
+            font-size: 12px;
+        }
+
+        .grid {
+            height: 380px;
+            width: 99%;
+        }
+
+        .col-md-1 .col-md-2 .col-md-3 .col-md-4 {
+            padding: 5px 5px 5px 5px;
+        }
+
+        .custom-pagination {
+            margin-top: -15px;
+            margin-bottom: -15px;
+        }
+
+        .spacing {
+            padding-bottom: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        var pager =[];
+        var _nBUID=0;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oFabricLotAssign =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nBUID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        var _bIsInHouse = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.IsInHouse));
+        
+        var oDUDetail = JSON.parse(sessionStorage.getItem('DUDetail'));
+
+        console.log(oFabricLotAssign);
+        var  FabricLotAssignModule = angular.module('FabricLotAssignModule', ['ngAnimate', 'ui.bootstrap', 'ui.grid','ui.grid.selection','ui.grid.resizeColumns','ui.grid.edit', 'ui.grid.cellNav','ms.service']);
+        FabricLotAssignModule.controller('FabricLotAssignController', function ($scope, $http, $uibModal, $log, uiGridConstants, msModal, userSession) {
+            debugger;
+            $scope.FabricLotAssign=oFabricLotAssign;
+            $scope.DyeingOrderFabricDetail=JSON.parse(sessionStorage.getItem("DyeingOrderFabricDetail"));
+
+            $scope.gridOptions ={
+                enableSorting: true,
+                enableFullRowSelection: true,
+                //enableRowHeaderSelection: false,
+                enableSelectAll: false,
+                multiSelect:false,
+                enableHorizontalScrollbar: uiGridConstants.scrollbars.Always,
+                //enableVerticalScrollbar : false,
+                columnDefs: [
+                    { field: 'ExeNo', name: 'OrderNo', width:'10%', enableCellEdit: false },
+                    //{ field: 'Qty_Order', name: 'OrderQty', width: '8%', cellClass:'text-right', cellFilter:'number:2' , enableCellEdit: false},
+                    { field: 'ProductName', name: 'Yarn Count', width:'12%', enableCellEdit: false},
+                    { field: 'LotNo', name: 'Yarn Lot No', width:'12%', enableCellEdit: false},
+                    { field: 'BalanceLot', name: 'Balance(Lot) Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2' , enableCellEdit: false},
+                    { field: 'Qty', name: 'Qty', width: '10%',enableCellEdit: true, cellClass:'text-right number', cellFilter:'number:2'},
+                    { field: 'Balance', name: 'Balance(Order)', width: '10%',enableCellEdit: _bIsInHouse, cellClass:'text-right number', cellFilter:'number:2'},
+                    { field: 'FabricLotAssignDateSt', name: 'Assign Date', width:'14%',cellClass:'text-center', enableCellEdit: false },
+                    //{ field: 'Qty_Batch_Out', name: 'Batch Qty', width: '10%',cellClass:'text-right', cellFilter:'number:2' , enableCellEdit: false},
+                    { field: 'OperationUnitName', name: 'Store', width:'10%', enableCellEdit: false},
+                ],
+                data:oFabricLotAssign.FabricLotAssigns,
+                onRegisterApi:function(gridApi)
+                {
+                    $scope.gridApi = gridApi;
+                    $scope.gridApi.selection.clearSelectedRows();
+
+                    $scope.gridApi.edit.on.afterCellEdit($scope,function(rowEntity, colDef, newValue, oldValue){ //console.log(rowEntity);
+                        if(newValue != oldValue)
+                            $scope.Edit_FabricLotAssign(rowEntity, oldValue, $scope.gridOptions.data.indexOf(rowEntity));
+                    })
+                }
+            };
+            
+            if(oDUDetail!=null)
+                $scope.FabricLotAssign.Qty= oDUDetail.Qty;
+
+            //=========== FOR IN OUT SIDE =================
+            $scope.SearchKeyDownOrder = function (e){
+                //debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var sOrderRefNo=$scope.FabricLotAssign.txtOrderNo;
+                    var txtOrder = $.trim(sOrderRefNo);
+                    if(txtOrder=="" || txtOrder==null)
+                    {
+                        alert("Type Order No and Press Enter");
+                        return;
+                    }
+                    $scope.PickOrderDetails(txtOrder);
+                }
+            };
+            $scope.PickOrderDetails= function (txtOrder)
+            {
+                debugger;
+                txtOrder= (txtOrder==undefined? "" : txtOrder);
+                var oFabricLotAssign= {
+                    LotID:$scope.FabricLotAssign.LotID,
+                    ContractorID:$scope.FabricLotAssign.ContractorID,
+                    IsInHouse:_bIsInHouse,
+                    DyeingOrderNo: txtOrder,
+                };
+                debugger;
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/DyeingOrder/Gets_Lot',$.param(oFabricLotAssign), config).then(
+                            function (response)
+                            {
+                                debugger;
+                                var results=jQuery.parseJSON(response.data);
+                                debugger;
+                                if(results.length>0 && results[0].ErrorMessage=="")
+                                {
+                                    //$scope.FabricLotAssign.FabricLotAssignDetails=result;
+
+                                    var oDetailColumns = [];
+                                    var oColumn = { field: 'DyeingOrderNo', name:'Order No', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn = { field: 'LotNo', name:'LotNo', width:'15%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn = { field: 'ProductName', name:'ProductName', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn ={ field: 'Balance', name:'Qty', width:'15%',cellClass: 'text-left', cellFilter:'number:2',enableCellEdit:false };oDetailColumns.push(oColumn);
+                                   
+                                    var modalObj={
+                                        size:'lg',
+                                        modalcontroller:'',
+                                        url:_sBaseAddress+'/Home/Modal',
+                                        appcontroller:'DUProGuideLineCtrl',
+                                        objs:results,
+                                        multiSelect:false,
+                                        pickertitle:'Order List',
+                                        searchingbyfieldName:'DestinationLotNo',
+                                        columns:oDetailColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                   
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        var oFabricLotAssigns =  $scope.gridOptions.data;
+
+                                        if(result.Qty > $scope.FabricLotAssign.Qty)
+                                        {
+                                            alert("Order Qty Is Greater Than Balance!"); return;
+                                        }
+
+                                        for(var i=0; i<oFabricLotAssigns.length; i++)
+                                        {
+                                            if(oFabricLotAssigns[i].DyeingOrderID==result.DyeingOrderID)
+                                            {
+                                                alert("Duplicate Entry Not Possible!"); return;
+                                            }
+                                        }
+                                        //SAVE LOT PARENT
+                                        $scope.FabricLotAssign.txtOrderNo= result.DyeingOrderNo;
+                                        $scope.FabricLotAssign.txtLotQty_Out= result.Balance;
+                                        $scope.FabricLotAssign.SelectedLot= result;
+
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+
+                                }else {alert("No Data Found!!");}
+                            },
+                                function (response) { alert(response.statusText);}
+                        );
+            };
+            
+            $scope.SearchKeyDownLotQty_Out = function (e){
+                //debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    $scope.AddLot_Out();
+                }
+            };
+            $scope.AddLot_Out = function ()
+            {
+                if(!parseFloat($scope.FabricLotAssign.SelectedLot.FabricLotAssignID)>0)
+                {
+                    alert("Please pick a order and try again!!"); return;
+                }
+                if(!parseFloat($scope.FabricLotAssign.txtLotQty_Out)>0)
+                {
+                    alert("Lot Qty Should be greater than zero!!"); return;
+                }
+
+                if(parseFloat($scope.FabricLotAssign.txtLotQty_Out) > $scope.FabricLotAssign.SelectedLot.Qty)
+                {
+                    alert("Order Qty Is Greater Than Balance!"); return;
+                }
+
+                $scope.FabricLotAssign.SelectedLot.Qty=parseFloat($scope.FabricLotAssign.txtLotQty_Out);
+
+                $scope.Transfer_Lot($scope.FabricLotAssign.SelectedLot);
+            }
+            $scope.Transfer_Lot = function (result) 
+            {
+                var oFabricLotAssign= {
+                    LotID: result.LotID,
+                    ContractorID: $scope.FabricLotAssign.ContractorID,
+                    DyeingOrderID:  $scope.FabricLotAssign.DyeingOrderID,
+                    ParentType: result.ParentType,
+                    ParentID: result.ParentID,
+                    FabricLotAssignID: result.FabricLotAssignID,
+                    ProductID: $scope.FabricLotAssign.ProductID,
+                    UnitPrice: result.UnitPrice,
+                    CurrencyID: result.CurrencyID,
+                    Note: "Assigned Dyeing Lot (outside)",
+                    Qty: result.Qty,
+                    Balance: result.Qty
+                };
+
+                $http.post(_sBaseAddress+'/DyeingOrder/Transfer_Lot',JSON.stringify(oFabricLotAssign)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        console.log(result);
+                        if(result.FabricLotAssignID>0 && result.ErrorMessage=="")
+                        {
+                            debugger;
+                            alert("Lot Transfered Successfully!!");
+                            
+                            var isExist=false;
+
+                            for(var i=0; i<$scope.gridOptions.data.length; i++)
+                            {
+                                if($scope.gridOptions.data[i].FabricLotAssignID==result.FabricLotAssignID)
+                                {
+                                    isExist=true;  $scope.gridOptions.data[i]=result;
+                                }
+                            }
+
+                            if(!isExist)
+                                $scope.gridOptions.data.push(result);
+
+                            $scope.FabricLotAssign.txtOrderNo= "";
+                            $scope.FabricLotAssign.txtLotQty_Out= "";
+                            $scope.FabricLotAssign.SelectedLot= {};
+                        }
+                        else
+                        {
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+            };
+            //================== OUT END ==================
+
+            $scope.PickLots= function (txtLot)
+            {
+                debugger;
+                txtLot= (txtLot==undefined? "" : txtLot);
+                var oFabricLotAssign= {
+                    DyeingOrderID:$scope.FabricLotAssign.DyeingOrderID,
+                    ContractorID:$scope.FabricLotAssign.ContractorID,
+                    IsInHouse:true,
+                    LotNo: txtLot,
+                };
+                debugger;
+
+                $.icsProgressBar(true);
+
+                var config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8;' } };
+                $http.post(_sBaseAddress+'/DyeingOrder/Gets_Lot',$.param(oFabricLotAssign), config).then(
+                            function (response)
+                            {
+                                debugger;
+                                var results=jQuery.parseJSON(response.data);
+                                debugger;
+                                if(results.length>0)
+                                {
+                                    //$scope.FabricLotAssign.FabricLotAssignDetails=result;
+                                    var oDetailColumns = [];
+                                    var oColumn = { field: 'LotNo', name:'LotNo', width:'20%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn = { field: 'ProductName', name:'ProductName', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn = { field: 'StoreName', name:'StoreName', width:'30%',cellClass: 'text-left', enableCellEdit:false };oDetailColumns.push(oColumn);
+                                    oColumn ={ field: 'Qty', name:'Qty', width:'15%',cellClass: 'text-left', cellFilter:'number:2',enableCellEdit:false };oDetailColumns.push(oColumn);
+                                   
+                                    var modalObj={
+                                        size:'lg',
+                                        modalcontroller:'',
+                                        url:_sBaseAddress+'/Home/Modal',
+                                        appcontroller:'DUProGuideLineCtrl',
+                                        objs:results,
+                                        multiSelect:false,
+                                        pickertitle:'Order List',
+                                        searchingbyfieldName:'DestinationLotNo',
+                                        columns:oDetailColumns
+                                    }
+                                    var modalInstance=msModal.Instance(modalObj);
+                                   
+                                    $.icsProgressBar(false);
+                                    modalInstance.result.then(function (result)
+                                    {
+                                        var oFabricLotAssigns =  $scope.gridOptions.data;
+
+                                        for(var i=0; i<oFabricLotAssigns.length; i++)
+                                        {
+                                            if(oFabricLotAssigns[i].LotID==result.LotID)
+                                            {
+                                                alert("Duplicate Entry Not Possible!"); return;
+                                            }
+                                        }
+                                        $scope.FabricLotAssign.txtLotNo= result.LotNo;
+                                        $scope.FabricLotAssign.txtLotQty= result.Qty;
+                                        $scope.FabricLotAssign.SelectedLot= result;
+
+                                    }, function () {
+                                        $log.info('Modal dismissed at: ' + new Date());
+                                    });
+
+                                }else {alert("No Data Found!!");}
+                            },
+                                function (response) { alert(response.statusText);}
+                        );
+            };
+
+            //=========== FOR IN HOUSE =================
+            $scope.FabricLotAssign.SelectedLot={};
+            $scope.SearchKeyDownLot = function (e){
+                //debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    var sOrderRefNo=$scope.FabricLotAssign.txtLotNo;
+                    var txtLot = $.trim(sOrderRefNo);
+                    if(txtLot=="" || txtLot==null)
+                    {
+                        alert("Type Lot No and Press Enter");
+                        return;
+                    }
+                    $scope.PickLots(txtLot);
+                }
+            };
+         
+            $scope.SearchKeyDownLotQty = function (e){
+                //debugger;
+                var code = (e.keyCode ? e.keyCode : e.which);
+                if (code == 13)
+                {
+                    $scope.AddLot();
+                }
+            };
+            $scope.AddLot = function ()
+            {
+                if(!parseFloat($scope.FabricLotAssign.SelectedLot.Qty)>0)
+                {
+                    alert("Please pick a lot and try again!!"); return;
+                }
+                if(!parseFloat($scope.FabricLotAssign.txtLotQty)>0)
+                {
+                    alert("Lot Qty Should be greater than zero!!"); return;
+                }
+
+                if(parseFloat($scope.FabricLotAssign.txtLotQty) > $scope.FabricLotAssign.SelectedLot.Qty)
+                {
+                    alert("Order Qty Is Greater Than Balance!"); return;
+                }
+                $scope.FabricLotAssign.SelectedLot.FabricLotAssignID=0;
+                $scope.FabricLotAssign.SelectedLot.Qty=parseFloat($scope.FabricLotAssign.txtLotQty);
+
+                $scope.Save_FabricLotAssign($scope.FabricLotAssign.SelectedLot);
+            }
+            //================== IN END ==================
+
+            $scope.Save_FabricLotAssign = function (result) 
+            {
+                var oFabricLotAssign= {
+                    LotID: result.LotID,
+                    FabricLotAssignID: result.FabricLotAssignID,
+                    FEOSDID: $scope.DyeingOrderFabricDetail.FEOSDID,
+                    ContractorID: $scope.FabricLotAssign.ContractorID,
+                    ProductID: $scope.FabricLotAssign.ProductID,
+                    DyeingOrderID: result.DyeingOrderID,
+                    ParentType: result.ParentType,
+                    ParentID: result.ParentID,
+                    UnitPrice: result.UnitPrice,
+                    CurrencyID: result.CurrencyID,
+                    Note: "Assigned Dyeing Lot (InHouse)",
+                    Qty: result.Qty,
+                    Balance: result.Qty
+                };
+
+                $http.post(_sBaseAddress+'/DyeingOrderFabricDetail/Save_FLA',JSON.stringify(oFabricLotAssign)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        console.log(result);
+                        if(result.FabricLotAssignID>0 && result.ErrorMessage=="")
+                        {
+                            debugger;
+                            alert("Data Saved Successfully!!");
+                            $scope.gridOptions.data.push(result);
+
+                            $scope.FabricLotAssign.txtLotNo= "";
+                            $scope.FabricLotAssign.txtLotQty= "";
+                            $scope.FabricLotAssign.SelectedLot= {};
+                        }
+                        else
+                        {
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+            };
+            $scope.Edit_FabricLotAssign = function (rowentity, oldValue, index) 
+            {
+                var oFabricLotAssign= {
+                    LotID: rowentity.LotID,
+                    FabricLotAssignID: rowentity.FabricLotAssignID,
+                    FEOSDID: $scope.DyeingOrderFabricDetail.FEOSDID,
+                    ContractorID: $scope.FabricLotAssign.ContractorID,
+                    ProductID: $scope.FabricLotAssign.ProductID,
+                    DyeingOrderID: rowentity.DyeingOrderID,
+                    ParentType: rowentity.ParentType,
+                    ParentID: rowentity.ParentID,
+                    UnitPrice: rowentity.UnitPrice,
+                    CurrencyID: rowentity.CurrencyID,
+                    Note: "Assigned Dyeing Lot (InHouse)",
+                    Qty: rowentity.Qty,
+                    Balance: rowentity.Balance
+                };
+
+                $http.post(_sBaseAddress+'/DyeingOrderFabricDetail/Save_FLA',JSON.stringify(oFabricLotAssign)).then(
+                    function (response) {
+                        var result=jQuery.parseJSON(response.data);
+                        console.log(result);
+                        if(result.FabricLotAssignID>0 && result.ErrorMessage=="")
+                        {
+                            debugger;
+                            alert("Data Saved Successfully!!");
+                            $scope.gridOptions.data[index]=result;
+
+                            $scope.FabricLotAssign.txtLotNo= "";
+                            $scope.FabricLotAssign.txtLotQty= "";
+                            $scope.FabricLotAssign.SelectedLot= {};
+                        }
+                        else
+                        {
+                            debugger;
+                            $scope.gridOptions.data[index].Balance=oldValue;
+                            alert(result.ErrorMessage);
+                        }
+                    },
+                    function (response) { alert(jQuery.parseJSON(response.data).ErrorMessage);}
+            );
+            };
+            $scope.Remove_FabricLotAssign= function ()
+            {
+                var oFabricLotAssign = $scope.gridApi.selection.getSelectedRows()[0];
+                if(oFabricLotAssign==null || oFabricLotAssign.FabricLotAssignID<=0)
+                {
+                    alert("Select At least One item !");
+                    return;
+                }
+                if(parseFloat(oFabricLotAssign.Qty_Batch_Out)>0)
+                {
+                    alert("Selected item has already been used in Batch!");
+                    return;
+                }
+                var SelectedRowIndex=$scope.gridOptions.data.indexOf(oFabricLotAssign);
+                if (!confirm("Confirm to Remove?")) return ;
+
+                $http.post(_sBaseAddress+'/DyeingOrderFabricDetail/Delete_FLA',JSON.stringify(oFabricLotAssign)).then(
+                   function (response) {
+                       var result=jQuery.parseJSON(response.data);
+                       console.log(result);
+                       if(result=="Deleted")
+                       {
+                           debugger;
+                           alert("Data Deleted Successfully!!");
+                           $scope.gridOptions.data.splice(SelectedRowIndex,1);
+                       }
+                       else
+                       {
+                           alert(result);
+                       }
+                   },
+                   function (response) { alert(response.statusText);});
+            };
+
+            $scope.Close=function ()
+            {
+                debugger;
+                //window.location.href = sessionStorage.getItem("BackLink");
+                userSession.previousPage();
+            };
+        });
+
+    </script>
+
+
+
+

@@ -1,0 +1,893 @@
+﻿@model ESimSol.BusinessObjects.BalanceSheet
+@{
+    ViewBag.Title = "Statement of Financial Position";
+}
+
+@*<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>*@
+<div class="easyui-panel" title="" style="margin-left: 0px; height:100%; width:100%" fit="true">
+    <div class="easyui-layout" data-options="fit:true">
+        <div data-options="region:'north',split:true" style="width:100%;padding:5px;height:65px; overflow:hidden">
+            <div style="margin-bottom:5px">
+                <select id="cboLayout" style="width:100px;"><option value="0">Single Date</option><option value="1">Multiple Date</option><option value="2">Monthly</option><option value="3">Quaterly</option><option value="4">Half Yearly</option></select>
+                <select id="cboBUs" style="width:200px;"></select>
+                <label id="lblStartDate"> <input id="txtStartDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /> </label>
+                <label id="lblEndDate"> <input id="txtEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /> </label>
+                <label id="lblEndDate2"><input id="txtTemEndDate" type="text" class="easyui-datebox" style="width:100px;" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" /></label>
+                <select id="cboStartMonths" style="width:80px;"></select>
+                <select id="cboStartYear" style="width:60px;" onchange="RefreshYear()"></select><label id="lblTo">To</label>
+                <select id="cboEndMonths" style="width:80px;"></select>
+                <select id="cboEndYear" style="width:60px;"></select>
+                <select id="cboAccountingSession" style="width:110px;"></select>
+                <label><input type="checkbox" id="chkboxApproved" style="width:20px;" />Approved</label>
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="false">Refresh</a>
+                <a id="btnFinancialPosition" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Financial Position </a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+                <a id="btnNotesOfStatement" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Notes of Statement</a>
+                <a id="btnPrintNotesXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="false">Export To XL</a>
+</div>
+        </div>
+        <div data-options="region:'center'" style="width:100%;padding:20px; text-align:center">
+            <div style="width:100%; border:1px solid black; margin-bottom:20px">
+                <table  id="tblFinancialPosition" border="0" cellpadding="1" cellspacing="0" width="100%">
+                    <tr>
+                        <td id="tdCompanyName" colspan="5" style="width:100%; text-align:left">
+                            <label id="lblCompanyName" style="font-size:16px; font-weight:bold">Cross Wold Power Ltd</label>
+                        </td>                        
+                    </tr>
+                    <tr>                        
+                        <td id="tdStatementName" colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementName" style="font-size:15px; font-weight:bold; color:gray">Statement of Financial Position</label>
+                        </td>                        
+                    </tr>
+                    <tr>
+                        <td id="tdStatementDate" colspan="5" style="width:100%; text-align:left">
+                            <label id="lblStatementDate" style="font-size:13px;">As at 31 December 2015</label>
+                        </td>                        
+                    </tr>                   
+                    <tr id="trc5">
+                        <td id="tddate" colspan="5" style="width:100%; text-align:left">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="width:2%"></td>
+                                    <td style="width:48%"></td>
+                                    <td style="width:28%; text-align:center; font-weight:bold">Notes</td>
+                                    <td style="width:20%; text-align:right; border:1px solid black">
+                                        <label id="lblStatementDateWithCurrency" style="font-size:13px; font-weight:bold">31 Dec 2015-BDT</label>
+                                    </td>
+                                    <td style="width:2%"></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>                                      
+                </table>
+            </div>
+        </div>        
+    </div>
+</div>
+
+<style>   
+    .segmentclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;
+        font-weight:bold;
+        font-style:italic;
+    }
+    .subgroupclass {        
+        color: black;
+        font-size : 12px;
+        font-family : Tahoma;           
+    }
+    .segmentsummeryclass {        
+        color: black;
+        font-size : 13px;
+        font-family : Tahoma;  
+        font-weight:bold;         
+    }
+
+    .highlight
+    {
+        background:#DAFFD6;
+    }
+    #tblFinancialPosition tr:hover td,
+    #tblFinancialPosition tr:hover td.highlight
+    {
+        background:#D6DAD5;
+    }
+    label {
+    font-weight: normal;
+}
+</style>
+<script type="text/javascript">
+    var _nSessionCurrentCompanyID=0;
+    var _oBalanceSheet=null;
+    var _oAssets=[];
+    var _oLiabilityAndOwnerEquitys=[];
+    var _sBaseAddress="";
+    var _oCreditChartOfAccount=null;
+    var _oMonths= [];
+    var _oYears= [];
+    var _oAccountingSessions = [];
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oBalanceSheet =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        var oBUs = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUs));
+        _oMonths = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.MonthEnum));
+        _oYears = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.ListOfYear));
+        _oAccountingSessions = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.AccountingSessions));
+        $('#cboBUs').data('objs',oBUs);
+        $('#cboBUs').icsLoadCombo({ List: oBUs, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Select Business Unit--" });
+
+        ////refresh control
+        $('#cboBUs').val(_oBalanceSheet.BUID);
+        $('#cboLayout').val(_oBalanceSheet.nSearcingCriteria);
+        
+        $('#txtStartDate').datebox('setValue', icsdateformat(new Date()));
+        $('#txtEndDate').datebox('setValue', icsdateformat(new Date()));        
+        $('#txtStartDate').datebox('setValue', _oBalanceSheet.StartDateInSt);
+        $('#txtEndDate').datebox('setValue', _oBalanceSheet.BalanceSheetDate);
+        $('#txtTemEndDate').datebox('setValue', _oBalanceSheet.BalanceSheetDateTemp);
+        $('#chkboxApproved').attr("checked", _oBalanceSheet.IsApproved);
+        RefreshCombos();
+        changeLayout();
+                       
+        /////end refresh control
+        RefreshControl(_oBalanceSheet);
+        RefreshAssets(_oBalanceSheet);
+        RefreshLiabilitys(_oBalanceSheet);
+        $('#Mainlayout').layout('collapse', 'west');
+    });
+
+
+
+    function changeLayout()
+    {
+
+        $('#lblEndDate,#lblEndDate2,#cboStartMonths,#cboEndMonths,#cboStartYear,#cboEndYear,#cboAccountingSession,#lblTo').hide();
+        //$('#trc5,#trc7').hide();
+        
+        if(parseInt($('#cboLayout').val())==0)//Single Date
+        {
+            $('#lblEndDate').show();
+            //$('#trc5').show();
+            document.getElementById('trc5').style.visibility = 'visible';
+            //document.getElementById('trc7').style.visibility = 'collapse';
+            document.getElementById("tdCompanyName").colSpan = "5";
+            document.getElementById("tdStatementName").colSpan = "5";
+            document.getElementById("tdStatementDate").colSpan = "5";
+            document.getElementById("tddate").colSpan = "5";
+            
+        }else if(parseInt($('#cboLayout').val())==1)//Multiple Date
+        {
+            $('#lblEndDate, #lblEndDate2').show();
+            //$('#trc7').show();
+            //document.getElementById('trc7').style.visibility = 'visible';
+            document.getElementById('trc5').style.visibility = 'collapse';
+            document.getElementById("tdCompanyName").colSpan = "7";
+            document.getElementById("tdStatementName").colSpan = "7";
+            document.getElementById("tdStatementDate").colSpan = "7";
+            document.getElementById("tddate").colSpan = "7";
+
+        }else  if(parseInt($('#cboLayout').val())==2)//Monthly
+        {
+            $('#cboStartMonths,#cboEndMonths,#cboStartYear,#cboEndYear,#lblTo').show();
+        }else  if(parseInt($('#cboLayout').val())==3 || parseInt($('#cboLayout').val())==4)//Quaterly Or Half Yearly
+        {
+            $('#cboAccountingSession').show();
+        } 
+    }
+
+    $('#cboLayout').change(function()
+    {
+        changeLayout();
+    });
+
+    function RefreshCombos(){
+        $("#cboStartMonths,#cboEndMonths").icsLoadCombo({ List: _oMonths, OptionValue: "id", DisplayText: "Value" });
+        $('#cboStartMonths').val(1);
+        $('#cboEndMonths').val(6);
+        $("#cboAccountingSession").icsLoadCombo({ List: _oAccountingSessions, OptionValue: "AccountingSessionID", DisplayText: "SessionName" });
+        $('#cboStartYear').append(new Option("--Select Year--",0));
+        for (var i = 0; i < _oYears.length; i++) {
+            $('#cboStartYear').append(new Option(_oYears[i], _oYears[i]));
+        }
+
+        $('#cboEndYear').append(new Option("--Select Year--",0));
+        for (var i = 0; i < _oYears.length; i++) {
+            $('#cboEndYear').append(new Option(_oYears[i], _oYears[i]));
+        }
+        $('#cboEndYear,#cboStartYear').val(_oYears[10]);
+    }
+
+
+    $("#btnRefresh").click(function()
+    {
+        var sParam = '';
+        if(parseInt($('#cboLayout').val())==0)//single date
+        {
+            sParam = $('#txtEndDate').datebox('getValue')+'~'+$('#txtStartDate').datebox('getValue');
+        }else if(parseInt($('#cboLayout').val())==1)//multiple date
+        {
+            sParam = $('#txtEndDate').datebox('getValue')+'~'+$('#txtTemEndDate').datebox('getValue')+'~'+$('#txtStartDate').datebox('getValue');
+        }
+        var obj={
+            BUID : parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            nSearcingCriteria:parseInt($('#cboLayout').val()),            
+            Param:sParam,
+            IsApproved : $('#chkboxApproved').is(':checked')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/BalanceSheet/SetBSSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/BalanceSheet/ViewFinancialPosition?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function RefreshControl(oBalanceSheet)
+    {
+        $('#lblCompanyName').text(oBalanceSheet.Company.Name);
+        $('#lblStatementDate').text('As at '+ oBalanceSheet.BalanceSheetDate);
+        $('#lblStatementDateWithCurrency').text(oBalanceSheet.BalanceSheetDate+'-'+oBalanceSheet.Company.CurrencyName);
+        if(parseInt($('#cboLayout').val())==1)//Multiple Date
+        {
+            //$('#trc7').show();
+            //$('#trc5').hide();
+            document.getElementById("tdCompanyName").colSpan = "7";
+            document.getElementById("tdStatementName").colSpan = "7";
+            document.getElementById("tdStatementDate").colSpan = "7";
+            document.getElementById("tddate").colSpan = "7";
+            //document.getElementById('trc7').style.visibility = 'visible';
+            document.getElementById('trc5').style.visibility = 'collapse';
+        }
+        var nMaxRowIndex = document.getElementById('tblFinancialPosition').rows.length-1;
+        for(var i=nMaxRowIndex; i>3; i--)
+        {
+            document.getElementById("tblFinancialPosition").deleteRow(i);
+        }
+    }
+
+    function RefreshAssets(_oBalanceSheet)
+    {
+        debugger;
+        var nLayout = parseInt($('#cboLayout').val());//0:single ;1:Multiple;2:Month;3:quarter;4:Half Year
+        //Segment = 2, SubGroup = 4,
+        var oAssets = _oBalanceSheet.Assets;
+        var bIsFistSegment=false;
+        var bIsImmediateSegment =false;
+
+      
+        if(parseInt(nLayout)==1)//Multiple DAte
+        {
+            var table = document.getElementById('tblFinancialPosition');
+            var nRowIndex = table.rows.length;
+            var row = table.insertRow(nRowIndex);
+
+            var cellBlank = row.insertCell(0);
+            cellBlank.width= "2%";
+            cellBlank.innerHTML = '';
+
+            var cellBlankBig = row.insertCell(1);
+            cellBlankBig.width= "30%";
+            cellBlankBig.innerHTML = '<label rowIndex="'+nRowIndex+' > </label>';
+            cellBlankBig.style.textAlign = 'left';
+
+            var cellNote = row.insertCell(2);
+            cellNote.width= "20%";
+            cellNote.innerHTML = '<label id="lblNotes" rowIndex="'+nRowIndex+'"  style="font-size:11px; font-weight:bold" >Notes</label>';
+            cellNote.style.textAlign = 'center';
+
+
+            var cellFirstDate = row.insertCell(3);
+            cellFirstDate.width= "20%";
+            cellFirstDate.innerHTML = '<label id="lblStatementDateWithCurrencyDefault" rowIndex="'+nRowIndex+'" style="font-size:11px; font-weight:bold">01 July 2018-BDT</label>';
+            cellFirstDate.style.textAlign = 'right';cellFirstDate.style.borderTop = "1px solid black";
+            cellFirstDate.style.borderLeft = "1px solid black";cellFirstDate.style.borderRight = "1px solid black";cellFirstDate.style.borderBottom = "1px solid black";
+
+            var cellBlankEx = row.insertCell(4);
+            cellBlankEx.width= "6%";
+            cellBlankEx.innerHTML = '';
+
+
+            var cellSecondDate = row.insertCell(5);
+            cellSecondDate.width= "20%";
+            cellSecondDate.innerHTML = '<label id="lblStatementDateWithCurrencyTemp" rowIndex="'+nRowIndex+'" style="font-size:11px; font-weight:bold">25 Jan 2018-BDT</label>';
+            cellSecondDate.style.textAlign = 'right'; cellSecondDate.style.borderTop = "1px solid black";
+            cellSecondDate.style.borderLeft = "1px solid black";cellSecondDate.style.borderRight = "1px solid black"; cellSecondDate.style.borderBottom = "1px solid black"
+              
+  
+            var cellBlankD = row.insertCell(6);
+            cellBlankD.width= "2%";
+            cellBlankD.innerHTML = '';
+
+            $('#lblStatementDateWithCurrencyDefault').text(_oBalanceSheet.BalanceSheetDate+'-'+_oBalanceSheet.Company.CurrencyName);
+            $('#lblStatementDateWithCurrencyTemp').text(_oBalanceSheet.BalanceSheetDateTemp+'-'+_oBalanceSheet.Company.CurrencyName);
+        }
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellAssets = row.insertCell(0);
+        nLayout==0?cellAssets.colSpan= 5:cellAssets.colSpan= 7;
+        cellAssets.width= "100%";
+        cellAssets.innerHTML = 'ASSETS';
+        cellAssets.height = '10';
+        cellAssets.className = 'segmentsummeryclass';
+        cellAssets.style.textAlign = 'left';
+
+
+        for(var i=0;  i<oAssets.length; i++ )
+        {
+            if(parseInt(oAssets[i].AccountTypeInt)===2)
+            {
+                if(bIsFistSegment===true)
+                {
+                    var table = document.getElementById('tblFinancialPosition');
+                    var nRowIndex = table.rows.length;
+                    var row = table.insertRow(nRowIndex);
+
+                    var cellBlank = row.insertCell(0);
+                    nLayout==0?cellBlank.colSpan= 5:cellBlank.colSpan= 7;
+                    cellBlank.width= "100%";
+                    cellBlank.innerHTML = '';
+                    cellBlank.height = '10';
+                }
+
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.colSpan= 3;
+                nLayout==0?cellAccountHead.width= "78%":cellAccountHead.width= "52%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oAssets[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellAmount = row.insertCell(1);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oAssets[i].CGSGBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                if(nLayout==1)//multiple date
+                {
+                    var cellBlank = row.insertCell(2);
+                    cellBlank.width= "6%";
+                    cellBlank.innerHTML = '';
+
+
+                    var cellAmount = row.insertCell(3);
+                    cellAmount.width= "20%";
+                    cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oAssets[i].CGSGBalanceInStringTemp+'</label>';
+                    cellAmount.style.textAlign = 'right';
+                }
+
+                var cellBlank = row.insertCell(nLayout==0?2:4);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+
+                bIsImmediateSegment =true;
+                bIsFistSegment=true;
+            }
+            else if(parseInt(oAssets[i].AccountTypeInt)===4)
+            {
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellBlank = row.insertCell(0);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                var cellAccountHead = row.insertCell(1);
+                nLayout==0?cellAccountHead.width= "48%":cellAccountHead.width= "30%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oAssets[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellNote = row.insertCell(2);
+                nLayout==0?cellNote.width= "28%":cellNote.width= "20%";
+                cellNote.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'"onclick="NoteWiseDetails('+oAssets[i].AccountHeadID+');" class="subgroupclass" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oAssets[i].AccountCode+'</label>';
+                cellNote.style.textAlign = 'center';
+
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oAssets[i].CGSGBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+
+                if(bIsImmediateSegment===true)
+                {
+                    cellAmount.style.borderTop = "1px solid black";
+                }
+                cellAmount.style.borderLeft = "1px solid black";
+                cellAmount.style.borderRight = "1px solid black";
+                if((i+1)<oAssets.length)
+                {
+                    if(parseInt(oAssets[i+1].AccountTypeInt)===2)
+                    {
+                        cellAmount.style.borderBottom = "1px solid black";
+                    }
+                }
+                else
+                {
+                    cellAmount.style.borderBottom = "1px solid black";
+                }
+
+                if(nLayout==1)//multiple date
+                {
+                    var cellBlank = row.insertCell(4);
+                    cellBlank.width= "6%";
+                    cellBlank.innerHTML = '';
+
+
+                    var cellAmountTemp = row.insertCell(5);
+                    cellAmountTemp.width= "20%";
+                    cellAmountTemp.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oAssets[i].CGSGBalanceInStringTemp+'</label>';
+                    cellAmountTemp.style.textAlign = 'right';
+
+                    if(bIsImmediateSegment===true)
+                    {
+
+                        cellAmountTemp.style.borderTop = "1px solid black";
+                    }
+                    cellAmountTemp.style.borderLeft = "1px solid black";
+                    cellAmountTemp.style.borderRight = "1px solid black";
+                    if((i+1)<oAssets.length)
+                    {
+                        if(parseInt(oAssets[i+1].AccountTypeInt)===2)
+                        {
+                            cellAmountTemp.style.borderBottom = "1px solid black";
+                        }
+                    }
+                    else
+                    {
+                       cellAmountTemp.style.borderBottom = "1px solid black"
+                    }
+                }
+
+                var cellBlank = row.insertCell(nLayout==0?4:6);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                bIsImmediateSegment =false;
+            }
+        }
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        nLayout==0?cellBlank.colSpan= 5:cellBlank.colSpan= 7;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '5';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 3;
+        nLayout==0?cellTotalAssets.width= "78%":cellTotalAssets.width= "52%";
+        cellTotalAssets.innerHTML = 'TOTAL ASSETS';
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        cellTotalAssetsAmount.innerHTML = _oBalanceSheet.TotalAssetsInString;
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderTop = "1px solid black"
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+
+
+        if(nLayout==1)//multiple date
+        {
+            var cellBlank = row.insertCell(2);
+            cellBlank.width= "6%";
+            cellBlank.innerHTML = '';
+
+
+            var cellTotalAssetsAmountTemp = row.insertCell(3);
+            cellTotalAssetsAmountTemp.width= "20%";
+            cellTotalAssetsAmountTemp.innerHTML = _oBalanceSheet.TotalAssetsTempInString;
+            cellTotalAssetsAmountTemp.className = 'segmentsummeryclass';
+            cellTotalAssetsAmountTemp.style.textAlign = 'right';
+            cellTotalAssetsAmountTemp.style.borderTop = "1px solid black"
+            cellTotalAssetsAmountTemp.style.borderBottom = "1px solid black"
+        }
+
+        var cellBlank = row.insertCell(nLayout==0?2:4);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalAssets = row.insertCell(0);
+        cellTotalAssets.colSpan= 3;
+        nLayout==0?cellTotalAssets.width= "78%":cellTotalAssets.width= "52%";
+        cellTotalAssets.innerHTML = '';
+        cellTotalAssets.className = 'segmentsummeryclass';
+        cellTotalAssets.style.textAlign = 'left';
+        cellTotalAssets.height = '2';
+
+        var cellTotalAssetsAmount = row.insertCell(1);
+        cellTotalAssetsAmount.width= "20%";
+        cellTotalAssetsAmount.innerHTML = '';
+        cellTotalAssetsAmount.className = 'segmentsummeryclass';
+        cellTotalAssetsAmount.style.textAlign = 'right';
+        cellTotalAssetsAmount.style.borderBottom = "1px solid black"
+        if(nLayout==1)//multiple date
+        {
+            var cellBlank = row.insertCell(2);
+            cellBlank.width= "6%";
+            cellBlank.innerHTML = '';
+
+
+            var cellTotalAssetsAmountTemp = row.insertCell(3);
+            cellTotalAssetsAmountTemp.width= "20%";
+            cellTotalAssetsAmountTemp.innerHTML = '';
+            cellTotalAssetsAmountTemp.className = 'segmentsummeryclass';
+            cellTotalAssetsAmountTemp.style.textAlign = 'right';
+            cellTotalAssetsAmountTemp.style.borderBottom = "1px solid black"
+        }
+        var cellBlank = row.insertCell(nLayout==0?2:4);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+    }
+
+    function RefreshLiabilitys(_oBalanceSheet)
+    {
+        debugger;
+        var nLayout = parseInt($('#cboLayout').val());//0:single ;1:Multiple;2:Month;3:quarter;4:Half Year
+        //Segment = 2, SubGroup = 4,
+        var oLiabilitysOwnerEquitys = _oBalanceSheet.LiabilitysOwnerEquitys;
+        var bIsFistSegment=false;
+        var bIsImmediateSegment =false;
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellLiabilitysOwnerEquitys = row.insertCell(0);
+        nLayout==0? cellLiabilitysOwnerEquitys.colSpan= 5 : cellLiabilitysOwnerEquitys.colSpan= 7;
+        cellLiabilitysOwnerEquitys.width= "100%";
+        cellLiabilitysOwnerEquitys.innerHTML = 'EQUITY AND LIABILITIES';
+        cellLiabilitysOwnerEquitys.className = 'segmentsummeryclass';
+        cellLiabilitysOwnerEquitys.style.textAlign = 'left';
+        cellLiabilitysOwnerEquitys.style.verticalAlign = 'bottom';
+        cellLiabilitysOwnerEquitys.height = '40';
+
+
+        for(var i=0;  i<oLiabilitysOwnerEquitys.length; i++ )
+        {
+            if(parseInt(oLiabilitysOwnerEquitys[i].AccountTypeInt)===2)
+            {
+                if(bIsFistSegment===true)
+                {
+                    var table = document.getElementById('tblFinancialPosition');
+                    var nRowIndex = table.rows.length;
+                    var row = table.insertRow(nRowIndex);
+
+                    var cellBlank = row.insertCell(0);
+                    nLayout==0?cellBlank.colSpan= 5:cellBlank.colSpan= 7;
+                    cellBlank.width= "100%";
+                    cellBlank.innerHTML = '';
+                    cellBlank.height = '10';
+                }
+
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellAccountHead = row.insertCell(0);
+                cellAccountHead.colSpan= 3;
+                nLayout==0? cellAccountHead.width= "78%":cellAccountHead.width= "52%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oLiabilitysOwnerEquitys[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellAmount = row.insertCell(1);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oLiabilitysOwnerEquitys[i].CGSGBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                if(nLayout==1)//multiple date
+                {
+                    var cellBlank = row.insertCell(2);
+                    cellBlank.width= "6%";
+                    cellBlank.innerHTML = '';
+
+
+                    var cellAmountTemp = row.insertCell(3);
+                    cellAmountTemp.width= "20%";
+                    cellAmountTemp.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="segmentclass" >'+oLiabilitysOwnerEquitys[i].CGSGBalanceInStringTemp+'</label>';
+                    cellAmountTemp.style.textAlign = 'right';
+
+                }
+                var cellBlank = row.insertCell(nLayout==0?2:4);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                bIsImmediateSegment =true;
+                bIsFistSegment=true;
+            }
+            else if(parseInt(oLiabilitysOwnerEquitys[i].AccountTypeInt)===4)
+            {
+                var table = document.getElementById('tblFinancialPosition');
+                var nRowIndex = table.rows.length;
+                var row = table.insertRow(nRowIndex);
+
+                var cellBlank = row.insertCell(0);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                var cellAccountHead = row.insertCell(1);
+                nLayout==0?cellAccountHead.width= "48%":cellAccountHead.width= "30%";
+                cellAccountHead.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oLiabilitysOwnerEquitys[i].AccountHeadName+'</label>';
+                cellAccountHead.style.textAlign = 'left';
+
+                var cellNote = row.insertCell(2);
+                nLayout==0?cellNote.width= "28%":cellNote.width= "20%";
+                cellNote.innerHTML = '<label id="accountHead'+nRowIndex+'" rowIndex="'+nRowIndex+'"onclick="NoteWiseDetails('+oLiabilitysOwnerEquitys[i].AccountHeadID+');" class="subgroupclass" style="color:#0000FF;cursor:pointer;text-decoration: underline">'+oLiabilitysOwnerEquitys[i].AccountCode+'</label>';
+                cellNote.style.textAlign = 'center';
+
+
+                var cellAmount = row.insertCell(3);
+                cellAmount.width= "20%";
+                cellAmount.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oLiabilitysOwnerEquitys[i].CGSGBalanceInString+'</label>';
+                cellAmount.style.textAlign = 'right';
+
+                if(bIsImmediateSegment===true)
+                {
+                    cellAmount.style.borderTop = "1px solid black";
+                }
+                cellAmount.style.borderLeft = "1px solid black";
+                cellAmount.style.borderRight = "1px solid black";
+                if((i+1)<oLiabilitysOwnerEquitys.length)
+                {
+                    if(parseInt(oLiabilitysOwnerEquitys[i+1].AccountTypeInt)===2 || parseInt(oLiabilitysOwnerEquitys[i+1].AccountTypeInt)===1)
+                    {
+                        cellAmount.style.borderBottom = "1px solid black";
+                    }
+                }
+                else
+                {
+                    cellAmount.style.borderBottom = "1px solid black";
+                }
+
+
+                if(nLayout==1)//multiple Date
+                {
+
+                    var cellBlank = row.insertCell(4);
+                    cellBlank.width= "6%";
+                    cellBlank.innerHTML = '';
+
+
+                    var cellAmountTemp = row.insertCell(5);
+                    cellAmountTemp.width= "20%";
+                    cellAmountTemp.innerHTML = '<label id="amount'+nRowIndex+'" rowIndex="'+nRowIndex+'" class="subgroupclass" >'+oLiabilitysOwnerEquitys[i].CGSGBalanceInStringTemp+'</label>';
+                    cellAmountTemp.style.textAlign = 'right';
+
+                    if(bIsImmediateSegment===true)
+                    {
+                      cellAmountTemp.style.borderTop = "1px solid black";
+                    }
+                    cellAmountTemp.style.borderLeft = "1px solid black";
+                    cellAmountTemp.style.borderRight = "1px solid black";
+                    if((i+1)<oLiabilitysOwnerEquitys.length)
+                    {
+                        if(parseInt(oLiabilitysOwnerEquitys[i+1].AccountTypeInt)===2 || parseInt(oLiabilitysOwnerEquitys[i+1].AccountTypeInt)===1)
+                        {
+                            cellAmountTemp.style.borderBottom = "1px solid black";
+                        }
+                    }
+                    else
+                    {
+                       cellAmountTemp.style.borderBottom = "1px solid black";
+                    }
+                }
+                
+                var cellBlank = row.insertCell(nLayout==0?4:6);
+                cellBlank.width= "2%";
+                cellBlank.innerHTML = '';
+
+                bIsImmediateSegment =false;
+            }
+        }
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        nLayout==0?cellBlank.colSpan= 5:cellBlank.colSpan= 7;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '5';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalLiabilitys = row.insertCell(0);
+        cellTotalLiabilitys.colSpan= 3;
+        nLayout==0?cellTotalLiabilitys.width= "78%":cellTotalLiabilitys.width= "52%";
+        cellTotalLiabilitys.innerHTML = 'TOTAL EQUITY AND LIABILITIES';
+        cellTotalLiabilitys.className = 'segmentsummeryclass';
+        cellTotalLiabilitys.style.textAlign = 'left';
+
+        var cellTotalLiabilitysAmount = row.insertCell(1);
+        cellTotalLiabilitysAmount.width= "20%";
+        cellTotalLiabilitysAmount.innerHTML = _oBalanceSheet.TotalLiabilitysOwnerEquitysInString;
+        cellTotalLiabilitysAmount.className = 'segmentsummeryclass';
+        cellTotalLiabilitysAmount.style.textAlign = 'right';
+        cellTotalLiabilitysAmount.style.borderTop = "1px solid black"
+        cellTotalLiabilitysAmount.style.borderBottom = "1px solid black"
+
+        
+        if(nLayout==1)//multiple Date
+        {
+
+            var cellBlank = row.insertCell(2);
+            cellBlank.width= "6%";
+            cellBlank.innerHTML = '';
+
+
+            var cellTotalLiabilitysAmountTemp = row.insertCell(3);
+            cellTotalLiabilitysAmountTemp.width= "20%";
+            cellTotalLiabilitysAmountTemp.innerHTML = _oBalanceSheet.TotalLiabilitysOwnerEquitysTempInString;
+            cellTotalLiabilitysAmountTemp.className = 'segmentsummeryclass';
+            cellTotalLiabilitysAmountTemp.style.textAlign = 'right';
+            cellTotalLiabilitysAmountTemp.style.borderTop = "1px solid black"
+            cellTotalLiabilitysAmountTemp.style.borderBottom = "1px solid black"
+        }
+
+        var cellBlank = row.insertCell(nLayout==0?2:4);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellTotalLiabilitys = row.insertCell(0);
+        cellTotalLiabilitys.colSpan= 3;
+        nLayout==0?cellTotalLiabilitys.width= "78%":cellTotalLiabilitys.width= "52%";
+        cellTotalLiabilitys.innerHTML = '';
+        cellTotalLiabilitys.className = 'segmentsummeryclass';
+        cellTotalLiabilitys.style.textAlign = 'left';
+        cellTotalLiabilitys.height = '2';
+
+        var cellTotalLiabilitysAmount = row.insertCell(1);
+        cellTotalLiabilitysAmount.width= "20%";
+        cellTotalLiabilitysAmount.innerHTML = '';
+        cellTotalLiabilitysAmount.className = 'segmentsummeryclass';
+        cellTotalLiabilitysAmount.style.textAlign = 'right';
+        cellTotalLiabilitysAmount.style.borderBottom = "1px solid black"
+
+        if(nLayout==1)//multiple Date
+        {
+
+            var cellBlank = row.insertCell(2);
+            cellBlank.width= "6%";
+            cellBlank.innerHTML = '';
+
+            var cellTotalLiabilitysAmountTemp = row.insertCell(3);
+            cellTotalLiabilitysAmountTemp.width= "20%";
+            cellTotalLiabilitysAmountTemp.innerHTML = '';
+            cellTotalLiabilitysAmountTemp.className = 'segmentsummeryclass';
+            cellTotalLiabilitysAmountTemp.style.textAlign = 'right';
+            cellTotalLiabilitysAmountTemp.style.borderBottom = "1px solid black"
+        }
+
+        var cellBlank = row.insertCell(nLayout==0?2:4);
+        cellBlank.width= "2%";
+        cellBlank.innerHTML = '';
+
+
+        var table = document.getElementById('tblFinancialPosition');
+        var nRowIndex = table.rows.length;
+        var row = table.insertRow(nRowIndex);
+
+        var cellBlank = row.insertCell(0);
+        cellBlank.colSpan= 5;
+        cellBlank.width= "100%";
+        cellBlank.innerHTML = '';
+        cellBlank.height = '100';
+    }
+
+    function NoteWiseDetails(nAccountHeadID)
+    {        
+        var obj={
+            BUID : parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0,
+            StartDate : $('#txtStartDate').datebox('getValue'),
+            TempDate : $('#txtEndDate').datebox('getValue'),
+            IsApproved : $('#chkboxApproved').is(':checked'),
+            ParentAccountHeadID : parseInt(nAccountHeadID)
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem('BaseAddress')+  "/BalanceSheet/SetBSSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem('BaseAddress')+ "/BalanceSheet/ViewNotesOfFinancialPosition?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#btnFinancialPosition").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var dEndDateTemp = $('#txtTemEndDate').datebox('getValue');
+        var bIsApproved = $('#chkboxApproved').is(':checked');
+        var sParam= nBUID+"~"+dEndDate+"~"+dEndDateTemp+'~'+bIsApproved+'~'+parseInt($('#cboLayout').val())+'~'+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/PrintFinancialPosition?sParameter=' + sParam, "_blank");
+    });
+
+    $("#btnNotesOfStatement").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var bIsApproved = $('#chkboxApproved').is(':checked');
+        var sParam= nBUID+"~"+dEndDate+"~0~"+ bIsApproved+"~"+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/PrintNotesOfStatement?sParameter=' + sParam, "_blank");
+    });
+
+    $("#btnPrintXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var dEndDateTemp = $('#txtTemEndDate').datebox('getValue');
+        var bIsApproved = $('#chkboxApproved').is(':checked');
+        var sParam= nBUID+"~"+dEndDate+"~"+dEndDateTemp+'~'+bIsApproved+'~'+parseInt($('#cboLayout').val())+'~'+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/FinancialPositionExpotToExcel?sParameter=' + sParam, "_blank");
+    });
+    $("#btnPrintNotesXL").click(function(){
+        var nBUID=parseInt($('#cboBUs').val())?parseInt($('#cboBUs').val()):0;
+        var dStartDate = $('#txtStartDate').datebox('getValue');
+        var dEndDate = $('#txtEndDate').datebox('getValue');
+        var bIsApproved = $('#chkboxApproved').is(':checked');
+        var sParam= nBUID+"~"+dEndDate+"~0~"+ bIsApproved+"~"+dStartDate;
+        window.open(_sBaseAddress+'/BalanceSheet/NotesOfStatementExpotToExcel?sParameter=' + sParam, "_blank");
+    });
+</script>

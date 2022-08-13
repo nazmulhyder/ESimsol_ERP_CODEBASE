@@ -1,0 +1,377 @@
+﻿@{
+    ViewBag.Title = "Performance Incentive";
+}
+<html>
+<head>
+    <title>  </title>
+</head>
+<body>
+    @{var MenuID = HttpContext.Current.Session[SessionInfo.MenuID];}
+    @model ESimSol.BusinessObjects.PerformanceIncentive
+    <div style="font-family:Tahoma; width:100%; margin-left:0%;margin-top:0%;margin-left:0%;" >
+        <fieldset style="width:98%">
+            <legend style="font-weight:bold"> Performance Incentive </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight: bold; width:100%">
+                <tr style="width:100%">
+                    <td style=" text-align:right;width:15%;">
+                        Name :
+                    </td>
+                    <td style=" text-align:left;width:35%;">
+                        <input id="txtName" type="text" style="width:90%;" />
+                    </td>
+                    <td style=" text-align:right;width:18%;">
+                        Code :
+                    </td>
+                    <td style=" text-align:left;width:32%;">
+                        <input id="txtCode" type="text" style="width:90%;" disabled />
+                    </td>
+                </tr>
+                <tr style="width:100%">
+                    <td style=" text-align:right;width:15%;">
+                        Description :
+                    </td>
+                    <td style=" text-align:left;width:35%;">
+                        <textarea style="width:90%;" id="txtDescription"></textarea>
+                    </td>
+                    <td style=" text-align:right;width:18%;">
+                        Salary Head :
+                    </td>
+                    <td style=" text-align:left;width:32%;">
+                        <select id="cboSalaryHead" style=" text-align:left;width:92%;"></select>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="margin-left:0px;width:97%;">
+                <table id="tblPerformanceIncentiveSlab" title="Performance Incentive Slab" class="easyui-datagrid" style="width:100%; height:340px; fitcolumns=" false" rownumbers="true" pagination="fasle" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                    <thead>
+                        <tr>
+                            <th field="PISlab" width="250" align="left">PI Slab</th>
+                            <th field="Benifits" width="350" align="left">Benifit</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div id="toolbar">
+                    PI Point:<input id="txtMin" type="text" style="width:80px;" class="number" placeholder="Min" />
+                    to
+                    <input id="txtMax" type="text" style="width:80px;" class="number" placeholder="Max" />
+                    Value <input id="txtValue" type="text" style="width:80px;" class="number" />
+                    <input id="chkIsIncentive" type="checkbox" checked/> % Of Incentive Rate
+                    <a id="btnAddSlab" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+                    <a id="btnRemaoveSlab" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Remove</a>
+
+                    @*<input id="btnAddSlab" type="button" value="+">
+                    <input id="btnRemaoveSlab" type="button" value="-">*@
+                </div>
+            </div>
+        </fieldset>
+            <fieldset style="width:98%">
+                <legend style="font-weight:bold"> Action : </legend>
+                <table border="0" cellspacing="2" cellpadding="2" style="font-size:11px; font-weight:bold;width:98%">
+                    <tr style="width:100%;">
+                        <td style="width:85%; text-align:right"></td>
+
+                        <td style="width:15%;">
+                            
+                            <a id="btnSave" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Save()">Save</a>
+                            <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-back" plain="true">Back</a>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+</div>
+</body>
+</html>
+
+<script type="text/javascript">
+    var _oPerformanceIncentive = {PIID:0};
+    var _sBaseAddress = "";
+    var _nMenuid=0;
+    var _sPerformanceIncentiveHeader="";
+    var _oSalaryHeads=[];
+   
+    $(document).ready(function() {
+        _sBaseAddress = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oPerformanceIncentive = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _nMenuid = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(MenuID));
+        _oSalaryHeads= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.SalaryHeads));
+        _sPerformanceIncentiveHeader=sessionStorage.getItem("PerformanceIncentiveHeader");
+
+        $('#cboSalaryHead').icsLoadCombo({
+            List: _oSalaryHeads,
+            OptionValue: "SalaryHeadID",
+            DisplayText: "Name",
+            InitialValue: ""
+        });
+        
+        if(_oPerformanceIncentive.ErrorMessage!="")
+        {
+            alert(_oPerformanceIncentive.ErrorMessage);
+            _oPerformanceIncentive.ErrorMessage=="";
+        }
+        $("#lblHeaderName").html(_sPerformanceIncentiveHeader);
+
+        if (_sPerformanceIncentiveHeader == "Edit PerformanceIncentive")
+        {
+            $("#txtCode").val(_oPerformanceIncentive.Code);
+            $("#txtName").val(_oPerformanceIncentive.Name);
+            $("#txtDescription").val(_oPerformanceIncentive.Description);
+            $("#cboSalaryHead").val(_oPerformanceIncentive.SalaryHeadID);
+            DynamicRefreshList(_oPerformanceIncentive.PerformanceIncentiveSlabs, "tblPerformanceIncentiveSlab");
+            
+        }
+
+        if (_sPerformanceIncentiveHeader == "View PerformanceIncentive")
+        {
+            $("#txtCode").val(_oPerformanceIncentive.Code);
+            $("#txtName").val(_oPerformanceIncentive.Name);
+            $("#txtDescription").val(_oPerformanceIncentive.Description);
+            $("#cboSalaryHead").val(_oPerformanceIncentive.SalaryHeadID);
+            DynamicRefreshList(_oPerformanceIncentive.PerformanceIncentiveSlabs, "tblPerformanceIncentiveSlab");
+
+            $("#txtName").prop("disabled", true);
+            $("#txtDescription").prop("disabled", true);
+            $("#btnSave").hide();
+            $("#cboSalaryHead").prop("disabled", true);
+            $("#btnAddSlab").hide();
+            $("#btnRemaoveSlab").hide();
+        }
+        
+    } );
+
+    function ValidateSlabInput() {
+        if ($("#txtMin").val() == null || $("#txtMin").val() == "" || $("#txtMin").val()<=0) {
+            alert("Please enter a min value!");
+            $('#txtMin').focus();
+            return false;
+        }
+        if ($("#txtMax").val() == null || $("#txtMax").val() == "" || $("#txtMax").val()<=0) {
+            alert("Please enter a max value!");
+            $('#txtMax').focus();
+            return false;
+        }
+ 
+        if ($("#txtValue").val() == null || $("#txtValue").val() == "" || $("#txtValue").val()<=0) {
+            alert("Please enter a  value!");
+            $('#txtValue').focus();
+            return false;
+        }
+
+        return true;
+    }
+  
+    $("#btnAddSlab").click(function () {
+        if (!ValidateSlabInput()) return;
+        var nMinPoint = $("#txtMin").val();
+        var nMaxPoint = $("#txtMax").val();
+        var nValue=$("#txtValue").val();
+        var sPISlab = nMinPoint+"-"+nMaxPoint;
+        bPercentOfRate=$('#chkIsIncentive').is(":checked");
+
+        var oSlabs = $('#tblPerformanceIncentiveSlab').datagrid('getRows');
+        for(var i=0;i<oSlabs.length;i++)
+        {
+            if(nMinPoint==oSlabs[i].MinPoint || nMinPoint==oSlabs[i].MaxPoint|| nMaxPoint==oSlabs[i].MinPoint || nMaxPoint==oSlabs[i].Minpoint||(nMinPoint>oSlabs[i].MinPoint && nMinPoint<oSlabs[i].MaxPoint) ||(nMaxPoint>oSlabs[i].MinPoint && nMaxPoint<oSlabs[i].MaxPoint))
+            //debugger;
+            //if(nMinPoint<=oSlabs[i].MinPoint && nMaxPoint<=oSlabs[i].MaxPoint )
+            {
+                alert("Already exist slab!");
+                return;
+                break;
+            }
+        }
+
+        if (parseFloat(nMinPoint)>parseFloat(nMaxPoint)) {
+            alert("Max should not smaller than min!");
+            $('#txtMin').focus();
+            return ;
+        }
+
+        var sBenifits="";
+        if(bPercentOfRate)
+        {
+            sBenifits= nValue+"% of Incentve Rate";
+        }
+        else
+        {
+            sBenifits=nValue;
+        }
+        oSlab={ PISlabID:0,
+                PIID :_oPerformanceIncentive.PIID,
+                MinPoint : nMinPoint,
+                MaxPoint : nMaxPoint,
+                Value :nValue,
+                PISlab: sPISlab,
+                Benifits:sBenifits
+        }
+     
+        if (!ValidateInput()) return;
+        oSlab.PerformanceIncentive = RefreshObject();
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oSlab,
+            ObjectId: oSlab.PISlabID,
+            ControllerName: "PerformanceIncentive",
+            ActionName: "PerformanceIncentiveSlab_IU",
+            TableId: "tblPerformanceIncentiveSlab",
+            IsWinClose: false,
+        };
+        
+        $.icsSave(obj, function (response) {
+            if (response.status && response.obj != null) {
+                if (response.obj.PISlabID > 0 && response.obj.PIID > 0) {
+                    debugger
+                    if(_oPerformanceIncentive.PIID<=0)
+                    {
+                        _oPerformanceIncentive=response.obj.PerformanceIncentive;
+                        var oPerformanceIncentives =sessionStorage.getItem("PerformanceIncentives");
+                        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                        if(oPerformanceIncentives!=null)
+                        {
+                            oPerformanceIncentives = jQuery.parseJSON(oPerformanceIncentives);
+                        }
+                        else
+                        {
+                            oPerformanceIncentives=[];
+                        }
+                        sessionStorage.setItem("SelectedRowIndex", oPerformanceIncentives.length);
+                        oPerformanceIncentives.push(_oPerformanceIncentive);
+                        sessionStorage.setItem("PerformanceIncentives", JSON.stringify(oPerformanceIncentives));
+                        
+                    }
+                }
+            }
+        });
+
+        //var nIndex = oSlabs.length;
+        //$('#tblPerformanceIncentiveSlab').datagrid('appendRow', oSlab);
+        //$('#tblPerformanceIncentiveSlab').datagrid('selectRow', nIndex);
+        $("#txtMin").val("");
+        $("#txtMax").val("");
+        $("#txtValue").val("");
+        //var oSlabs=[];
+        //oSlabs.push(oSlab);
+        //DynamicRefreshList(oSlabs, "tblPerformanceIncentiveSlablab");
+    });
+
+
+    function ValidateInput() {
+        if ($("#txtName").val() == null || $("#txtName").val() == "") {
+            alert("Please enter a name!");
+            $('#txtName').focus();
+            return false;
+        }
+
+        if ($("#txtDescription").val() == null || $("#txtDescription").val() == "") {
+            alert("Please enter a description!");
+            $('#txtDescription').focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    function RefreshObject() {
+        //var oPISlabs= $('#tblPerformanceIncentiveSlab').datagrid('getRows');
+        var oPerformanceIncentive = {
+            PIID: _oPerformanceIncentive.PIID,
+            Name: $("#txtName").val(),
+            //Code: $("#txtCode").val(),
+            Description: $("#txtDescription").val(),
+            SalaryHeadID:$("#cboSalaryHead").val(),
+            //PerformanceIncentiveSlabs:oPISlabs
+        };
+        return oPerformanceIncentive;
+    }
+
+    function Save() {
+        if (!ValidateInput()) return;
+        var oPerformanceIncentive = RefreshObject();
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/PerformanceIncentive/PerformanceIncentive_IU",
+            traditional: true,
+            data: JSON.stringify(oPerformanceIncentive),
+            contentType: "application/json; charset=utf-8",
+
+            success: function(data) {
+                _oPerformanceIncentive = jQuery.parseJSON(data);
+                if (_oPerformanceIncentive.ErrorMessage == "" && _oPerformanceIncentive.PIID>0)
+                {
+                    alert("Data Saved sucessfully");
+                    var oPerformanceIncentives =sessionStorage.getItem("PerformanceIncentives");
+                    var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+                    if(oPerformanceIncentives!=null)
+                    {
+                        oPerformanceIncentives = jQuery.parseJSON(oPerformanceIncentives);
+                    }
+                    else
+                    {
+                        oPerformanceIncentives=[];
+                    }
+                    if(nIndex!=-1)
+                    {
+                        oPerformanceIncentives[nIndex]=_oPerformanceIncentive;
+                    }
+                    else
+                    {
+                        sessionStorage.setItem("SelectedRowIndex", oPerformanceIncentives.length);
+                        oPerformanceIncentives.push(_oPerformanceIncentive);
+                    }
+                    sessionStorage.setItem("PerformanceIncentives", JSON.stringify(oPerformanceIncentives));
+                    window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_PerformanceIncentives?menuid="+_nMenuid;
+
+                }
+                else
+                {
+                    alert(_oPerformanceIncentive.ErrorMessage);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+    
+    $("#btnRemaoveSlab").click(function () {
+        debugger
+        var oPISlab = $('#tblPerformanceIncentiveSlab').datagrid('getSelected');
+        if (!confirm("Confirm to Delete?")) return;
+        //if (oPISlab == null || oPISlab.PISlabID <= 0) {
+        //    alert("Invalid Field!!! please select a valid Field!");
+        //    return false;
+        //}
+        
+        var SelectedRowIndex = $('#tblPerformanceIncentiveSlab').datagrid('getRowIndex', oPISlab);
+        $('#tblPerformanceIncentiveSlab').datagrid('deleteRow', SelectedRowIndex);
+        if (oPISlab.PISlabID > 0) {
+            var obj = {
+                BaseAddress: _sBaseAddress,
+                Object: oPISlab,
+                ControllerName: "PerformanceIncentive",
+                ActionName: "PISlab_Delete",
+                TableId: "tblPerformanceIncentiveSlab",
+                IsWinClose: false
+            };
+            $.icsDelete(obj);
+        }
+    });
+
+    $("#btnClose").click(function () {
+        window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_PerformanceIncentives?menuid="+_nMenuid;
+    });
+
+    $(document).keydown(function (e)
+    {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == 27)
+        {
+            window.location.href = _sBaseAddress+ "/PerformanceIncentive/View_SalarySchemes_V1?menuid="+_nMenuid;
+        }
+    });
+
+
+</script>

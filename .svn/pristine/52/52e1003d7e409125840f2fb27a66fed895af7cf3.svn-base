@@ -1,0 +1,152 @@
+﻿@model IEnumerable<ESimSol.BusinessObjects.ChequeHistory>
+    @{
+        ViewBag.Title = "Cheque History";
+    }
+    <html>
+    <body>
+
+        <div id="divChequeHistorys" class="easyui-panel" title="Cheque History List" style="font-family:Tahoma; height:100%; width:100%">
+            <table id="tblChequeHistorys" class="easyui-datagrid" fitcolumns="true" fit="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+                <thead>
+                    <tr>
+                        <th field="PreviousStatusInString" width="120">Previous Status</th>
+                        <th field="CurrentStatusInString" width="120">Current Status</th>
+                        <th field="OperationByName" width="200">Operation By</th>
+                        <th field="Note" width="120">Remarks</th>
+                        <th field="ChangeLog" width="350">Change Log</th>
+                        <th field="OperationDateTimeInString" width="160">Operation Time</th>
+                    </tr>
+                </thead>
+            </table>
+            <div id="toolbar">
+                <input type="text" placeholder="Write Cheque ID to Search" id="txtName" style="width:200px" />
+                <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true" onclick="RefreshData()">Refresh</a>
+                <a id="btnPrintList" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeHistory()">Print List</a>
+                <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true" onclick="PrintChequeHistoryInXL()">Print in XL</a>
+            </div>
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping = [];
+    var _oChequeHistorys=[];
+    var _oChequeHistory={ErrorMessage:''};
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _oChequeHistorys =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        RefreshList(_oChequeHistorys);
+        RefreshControlLayout();
+    });
+    $('#btnPayment').click(function ()
+    {
+        //RefreshArguments();
+        window.open(_sBaseAddress+'/ChequeHistory/PrintPayment?id=0', "_blank");
+    });
+    function PrintChequeHistory()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/ChequeHistory/PrintChequeHistorys?arguments='+_oChequeHistory.ErrorMessage, "_blank");
+    }
+    function PrintChequeHistoryInXL()
+    {
+        RefreshArguments();
+        window.open(_sBaseAddress+'/ChequeHistory/PrintChequeHistorysInXL?arguments='+_oChequeHistory.ErrorMessage, "_blank");
+    }
+    $('#txtName').keypress(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            debugger;
+            var txtName=$("#txtName").val();
+            if(txtName!=null)
+            {
+                RefreshData();
+            }
+        }
+    });
+    function RefreshArguments()
+    {
+        var arg='Arguments;';
+        var txtName=$("#txtName").val();
+        if(txtName!=null)
+        {
+            arg=arg+txtName+'~';
+        }
+        var oCurrentList = $('#tblChequeHistorys').datagrid('getRows'),sChequeHistoryIDs="";
+        if(oCurrentList!=null&&oCurrentList.length>0){
+            for(var i=0;i<oCurrentList.length;++i){
+                sChequeHistoryIDs=sChequeHistoryIDs+oCurrentList[i].ChequeHistoryID+",";
+            }
+            arg=arg+sChequeHistoryIDs.substr(0,sChequeHistoryIDs.length-1)+'~';
+        }
+        _oChequeHistory.ErrorMessage=arg;
+    }
+    function RefreshData()
+    {
+        RefreshArguments();
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+  "/ChequeHistory/Refresh",
+            traditional: true,
+            data:  JSON.stringify(_oChequeHistory),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                _oChequeHistorys = jQuery.parseJSON(data);
+                if(_oChequeHistorys!=null && _oChequeHistorys.length>0){
+                    $('#divChequeHistorys').panel({ title:_oChequeHistorys[0].ErrorMessage});
+                    RefreshList(_oChequeHistorys);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+    }
+
+
+    function RefreshList(oChequeHistorys)
+    {
+        data = oChequeHistorys;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblChequeHistorys').datagrid('loadData',data);
+    }
+
+
+
+
+    function RefreshControlLayout()
+    {
+
+        document.getElementById('btnPrintList').style.display = 'none';
+        document.getElementById('btnPrintXL').style.display = 'none';
+
+
+        if(HavePermission('PrintList','ChequeHistory')){document.getElementById('btnPrintList').style.display = '';}
+        if(HavePermission('PrintList','ChequeHistory')){document.getElementById('btnPrintXL').style.display = '';}
+
+    }
+
+    function HavePermission(sOperationType, sDbObject)
+    {
+        var nSessionID =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.currentUserID]));
+        if(nSessionID == -9) //check Superuser
+        {
+            return true;
+        }else
+        {
+
+            for(var i =0;i<_oAuthorizationRolesMapping.length;i++)
+            {
+                if(_oAuthorizationRolesMapping[i].OperationTypeInString == sOperationType && _oAuthorizationRolesMapping[i].DBObjectName == sDbObject)
+                    return  true;
+            }
+            return false;
+        }
+    }
+</script>
+
+
+

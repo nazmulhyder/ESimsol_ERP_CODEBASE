@@ -1,0 +1,158 @@
+﻿@{
+    ViewBag.Title = "Employee Code";
+}
+@model IEnumerable<ESimSol.BusinessObjects.EmployeeCode>
+    <div style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblEmployeeCode" title="Employee Code List" class="easyui-datagrid" fit="true" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true"  autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="EmpCode" width="200">Code</th>
+                    <th field="LocationName" width="200">Location</th>
+                    <th field="DepartmentName" width="200">Department</th>
+                    <th field="DesignationName" width="200">Designation</th>
+                    <th field="CompanyName" width="200">Company</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input type="text" id="txtSearchByCode" placeholder="Search by name" style="width:200px" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnEdit" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-edit" plain="true">Edit</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    var _sBaseAddress="";
+    var _oAuthorizationRolesMapping = [];
+    var _nSessionCurrentCompanyID=0;
+    var _oEmployeeCodes=[];
+
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oAuthorizationRolesMapping =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.AuthorizationRolesMapping]));
+        _nSessionCurrentCompanyID = @Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.CurrentCompanyID]));
+        _oEmployeeCodes =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        debugger
+        var oEmployeeCodes =sessionStorage.getItem("EmployeeCodes");
+        if(oEmployeeCodes!=null)
+        {
+            oEmployeeCodes = jQuery.parseJSON(oEmployeeCodes);
+        }
+        else
+        {
+            oEmployeeCodes=_oEmployeeCodes;
+        }
+        RefreshList(oEmployeeCodes);
+        //DynamicRefreshList(oEmployeeCodes, "tblEmployeeCode");
+        sessionStorage.clear();
+    });
+
+    function RefreshList(oEmployeeCodes)
+    {
+        data = oEmployeeCodes;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblEmployeeCode').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblEmployeeCode').datagrid('selectRow',nIndex);
+    }
+
+    $('#txtSearchByCode').keypress(function (e) {
+        var c = String.fromCharCode(e.which);
+        var txtSearchByCode = document.getElementById('txtSearchByCode').value;
+        txtSearchByCode = txtSearchByCode + c;
+        var bFlag=false;
+        var sTempCode="";
+        var rows = $('#tblEmployeeCode').datagrid('getRows');
+        for(i=0;i<rows.length;++i){
+            sTempCode=rows[i]['EmpCode'].substring(0, txtSearchByCode.length);
+            if(txtSearchByCode.toUpperCase()==sTempCode.toUpperCase())
+            {
+                bFlag=true;
+                break;
+            }
+        }
+        if(bFlag)
+        {
+            $('#tblEmployeeCode').datagrid('selectRow', i);
+        }
+    });
+
+    $("#btnAdd").click(function(){
+            
+        var oEmployeeCodes= $('#tblEmployeeCode').datagrid('getRows');
+        sessionStorage.setItem("EmployeeCodes", JSON.stringify(oEmployeeCodes));
+        sessionStorage.setItem("SelectedRowIndex", -1);
+        sessionStorage.setItem("EmployeeCodeHeader", "Add Employee Code");
+        window.location.href = _sBaseAddress+ "/EmployeeCode/View_EmployeeCode?sid=0&sMsg=N/A";
+
+    });
+
+    
+    $("#btnEdit").click(function(){
+   
+        var oEmployeeCode= $('#tblEmployeeCode').datagrid('getSelected');
+        if(oEmployeeCode==null || oEmployeeCode.EmployeeCodeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+
+        var SelectedRowIndex=$('#tblEmployeeCode').datagrid('getRowIndex',oEmployeeCode);
+        var oEmployeeCodes= $('#tblEmployeeCode').datagrid('getRows');
+        sessionStorage.setItem("EmployeeCodes", JSON.stringify(oEmployeeCodes));
+        sessionStorage.setItem("SelectedRowIndex", SelectedRowIndex);
+        sessionStorage.setItem("EmployeeCodeHeader", "Edit Employee Code");
+        window.location.href = _sBaseAddress+ "/EmployeeCode/View_EmployeeCode?sid="+oEmployeeCode.EncryptEmployeeCodeID+"&sMsg=N/A";
+
+    });
+
+    $("#btnDelete").click(function(){
+     
+        var oEmployeeCode = $('#tblEmployeeCode').datagrid('getSelected');
+        if(oEmployeeCode==null || oEmployeeCode.EmployeeCodeID<=0)
+        {
+            alert("Please select a item from list!");
+            return;
+        }
+        var conf = confirm("Confirm to delete?");
+        if(conf==false)return;
+        var SelectedRowIndex = $('#tblEmployeeCode').datagrid('getRowIndex', oEmployeeCode);
+        $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url: _sBaseAddress + "/EmployeeCode/EmployeeCode_Delete",
+                traditional: true,
+                data: JSON.stringify(oEmployeeCode),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    
+                    feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage == "" || feedbackmessage == null) {
+                        alert("Delete sucessfully!");
+                        $('#tblEmployeeCode').datagrid('deleteRow', SelectedRowIndex);
+
+                    }
+                    else {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+
+        //var obj = {
+        //    BaseAddress: _sBaseAddress,
+        //    Object: oEmployeeCode,
+        //    ControllerName: "EmployeeCode",
+        //    ActionName: "EmployeeCode_Delete",
+        //    TableId: "tblEmployeeCode",
+        //    IsWinClose: false
+        //};
+        //$.icsDelete(obj);
+    });
+
+    </script>

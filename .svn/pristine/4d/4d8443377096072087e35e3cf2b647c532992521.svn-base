@@ -1,0 +1,529 @@
+﻿@{
+    ViewBag.Title = "FN Batch Receive";
+}
+<html>
+<body>
+    @model IEnumerable<ESimSol.BusinessObjects.FNBatchQC>
+        <div class="menuMainCollectionTable">
+            <div class="easyui-panel" title="Fabric Receive In Delivery" style="font-family:Tahoma;text-align:center; width:100%;height:100%;">
+                <div style="height:17%">
+                    <fieldset>
+                        <legend>Fabric Batch Info </legend>
+                        <table border="0" cellpadding="1" cellspacing="1">
+                            <tr>
+                                <td style="width:190px; text-align:right;">Dispo No:</td>
+                                <td style="width:400px;text-align:left;"><select style="width:72%;" id="cboFabricBatch" class="ChageBatchIssue" /><input type="text" style="width:25%; text-align:left;" id="txtOrderNoPick" placeholder="Type Batch No&press enter"  /> </td>
+                                <td style="width:20px"></td>
+                                <td style="width:190px; text-align:right;">Order No :</td>
+                                <td style="width:350px;text-align:left;">
+                                    <table border="0" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="width:140px;"><input type="text" style="width:140px; text-align:left;" id="txtOrderNo" disabled /></td>
+                                            <td style="width:70px; text-align:right;">Status:</td>
+                                            <td style="width:140px;text-align:left;"><input type="text" style="width:140px;" id="txtStatus" disabled /></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="width:190px; text-align:right;">Construction :</td>
+                                <td style="width:400px;text-align:left;">
+                                    <input type="text" style="width:400px;" id="txtConstruction" disabled />
+                                </td>
+                                <td style="width:20px"></td>
+                                <td style="width:190px; text-align:right;">Buyer :</td>
+                                <td style="width:350px;text-align:left;">
+                                    <input type="text" style="width:350px;" id="txtBuyer" disabled />
+                                </td>
+                            </tr>
+
+                        </table>
+                    </fieldset>
+                </div>
+                <div style="height:83%;width:100%">
+                    <table id="tblFNBatchQCDetail" title="Roll Details" class="easyui-datagrid" style="height:100%;width:100%" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbarQCDetail"
+                           data-options="rowStyler: function(index,row){if (row.RcvByID!=0){return 'background-color:#6293BB;color:#fff;font-weight:bold;';}}">
+                        <thead>
+                            <tr>
+                                <th data-options="field:'Selected',checkbox:true"></th>
+                                <th field="LotNo" width="150">Roll No</th>
+                                <th field="GradeStr" width="100">Grade</th>
+                                <th field="Qty" width="150" align="right">Length(Y)</th>
+                                <th field="QtyInMtr" width="150" align="right">Length(M)</th>
+                                <th field="LockDateStr" width="100">Delivery Date</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div id="toolbarQCDetail">
+                        Store: <select id="cboStore" style="width:250px;"></select>
+                        <a id="btnReceive" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="Receive()">Receive</a>
+                        @*<a id="btnReceiveNew" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-save" plain="true" onclick="ReceiveNew()">Receive</a>*@
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Preview</a>
+                        <label id="lblTotalQty" style="text-align: right; font-size:12px; float: right; font-weight:bold;">0.00</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+</body>
+</html>
+
+
+<script type="text/javascript">
+    var _sBaseAddress="";
+    $(document).ready(function () {
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        var oFNBatchQCs =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oStores = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(@ViewBag.Stores));
+
+        $("#cboFabricBatch").data('FNBatchQCs',oFNBatchQCs);
+        $("#cboFabricBatch").data('FNBatchQC',null);
+        $("#cboFabricBatch").icsLoadCombo({List: oFNBatchQCs,OptionValue: "FNBatchQCID",DisplayText: "FNBatchNo"});
+        $("#cboStore").icsLoadCombo({List: oStores,OptionValue: "WorkingUnitID",DisplayText: "WorkingUnitName"});
+    });
+
+    $(".ChageBatchIssue").change(function(){
+        if ($("#cboFabricBatch").val()==0)
+        {
+            $("#cboFabricBatch").data('FNBatchQC',null);
+            DynamicRefreshListForMultipleSelection([],"tblFNBatchQCDetail");
+            $("#txtOrderNo").val('');
+            $("#txtStatus").val('');
+            $("#txtConstruction").val('');
+            $("#txtBuyer").val('');
+        }
+        else{
+            for (var i=0;i<$("#cboFabricBatch").data('FNBatchQCs').length;i++)
+            {
+                if(parseInt($("#cboFabricBatch").data('FNBatchQCs')[i].FNBatchQCID) == parseInt($("#cboFabricBatch").val()) )
+                {
+                    $("#cboFabricBatch").data('FNBatchQC',$("#cboFabricBatch").data('FNBatchQCs')[i]);
+                    break;
+                }
+            }
+
+            if($("#cboFabricBatch").data('FNBatchQC')!=null && $("#cboFabricBatch").data('FNBatchQC').FNBatchQCID>0)
+            {
+                $("#txtOrderNo").val($("#cboFabricBatch").data('FNBatchQC').FNExONo);
+                $("#txtOrderNoPick").val($("#cboFabricBatch").data('FNBatchQC').FNExONo);
+                
+                $("#txtStatus").val($("#cboFabricBatch").data('FNBatchQC').FNBatchStatusStr);
+                $("#txtConstruction").val($("#cboFabricBatch").data('FNBatchQC').Construction);
+                $("#txtBuyer").val($("#cboFabricBatch").data('FNBatchQC').BuyerName);
+
+                var oFNBatchQCDetail={
+                    FNBatchQCID:$("#cboFabricBatch").data('FNBatchQC').FNBatchQCID
+                }
+
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oFNBatchQCDetail,
+                    ControllerName: "FNBatch",
+                    ActionName: "GetFNBatchQCDetails",
+                    IsWinClose: false
+                };
+                $.icsDataGets(obj, function (response) {
+                    if (response.status && response.objs.length > 0) {
+                        if (response.objs[0].FNBatchQCDetailID > 0) {
+                            DynamicRefreshListForMultipleSelection(response.objs,"tblFNBatchQCDetail");
+                        }
+                        else {
+                            alert(response.objs[0].ErrorMessage);
+                        }
+                        RefreshTotal();
+                    }
+                    else
+                    {
+                        alert("Sorry, No FN Batch Detail Found.");
+                    }
+                });
+            
+            }
+
+        }
+    });
+
+    function RefreshTotal()
+    {
+        var nLotNo=0;
+        var nQty=0;
+        var nQtyInMtr=0;
+        var oFNBatchQCDetails = $('#tblFNBatchQCDetail').datagrid('getRows');
+        for (var i = 0; i < oFNBatchQCDetails.length; i++) {
+           
+            nLotNo = nLotNo+1;
+            nQty = nQty + parseFloat(oFNBatchQCDetails[i].Qty);
+            nQtyInMtr = nQtyInMtr + parseFloat(oFNBatchQCDetails[i].QtyInMtr);
+        }
+        document.getElementById("lblTotalQty").innerHTML = "Total Roll: "+nLotNo + ", Length: " + formatPrice(nQty)+ "Y, " + formatPrice(nQtyInMtr)+"M";
+    }
+    $('#btnPrint').click(function(){
+        var nFNBatchQCID =$("#cboFabricBatch").data('FNBatchQC').FNBatchQCID;
+        if(nFNBatchQCID<1)
+        {
+            alert("Please Select Any Dispo Fisrt");
+            return;
+        }
+        window.open(_sBaseAddress+"/FNBatch/PrintStockLedger?nID=" + nFNBatchQCID);
+    });
+
+    function Receive()
+    {
+        debugger
+        var oFNBatchQCDetail={
+            WorkingUnitID : 0,
+            FNBatchQCID: parseInt($("#cboFabricBatch").data('FNBatchQC').FNBatchQCID)
+        }
+        if(parseInt($('#cboStore').val())<=0)
+        {
+            alert("Select Store.");
+            return false;
+        }
+        var oFNBatchQCDetails = $("#tblFNBatchQCDetail").datagrid("getChecked");
+        if(oFNBatchQCDetails.length == 0)
+        {
+            alert("Select item(s) from list.!");
+            return false;
+        }
+        var nLength = oFNBatchQCDetails.length;
+        var sFNBatchQCDetailIDs="";
+        var sRejectedListIDs="";
+
+        debugger;
+        var nCountReject = 0;
+        var bIsAllRejectItem = false;
+        var bHasNonRejectedItem = false;
+
+        $.map(oFNBatchQCDetails, function (c){
+            if(c.RcvByID == 0 && c.Grade == 5) {
+                nCountReject++;
+                sRejectedListIDs = c.FNBatchQCDetailID + "," + sRejectedListIDs;
+                bIsAllRejectItem = true;
+            }
+            if(c.RcvByID == 0 && c.Grade != 5) {
+                sFNBatchQCDetailIDs = c.FNBatchQCDetailID + "," + sFNBatchQCDetailIDs;
+                bHasNonRejectedItem = true;
+            }
+        });
+
+        if(bIsAllRejectItem && !bHasNonRejectedItem)
+        {
+            if (!confirm("Confirm to receive (Your selected all item's grade are 'Reject')?")) return false;
+            sFNBatchQCDetailIDs = sRejectedListIDs;
+            bIsAllRejectItem = true;
+        }
+        if($.trim(sFNBatchQCDetailIDs) == "")
+        {
+            alert("Your selected item(s) already received.");
+            return false;
+        }
+        else
+        {
+            sFNBatchQCDetailIDs = sFNBatchQCDetailIDs.substring(0,sFNBatchQCDetailIDs.length-1);
+        }
+        if(nCountReject > 0 && bHasNonRejectedItem)
+        {
+            var bConfirmation = confirm(nCountReject  + " rejected item" + (nCountReject > 1 ? "s" : "") + " found. Continue without reject items ?");
+            if(!bConfirmation)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(!bIsAllRejectItem)
+            {
+                if (!confirm("Confirm to receive?")) return false;
+            }
+        }
+        oFNBatchQCDetail.WorkingUnitID = parseInt($("#cboStore").val());
+        oFNBatchQCDetail.FNBatchQCDetailIDs = sFNBatchQCDetailIDs;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FNBatch/ReceiveFNBatchQC",
+            traditional: true,
+            data:  JSON.stringify(oFNBatchQCDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oFNBatchQCDetail = jQuery.parseJSON(data);
+                if($.trim(oFNBatchQCDetail.ErrorMessage) == "")
+                {
+                    alert("Successfully Received");
+                    if(oFNBatchQCDetail.FNBatchQCDetails.length>0)
+                    {
+                        $.map(oFNBatchQCDetail.FNBatchQCDetails,function(obj){
+                            obj.Qty = parseFloat(obj.Qty.toFixed(2));
+                        });
+                    }
+                    DynamicRefreshListForMultipleSelection(oFNBatchQCDetail.FNBatchQCDetails,"tblFNBatchQCDetail");
+                    $('#txtStatus').val(oFNBatchQCDetail.FNBatchQC.FNBatchStatusStr);
+                    RefreshTotal();
+                }
+                else {
+                    alert(oFNBatchQCDetail.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    function ReceiveNew()
+    {
+        debugger
+        var oFNBatchQCDetail={
+            WorkingUnitID : 0,
+            FNBatchQCID: parseInt($("#cboFabricBatch").data('FNBatchQC').FNBatchQCID)
+        }
+        if(parseInt($('#cboStore').val())<=0)
+        {
+            alert("Select Store.");
+            return false;
+        }
+        var oFNBatchQCDetails = $("#tblFNBatchQCDetail").datagrid("getChecked");
+        if(oFNBatchQCDetails.length == 0)
+        {
+            alert("Select item(s) from list.!");
+            return false;
+        }
+        var nLength = oFNBatchQCDetails.length;
+        var sFNBatchQCDetailIDs="";
+        var sRejectedListIDs="";
+
+        debugger;
+        var nCountReject = 0;
+        var bIsAllRejectItem = false;
+        var bHasNonRejectedItem = false;
+
+        $.map(oFNBatchQCDetails, function (c){
+            if(c.RcvByID == 0 && c.Grade == 5) {
+                nCountReject++;
+                sRejectedListIDs = c.FNBatchQCDetailID + "," + sRejectedListIDs;
+                bIsAllRejectItem = true;
+            }
+            if(c.RcvByID == 0 && c.Grade != 5) {
+                sFNBatchQCDetailIDs = c.FNBatchQCDetailID + "," + sFNBatchQCDetailIDs;
+                bHasNonRejectedItem = true;
+            }
+        });
+
+        if(bIsAllRejectItem && !bHasNonRejectedItem)
+        {
+            if (!confirm("Confirm to receive (Your selected all item's grade are 'Reject')?")) return false;
+            sFNBatchQCDetailIDs = sRejectedListIDs;
+            bIsAllRejectItem = true;
+        }
+        if($.trim(sFNBatchQCDetailIDs) == "")
+        {
+            alert("Your selected item(s) already received.");
+            return false;
+        }
+        else
+        {
+            sFNBatchQCDetailIDs = sFNBatchQCDetailIDs.substring(0,sFNBatchQCDetailIDs.length-1);
+        }
+        if(nCountReject > 0 && bHasNonRejectedItem)
+        {
+            var bConfirmation = confirm(nCountReject  + " rejected item" + (nCountReject > 1 ? "s" : "") + " found. Continue without reject items ?");
+            if(!bConfirmation)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(!bIsAllRejectItem)
+            {
+                if (!confirm("Confirm to receive?")) return false;
+            }
+        }
+        oFNBatchQCDetail.WorkingUnitID = parseInt($("#cboStore").val());
+        oFNBatchQCDetail.FNBatchQCDetailIDs = sFNBatchQCDetailIDs;
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/FNBatch/ReceiveFNBatchQCNew",
+            traditional: true,
+            data:  JSON.stringify(oFNBatchQCDetail),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oFNBatchQCDetail = jQuery.parseJSON(data);
+                if($.trim(oFNBatchQCDetail.ErrorMessage) == "")
+                {
+                    alert("Successfully Received");
+                    if(oFNBatchQCDetail.FNBatchQCDetails.length>0)
+                    {
+                        $.map(oFNBatchQCDetail.FNBatchQCDetails,function(obj){
+                            obj.Qty = parseFloat(obj.Qty.toFixed(2));
+                        });
+                    }
+                    DynamicRefreshListForMultipleSelection(oFNBatchQCDetail.FNBatchQCDetails,"tblFNBatchQCDetail");
+                    $('#txtStatus').val(oFNBatchQCDetail.FNBatchQC.FNBatchStatusStr);
+                    RefreshTotal();
+                }
+                else {
+                    alert(oFNBatchQCDetail.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    }
+
+    $("#txtOrderNoPick").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+
+            var sTemp=$("#txtOrderNoPick").val() +'~'+ "" +'~'+ 0 +'~'+ icsdateformat(new Date) +'~'+ icsdateformat(new Date) +'~'+ "" +'~'+ "";
+            var oFNBatchQC= {
+                Params :sTemp,
+            };
+            GetsOrders(oFNBatchQC);
+        }
+        //else if(nkeyCode==8){
+        //    $("#txtOrderNoPick").val("");
+
+        //}
+    });
+
+    function GetsOrders(oFNBatchQC) {
+
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oFNBatchQC,
+            ControllerName: "FNBatch",
+            ActionName: "GetsFNBatchQC",
+            IsWinClose: false
+        };
+
+        //$("#progressbar").progressbar({ value: 0 });
+        //$("#progressbarParent").show();
+        //var intervalID = setInterval(updateProgress, 250);
+
+        $.icsDataGets(obj, function (response) {
+            //clearInterval(intervalID);
+            //$("#progressbarParent").hide();
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].FNBatchQCID > 0) {
+                    var tblColums = []; var oColumn = { field: "FNBatchNo", title: "BatchNo", width: 200, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "FNExONo", title: "FNExONo", width: 280, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BatchQty", title: "BatchQty", width: 280, align: "left" }; tblColums.push(oColumn);
+                    oColumn = { field: "BatchQty", title: "BatchQty", width: 280, align: "left" }; tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winFNBatchNo',
+                        winclass: 'clsFNBatchNo',
+                        winwidth: 500,
+                        winheight: 460,
+                        tableid: 'tblFNBatchNo',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName: 'FNBatchNo',
+                        windowTittle: 'Batch No'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);
+                }
+                else {
+                    alert(response.objs[0].ErrorMessage);
+                }
+            }
+            else {
+                alert("Sorry, Data not Found.");
+            }
+        });
+    }
+
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            //for Single Select
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which == 13)//enter=13
+            {
+                SetPickerValueAssign(oPickerobj);
+
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        debugger;
+        var oreturnObj = null, oreturnobjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnobjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    
+        if (oPickerobj.winid=='winFNBatchNo')
+        {
+            if(oreturnObj!=null && parseInt(oreturnObj.FNBatchQCID)>0)
+            {
+                var txtName = document.getElementById("txtOrderNoPick");
+                txtName.style.color = "blue";
+                txtName.style.fontWeight = "bold";
+                $('#txtOrderNoPick').val(oreturnObj.FNBatchNo);
+                $('#txtOrderNoPick').focus();
+                $("#txtOrderNoPick").addClass("errorFieldBorder");
+
+                $("#txtOrderNo").val(oreturnObj.FNExONo);
+                
+                $("#txtStatus").val(oreturnObj.FNBatchStatusStr);
+                $("#txtConstruction").val(oreturnObj.Construction);
+                $("#txtBuyer").val(oreturnObj.BuyerName);
+               
+                $("#cboFabricBatch").data('FNBatchQC',oreturnObj);
+                $("#cboFabricBatch").val(oreturnObj.FNBatchQCID);
+           //     $("#cboFabricBatch").data('FNBatchQC',$("#cboFabricBatch").data('FNBatchQCs')[i]);
+                //var oFNBatchQCs=null;
+                //oFNBatchQCs.push(oreturnObj);
+                //$("#cboFabricBatch").icsLoadCombo({List: oFNBatchQCs,OptionValue: "FNBatchQCID",DisplayText: "FNBatchNo"});
+
+                var oFNBatchQCDetail={
+                    FNBatchQCID:oreturnObj.FNBatchQCID
+                }
+
+                var obj = {
+                    BaseAddress: _sBaseAddress,
+                    Object: oFNBatchQCDetail,
+                    ControllerName: "FNBatch",
+                    ActionName: "GetFNBatchQCDetails",
+                    IsWinClose: false
+                };
+                $.icsDataGets(obj, function (response) {
+                    if (response.status && response.objs.length > 0) {
+                        if (response.objs[0].FNBatchQCDetailID > 0) {
+                            DynamicRefreshListForMultipleSelection(response.objs,"tblFNBatchQCDetail");
+                        }
+                        else {
+                            alert(response.objs[0].ErrorMessage);
+                        }
+                        RefreshTotal();
+                    }
+                    else
+                    {
+                        alert("Sorry, No FN Batch Detail Found.");
+                    }
+                });
+
+
+            }
+            else{
+                alert("Data Not Found.");
+            }
+        }
+       
+        else {
+            alert("Data not found");
+            return false;
+        }
+    }
+
+</script>

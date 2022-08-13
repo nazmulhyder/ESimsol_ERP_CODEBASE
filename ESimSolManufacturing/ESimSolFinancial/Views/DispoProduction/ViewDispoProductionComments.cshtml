@@ -1,0 +1,282 @@
+﻿@{
+    ViewBag.Title = "Comment List";
+}
+@model IEnumerable<ESimSol.BusinessObjects.DispoProductionComment>
+    <div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+        <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+            <label style="font-size:18px;">Please wait</label>
+            <div id="progressbar" style="width:100%;height:37px;"></div>
+        </div>
+    </div>
+
+    <div class="menuMainCollectionTable" id="regionDispoProductionComment" style="height:90%;width:100%;">
+        <table id="tblDispoProductionComments" title="Comment List" class="easyui-datagrid" fit="true" fitcolumns="false" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="Comment" width="55%">Comment</th>
+                    <th field="CommentDateInString" width="15%">Date</th>
+                    <th field="UserName" width="15%">User</th>
+                    <th field="IsOwnInString" width="10%">Own/All</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <input id="txtComment" type="text" placeholder="Write Comment & Press enter" style="width:60%" />
+            <a id="btnAdd" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true">Add</a>
+            <a id="btnDelete" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-remove" plain="true">Delete</a>
+            <a id="btnOwnOrAll" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-ok" plain="true">Own/All</a>
+            <a id="btnCommentViewr" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Comment Viewer</a>
+            <a id="btnAddAttachment" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-add" plain="true" >Add Attachment</a>
+            <a id="btnImageView" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Image</a> @*161100079*@
+        </div>
+    </div>
+    <fieldset style="height:10%">
+            <legend style="font-weight: bold">Action : </legend>
+            <table border="0" cellspacing="2" cellpadding="2" style="font-size: 11px; font-weight: bold; width:100%">
+                <tr>
+                    <td style="width:60%; text-align:right"></td>
+                    <td style="width:40%;text-align:right;">
+                        <a id="btnClose" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-cancel" plain="true">Close</a>
+                    </td>
+                </tr>
+            </table>
+        </fieldset>
+
+    <script type="text/javascript">
+    debugger;
+    var _oDispoProductionComment=null;
+    var _oDispoProductionComments=[];
+    var _sBaseAddress="";
+    var _oFabricSalesContractDetail = {};
+    $(document).ready(function () {
+        debugger;
+        _oDispoProductionComments =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _oFabricSalesContractDetail = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.FabricSalesContractDetail));
+        RefreshList(_oDispoProductionComments);
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+
+    function updateProgress() {
+        var value =$('#progressbar').progressbar('getValue');
+        if (value < 96){
+            value += Math.floor(Math.random() * 10);
+            $('#progressbar').progressbar('setValue', value);
+        }
+    }
+    function hideShow(miliseconds) {
+        $("#progressbarParent").hide();
+    }
+    function RefreshList(oDispoProductionComments)
+    {
+        debugger;
+        var data=oDispoProductionComments;
+        data={"total":""+data.length+"","rows":data};
+        $('#tblDispoProductionComments').datagrid('loadData',data);
+        var nIndex= parseInt(sessionStorage.getItem("SelectedRowIndex"));
+        $('#tblDispoProductionComments').datagrid('selectRow',nIndex);
+    }
+    $("#btnClose").click(function () {
+        var win = window.open("","_self");
+        win.close();
+    })
+
+    $('#txtComment').keyup(function (e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13)//Enter key-13
+        {
+            if($.trim($("#txtComment").val()) == ""){
+                alert("Please write comment!!");
+                $("#txtComment").focus();
+                return;
+            }
+            var oObj = {
+                DispoProductionCommentID: 0,
+                FSCDID: _oFabricSalesContractDetail.FabricSalesContractDetailID,
+                Comment: $.trim($("#txtComment").val())
+            }
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+"/DispoProduction/SaveComment",
+                traditional: true,
+                data:  JSON.stringify(oObj),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    //debugger;
+                    var oDispoProductionComments = jQuery.parseJSON(data);
+                    if(oDispoProductionComments.length > 0){
+                        if (oDispoProductionComments[0].ErrorMessage==null || oDispoProductionComments[0].ErrorMessage=="") {
+                            //alert("Data Saved successfully");
+                            DynamicRefreshList(oDispoProductionComments,'tblDispoProductionComments');
+                            $("#txtComment").val("");
+                            $('#tblDispoProductionComments').datagrid('selectRow',0);
+                        }
+                        else {
+                            alert(oDispoProductionComments[0].ErrorMessage);
+                        }
+                    }else{
+                        alert("No Data found!!");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert(error);
+                }
+
+            });
+        }
+    });
+
+    $("#btnAdd").click(function(){
+        if($.trim($("#txtComment").val()) == ""){
+            alert("Please write comment!!");
+            $("#txtComment").focus();
+            return;
+        }
+        var oObj = {
+            DispoProductionCommentID: 0,
+            FSCDID: _oFabricSalesContractDetail.FabricSalesContractDetailID,
+            Comment: $.trim($("#txtComment").val())
+        }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DispoProduction/SaveComment",
+            traditional: true,
+            data:  JSON.stringify(oObj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oDispoProductionComments = jQuery.parseJSON(data);
+                if(oDispoProductionComments.length > 0){
+                    if (oDispoProductionComments[0].ErrorMessage==null || oDispoProductionComments[0].ErrorMessage=="") {
+                        //alert("Data Saved successfully");
+                        DynamicRefreshList(oDispoProductionComments,'tblDispoProductionComments');
+                        $("#txtComment").val("");
+                        $('#tblDispoProductionComments').datagrid('selectRow',0);
+                    }
+                    else {
+                        alert(oDispoProductionComments[0].ErrorMessage);
+                    }
+                }else{
+                    alert("No Data found!!");
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    });
+    
+    $("#btnDelete").click(function(){
+        var oDispoProductionComment= $('#tblDispoProductionComments').datagrid('getSelected');
+        if(oDispoProductionComment==null || oDispoProductionComment.DispoProductionCommentID<=0)
+        {
+            alert("Invalid Field!!! please select a valid Field!");
+            return false;
+        }
+
+        if (!confirm("Confirm to Delete?")) return ;
+        var SelectedRowIndex=$('#tblDispoProductionComments').datagrid('getRowIndex',oDispoProductionComment);
+        if (oDispoProductionComment.DispoProductionCommentID > 0)
+        {
+            $.ajax
+            ({
+                type: "POST",
+                dataType: "json",
+                url : _sBaseAddress+  "/DispoProduction/DeleteComment",
+                data: JSON.stringify(oDispoProductionComment),
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    var feedbackmessage = jQuery.parseJSON(data);
+                    if (feedbackmessage.toLowerCase() == "deleted")
+                    {
+                        alert("Delete sucessfully!!");
+                        $('#tblDispoProductionComments').datagrid('deleteRow',SelectedRowIndex);
+                        //var oDispoProductionComments= $('#tblDispoProductionComments').datagrid('getRows');
+                        //sessionStorage.setItem("DispoProductionComments", JSON.stringify(oDispoProductionComments));
+                    }
+                    else
+                    {
+                        alert(feedbackmessage);
+                    }
+                },
+                error: function (xhr, status, error)
+                {
+                    alert(error);
+                }
+            });
+        }
+    });
+
+    $("#btnCommentViewr").click(function ()
+    {
+        var nts = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress+ "/DispoProduction/PrintCommentViewr?nFSCDID="+_oFabricSalesContractDetail.FabricSalesContractDetailID+"&nts="+nts, "_blank");
+    });
+
+    $("#btnImageView").click(function ()
+    {
+        var nts = ((new Date()).getTime()) / 1000;
+        window.open(_sBaseAddress+ "/DispoProduction/PrintImageView?nFSCDID="+_oFabricSalesContractDetail.FabricSalesContractDetailID+"&nts="+nts, "_blank");
+    });
+
+    $("#btnOwnOrAll").click(function ()
+    {
+        var oComment= $('#tblDispoProductionComments').datagrid('getSelected');
+        if(oComment == null || oComment.DispoProductionCommentID <= 0){
+            alert("Please Select a Comment!!");
+            return;
+        }
+        var sMsg = "";
+        if(oComment.IsOwn){
+            sMsg = "Confirm to all?";
+        }else{
+            sMsg = "Confirm to make it own?";
+        }
+        if (!confirm(sMsg)) return ;
+        if(oComment.IsOwn)
+            oComment.IsOwn = false;
+        else
+            oComment.IsOwn = true;
+        var SelectedRowIndex=$('#tblDispoProductionComments').datagrid('getRowIndex',oComment);
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : _sBaseAddress+"/DispoProduction/MakeOwnOrAll",
+            traditional: true,
+            data:  JSON.stringify(oComment),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                //debugger;
+                var oDispoProductionComment = jQuery.parseJSON(data);
+                if (oDispoProductionComment.ErrorMessage==null || oDispoProductionComment.ErrorMessage=="") {
+                    alert("Updated successfully");
+                    $('#tblDispoProductionComments').datagrid('updateRow',{ index: SelectedRowIndex, row: oDispoProductionComment });
+                }
+                else {
+                    alert(oDispoProductionComment.ErrorMessage);
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+
+        });
+
+    });
+
+    $("#btnAddAttachment").click(function ()
+    {
+        var oComment= $('#tblDispoProductionComments').datagrid('getSelected');
+        if(oComment == null || oComment.DispoProductionCommentID <= 0){
+            alert("Please Select a Comment!!");
+            return;
+        }
+        window.open(_sBaseAddress + '/DispoProduction/ViewDispoProductionAttachments?nDispoProductionCommentID='+ oComment.DispoProductionCommentID, "_blank");
+    });
+
+    </script>

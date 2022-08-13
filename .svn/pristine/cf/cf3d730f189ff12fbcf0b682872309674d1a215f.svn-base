@@ -1,0 +1,507 @@
+﻿<html>
+
+@model IEnumerable<ESimSol.BusinessObjects.Lot>
+    @{
+        ViewBag.Title = "Aging for Screen Report";
+    }
+</html>
+<div id="progressbarParent" style="width:100%;height:100%;margin:0 auto;text-align:center; margin-left: auto;margin-right: auto;left: 0;right: 0;z-index: 1;">
+    <div style="margin: 0px auto;margin-top: 251px;text-align:center;width:390px;">
+        <label style="font-size:18px;">Please wait</label>
+        <div id="progressbar" style="width:100%;height:37px;"></div>
+    </div>
+</div>
+<div class="easyui-layout menuMainCollectionTable" style="margin-left: 0px; height:100%; width:100%">
+    <div style="width:100%; height:100%">
+        <table id="tblLot" title=" Report List" class="easyui-datagrid" style="width:100%;height:548px" rownumbers="true" pagination="true" singleselect="true" , autorowheight="false" toolbar="#toolbar">
+
+            <thead>
+                <tr>
+                    <th field="ProductCode" width="10%">Code</th>
+                    <th field="ProductName" width="20%">Product Name</th>
+                    <th field="LotNo" width="15%">Lot No</th>
+                    <th field="LastDateSt" width="10%">Last Date of Tr.</th>
+                    <th field="AgingDays" width="8%" align="right">Idle Time(Days)</th>
+                    <th field="Balance" width="10%" align="right" formatter="formatPrice">Balance</th>
+                    <th field="MUName" width="6%">Unit</th>
+                    <th field="WorkingUnitName" width="15%">Store</th>
+                </tr>
+            </thead>
+        </table>
+        <div id="toolbar">
+            <table style="width:100%">
+                <tr>
+                    <td style="width:60%; text-align:left">
+                        <input id="txtWorkingUnit" style="width:25%;" type="text" placeholder="Type Store Name & Press Enter" />
+                        <a id="btnPickWorkingUnit" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        <label>  Idle Time(Days)</label>
+                        <select id="cboAgingDays" style="width:200px;font-size:12px;" />
+                    </td>
+                    <td style="width:30%; text-align:left"></td>
+                </tr>
+                <tr>
+                    <td style="width:60%; text-align:left">
+                        <input id="txtProduct" style="width:25%;" type="text" placeholder="Type Product Name & Press Enter" />
+                        <a id="btnPickProduct" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>
+                        @*<input id="txtLot" style="width:25%;" type="text" placeholder="Type Lot No & Press Enter" />
+                        <a id="btnPickLot" href="javascript:void(0)" class="easyui-linkbutton ics-pick" iconcls="icon-pick" plain="true"></a>*@
+                    </td>
+
+                    <td style="width:30%; text-align:left">
+                        <a id="btnSearch" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-search" plain="true">Search</a>
+                        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" onclick="Print()" plain="true">Preview </a>
+                        
+                    </td>
+
+                </tr>
+            </table>
+        </div>
+    </div>
+    </div>
+
+<script type="text/javascript">
+
+
+    var _sBaseAddress="";
+    var _oLots=[];
+    var _nBUID=0;
+    var _nProductIDs="";
+    var _nWorkingUnitIDs="";
+    $(document).ready(function () {
+        debugger;
+        _sBaseAddress =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(HttpContext.Current.Session[SessionInfo.BaseAddress]));
+        _nBUID = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BUID));
+        RefreshDateSearch();
+        $("#progressbar").progressbar({ value: 0 });
+        $("#progressbarParent").hide();
+    });
+
+    function RefreshDateSearch()
+    {
+        debugger;
+
+        $('#cboAgingDays').empty();
+        var listDates= "<option value='"+0+"'>" +"-Select One-" + "</option>";
+        listDates+= "<option value='"+365+"'>" + "More Than 1 Year" + "</option>";
+        listDates+= "<option value='"+182+"'>" + "More Than 6 Month" + "</option>";
+        listDates+= "<option value='"+120+"'>" + "More Than 120 Days" + "</option>";
+        listDates+= "<option value='"+90+"'>" + "91-120 Days" + "</option>";
+        listDates+= "<option value='"+60+"'>" + "61-90 Days" + "</option>";
+        listDates+= "<option value='"+30+"'>" + "31-60 Days" + "</option>";
+        listDates+= "<option value='"+1+"'>" + "1-30 Days" + "</option>";
+        $("#cboAgingDays").html(listDates);
+
+
+    }
+
+    $("#btnResetProduct").click(function () {
+        _nProductIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickProduct").click(function () {
+        var sProductName=$.trim($("#txtProduct").val());
+        if(sProductName==""){ alert("Type product name to search."); return false; }
+        var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:sProductName};
+        GetProducts(oProduct);
+    });
+
+    $("#txtProduct").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var sProductName=$.trim($("#txtProduct").val());
+            if(sProductName==""){ alert("Type product name to search."); return false; }
+            var oProduct = { BUID:sessionStorage.getItem("BUID"),ProductName:sProductName};
+            GetProducts(oProduct);
+        }
+        else if(nkeyCode==8){
+            _nProductIDs="";
+            $("#txtProduct").val("");
+        }
+    });
+
+    function GetProducts(oProduct){
+        
+      
+       
+      
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oProduct,
+            ControllerName: "Product",
+            ActionName: "SearchByProductBUWise",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].ProductID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "ProductCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "MUnit", title: "Unit", width: 70, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winProductPicker',
+                        winclass:'clsProductPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblProductPicker',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'ProductName',
+                        windowTittle: 'Product List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+
+    }
+    /////WUnit
+    $("#btnResetWorkingUnit").click(function () {
+        _nWorkingUnitIDs=0;
+        $("#txtProduct").val("");
+    });
+
+    $("#btnPickWorkingUnit").click(function () {
+        var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+        GetWorkingUnits(txtWorkingUnit);
+    });
+
+    $("#txtWorkingUnit").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13){
+            var txtWorkingUnit=$.trim($("#txtWorkingUnit").val());
+            if(txtWorkingUnit==""){ alert("Type product name to search."); return false; }
+            GetWorkingUnits(txtWorkingUnit);
+        }
+        else if(nkeyCode==8){
+            _nWorkingUnitIDs=0;
+            $("#txtWorkingUnit").val("");
+        }
+    });
+    ///lot
+    /////Lot
+    $("#btnResetLot").click(function () {
+        _nLotIDs="";
+        $("#txtLot").val("");
+    });
+
+    $("#btnPickLot").click(function () {
+        var txtLot=$.trim($("#txtLot").val());
+        var oLot = {
+            LotNo:txtLot,
+            ParentID:_nInvoiceIDs,
+            WorkingUnitID:_nWorkingUnitIDs,
+            ProductID:_nProductIDs,
+            BUID:_nBUID,
+        };
+        GetLots(oLot);
+    });
+
+    $("#txtLot").keydown(function (e) {
+        var nkeyCode = e.keyCode || e.which;
+        if(nkeyCode==13)
+        {
+            var txtLot=$.trim($("#txtLot").val());
+            var oLot = {
+                LotNo:txtLot,
+                ParentID:_nInvoiceIDs,
+                WorkingUnitID:_nWorkingUnitIDs,
+                ProductID:_nProductIDs,
+                BUID:_nBUID,
+            };
+            GetLots(oLot);
+        }
+        else if(nkeyCode==8){
+            $("#txtLot").val("");
+        }
+    });
+
+    function GetLots(oLot)
+    {
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oLot,
+            ControllerName: "LotTraking",
+            ActionName: "GetsLot",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].LotID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "LotNo", title: "Lot No", width: 100, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "Balance", title: "Balance", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "ProductName", title: "ProductName", width: 150, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 150, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winLotPicker',
+                        winclass:'clsLotPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblLot',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'LotNo',
+                        windowTittle: 'Lot List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+    }
+    function GetWorkingUnits(txtWorkingUnit){
+       
+        var oWorkingUnit = {
+            BUID:_nBUID,
+            ProductName:txtWorkingUnit,
+        };
+        var obj = {
+            BaseAddress: _sBaseAddress,
+            Object: oWorkingUnit,
+            ControllerName: "WorkingUnit",
+            ActionName: "GetsBUWiseWorkingUnit",
+            IsWinClose: false
+        };
+
+        $.icsDataGets(obj, function (response) {
+
+            if (response.status && response.objs.length > 0) {
+                if (response.objs[0].WorkingUnitID > 0) {
+                    debugger;
+                    var tblColums = [];
+                    var oColumn = { field: "WorkingUnitCode", title: "Code", width: 80, align: "left" };tblColums.push(oColumn);
+                    oColumn = { field: "WorkingUnitName", title: "Name", width: 270, align: "left" };tblColums.push(oColumn);
+
+                    var oPickerParam = {
+                        winid: 'winWorkingUnitPicker',
+                        winclass:'clsWorkingUnitPicker',
+                        winwidth: 520,
+                        winheight: 460,
+                        tableid: 'tblWorkingUnit',
+                        tablecolumns: tblColums,
+                        datalist: response.objs,
+                        multiplereturn: false,
+                        searchingbyfieldName:'WorkingUnitName',
+                        windowTittle: 'Store List'
+                    };
+                    $.icsPicker(oPickerParam);
+                    IntializePickerbutton(oPickerParam);//multiplereturn, winclassName
+                }
+                else { alert(response.objs[0].ErrorMessage); }
+            }
+            else{
+                alert("No product found.");
+            }
+        });
+
+    }
+    function IntializePickerbutton(oPickerobj) {
+        $("#" + oPickerobj.winid).find("#btnOk").click(function () {
+            SetPickerValueAssign(oPickerobj);
+        });
+        $(document).find('.' + oPickerobj.winclass).keydown(function (e) {
+            if (e.which === 13) {
+                SetPickerValueAssign(oPickerobj);
+            }
+        });
+    }
+
+    function SetPickerValueAssign(oPickerobj) {
+        var oreturnObj = null, oreturnObjs = [];
+        if (oPickerobj.multiplereturn) {
+            oreturnObjs = $('#' + oPickerobj.tableid).datagrid('getChecked');
+        } else {
+            oreturnObj = $('#' + oPickerobj.tableid).datagrid('getSelected');
+        }
+
+        if (oPickerobj.winid == 'winWorkingUnitPicker')
+        {
+            if(oreturnObj.WorkingUnitID>0)
+            {
+                $('#txtWorkingUnit').val(oreturnObj.WorkingUnitName);
+                $("#txtWorkingUnit").addClass("fontColorOfPickItem");
+                _nWorkingUnitIDs=oreturnObj.WorkingUnitID;
+            }
+            else
+            {
+                alert("Please select a Store.");
+                return ;
+            }
+        }
+        else if (oPickerobj.winid == 'winLotPicker')
+        {
+           
+            if(oreturnObj.LotID>0)
+            {
+                $('#txtLot').val(oreturnObj.LotNo);
+                $("#txtLot").addClass("fontColorOfPickItem");
+                _nLotIDs=oreturnObj.LotID;
+            }
+            else
+            {
+                alert("Please select a Product.");
+                return false;
+            }
+
+        }
+        else if (oPickerobj.winid == 'winProductPicker')
+        {
+          
+            if(oreturnObj.ProductID>0)
+            {
+                $('#txtProduct').val(oreturnObj.ProductName);
+                $("#txtProduct").addClass("fontColorOfPickItem");
+                _nProductIDs=oreturnObj.ProductID;
+            }
+            else
+            {
+                alert("Please select a Product.");
+                return false;
+            }
+
+        }
+       
+        $("#" + oPickerobj.winid).icsWindow("close");
+        $("#" + oPickerobj.winid).remove();
+    }
+
+
+    $("#btnSearch").click(function () {
+        debugger;
+        if(_nWorkingUnitIDs=="" || _nWorkingUnitIDs==null)
+        {
+            alert("Please selectStore!"); $('#txtWorkingUnit').focus();
+            $("#txtWorkingUnit").addClass("errorFieldBorder");
+        }
+        var nAgingDays = parseInt($("#cboAgingDays").val());
+        var sParams = _nProductIDs + "~" +
+                      _nWorkingUnitIDs + "~" +
+                      "" + "~" +
+                      nAgingDays + "~" +
+                      _nBUID ;
+        //sessionStorage.setItem("ParamsSO", sParams);
+        var oLot = {
+            ErrorMessage : sParams
+        };
+        Search(oLot);
+    });
+    function Search(oLot)
+    {
+        
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: _sBaseAddress + "/Lot/Gets_AgingLot",
+            traditional: true,
+            data: JSON.stringify(oLot),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var oLots = data;
+                debugger;
+                if (oLots != null) {
+                   
+                    if (oLots.length > 0)
+                    {
+                        DynamicRefreshList(oLots, "tblLot");
+                    }
+                    else
+                    {
+                        alert("Sorry, No data found.");
+                        DynamicRefreshList([], "tblLot");
+                    }
+
+                } else {
+                    alert("Sorry, No data found.");
+                    DynamicRefreshList([], "tblLot");
+                }
+                //$(".lblLoadingMessage").hide();
+            }
+        });
+    }
+
+ 
+
+
+
+    function formatPrice(val,row){
+        //debugger;
+
+        if(val==null)
+        {
+            val=0.00;
+        }
+        val=parseFloat(val);
+        var test = val.toFixed(2);
+        var tests = addComma(test);
+        return tests;
+    }
+
+
+    function addComma(nStr)
+    {
+        nStr += '';
+        x = nStr.split('.');
+        x1 = x[0];
+        x2 = x.length > 1 ? '.' + x[1] : '';
+        var process = /(\d+)(\d{3})/;
+        while (process.test(x1)) {
+            x1 = x1.replace(process, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    }
+
+
+
+    $("#btnPrint").click(function(){
+       
+        debugger;
+        var nAgingDays = parseInt($("#cboAgingDays").val());
+        var sParams = _nProductIDs + "~" +
+                      _nWorkingUnitIDs + "~" +
+                      "" + "~" +
+                      nAgingDays + "~" +
+                      _nBUID ;
+        window.open(_sBaseAddress+'/Lot/PrintAgingLots?sTempString='+sParams, "_blank")
+    });
+  
+
+    function PrintExcel()
+    {
+        var nAgingDays = parseInt($("#cboAgingDays").val());
+        var sParams = _nProductIDs + "~" +
+                      _nWorkingUnitIDs + "~" +
+                      "" + "~" +
+                      nAgingDays + "~" +
+                      _nBUID ;
+        window.open(_sBaseAddress+'/Lot/PrintAgingLots?sTempString='+sParams, "_blank")
+
+       
+    }
+
+    /////////View Salescontract/PI
+
+
+</script>

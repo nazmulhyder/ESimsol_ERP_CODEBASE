@@ -1,0 +1,271 @@
+﻿@{
+    ViewBag.Title = "Voucher Bill Management";
+}
+@model ESimSol.BusinessObjects.VoucherBill
+
+    <div id="divVoucherBills" style="margin-left: 0px; height: 100%; width:100%">
+        <table id="tblVoucherBills" title="Voucher Bill List" class="easyui-datagrid" style="width:100%; height:96.5%;" fit="false" fitcolumns="true" rownumbers="true" pagination="false" singleselect="true" autorowheight="false" toolbar="#toolbar">
+            <thead>
+                <tr>
+                    <th field="SubLedgerCode" width="18%">SubLedger</th>
+                    <th field="SubLedgerName" width="40%" formatter="FormatStyle">SubLedger</th>
+                    <th field="AmountInMillionFormat" width="20%" align="right">Amount</th>
+                    <th field="RemainningBalanceInMillionFormat" width="20%" align="right">Remainning Balance</th>
+                </tr>
+            </thead>
+        </table>
+    <div id="toolbar">
+        <select id="cboBusinessUnit" style="width:150px;"></select>
+        <select id="cboDueType" style="width:100px;"><option value="1">AllBill</option><option value="2">OverDueBill</option></select>
+        Account Head :<input type="text" id="txtAccountHeadName" placeholder="Type Account Head Name" style="width:180px;margin-left: 5px;" />
+        Sub Ledger :<input type="text" style=" width:180px;" id="txtCostCneterName" placeholder="Type Sub Ledger Name" />
+        <select id="cboCurrency" style="width:90px;"></select>        
+        <input id="txtBillDate" type="text" style="width: 110px;" class="easyui-datebox" required="required" data-options="formatter:icsdateformat,parser:icsdateparser" />
+        <a id="btnRefresh" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-reload" plain="true">Refresh</a>        
+        <a id="btnPrint" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Print</a>
+        <a id="btnPrintXL" href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-print" plain="true">Export To XL</a>
+    </div>
+        <div style="height:10px;width:100%;">
+            <table style="height:100%;width:100%;">
+                <tr>
+                    <td style="width:26px;"></td>
+                    <td style="width:57%;"></td>
+                    <td style="width:20%;text-align:right;">
+                        <label id="lblVBAmount" style="font-weight:bold;">0.00</label>
+                    </td>
+                    <td style="width:20%;text-align:right;">
+                        <label id="lblVBRemaining" style="font-weight:bold;">0.00</label>
+                    </td>
+                    <td style="width:38px;"></td>
+                </tr>
+            </table>
+        </div>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+
+        var oVoucherBill =@Html.Raw( new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+        var oCurrencies =@Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.Currencies));
+        var oCOA= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.COA));
+        var oCC= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.CC));
+        var oBusinessUnits = @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(ViewBag.BusinessUnits));
+
+        $('#divVoucherBills').data('obj',oVoucherBill);
+        $("#cboCurrency").data('objs',oCurrencies);
+        $("#txtAccountHeadName").data('obj',oCOA);
+        $("#txtCostCneterName").data('obj',oCC);
+        $("#cboBusinessUnit").data('BusinessUnits',oBusinessUnits);
+        $("#cboCurrency").icsLoadCombo({List: oCurrencies, OptionValue: "CurrencyID", DisplayText: "CurrencyName", InitialValue : "--Currency--"});
+        $("#cboBusinessUnit").icsLoadCombo({List: oBusinessUnits, OptionValue: "BusinessUnitID", DisplayText: "Name", InitialValue : "--Business Unit--"});
+
+        /////////refresh control
+        $('#cboBusinessUnit').val(oVoucherBill.BUID);
+        $("#txtAccountHeadName").val(oCOA.AccountHeadName);
+        $("#txtCostCneterName").val(oCC.Name);
+        $('#cboCurrency').val(oVoucherBill.CurrencyID);
+        $('#cboDueType').val(oVoucherBill.DueTypeInt);
+        $('#txtBillDate').datebox('setValue', oVoucherBill.BillDateInString);
+        //////////end refresh control
+
+        DynamicRefreshList(oVoucherBill.VoucherBills,'tblVoucherBills');
+        RefreshTotalSummary(oVoucherBill.VoucherBills);
+
+        $('#Mainlayout').layout('collapse', 'west');
+
+        $('#txtAccountHeadName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ChartsOfAccount",
+            ActionName: "GetsAccountsHead",
+            Object: {AccountHeadName:''},
+            PropertyName: "AccountHeadName",
+            ParamName: "AccountHeadName",
+            Columns:[{field:'AccountHeadName',width:'70%'},{field:'ParentHeadName',width:'40%'}]
+        });
+        $('#txtCostCneterName').icsAutoComplete({
+            BaseAddress : sessionStorage.getItem('BaseAddress'),
+            ControllerName: "ACCostCenter",
+            ActionName: "GetsByCodeOrName",
+            Object: {NameCode:''},
+            PropertyName: "Name",
+            ParamName: "NameCode",
+            Columns:[{field:'Name',width:'70%'},{field:'CategoryName',width:'30%'}]});
+    });
+    function FormatStyle(value,row,index){
+
+        var s='';
+        var param=row.AccountHeadID+","+row.SubLedgerID+","+row.BUID;
+        if(value!=''){
+            s = '<label id="lblOpening'+index+'" style="color:blue;text-decoration:underline;cursor:pointer" onclick="BillMgt('+param+')">'+value+'</label>';
+        }
+        else{
+            s=value;
+        }
+        return s;
+    }
+
+    function BillMgt(nAccountHeadID, nSubLedgerID, nBUID)
+    {   
+        var obj={
+            AccountHeadID : nAccountHeadID,
+            SubLedgerID : nSubLedgerID,
+            BUID : nBUID,
+            CurrencyID :parseInt($('#cboCurrency').val()),
+            DueTypeInt :parseInt($('#cboDueType').val()),
+            BillDate : $('#txtBillDate').datebox('getValue')
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/BillOutStanding/SetVBMSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/BillOutStanding/ViewVoucherBillManagement?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+
+
+        var oVoucherRefReport = {
+            AccountHeadID : nParentHeadID,
+            CCID:nCCID,
+            VoucherBillID:nVoucherBillID,
+            IsForCurrentDate:true,
+            CurrencyID : parseInt($('#cboCurrency').val()),
+            IsApproved:$('#chkboxApproved').is(':checked')
+        };
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/FinancialStatement/SetVRRSessionData",
+            traditional: true,
+            data:  JSON.stringify(oVoucherRefReport),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/FinancialStatement/ViewBillLedger?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+
+
+    }
+
+    function RefreshTotalSummary(objs){
+
+        var sParamDebit='',sParamCredit='',sLabelDebit='',sLabelCredit='',sLabelOpening='',sLabelClosing='',sParamOpening='',sParamClosing='',nDebit=0,nCredit=0,nOpenig=0,nClosing=0;
+
+        sParamDebit='Amount';
+        sParamCredit='RemainningBalance';
+        sLabelDebit='lblVBAmount';
+        sLabelCredit='lblVBRemaining';
+
+        for(var i=0;i<objs.length;i++){
+            nDebit=nDebit+parseFloat((objs[i][sParamDebit]).toFixed(2));
+            nCredit=nCredit+parseFloat((objs[i][sParamCredit]).toFixed(2));
+        }
+        nDebit=nDebit<0?'('+formatPrice((nDebit*(-1)).toFixed(2))+')':nDebit===0.00?'-':formatPrice(nDebit.toFixed(2));
+        nCredit=nCredit<0?'('+formatPrice((nCredit*(-1)).toFixed(2))+')':nCredit===0.00?'-':formatPrice(nCredit.toFixed(2));
+        $('#'+sLabelDebit).html(nDebit);
+        $('#'+sLabelCredit).html(nCredit);
+    }
+
+    $('#btnRefresh').click(function(){
+        if(!ValidateInput()){return false;}
+
+
+        var nAccountHeadID,nBUID,nCCID=0;
+        var sHeaderText,sControllerName,sActionName,sStartDate,sEndDate='';
+        var obj={};
+
+
+        nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+
+        obj={
+            AccountHeadID:nAccountHeadID,
+            SubLedgerID:nCCID,
+            BUID :parseInt($('#cboBusinessUnit').val()),
+            CurrencyID :parseInt($('#cboCurrency').val()),
+            DueTypeInt :parseInt($('#cboDueType').val()),
+            BillDate : $('#txtBillDate').datebox('getValue')
+        };
+
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url : sessionStorage.getItem("BaseAddress")+  "/BillOutStanding/SetVBMSessionData",
+            traditional: true,
+            data:  JSON.stringify(obj),
+            contentType: "application/json; charset=utf-8",
+            success: function (data) {
+                var sFeedBackMessage = jQuery.parseJSON(data);
+                if (sFeedBackMessage==="Successful") {
+                    window.location.href = sessionStorage.getItem("BaseAddress")+ "/BillOutStanding/ViewSubLedgerWiseBillMgt?menuid="+parseInt(sessionStorage.getItem('MenuID'));
+                }
+            },
+            error: function (xhr, status, error) {
+                alert(error);
+            }
+        });
+    });
+
+    function ValidateInput()
+    {
+        if ((!$('#txtAccountHeadName').data('obj') || $('#txtAccountHeadName').data('obj') == null) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }else if ((!parseInt($('#txtAccountHeadName').data('obj').AccountHeadID) || parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)<=0) ) {
+            alert("Please select Account Head!");
+            $('#txtCostCneterName').focus();
+            return false;
+        }
+
+        var sBillDate = $('#txtBillDate').datebox('getValue');
+        if(sBillDate===null || sBillDate==='')
+        {
+            alert("Please select Bill Date!");
+            return false;
+        }
+        return true;
+    }
+
+    $("#btnPrintXL").click(function(){
+        if(!ValidateInput()){return false;}        
+        var nDueType = parseInt($('#cboDueType').val());
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        var nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+        var sBillDate = $('#txtBillDate').datebox('getValue');
+        var nBusinessUnit = parseInt($('#cboBusinessUnit').val());
+        var sParams=nDueType+'~'+nAccountHeadID+'~'+nCCID+'~'+sBillDate+'~'+nBusinessUnit;
+
+        window.open(sessionStorage.getItem("BaseAddress")+'/BillOutStanding/ExportSLBMgtToExcel?Params=' +sParams, "_blank");
+    });
+
+    $("#btnPrint").click(function(){
+        if(!ValidateInput()){return false;}
+        var nDueType =parseInt($('#cboDueType').val());
+        var nAccountHeadID=parseInt($('#txtAccountHeadName').data('obj').AccountHeadID)?parseInt($('#txtAccountHeadName').data('obj').AccountHeadID):0;
+        var nCCID=parseInt($('#txtCostCneterName').data('obj').ACCostCenterID)?parseInt($('#txtCostCneterName').data('obj').ACCostCenterID):0;
+        var sBillDate = $('#txtBillDate').datebox('getValue');
+        var nBusinessUnit = parseInt($('#cboBusinessUnit').val());
+        var sParams=nDueType+'~'+nAccountHeadID+'~'+nCCID+'~'+sBillDate+'~'+nBusinessUnit;
+
+        window.open(sessionStorage.getItem("BaseAddress")+'/BillOutStanding/PrintSubLedgerWiseBillMgt?Params=' +sParams, "_blank");
+    });
+</script>
